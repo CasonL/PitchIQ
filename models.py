@@ -14,6 +14,7 @@ db = SQLAlchemy()
 
 class User(db.Model, UserMixin):
     """User model for authentication and profile data."""
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -33,6 +34,10 @@ class User(db.Model, UserMixin):
     
     # Google Auth
     google_id = db.Column(db.String(100), unique=True, nullable=True)
+    
+    # Password reset fields
+    reset_token = db.Column(db.String(100), nullable=True)
+    reset_token_expires = db.Column(db.DateTime, nullable=True)
     
     # Relationships
     conversations = db.relationship('Conversation', backref='user', lazy=True, cascade="all, delete-orphan")

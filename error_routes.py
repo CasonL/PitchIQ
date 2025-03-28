@@ -4,7 +4,7 @@ Error handling routes for Sales Training AI application.
 This module provides custom error pages and handling for various HTTP errors.
 """
 
-from flask import Blueprint, render_template, request, g
+from flask import Blueprint, render_template, request, jsonify, g
 
 # Create blueprint for error pages
 errors = Blueprint('errors', __name__)
@@ -17,6 +17,8 @@ def page_not_found(e):
 @errors.app_errorhandler(500)
 def internal_server_error(e):
     """500 Internal Server Error handler."""
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({"error": "An internal server error occurred"}), 500
     return render_template('errors/500.html'), 500
 
 @errors.app_errorhandler(403)

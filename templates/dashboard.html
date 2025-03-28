@@ -42,8 +42,8 @@
                 <p class="section-description">Track your progress across key sales competencies</p>
                 
                 <div class="skills-grid">
-                    {% if user.sales_skills %}
-                        {% for skill_name, skill_value in user.sales_skills.items() %}
+                    {% if user.sales_dict %}
+                    {% for skill_name, skill_value in user.skills_dict.items() %}
                             <div class="skill-card">
                                 <div class="skill-icon">
                                     {% if skill_name == 'rapport_building' %}
@@ -66,9 +66,7 @@
                                     
                                     <div class="skill-progress-wrapper">
                                         <div class="skill-progress">
-                                            <div class="skill-progress-bar" style="width: {{ skill_value }}%;"></div>
-                                        </div>
-                                        <div class="skill-value">{{ skill_value }}%</div>
+                                            <div class="skill-progress-bar" style="width: {{ skill_value|int ~ '%' }}"></div>                                        <div class="skill-value">{{ skill_value }}%</div>
                                     </div>
                                 </div>
                             </div>
@@ -91,7 +89,7 @@
                 
                 <div class="conversations-grid">
                     {% if conversations %}
-                        {% for conversation in conversations[:4] %}
+                        {% for conversation in conversations %}
                             <a href="{{ url_for('chat.chat_page') }}?conversation={{ conversation.id }}" class="conversation-card">
                                 <div class="conversation-icon">
                                     <i class="fas fa-comments"></i>

@@ -16,7 +16,13 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("ConfigManager")
+# In config_manager.py
+APP_ENV = os.getenv('APP_ENV', 'development')
+BASE_URL = os.getenv('BASE_URL', 'http://localhost:5000' if APP_ENV == 'development' else 'https://yourdomain.com')
 
+# Add these to your configuration
+self._config['APP_ENV'] = APP_ENV
+self._config['BASE_URL'] = BASE_URL
 class ConfigManager:
     """Secure configuration manager that handles environment variables and sensitive credentials."""
     
@@ -72,6 +78,13 @@ class ConfigManager:
             'RATE_LIMIT': int(os.getenv('RATE_LIMIT', '10')),  # Max requests per window
             'MAX_LOGIN_ATTEMPTS': int(os.getenv('MAX_LOGIN_ATTEMPTS', '5')),
             'LOCKOUT_TIME': int(os.getenv('LOCKOUT_TIME', '300')),  # Seconds
+
+            #email settings
+            'SMTP_SERVER': os.getenv('SMTP_SERVER', 'smtp.gmail.com'),
+            'SMTP_PORT': int(os.getenv('SMTP_PORT', '587')),
+            'SMTP_USERNAME': os.getenv('SMTP_USERNAME', ''),
+            'SMTP_PASSWORD': os.getenv('SMTP_PASSWORD', ''),
+            'FROM_EMAIL': os.getenv('FROM_EMAIL', ''),
         }
         
         # Check for required API keys
@@ -79,11 +92,15 @@ class ConfigManager:
     
     def _validate_required_keys(self) -> None:
         """Validate that required API keys are present."""
-        required_keys = ['ANTHROPIC_API_KEY', 'FLASK_SECRET_KEY']
-        missing_keys = [key for key in required_keys if not self._config.get(key)]
-        
-        if missing_keys:
-            logger.warning(f"Missing required configuration keys: {', '.join(missing_keys)}")
+    required_keys = ['ANTHROPIC_API_KEY', 'FLASK_SECRET_KEY']
+    missing_keys = [key for key in required_keys if not self._config.get(key)]
+    
+    if missing_keys:
+        logger.error(f"Missing required configuration keys: {', '.join(missing_keys)}")
+        if self.is_production():
+            raise ValueError(f"Cannot start application: Missing required keys: {', '.join(missing_keys)}")
+        else:
+            logger.warning("Running in development mode with missing keys")
     
     def get(self, key: str, default: Any = None) -> Any:
         """

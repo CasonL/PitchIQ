@@ -63,8 +63,7 @@
             <!-- Messages will be added here dynamically -->
             
             <!-- Empty state for new conversations -->
-            <div id="emptyState" class="empty-state {% if conversation.messages.count() == 0 %}active{% endif %}">
-                <div class="empty-state-icon">
+            <div id="emptyState" class="empty-state {% if conversation.messages|length == 0 %}active{% endif %}">                <div class="empty-state-icon">
                     <i class="fas fa-comments"></i>
                 </div>
                 <h3>Start a New Roleplay</h3>

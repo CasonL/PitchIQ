@@ -7,6 +7,7 @@ for the Sales Training AI application.
 import logging
 import time
 import os
+import traceback
 from typing import List, Dict, Any, Optional
 import anthropic
 
@@ -14,7 +15,7 @@ import anthropic
 logger = logging.getLogger(__name__)
 
 # Constants
-MODEL_NAME = "claude-3-7-sonnet-20240219"  # Using Claude 3.7 Sonnet Extended
+MODEL_NAME = "claude-3-7-sonnet-20250219"  # Using Claude 3.7 Sonnet Extended
 MAX_TOKENS = 4000
 DEFAULT_TEMPERATURE = 0.7
 
@@ -40,10 +41,14 @@ class ClaudeService:
         if not self.api_key:
             raise ValueError("Anthropic API key is required")
         
-        # Initialize the Anthropic client
-        self.client = anthropic.Anthropic(api_key=self.api_key)
-        self._initialized = True
-        logger.info("Claude API service initialized")
+        try:
+            # Initialize the Anthropic client
+            self.client = anthropic.Anthropic(api_key=self.api_key)
+            self._initialized = True
+            logger.info("Claude API service initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize Claude API service: {str(e)}")
+            raise
     
     def generate_response(
         self, 
@@ -200,9 +205,12 @@ Guidelines:
         # Send the request to Claude
         return self.generate_response(conversation_history, system_prompt)
     
-    def generate_feedback(self, conversation_history: List[Dict[str, str]]) -> str:
+    def generate_feedback(
+        self, 
+        conversation_history: List[Dict[str, str]]
+    ) -> str:
         """
-        Generate feedback on a sales conversation.
+        Generate comprehensive feedback on a sales conversation.
         
         Args:
             conversation_history: List of message dictionaries with 'role' and 'content'
@@ -210,23 +218,128 @@ Guidelines:
         Returns:
             Structured feedback on the sales conversation
         """
-        system_prompt = """Analyze this sales roleplay conversation between a salesperson (user) and a customer (assistant).
-Provide detailed, constructive feedback with these clearly labeled sections:
+        import traceback
+        
+        # Extensive logging for debugging
+        print("DEBUG: Generating feedback")
+        print(f"Total conversation history: {len(conversation_history)} messages")
+        
+        # Detailed message logging
+        for i, msg in enumerate(conversation_history):
+            print(f"Message {i+1}:")
+            print(f"  Role: {msg.get('role', 'UNKNOWN')}")
+            print(f"  Content Length: {len(msg.get('content', ''))}")
+            print(f"  Content Preview: {msg.get('content', '')[:200]}...")
+        
+        # Validate input
+        if not conversation_history:
+            print("DEBUG: No conversation history provided")
+            return """### FEEDBACK ERROR
+No conversation history found. Please complete a conversation before requesting feedback."""
 
-### Strengths
-Highlight what the salesperson did well, with specific examples from the conversation.
+        # Filter out empty or invalid messages
+        filtered_history = [
+            msg for msg in conversation_history 
+            if msg.get('role') and msg.get('content', '').strip()
+        ]
 
-### Areas for Improvement
-Identify specific opportunities the salesperson missed or things they could have handled better.
+        # Logging filtered history
+        print(f"Filtered messages: {len(filtered_history)}")
+        for i, msg in enumerate(filtered_history):
+            print(f"Filtered Message {i+1}:")
+            print(f"  Role: {msg.get('role')}")
+            print(f"  Content Length: {len(msg.get('content', ''))}")
+        
+        if len(filtered_history) < 4:
+            print("DEBUG: Insufficient meaningful messages")
+            return """### FEEDBACK ERROR
+Unable to generate feedback. Please ensure you have completed a meaningful conversation with at least 4 substantive messages."""
+
+        # Detailed system prompt with more specific instructions
+        system_prompt = """You are an expert sales performance coach analyzing a sales roleplay conversation.
+
+CRITICAL INSTRUCTIONS:
+1. You MUST generate substantive feedback, even with limited conversation context
+2. If the conversation seems brief, provide guidance on what would make a more effective sales interaction
+
+MANDATORY SECTIONS:
+### Overall Assessment
+- Briefly describe the context of the conversation
+- Provide a general evaluation of the sales interaction
+
+### Key Observations
+- List at least 3 specific observations about the conversation
+- Include both positive aspects and areas for improvement
 
 ### Actionable Recommendations
-Provide 3-5 concrete techniques, phrases, or approaches the salesperson could implement in future conversations.
+- Provide 3-5 concrete suggestions for enhancing sales approach
+- Ensure recommendations are specific and practical
 
-Be specific, balanced, and focus on practical advice that will help them improve their sales skills.
+IMPORTANT:
+- Your response MUST be at least 300 characters long
+- Focus on constructive, helpful feedback
+- Use a professional and supportive tone
+
+If you cannot generate comprehensive feedback, explain the specific challenges preventing a thorough analysis.
 """
         
-        # Send the request to Claude with lower temperature for more consistent feedback
-        return self.generate_response(conversation_history, system_prompt, temperature=0.3)
+        try:
+            # Prepare messages for API call
+            print("DEBUG: Preparing messages for API call")
+            max_chars_per_message = 1000  # Limit message length
+            truncated_history = [
+                {
+                    'role': msg['role'], 
+                    'content': msg['content'][:max_chars_per_message]
+                } for msg in filtered_history
+            ]
+            
+            print(f"DEBUG: Truncated messages: {len(truncated_history)}")
+            
+            # Send the request to Claude with adjusted parameters
+            print("DEBUG: Sending request to Claude API")
+            feedback = self.generate_response(
+                truncated_history, 
+                system_prompt, 
+                temperature=0.5,  # Slightly higher to encourage more creative analysis
+                max_tokens=1000   # Increase max tokens to allow more detailed feedback
+            )
+            
+            # Comprehensive logging of generated feedback
+            print("DEBUG: Generated Feedback")
+            print(f"Feedback Length: {len(feedback)}")
+            print("Feedback Preview:")
+            print(feedback)
+            
+            # Validate feedback
+            if not feedback or len(feedback.strip()) < 50:
+                print("DEBUG: Generated feedback is too short")
+                return """### FEEDBACK ERROR
+Unable to generate a meaningful feedback report. 
+Possible reasons:
+- Conversation may be too brief
+- System encountered an unexpected issue
+
+Please try again or contact support."""
+            
+            return feedback
+        
+        except Exception as e:
+            # Comprehensive error logging
+            print("DEBUG: Error in generate_feedback")
+            print(f"Error details: {str(e)}")
+            traceback.print_exc()
+            
+            return f"""### FEEDBACK ERROR
+An unexpected error occurred while generating feedback. 
+Error details: {str(e)}
+
+Possible reasons:
+- Conversation complexity
+- Temporary system limitations
+- Unexpected message format
+
+Please try again or contact support if the issue persists."""
 
 # Create a singleton instance for import and use elsewhere
 claude_service = ClaudeService()

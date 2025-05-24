@@ -1,0 +1,436 @@
+{% extends "base.html" %}
+
+{% block title %}Session Details - AI Sales Trainer{% endblock %}
+
+{% block extra_css %}
+<style>
+    .session-details {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: var(--spacing-lg);
+    }
+    
+    .session-header {
+        background-color: var(--surface-color);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-xl);
+        margin-bottom: var(--spacing-xl);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: var(--spacing-xl);
+    }
+    
+    .header-info {
+        flex-grow: 1;
+    }
+    
+    .header-title {
+        font-size: var(--font-size-2xl);
+        color: var(--text-color);
+        margin-bottom: var(--spacing-sm);
+    }
+    
+    .header-meta {
+        display: flex;
+        gap: var(--spacing-lg);
+        color: var(--text-color-light);
+        font-size: var(--font-size-sm);
+    }
+    
+    .header-meta-item {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+    }
+    
+    .header-meta-item i {
+        color: var(--primary-color);
+    }
+    
+    .header-actions {
+        display: flex;
+        gap: var(--spacing-md);
+    }
+    
+    .action-btn {
+        padding: var(--spacing-sm) var(--spacing-lg);
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-sm);
+        cursor: pointer;
+        transition: all var(--transition-base);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+    }
+    
+    .action-btn.primary {
+        background-color: var(--primary-color);
+        color: white;
+    }
+    
+    .action-btn.primary:hover {
+        background-color: var(--primary-color-dark);
+    }
+    
+    .action-btn.secondary {
+        background-color: var(--background-color);
+        color: var(--text-color);
+    }
+    
+    .action-btn.secondary:hover {
+        background-color: var(--border-color-light);
+    }
+    
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+    }
+    
+    .metric-card {
+        background-color: var(--surface-color);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-lg);
+        text-align: center;
+        box-shadow: var(--shadow-md);
+    }
+    
+    .metric-value {
+        font-size: var(--font-size-3xl);
+        font-weight: 600;
+        color: var(--secondary-color);
+        margin-bottom: var(--spacing-xs);
+    }
+    
+    .metric-label {
+        font-size: var(--font-size-sm);
+        color: var(--text-color-light);
+    }
+    
+    .feedback-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: var(--spacing-xl);
+    }
+    
+    .feedback-section {
+        background-color: var(--surface-color);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-xl);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .section-title {
+        font-size: var(--font-size-xl);
+        color: var(--primary-color);
+        margin-bottom: var(--spacing-lg);
+        padding-bottom: var(--spacing-sm);
+        border-bottom: 2px solid var(--border-color);
+    }
+    
+    .strength-item {
+        background-color: var(--background-color);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-md);
+        margin-bottom: var(--spacing-md);
+        border-left: 4px solid var(--success-color);
+    }
+    
+    .improvement-item {
+        background-color: var(--background-color);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-md);
+        margin-bottom: var(--spacing-md);
+        border-left: 4px solid var(--warning-color);
+    }
+    
+    .skill-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--spacing-md);
+        background-color: var(--background-color);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--spacing-sm);
+    }
+    
+    .skill-name {
+        font-weight: 500;
+    }
+    
+    .skill-rating {
+        display: flex;
+        gap: var(--spacing-xs);
+    }
+    
+    .rating-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: var(--radius-full);
+        background-color: var(--border-color);
+    }
+    
+    .rating-dot.active {
+        background-color: var(--secondary-color);
+    }
+    
+    .action-item {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+        padding: var(--spacing-md);
+        background-color: var(--background-color);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--spacing-sm);
+        cursor: pointer;
+        transition: all var(--transition-base);
+    }
+    
+    .action-item:hover {
+        background-color: var(--border-color-light);
+    }
+    
+    .action-checkbox {
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all var(--transition-base);
+    }
+    
+    .action-item.completed .action-checkbox {
+        background-color: var(--success-color);
+        border-color: var(--success-color);
+    }
+    
+    .action-item.completed .action-checkbox::after {
+        content: '✓';
+        color: white;
+        font-size: var(--font-size-sm);
+    }
+    
+    .action-text {
+        flex-grow: 1;
+        font-size: var(--font-size-sm);
+    }
+    
+    .action-item.completed .action-text {
+        text-decoration: line-through;
+        color: var(--text-color-light);
+    }
+    
+    .timeline {
+        position: relative;
+        padding-left: var(--spacing-xl);
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-color: var(--border-color);
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-bottom: var(--spacing-lg);
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: calc(-1 * var(--spacing-xl) - 4px);
+        top: 0;
+        width: 10px;
+        height: 10px;
+        border-radius: var(--radius-full);
+        background-color: var(--secondary-color);
+    }
+    
+    .timeline-time {
+        font-size: var(--font-size-xs);
+        color: var(--text-color-light);
+        margin-bottom: var(--spacing-xs);
+    }
+    
+    .timeline-content {
+        background-color: var(--background-color);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-md);
+    }
+    
+    .timeline-title {
+        font-weight: 500;
+        margin-bottom: var(--spacing-xs);
+    }
+    
+    .timeline-description {
+        font-size: var(--font-size-sm);
+        color: var(--text-color-light);
+    }
+    
+    @media (max-width: 768px) {
+        .session-details {
+            padding: var(--spacing-md);
+        }
+        
+        .header-content {
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+        
+        .header-actions {
+            width: 100%;
+            justify-content: flex-end;
+        }
+        
+        .metrics-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .feedback-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="session-details">
+    <!-- Session Header -->
+    <div class="session-header">
+        <div class="header-content">
+            <div class="header-info">
+                <h1 class="header-title">Training Session with {{ session.buyer_persona.name if session.buyer_persona else "AI Buyer" }}</h1>
+                <div class="header-meta">
+                    <div class="header-meta-item">
+                        <i class="fas fa-calendar"></i>
+                        {{ session.start_time|datetime }}
+                    </div>
+                    <div class="header-meta-item">
+                        <i class="fas fa-clock"></i>
+                        {{ session.duration }} minutes
+                    </div>
+                    <div class="header-meta-item">
+                        <i class="fas fa-user"></i>
+                        {{ session.buyer_persona.buyer_type }}
+                    </div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="action-btn secondary" onclick="window.history.back()">
+                    <i class="fas fa-arrow-left"></i>
+                    Back
+                </button>
+                <button class="action-btn primary" onclick="startNewSession()">
+                    <i class="fas fa-plus"></i>
+                    New Session
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Performance Metrics -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-value">{{ "%.1f"|format(session.trust_score) }}</div>
+            <div class="metric-label">Trust Score</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{{ "%.1f"|format(session.persuasion_rating) }}</div>
+            <div class="metric-label">Persuasion Rating</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{{ "%.1f"|format(session.confidence_score) }}</div>
+            <div class="metric-label">Confidence Score</div>
+        </div>
+    </div>
+    
+    <!-- Feedback Grid -->
+    <div class="feedback-grid">
+        <!-- Main Feedback -->
+        <div class="feedback-section">
+            <h2 class="section-title">Overall Assessment</h2>
+            <p>{{ session.feedback_analysis.overall_assessment }}</p>
+            
+            <h2 class="section-title">Strengths</h2>
+            {% for strength in session.feedback_analysis.strengths %}
+                <div class="strength-item">
+                    <h3>{{ strength.title }}</h3>
+                    <p>{{ strength.description }}</p>
+                </div>
+            {% endfor %}
+            
+            <h2 class="section-title">Areas for Improvement</h2>
+            {% for improvement in session.feedback_analysis.improvements %}
+                <div class="improvement-item">
+                    <h3>{{ improvement.title }}</h3>
+                    <p>{{ improvement.description }}</p>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="feedback-section">
+            <h2 class="section-title">Skill Assessment</h2>
+            {% for skill, rating in session.feedback_analysis.skill_assessment.items() %}
+                <div class="skill-item">
+                    <div class="skill-name">{{ skill }}</div>
+                    <div class="skill-rating">
+                        {% for i in range(5) %}
+                            <div class="rating-dot {% if i < rating %}active{% endif %}"></div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+            
+            <h2 class="section-title">Action Items</h2>
+            {% for action in session.feedback_analysis.action_items %}
+                <div class="action-item" onclick="toggleAction(this)">
+                    <div class="action-checkbox"></div>
+                    <div class="action-text">{{ action }}</div>
+                </div>
+            {% endfor %}
+            
+            <h2 class="section-title">Conversation Timeline</h2>
+            <div class="timeline">
+                {% for moment in session.key_moments_list %}
+                    <div class="timeline-item">
+                        <div class="timeline-time">{{ moment.timestamp|datetime }}</div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">{{ moment.type|title }}</div>
+                            <div class="timeline-description">{{ moment.description }}</div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleAction(element) {
+        element.classList.toggle('completed');
+        // Here you would typically also update the server
+    }
+    
+    function startNewSession() {
+        window.location.href = '/training/roleplay/new';
+    }
+</script>
+{% endblock %} 

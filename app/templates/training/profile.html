@@ -1,0 +1,543 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile | PitchIQ{% endblock %}
+
+{% block styles %}
+<style>
+  .profile-container {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background-color: var(--surface-color, #ffffff);
+    border-radius: var(--radius-lg, 12px);
+    box-shadow: var(--shadow-md, 0 4px 6px rgba(0,0,0,0.1));
+    border: 1px solid var(--border-color, #dee2e6);
+  }
+
+  .profile-section {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color-light, #e9ecef);
+  }
+  .profile-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .profile-section h2 {
+    font-size: var(--font-size-xl, 1.25rem);
+    font-weight: 600;
+    color: var(--primary-color, #212529);
+    margin-bottom: 1.5rem;
+    position: relative;
+    padding-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .profile-section h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 50px;
+      height: 3px;
+      background-color: var(--secondary-color, #E63946);
+  }
+
+  .profile-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem 2rem;
+  }
+
+  .profile-detail {
+    margin-bottom: 0.75rem; /* Reduced margin for grid items */
+  }
+
+  .profile-detail-label {
+    display: block;
+    font-weight: 500;
+    color: var(--text-color-light, #6c757d);
+    font-size: var(--font-size-sm, 0.875rem);
+    margin-bottom: 0.25rem;
+  }
+
+  .profile-detail-value {
+    font-size: var(--font-size-base, 1rem);
+    color: var(--text-color, #212529);
+    word-wrap: break-word;
+  }
+  
+  .text-muted {
+    color: var(--text-color-light, #6c757d);
+  }
+
+  .profile-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+  }
+
+  .profile-tag {
+    background-color: var(--secondary-color-light, #ec5c68);
+    color: var(--secondary-color-dark, #c72e3a);
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--radius-full, 9999px);
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .profile-actions {
+      margin-top: 2rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+  }
+  
+  .profile-actions .btn {
+      min-width: 150px; /* Give buttons some base width */
+  }
+  
+  /* Ensure primary outline uses correct brand color */
+  .btn-outline-primary {
+      color: var(--primary-color, #212529);
+      border-color: var(--primary-color, #212529);
+  }
+
+  .btn-outline-primary:hover {
+      color: #ffffff; /* White text on hover */
+      background-color: var(--primary-color, #212529);
+      border-color: var(--primary-color, #212529);
+  }
+
+  /* Edit mode styles */
+  .edit-button {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+  }
+  
+  .section-edit-form {
+    display: none;
+  }
+  
+  .section-display {
+    display: block;
+  }
+  
+  .tag-input-container {
+    margin-bottom: 1rem;
+  }
+  
+  .tag-input {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    min-height: 100px;
+    margin-bottom: 0.5rem;
+  }
+  
+  .tag-item {
+    background-color: var(--secondary-color-light);
+    color: var(--secondary-color-dark);
+    padding: 0.3rem 0.75rem 0.3rem 0.5rem;
+    border-radius: 20px;
+    margin: 0.25rem;
+    display: flex;
+    align-items: center;
+  }
+  
+  .tag-delete {
+    margin-left: 5px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  
+  .tag-input input {
+    flex: 1;
+    min-width: 150px;
+    border: none;
+    outline: none;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+
+  <h1>My Profile</h1>
+
+  <!-- User Identity -->
+  <section class="profile-section">
+    <h2>Account Information</h2>
+    <div class="profile-detail-grid">
+        <div class="profile-detail">
+          <span class="profile-detail-label">Name</span>
+          <span class="profile-detail-value">{{ user.name }}</span>
+        </div>
+        <div class="profile-detail">
+          <span class="profile-detail-label">Email</span>
+          <span class="profile-detail-value">{{ user.email }}</span>
+        </div>
+        <div class="profile-detail">
+          <span class="profile-detail-label">Role</span>
+          <span class="profile-detail-value">{{ user.role | capitalize }}</span>
+        </div>
+        <div class="profile-detail">
+          <span class="profile-detail-label">Member Since</span>
+          <span class="profile-detail-value">{{ user.created_at.strftime('%B %d, %Y') if user.created_at else 'N/A' }}</span>
+        </div>
+    </div>
+  </section>
+
+  <!-- Sales Context -->
+  <section class="profile-section">
+    <h2>
+      Sales Context
+      <button class="btn btn-sm btn-outline-primary edit-button" onclick="toggleEditMode('sales-context')">Edit</button>
+    </h2>
+    
+    <!-- Display mode -->
+    <div id="sales-context-display" class="section-display">
+      <div class="profile-detail-grid">
+          <div class="profile-detail">
+            <span class="profile-detail-label">Experience Level</span>
+            <span class="profile-detail-value">{{ user.profile.experience_level | capitalize if user.profile.experience_level else 'Not Set' }}</span>
+          </div>
+          <div class="profile-detail">
+            <span class="profile-detail-label">Product / Service</span>
+            <span class="profile-detail-value">{{ user.profile.product_service if user.profile.product_service else 'Not Set' }}</span>
+          </div>
+          <div class="profile-detail">
+            <span class="profile-detail-label">Target Market</span>
+            <span class="profile-detail-value">{{ user.profile.target_market if user.profile.target_market else 'Not Set' }}</span>
+          </div>
+          <div class="profile-detail">
+            <span class="profile-detail-label">Industry</span>
+            <span class="profile-detail-value">{{ user.profile.industry if user.profile.industry else 'Not Set' }}</span>
+          </div>
+      </div>
+    </div>
+    
+    <!-- Edit mode -->
+    <div id="sales-context-edit" class="section-edit-form">
+      <form id="sales-context-form">
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <label for="experience-level" class="form-label">Experience Level</label>
+            <select id="experience-level" name="experience_level" class="form-select">
+              <option value="beginner" {% if user.profile.experience_level == 'beginner' %}selected{% endif %}>Beginner</option>
+              <option value="intermediate" {% if user.profile.experience_level == 'intermediate' %}selected{% endif %}>Intermediate</option>
+              <option value="advanced" {% if user.profile.experience_level == 'advanced' %}selected{% endif %}>Advanced</option>
+              <option value="expert" {% if user.profile.experience_level == 'expert' %}selected{% endif %}>Expert</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label for="target-market" class="form-label">Target Market</label>
+            <input type="text" id="target-market" name="target_market" class="form-control" value="{{ user.profile.target_market or '' }}">
+          </div>
+        </div>
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <label for="industry" class="form-label">Industry</label>
+            <input type="text" id="industry" name="industry" class="form-control" value="{{ user.profile.industry or '' }}">
+          </div>
+          <div class="col-md-6">
+            <label for="product-service" class="form-label">Product / Service</label>
+            <textarea id="product-service" name="product_service" class="form-control" rows="3">{{ user.profile.product_service or '' }}</textarea>
+          </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-secondary" onclick="toggleEditMode('sales-context')">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="saveSection('sales-context')">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Goals & Challenges -->
+  <section class="profile-section">
+    <h2>
+      Goals & Challenges
+      <button class="btn btn-sm btn-outline-primary edit-button" onclick="toggleEditMode('goals-challenges')">Edit</button>
+    </h2>
+    
+    <!-- Display mode -->
+    <div id="goals-challenges-display" class="section-display">
+      <div class="profile-detail">
+        <span class="profile-detail-label">Current Pain Points / Struggles</span>
+        <div class="profile-tags">
+          {% if user.profile.pain_points_list and user.profile.pain_points_list|length > 0 %}
+            {% for item in user.profile.pain_points_list %}
+              <span class="profile-tag">{{ item }}</span>
+            {% endfor %}
+          {% else %}
+            <span class="profile-detail-value text-muted">None specified</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="profile-detail">
+        <span class="profile-detail-label">Recent Wins</span>
+        <div class="profile-tags">
+          {% if user.profile.recent_wins_list and user.profile.recent_wins_list|length > 0 %}
+            {% for item in user.profile.recent_wins_list %}
+              <span class="profile-tag">{{ item }}</span>
+            {% endfor %}
+          {% else %}
+            <span class="profile-detail-value text-muted">None specified</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="profile-detail">
+        <span class="profile-detail-label">Mindset Challenges</span>
+        <div class="profile-tags">
+          {% if user.profile.mindset_challenges_list and user.profile.mindset_challenges_list|length > 0 %}
+            {% for item in user.profile.mindset_challenges_list %}
+              <span class="profile-tag">{{ item }}</span>
+            {% endfor %}
+          {% else %}
+            <span class="profile-detail-value text-muted">None specified</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="profile-detail">
+        <span class="profile-detail-label">Improvement Goals</span>
+        <div class="profile-tags">
+          {% if user.profile.improvement_goals_list and user.profile.improvement_goals_list|length > 0 %}
+            {% for item in user.profile.improvement_goals_list %}
+              <span class="profile-tag">{{ item }}</span>
+            {% endfor %}
+          {% else %}
+            <span class="profile-detail-value text-muted">None specified</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <!-- Edit mode -->
+    <div id="goals-challenges-edit" class="section-edit-form">
+      <form id="goals-challenges-form">
+        <div class="mb-3">
+          <label for="pain-points" class="form-label">Pain Points / Struggles</label>
+          <div class="tag-input-container">
+            <div id="pain-points-input" class="tag-input">
+              {% if user.profile.pain_points_list %}
+                {% for item in user.profile.pain_points_list %}
+                  <div class="tag-item">{{ item }}<span class="tag-delete" onclick="removeTag(this, 'pain-points')">×</span></div>
+                {% endfor %}
+              {% endif %}
+              <input type="text" placeholder="Type and press Enter to add" onkeydown="handleTagInput(event, 'pain-points')">
+            </div>
+            <input type="hidden" id="pain-points" name="pain_points" value="{{ user.profile.pain_points or '[]' }}">
+          </div>
+        </div>
+        
+        <div class="mb-3">
+          <label for="recent-wins" class="form-label">Recent Wins</label>
+          <div class="tag-input-container">
+            <div id="recent-wins-input" class="tag-input">
+              {% if user.profile.recent_wins_list %}
+                {% for item in user.profile.recent_wins_list %}
+                  <div class="tag-item">{{ item }}<span class="tag-delete" onclick="removeTag(this, 'recent-wins')">×</span></div>
+                {% endfor %}
+              {% endif %}
+              <input type="text" placeholder="Type and press Enter to add" onkeydown="handleTagInput(event, 'recent-wins')">
+            </div>
+            <input type="hidden" id="recent-wins" name="recent_wins" value="{{ user.profile.recent_wins or '[]' }}">
+          </div>
+        </div>
+        
+        <div class="mb-3">
+          <label for="mindset-challenges" class="form-label">Mindset Challenges</label>
+          <div class="tag-input-container">
+            <div id="mindset-challenges-input" class="tag-input">
+              {% if user.profile.mindset_challenges_list %}
+                {% for item in user.profile.mindset_challenges_list %}
+                  <div class="tag-item">{{ item }}<span class="tag-delete" onclick="removeTag(this, 'mindset-challenges')">×</span></div>
+                {% endfor %}
+              {% endif %}
+              <input type="text" placeholder="Type and press Enter to add" onkeydown="handleTagInput(event, 'mindset-challenges')">
+            </div>
+            <input type="hidden" id="mindset-challenges" name="mindset_challenges" value="{{ user.profile.mindset_challenges or '[]' }}">
+          </div>
+        </div>
+        
+        <div class="mb-3">
+          <label for="improvement-goals" class="form-label">Improvement Goals</label>
+          <div class="tag-input-container">
+            <div id="improvement-goals-input" class="tag-input">
+              {% if user.profile.improvement_goals_list %}
+                {% for item in user.profile.improvement_goals_list %}
+                  <div class="tag-item">{{ item }}<span class="tag-delete" onclick="removeTag(this, 'improvement-goals')">×</span></div>
+                {% endfor %}
+              {% endif %}
+              <input type="text" placeholder="Type and press Enter to add" onkeydown="handleTagInput(event, 'improvement-goals')">
+            </div>
+            <input type="hidden" id="improvement-goals" name="improvement_goals" value="{{ user.profile.improvement_goals or '[]' }}">
+          </div>
+        </div>
+        
+        <div class="d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-secondary" onclick="toggleEditMode('goals-challenges')">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="saveSection('goals-challenges')">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Training Preferences -->
+  <section class="profile-section">
+    <h2>Training Preferences</h2>
+    <div class="profile-detail-grid">
+      <div class="profile-detail">
+          <span class="profile-detail-label">Preferred Training Style</span>
+          <span class="profile-detail-value">{{ user.profile.preferred_training_style | replace('-', ' ') | capitalize if user.profile.preferred_training_style else 'Not Set' }}</span>
+      </div>
+      <div class="profile-detail">
+          <span class="profile-detail-label">Preferred Feedback Frequency</span>
+          <span class="profile-detail-value">{{ user.profile.preferred_feedback_frequency | replace('-', ' ') | capitalize if user.profile.preferred_feedback_frequency else 'Not Set' }}</span>
+      </div>
+    </div>
+    <p class="mt-3">
+        <small>You can adjust your preferences in the <a href="{{ url_for('auth.settings') }}#preferences">Settings</a> page.</small>
+    </p>
+  </section>
+
+  <!-- Account Management -->
+  <section class="profile-section">
+      <h2>Account Management</h2>
+      <div class="profile-actions">
+          <a href="{{ url_for('auth.settings') }}#password" class="btn btn-secondary">Change Password</a>
+          {# Add links to other settings/account pages as needed #}
+          <a href="{{ url_for('auth.settings') }}" class="btn btn-outline-primary">Account Settings</a>
+      </div>
+  </section>
+
+</div>
+
+<!-- Success Alert -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="success-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="toast-header bg-success text-white">
+      <strong class="me-auto">Success</strong>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+    <div class="toast-body">
+      Profile updated successfully!
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Toggle between edit and display modes
+  function toggleEditMode(sectionId) {
+    const displaySection = document.getElementById(`${sectionId}-display`);
+    const editSection = document.getElementById(`${sectionId}-edit`);
+    
+    if (displaySection.style.display === 'none') {
+      // Switch to display mode
+      displaySection.style.display = 'block';
+      editSection.style.display = 'none';
+    } else {
+      // Switch to edit mode
+      displaySection.style.display = 'none';
+      editSection.style.display = 'block';
+    }
+  }
+  
+  // Handle tag input (for pain points, wins, challenges, goals)
+  function handleTagInput(event, fieldId) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      
+      const input = event.target;
+      const value = input.value.trim();
+      
+      if (value) {
+        // Add tag to UI
+        const tagContainer = input.parentElement;
+        const tagItem = document.createElement('div');
+        tagItem.className = 'tag-item';
+        tagItem.innerHTML = `${value}<span class="tag-delete" onclick="removeTag(this, '${fieldId}')">×</span>`;
+        tagContainer.insertBefore(tagItem, input);
+        
+        // Update hidden field with JSON array
+        updateHiddenTagField(fieldId);
+        
+        // Clear input
+        input.value = '';
+      }
+    }
+  }
+  
+  // Remove tag
+  function removeTag(element, fieldId) {
+    element.parentElement.remove();
+    updateHiddenTagField(fieldId);
+  }
+  
+  // Update hidden field value
+  function updateHiddenTagField(fieldId) {
+    const container = document.getElementById(`${fieldId}-input`);
+    const tags = Array.from(container.querySelectorAll('.tag-item')).map(tag => {
+      // Get text content without the × button
+      return tag.childNodes[0].nodeValue;
+    });
+    
+    document.getElementById(fieldId).value = JSON.stringify(tags);
+  }
+  
+  // Save section changes
+  function saveSection(sectionId) {
+    const form = document.getElementById(`${sectionId}-form`);
+    const formData = new FormData(form);
+    
+    // Send AJAX request
+    fetch('/training/api/profile/update', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success' || data.status === 'info') {
+        // Show success message
+        const toast = new bootstrap.Toast(document.getElementById('success-toast'));
+        toast.show();
+        
+        // Refresh page to show updated data
+        setTimeout(() => {
+          location.reload();
+        }, 1000);
+      } else {
+        alert('Error: ' + (data.error || 'An unknown error occurred'));
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Failed to update profile. Please try again.');
+    });
+  }
+  
+  // Initialize tag fields on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap toasts
+    const toastElList = [].slice.call(document.querySelectorAll('.toast'));
+    toastElList.map(function(toastEl) {
+      return new bootstrap.Toast(toastEl, {
+        autohide: true,
+        delay: 3000
+      });
+    });
+  });
+</script>
+{% endblock %} 

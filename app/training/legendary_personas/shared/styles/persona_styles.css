@@ -1,0 +1,263 @@
+/**
+ * Legendary Personas - CSS Styles
+ * Default styling for persona elements and animations
+ */
+
+/* Root container */
+.legendary-personas-container {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+    font-family: 'Arial', sans-serif;
+}
+
+/* Generic persona styles */
+.legendary-persona {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+    position: relative;
+}
+
+/* Avatar base styles */
+.legendary-persona-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    background-size: cover;
+    background-position: center;
+    user-select: none;
+}
+
+.legendary-persona-avatar:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Message bubble styles */
+.legendary-persona-message {
+    background-color: #fff;
+    border-radius: 12px;
+    padding: 10px 15px;
+    max-width: 280px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #333;
+    animation: message-appear 0.3s ease forwards;
+}
+
+.legendary-persona-message:after {
+    content: '';
+    position: absolute;
+    left: -8px;
+    bottom: 15px;
+    width: 0;
+    height: 0;
+    border-top: 8px solid transparent;
+    border-right: 10px solid #fff;
+    border-bottom: 8px solid transparent;
+}
+
+/* State-specific styles */
+.legendary-persona.speaking .legendary-persona-avatar {
+    border: 2px solid #4CAF50;
+}
+
+.legendary-persona.listening .legendary-persona-avatar {
+    border: 2px solid #2196F3;
+}
+
+.legendary-persona.thinking .legendary-persona-avatar {
+    border: 2px solid #FFC107;
+}
+
+.legendary-persona.idle .legendary-persona-avatar {
+    border: 2px solid #E0E0E0;
+}
+
+/* Persona type-specific styles */
+
+/* Coach persona */
+.legendary-persona[data-persona-type="coach"] .legendary-persona-avatar {
+    background-color: #E3F2FD;
+    color: #1976D2;
+}
+
+.legendary-persona[data-persona-type="coach"] .legendary-persona-message {
+    background-color: #E3F2FD;
+    border-left: 3px solid #1976D2;
+}
+
+.legendary-persona[data-persona-type="coach"] .legendary-persona-message:after {
+    border-right-color: #E3F2FD;
+}
+
+/* Mentor persona */
+.legendary-persona[data-persona-type="mentor"] .legendary-persona-avatar {
+    background-color: #E8F5E9;
+    color: #388E3C;
+}
+
+.legendary-persona[data-persona-type="mentor"] .legendary-persona-message {
+    background-color: #E8F5E9;
+    border-left: 3px solid #388E3C;
+}
+
+.legendary-persona[data-persona-type="mentor"] .legendary-persona-message:after {
+    border-right-color: #E8F5E9;
+}
+
+/* Expert persona */
+.legendary-persona[data-persona-type="expert"] .legendary-persona-avatar {
+    background-color: #FFF8E1;
+    color: #FFA000;
+}
+
+.legendary-persona[data-persona-type="expert"] .legendary-persona-message {
+    background-color: #FFF8E1;
+    border-left: 3px solid #FFA000;
+}
+
+.legendary-persona[data-persona-type="expert"] .legendary-persona-message:after {
+    border-right-color: #FFF8E1;
+}
+
+/* Assistant persona */
+.legendary-persona[data-persona-type="assistant"] .legendary-persona-avatar {
+    background-color: #F5F5F5;
+    color: #616161;
+}
+
+.legendary-persona[data-persona-type="assistant"] .legendary-persona-message {
+    background-color: #F5F5F5;
+    border-left: 3px solid #616161;
+}
+
+.legendary-persona[data-persona-type="assistant"] .legendary-persona-message:after {
+    border-right-color: #F5F5F5;
+}
+
+/* Notification badge */
+.persona-notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: #F44336;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 2;
+}
+
+/* Animation keyframes */
+@keyframes message-appear {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 768px) {
+    .legendary-personas-container {
+        bottom: 10px;
+        left: 10px;
+    }
+    
+    .legendary-persona-avatar {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+    
+    .legendary-persona-message {
+        max-width: 220px;
+        font-size: 13px;
+        padding: 8px 12px;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .legendary-persona-message {
+        background-color: #333;
+        color: #f0f0f0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    .legendary-persona-message:after {
+        border-right-color: #333;
+    }
+    
+    /* Coach persona - dark mode */
+    .legendary-persona[data-persona-type="coach"] .legendary-persona-message {
+        background-color: #0D47A1;
+        border-left-color: #90CAF9;
+    }
+    
+    .legendary-persona[data-persona-type="coach"] .legendary-persona-message:after {
+        border-right-color: #0D47A1;
+    }
+    
+    /* Mentor persona - dark mode */
+    .legendary-persona[data-persona-type="mentor"] .legendary-persona-message {
+        background-color: #1B5E20;
+        border-left-color: #A5D6A7;
+    }
+    
+    .legendary-persona[data-persona-type="mentor"] .legendary-persona-message:after {
+        border-right-color: #1B5E20;
+    }
+    
+    /* Expert persona - dark mode */
+    .legendary-persona[data-persona-type="expert"] .legendary-persona-message {
+        background-color: #FF6F00;
+        border-left-color: #FFECB3;
+        color: #000;
+    }
+    
+    .legendary-persona[data-persona-type="expert"] .legendary-persona-message:after {
+        border-right-color: #FF6F00;
+    }
+    
+    /* Assistant persona - dark mode */
+    .legendary-persona[data-persona-type="assistant"] .legendary-persona-message {
+        background-color: #424242;
+        border-left-color: #E0E0E0;
+    }
+    
+    .legendary-persona[data-persona-type="assistant"] .legendary-persona-message:after {
+        border-right-color: #424242;
+    }
+} 

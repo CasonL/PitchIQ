@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | PitchIQ{% endblock %}
+
+{% block styles %}
+{{ super() }}
+
+<!-- Link the new dashboard-specific CSS file with cache-busting param -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_redefined.css') }}?v=9">
+{% endblock %}
+
+{% block content %}
+
+<div class="container dashboard-container">
+
+    <!-- Row 1: Welcome Message -->
+    <div class="row mb-4">
+        <div class="col-12 dashboard-welcome">
+            <h2>Welcome back, <span>{{ current_user.first_name or 'User' }}</span>!</h2>
+            <p>Ready to sharpen your skills?</p>
+        </div>
+    </div>
+    
+    <!-- Jinja variables needed for multiple sections -->
+    {% set sessions_needed_for_insights = 12 %}
+    {% set is_insights_unlocked = completed_sessions >= sessions_needed_for_insights %}
+    
+    <!-- Row 2: Compact Level Progress & Title Card -->
+    <section class="dashboard-section pt-0 mb-4">
+         <div class="row">
+             <div class="col-12">
+                 <div class="data-card level-title-card">
+                     <div class="level-title-card-body">
+                        <div class="level-info">
+                            <span class="level-indicator">Level {{ current_level }}</span>
+                            <div class="progress-bar-container flex-grow-1 mx-3">
+                                <!-- stylelint-disable property-no-unknown -->
+                                <div class="progress-bar-level" style="width: {{ progress_to_next | int }}%;" title="{{ (next_level_score - current_score) | round(1) }} points to Level {{ current_level + 1 }} ({{ next_level_score }}%)"></div>
+                                <!-- stylelint-enable property-no-unknown -->
+                            </div>
+                            <span class="level-percentage">{{ progress_to_next | int }}%</span>
+                        </div>
+                         <div class="title-info ms-4">
+                            <span class="title-label">Title:</span>
+                            <span class="user-title">{{ current_title }}</span>
+                        </div>
+                     </div>
+                 </div>
+             </div>
+         </div>
+     </section>
+
+    <!-- Row 3: Roadmap to Insights Card -->
+    <section class="dashboard-section pt-0 mb-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="data-card roadmap-card {% if is_insights_unlocked %}unlocked{% endif %}">
+                    <div class="data-card-header">
+                        <h5 class="data-card-title"><i class="fas fa-map-signs"></i> Unlock Your Personalized Sales Insights</h5>
+                    </div>
+                    <div class="data-card-body">
+                        {% if not is_insights_unlocked %}
+                            <!-- Roadmap Visualization (Locked State) - 12 Steps -->
+                            <div class="roadmap-container mb-3">
+                                <div class="roadmap-track">
+                                    {% for i in range(1, sessions_needed_for_insights + 1) %}
+                                        {% set milestone_class = '' %}
+                                        {% if i == 3 or i == 6 or i == 9 %}
+                                            {% set milestone_class = 'milestone-sm' %}
+                                        {% elif i == 12 %}
+                                            {% set milestone_class = 'milestone-lg' %}
+                                        {% endif %}
+                                        <div class="roadmap-step {{ milestone_class }} {% if i <= completed_sessions %}completed{% endif %} {% if i == completed_sessions + 1 %}next-step{% endif %}">
+                                            <div class="roadmap-circle" title="Session {{i}}">
+                                                {# Use numbers for small milestones, key for final #}
+                                                {% if i == 12 %}
+                                                    <i class="fas fa-key"></i>
+                                                {% else %}
+                                                    {{ i }}
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <!-- Teaser Text -->
+                            <div class="roadmap-teaser text-center">
+                                {% set remaining = sessions_needed_for_insights - completed_sessions %}
+                                {% if completed_sessions < 2 %}
+                                    Complete <strong>{{ remaining }}</strong> more sessions to start unlocking insights!
+                                {% elif completed_sessions == 2 %}
+                                    <i class="fas fa-check-circle text-success me-1"></i> Milestone Reached! Session 3 unlocks your first performance insight. Keep going - <strong>{{ remaining }}</strong> left!
+                                {% elif completed_sessions < 5 %}
+                                    Next milestone insight at session 6! Only <strong>{{ remaining }}</strong> sessions left to unlock full analysis. <i class="fas fa-seedling text-success"></i>
+                                {% elif completed_sessions == 5 %}
+                                     <i class="fas fa-check-circle text-success me-1"></i> Milestone Reached! Session 6 unlocks deeper insights (e.g., objection handling patterns). Next update after session 8. <strong>{{ remaining }}</strong> left!
+                                {% elif completed_sessions < 8 %}
+                                     Getting closer! Next milestone insight at session 9. Just <strong>{{ remaining }}</strong> more to go! <i class="fas fa-comments-dollar text-warning"></i>
+                                {% elif completed_sessions == 8 %}
+                                      <i class="fas fa-check-circle text-success me-1"></i> Milestone Reached! Session 9 unlocks advanced feedback (e.g., closing style). Unlock everything in <strong>{{ remaining }}</strong> sessions! <i class="fas fa-flag-checkered text-danger"></i>
+                                {% elif completed_sessions < sessions_needed_for_insights %}
+                                     You're nearly there! The final key awaits at session 12. Just <strong>{{ remaining }}</strong> left! <i class="fas fa-key text-info"></i>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <!-- Unlocked Content Area -->
+                            <div class="unlocked-insights">
+                                <div class="text-center mb-3">
+                                     <i class="fas fa-lightbulb fa-3x text-warning"></i> 
+                                     <h6 class="mt-2">Insights Unlocked!</h6>
+                                 </div>
+                                <p class="text-center mb-4">Here's a personalized summary based on your first {{ sessions_needed_for_insights }} sessions:</p>
+                                
+                                <div class="row g-3">
+                                     <div class="col-md-6">
+                                         <div class="insight-card h-100">
+                                             <h6><i class="fas fa-star text-success"></i> Key Strengths</h6>
+                                             {# Check high scores or positive trends - using dummy thresholds for now #}
+                                             <ul>
+                                                 {% if current_score >= 80 %}
+                                                     <li>Consistently High Overall Performance!</li>
+                                                 {% endif %}
+                                                 {% if growth_percentage >= 5 %}
+                                                     <li>Strong Improvement Trend! (+{{ "%.1f"|format(growth_percentage) }}%)</li>
+                                                 {% endif %}
+                                                 {% if avg_confidence_score >= 75 %}
+                                                     <li>Excellent Average Confidence ({{ "%.0f"|format(avg_confidence_score) }}%)</li>
+                                                 {% endif %}
+                                                 {# Check specific skills - requires skill_progression dict structure #}
+                                                 {% if skill_progression and skill_progression.get('Active Listening', {}).score >= 80 %}
+                                                      <li>Great Active Listening Skills!</li>
+                                                 {% endif %}
+                                                 {# Check advanced metrics - requires advanced_metrics structure #}
+                                                 {% if advanced_metrics and advanced_metrics.get('Linguistic Analysis', {}).get('Positive Language', 0) >= 70 %}
+                                                      <li>Effective use of Positive Language!</li>
+                                                 {% endif %}
+                                                 {# Fallback message #}
+                                                 {% set has_strength = (current_score >= 80) or (growth_percentage >= 5) or (avg_confidence_score >= 75) or (skill_progression and skill_progression.get('Active Listening', {}).score >= 80) or (advanced_metrics and advanced_metrics.get('Linguistic Analysis', {}).get('Positive Language', 0) >= 70) %}
+                                                 {% if not has_strength %}
+                                                      <li>Keep practicing to identify key strengths!</li>
+                                                 {% endif %}
+                                             </ul>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-6">
+                                         <div class="insight-card h-100">
+                                             <h6><i class="fas fa-bullseye text-danger"></i> Focus Areas</h6>
+                                             {# Check low scores or areas needing attention #}
+                                              <ul>
+                                                  {% if current_score < 60 %}
+                                                      <li>Opportunity: Improve Overall Score Consistency.</li>
+                                                  {% endif %}
+                                                   {% if growth_percentage < 0 %}
+                                                       <li>Trend Watch: Address recent score dip.</li>
+                                                   {% endif %}
+                                                   {% if avg_confidence_score < 65 %}
+                                                      <li>Opportunity: Boost On-Call Confidence (Avg: {{ "%.0f"|format(avg_confidence_score) }}%)</li>
+                                                  {% endif %}
+                                                  {# Check specific skills - requires skill_progression dict structure #}
+                                                  {% if skill_progression and skill_progression.get('Questioning Techniques', {}).score < 60 %}
+                                                       <li>Focus: Develop stronger Questioning Techniques.</li>
+                                                   {% endif %}
+                                                   {# Check advanced metrics - requires advanced_metrics structure #}
+                                                   {% if advanced_metrics and advanced_metrics.get('Conversation Flow', {}).get('Talk/Listen Ratio', 0) > 65 %}
+                                                       <li>Balance: Aim for more listening (Talk Ratio: {{ "%.0f"|format(advanced_metrics['Conversation Flow']['Talk/Listen Ratio']) }}%).</li>
+                                                  {% endif %}
+                                                  {% if advanced_metrics and advanced_metrics.get('Sales Process Timing', {}).get('Handling Objections', 100) < 15 %}
+                                                       <li>Practice: Dedicate more time to Objection Handling.</li>
+                                                  {% endif %}
+                                                  {# Fallback message #}
+                                                  {% set needs_focus = (current_score < 60) or (growth_percentage < 0) or (avg_confidence_score < 65) or (skill_progression and skill_progression.get('Questioning Techniques', {}).score < 60) or (advanced_metrics and advanced_metrics.get('Conversation Flow', {}).get('Talk/Listen Ratio', 0) > 65) or (advanced_metrics and advanced_metrics.get('Sales Process Timing', {}).get('Handling Objections', 100) < 15) %}
+                                                  {% if not needs_focus %}
+                                                       <li>Doing well! Continue refining all skill areas.</li>
+                                                  {% endif %}
+                                             </ul>
+                                         </div>
+                                     </div>
+                                 </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Row 4: Tab Navigation & Content -->
+    <section class="dashboard-section pt-0">
+        <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
+             <li class="nav-item" role="presentation">
+                 <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-tab-pane" type="button" role="tab" aria-controls="overview-tab-pane" aria-selected="true">
+                     <i class="fas fa-tachometer-alt me-1"></i> Key Metrics
+                 </button>
+             </li>
+             <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="skills-tab" data-bs-toggle="tab" data-bs-target="#skills-tab-pane" type="button" role="tab" aria-controls="skills-tab-pane" aria-selected="false">
+                     <i class="fas fa-dumbbell me-1"></i> Skill Development
+                  </button>
+             </li>
+             <li class="nav-item" role="presentation">
+                 <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity-tab-pane" type="button" role="tab" aria-controls="activity-tab-pane" aria-selected="false">
+                     <i class="fas fa-list-ul me-1"></i> Session History
+                 </button>
+             </li>
+        </ul>
+    
+        <div class="tab-content" id="dashboardTabsContent">
+            <!-- Key Metrics Tab Pane -->
+            <div class="tab-pane fade show active" id="overview-tab-pane" role="tabpanel" aria-labelledby="overview-tab" tabindex="0">
+                {% if completed_sessions > 0 %}
+                <section class="dashboard-section pt-0 mb-4">
+                    {# Try 4 cards across #}
+                    <div class="row g-4 justify-content-center">
+                         <!-- Overall Score Card -->
+                         <div class="col-lg-3 col-md-6"> {# Changed to col-lg-3 #}
+                             <div class="data-card metric-card h-100">
+                                 <div class="metric-label">Overall Score</div>
+                                 <div class="metric-value">{{ "%.0f"|format(current_score) }}%</div>
+                                 {% set growth = growth_percentage | default(0) %}
+                                 {% if growth > 0.1 %}
+                                     <span class="metric-change positive"><i class="fas fa-arrow-up"></i>+{{ "%.1f"|format(growth) }}%</span>
+                                 {% elif growth < -0.1 %}
+                                      <span class="metric-change negative"><i class="fas fa-arrow-down"></i>{{ "%.1f"|format(growth) }}%</span>
+                                  {% else %}
+                                      <span class="metric-change neutral">No Change</span>
+                                 {% endif %}
+                                 <div class="sparkline-container mt-2">
+                                     <canvas id="overallScoreSparkline" height="40"></canvas>
+                                 </div>
+                             </div>
+                         </div>
+                         <!-- Top Skill Card -->
+                         <div class="col-lg-3 col-md-6"> {# Changed to col-lg-3 #}
+                             <div class="data-card highlight-card h-100">
+                                 {% set top_skill_name = 'N/A' %}
+                                 {% set top_skill_score = -1 %}
+                                 {% if skill_progression %}
+                                     {% for skill_key, skill_data in skill_progression.items() %}
+                                         {% if skill_data.score > top_skill_score %}
+                                             {% set top_skill_score = skill_data.score %}
+                                             {% set top_skill_name = skill_data.name %}
+                                         {% endif %}
+                                     {% endfor %}
+                                 {% endif %}
+
+                                 <div class="highlight-label"><i class="fas fa-medal text-warning me-1"></i> Top Skill</div>
+                                 {% if top_skill_score >= 0 %}
+                                     <div class="highlight-value">{{ top_skill_name }}</div>
+                                     <div class="highlight-score">({{ "%.0f"|format(top_skill_score) }}%)</div>
+                                 {% else %}
+                                    <div class="highlight-value text-muted small">Complete sessions...</div>
+                                 {% endif %}
+                                 <div class="sparkline-container mt-2" style="height: 40px;"></div> {# Alignment Placeholder #}
+                             </div>
+                         </div>
+                         <!-- Most Improved Skill Card (NEW) -->
+                         <div class="col-lg-3 col-md-6"> {# Changed to col-lg-3 #}
+                             <div class="data-card highlight-card h-100">
+                                 {# Placeholder logic/data - Assume backend provides sessions[0].most_improved_skill #}
+                                 {% set improved_skill = most_improved_skill if most_improved_skill else None %}
+                                 
+                                 <div class="highlight-label"><i class="fas fa-arrow-trend-up text-success me-1"></i> Most Improved</div>
+                                 {% if improved_skill and improved_skill.name %}
+                                     <div class="highlight-value">{{ improved_skill.name }}</div>
+                                     <div class="highlight-score">+{{ "%.0f"|format(improved_skill.change | default(0)) }} pts</div> {# Assuming 'change' key #}
+                                 {% else %}
+                                    <div class="highlight-value text-muted small">Analyzing trends...</div>
+                                 {% endif %}
+                                 <div class="sparkline-container mt-2" style="height: 40px;"></div> {# Alignment Placeholder #}
+                            </div>
+                         </div>
+                          <!-- Session Streak Card (NEW - Replacing Confidence) -->
+                         <div class="col-lg-3 col-md-6"> {# Changed to col-lg-3 #}
+                             <div class="data-card highlight-card h-100">
+                                 {# Placeholder logic/data - Assume backend provides sessions[0].session_streak #}
+                                 {% set streak = session_streak | default(0) %}
+
+                                 <div class="highlight-label"><i class="fas fa-fire text-danger me-1"></i> Practice Streak</div>
+                                 {% if streak > 0 %}
+                                     <div class="highlight-value">{{ streak }} Day{% if streak > 1 %}s{% endif %}</div>
+                                     <div class="highlight-score">Keep it up!</div>
+                                 {% else %}
+                                    <div class="highlight-value text-muted small">Start a session!</div>
+                                 {% endif %}
+                                 <div class="sparkline-container mt-2" style="height: 40px;"></div> {# Alignment Placeholder #}
+                            </div>
+                         </div>
+                     </div>
+                 </section>
+                 {% else %}
+                      <div class="text-center p-5 data-card">
+                         <i class="fas fa-info-circle fa-2x text-primary mb-3"></i>
+                         <p class="mb-0">Complete your first session to see your key metrics.</p>
+                      </div>
+                 {% endif %}
+             </div>
+    
+            <!-- Skill Development Tab Pane -->
+             <div class="tab-pane fade" id="skills-tab-pane" role="tabpanel" aria-labelledby="skills-tab" tabindex="0">
+                 {% if completed_sessions > 0 %}
+                 <section class="dashboard-section pt-0">
+                     <div class="row g-4">
+                         <div class="col-lg-12">
+                             <div class="data-card skills-card">
+                                 <div class="data-card-header">
+                                     <h5 class="data-card-title"><i class="fas fa-dumbbell"></i>Skill Breakdown</h5>
+                                 </div>
+                                 <div class="data-card-body">
+                                     {% if skill_progression %}
+                                         <div class="row">
+                                         {% for skill_key, skill_data in skill_progression.items() %}
+                                             <div class="col-md-6">
+                                                 <div class="skill-item">
+                                                     <div class="skill-info">
+                                                         <span class="skill-name">
+                                                             <i class="fas {{ skill_data.icon | default('fa-star') }}"></i>
+                                                             {{ skill_data.name | default(skill_key) }}
+                                                         </span>
+                                                         <span class="skill-percent">{{ "%.0f"|format(skill_data.score | default(0)) }}%</span>
+                                                     </div>
+                                                     <div class="skill-bar">
+                                                         <!-- stylelint-disable property-no-unknown -->
+                                                         <div class="skill-progress" style="width: {{ skill_data.score | default(0) }}%;"></div>
+                                                         <!-- stylelint-enable property-no-unknown -->
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         {% endfor %}
+                                         </div>
+                                     {% else %}
+                                         <p class="text-secondary">Skill data not available yet. Complete more sessions.</p>
+                                     {% endif %}
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+                 </section>
+                 {% else %}
+                      <div class="text-center p-5 data-card">
+                         <i class="fas fa-info-circle fa-2x text-primary mb-3"></i>
+                         <p class="mb-0">Complete your first session to see your skill breakdown.</p>
+                      </div>
+                 {% endif %}
+             </div>
+            
+            <!-- Session History Tab Pane -->
+            <div class="tab-pane fade" id="activity-tab-pane" role="tabpanel" aria-labelledby="activity-tab" tabindex="0">
+                 {% if completed_sessions > 0 %}
+                 <section class="dashboard-section pt-0">
+                    <div class="row g-4">
+                        <div class="col-lg-12">
+                            <div class="data-card activity-card">
+                                <div class="data-card-header">
+                                    <h5 class="data-card-title"><i class="fas fa-history"></i>Recent Sessions</h5>
+                                    <span class="badge rounded-pill bg-light text-dark">{{ total_sessions | default(0) }} Total</span>
+                                </div>
+                                <div class="data-card-body p-0">
+                                    {% if sessions %}
+                                    <ul class="activity-list">
+                                        {% for session in sessions | reverse | list | batch(5) | first %} 
+                                        <li class="activity-list-item">
+                                            <div class="activity-info">
+                                                 <span class="session-id">Session #{{ session.id }}</span>
+                                                 <span class="time">{{ session.end_time.strftime('%b %d, %Y') if session.end_time else 'In Progress' }}</span>
+                                            </div>
+                                             <div class="activity-score">
+                                                {% if session.status == 'completed' and session.metrics and session.metrics.overall_score is defined %}
+                                                     Score: {{ "%.0f"|format(session.metrics.overall_score) }}%
+                                                 {% elif session.status == 'active' %}
+                                                     -
+                                                 {% else %}
+                                                     -
+                                                 {% endif %}
+                                             </div>
+                                            <div class="activity-actions">
+                                                {% if session.status == 'completed' %}
+                                                    <span class="status-badge status-completed"><i class="fas fa-check"></i> Completed</span>
+                                                    <a href="{{ url_for('training.show_session_summary', session_id=session.id) }}" class="action-button secondary btn-sm">
+                                                        <i class="fas fa-eye"></i> View Details
+                                                    </a>
+                                                {% elif session.status == 'active' %}
+                                                    <span class="status-badge status-active"><i class="fas fa-play"></i> Active</span>
+                                                    <span class="text-muted small">Use the floating button to resume</span>
+                                                {% else %}
+                                                    <span class="status-badge status-other">{{ session.status | capitalize }}</span>
+                                                     <a href="{{ url_for('training.show_session_summary', session_id=session.id) }}" class="action-button secondary btn-sm">
+                                                         <i class="fas fa-eye"></i> View Details
+                                                     </a>
+                                                {% endif %}
+                                            </div>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                     {% if sessions | length > 5 %}
+                                         <div class="text-center p-2 border-top">
+                                             <a href="#" class="text-muted small">View All Sessions</a>
+                                         </div>
+                                     {% endif %}
+                                {% else %}
+                                        <p class="text-secondary p-3">No recent sessions found.</p>
+                                {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                {% else %}
+                     <div class="text-center p-5 data-card">
+                        <i class="fas fa-info-circle fa-2x text-primary mb-3"></i>
+                        <p class="mb-0">Complete your first session to see your history.</p>
+                     </div>
+                {% endif %}
+            </div>
+            
+        </div> <!-- End tab-content -->
+    </section> {# End Row 4 #}
+
+    {# Empty State Section (Shows only if no completed sessions) #}
+    {% if not completed_sessions > 0 %}
+    <section class="dashboard-section empty-state-section">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="data-card empty-state-card text-center">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-rocket fa-3x text-primary mb-3"></i>
+                    </div>
+                    <h3>Let's Get Started!</h3>
+                    <p>
+                        You haven't completed any training sessions yet. Start your first roleplay to begin tracking your progress and unlocking personalized insights.
+                    </p>
+                    <p class="text-muted mt-3">
+                        <i class="fas fa-info-circle me-1"></i> Use the floating button at the bottom right to start a new voice chat session.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+</div> {# End container #}
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+
+{# Add Chart.js sparkline script if data exists #}
+{% if chronological_scores %}
+<script nonce="{{ g.csp_nonce|default('') }}">
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const ctx = document.getElementById('overallScoreSparkline').getContext('2d');
+        
+        // Use chronological_scores passed from Python context
+        const scoreData = JSON.parse('{{ chronological_scores | tojson | safe }}');
+        
+        // Create labels (e.g., Session 1, Session 2...) or leave empty for pure sparkline
+        const scoreLabels = scoreData.map((_, i) => `Session ${i + 1}`);
+
+        const scoreChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: scoreLabels, // Use labels or empty array [] for cleaner sparkline
+                datasets: [{
+                    label: 'Overall Score Trend',
+                    data: scoreData,
+                    borderColor: '{{ config.PRIMARY_NAVY or "#1e3a8a" }}', // Use config color or default
+                    borderWidth: 2,
+                    pointRadius: 0, // No points
+                    tension: 0.3 // Slight curve
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }, // Hide legend
+                    tooltip: { enabled: false } // Disable tooltips for sparkline
+                },
+                scales: {
+                    x: {
+                        display: false // Hide X axis
+                    },
+                    y: {
+                        display: false, // Hide Y axis
+                        beginAtZero: false, // Don't necessarily start at 0
+                        suggestedMin: Math.min(...scoreData) - 5, // Add some padding below min
+                        suggestedMax: Math.max(...scoreData) + 5  // Add some padding above max
+                    }
+                }
+            }
+        });
+    } catch (e) {
+        console.error("Error rendering sparkline chart:", e);
+    }
+});
+</script>
+{% endif %}
+
+{% endblock %} 
+

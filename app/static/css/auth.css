@@ -1,0 +1,351 @@
+/* 
+ * Sales Training AI - Authentication Styles
+ * Styles for login and registration pages - Updated for PitchIQ Theme
+ */
+
+.auth-section {
+  padding: var(--spacing-xl) 0; /* Use theme spacing */
+  min-height: calc(100vh - 16rem); /* Adjust if header/footer height changes */
+  display: flex;
+  align-items: center;
+  background-color: var(--pitchiq-light-gray); /* Use light gray background */
+}
+
+.auth-container {
+  display: flex;
+  overflow: hidden;
+  border-radius: var(--radius-lg); /* Use theme radius */
+  background-color: var(--surface-color); /* Use white surface color */
+  box-shadow: var(--shadow-lg); /* Use theme shadow */
+  max-width: 64rem;
+  margin: 0 auto;
+}
+
+.auth-form-container {
+  flex: 1;
+  padding: var(--spacing-xl); /* Use theme spacing */
+  max-width: 32rem;
+}
+
+.auth-header {
+  margin-bottom: var(--spacing-lg);
+}
+
+.auth-header h1 {
+  color: var(--text-color); /* Use theme text color */
+  font-size: var(--font-size-2xl); /* Adjust size */
+  font-weight: 700;
+  margin-bottom: var(--spacing-sm);
+}
+
+.auth-header p {
+  color: var(--text-color-light); /* Use theme light text color */
+  font-size: var(--font-size-base);
+}
+
+/* Styles for form elements from main.css should apply (form-group, form-label, form-control) */
+/* Add specific overrides if needed */
+.auth-form .form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.auth-form .form-group:last-of-type {
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Input with icon wrapper */
+.input-icon-wrapper {
+    position: relative;
+}
+.input-icon-wrapper i {
+    position: absolute;
+    left: var(--spacing-md);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-color-lighter);
+    pointer-events: none; /* Prevent icon from blocking input */
+}
+.input-icon-wrapper .form-control {
+    padding-left: calc(var(--spacing-md) * 2 + 1em); /* Adjust padding for icon */
+}
+
+/* Password toggle button */
+.password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-color-lighter);
+    padding: 5px;
+}
+.password-toggle:hover {
+    color: var(--text-color-light);
+}
+
+/* Password strength indicator */
+.password-strength {
+  margin-top: var(--spacing-xs);
+}
+
+.strength-meter {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
+}
+
+.strength-segment {
+  height: 4px;
+  flex: 1;
+  background-color: var(--border-color-light); /* Use light border color as base */
+  border-radius: var(--radius-full);
+  transition: background-color var(--transition-base);
+}
+
+.strength-segment.weak {
+  background-color: var(--danger-color); /* Use theme danger color */
+}
+
+.strength-segment.medium {
+  background-color: var(--warning-color); /* Use theme warning color */
+}
+
+.strength-segment.strong {
+  background-color: var(--success-color); /* Use theme success color */
+}
+
+.strength-text {
+  font-size: var(--font-size-xs);
+  color: var(--text-color-light);
+}
+
+#strengthText {
+  font-weight: 500;
+}
+
+/* Checkbox styling */
+.form-agree {
+    margin-bottom: var(--spacing-lg);
+}
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    color: var(--text-color-light);
+}
+.checkbox-label input[type="checkbox"] {
+    width: 1em;
+    height: 1em;
+    accent-color: var(--secondary-color); /* Red check */
+}
+.checkbox-label a {
+    color: var(--secondary-color); /* Red links */
+}
+.checkbox-label a:hover {
+    color: var(--secondary-color-dark);
+}
+
+/* Submit button */
+.form-submit {
+    margin-bottom: var(--spacing-md);
+}
+.form-submit .btn-block {
+    width: 100%;
+}
+
+/* Error message */
+.form-error {
+    color: var(--danger-color);
+    background-color: rgba(220, 53, 69, 0.1); /* Light red background */
+    border: 1px solid var(--danger-color);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-md);
+}
+
+/* Divider */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: var(--text-color-lighter);
+    font-size: var(--font-size-sm);
+    margin: var(--spacing-lg) 0;
+}
+.auth-divider::before, .auth-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+.auth-divider span {
+    padding: 0 var(--spacing-sm);
+}
+
+/* Social Auth buttons */
+.social-auth {
+  margin-bottom: var(--spacing-lg);
+}
+.btn-social {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border: 1px solid var(--border-color);
+    background-color: var(--surface-color);
+    color: var(--text-color);
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    transition: all var(--transition-base);
+}
+.btn-social:hover {
+    background-color: var(--pitchiq-light-gray);
+    border-color: var(--border-color-light);
+}
+.btn-social i {
+    margin-right: var(--spacing-sm);
+    font-size: 1.2em;
+}
+/* Specific vendor colors if needed */
+.btn-google i { color: #DB4437; }
+
+
+/* Auth Footer Link */
+.auth-footer {
+  margin-top: var(--spacing-lg);
+  text-align: center;
+}
+
+.auth-footer p {
+  color: var(--text-color-light);
+  font-size: var(--font-size-sm);
+  margin-bottom: 0; /* Remove default p margin */
+}
+
+.auth-footer a {
+  color: var(--secondary-color); /* Red link */
+  font-weight: 500;
+  text-decoration: none;
+  transition: color var(--transition-base);
+}
+
+.auth-footer a:hover {
+  color: var(--secondary-color-dark);
+  text-decoration: underline;
+}
+
+/* Auth Image Section */
+.auth-image {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  background-color: var(--pitchiq-black); /* Black background */
+  padding: var(--spacing-xl);
+  position: relative;
+  overflow: hidden;
+  color: var(--pitchiq-white); /* White text */
+}
+
+.auth-image img {
+  width: 100%;
+  max-width: 24rem;
+  height: auto;
+  margin-bottom: var(--spacing-lg);
+  /* animation: float 6s ease-in-out infinite; */ /* Optional animation */
+}
+
+/* Keeping float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.auth-image-text {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.auth-image-text h2 {
+  color: inherit; /* Inherit white from parent */
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+
+.auth-image-text p {
+  color: rgba(248, 248, 248, 0.8); /* Semi-transparent white */
+  max-width: 24rem;
+  font-size: var(--font-size-base);
+}
+
+
+/* Responsive styles */
+@media (max-width: 64rem) {
+  .auth-container {
+    flex-direction: column;
+    max-width: 32rem;
+    box-shadow: var(--shadow-md); /* Reduce shadow on smaller screens */
+  }
+  
+  .auth-image {
+    order: -1; /* Move image to top */
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0; /* Adjust radius */
+  }
+  
+  .auth-image img {
+    max-width: 16rem;
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .auth-form-container {
+    padding: var(--spacing-lg);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  }
+}
+
+@media (max-width: 36rem) {
+  .auth-section {
+    padding: var(--spacing-md) 0;
+  }
+  
+  .auth-form-container {
+    padding: var(--spacing-md);
+  }
+  
+  .auth-header {
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .auth-header h1 {
+    font-size: var(--font-size-xl);
+  }
+  
+  .auth-header p {
+    font-size: var(--font-size-sm);
+  }
+  
+  .auth-image {
+    padding: var(--spacing-md);
+  }
+  
+  .auth-image img {
+    max-width: 12rem;
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .auth-image-text h2 {
+    font-size: var(--font-size-lg);
+  }
+  
+  .auth-image-text p {
+    font-size: var(--font-size-xs);
+  }
+}

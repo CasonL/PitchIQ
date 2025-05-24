@@ -1,0 +1,12 @@
+/* Add specific styles for AISummaryCard here later if Tailwind is not sufficient */
+
+.ai-summary-card.collapsed .expanded-view {
+  /* Ensure height is 0 when collapsed */
+  height: 0;
+  overflow: hidden;
+}
+
+.ai-summary-card.expanded .collapsed-view {
+  /* Ensure collapsed view is hidden when expanded */
+  display: none;
+} 

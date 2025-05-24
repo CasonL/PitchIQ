@@ -1,0 +1,138 @@
+2025-04-30 18:10:46,027 - voice_diagnostic - INFO - Starting voice chat diagnostic tests...
+2025-04-30 18:10:46,028 - voice_diagnostic - INFO - === TESTING API KEY CONFIGURATION ===
+2025-04-30 18:10:47,401 - app.config_manager - INFO - Loaded configuration with 27 settings
+2025-04-30 18:10:47,888 - app.services.openai_service - INFO - OpenAIService instance created (uninitialized). Mock mode: False
+2025-04-30 18:10:48,003 - app.services.deepgram_service - INFO - Deepgram SDK Version: v3.0.0
+2025-04-30 18:10:48,008 - app.services.deepgram_service - INFO - API Key loaded from env: c497...169e
+2025-04-30 18:10:48,010 - app.services.deepgram_service - INFO - Deepgram API key format: length=40, has prefix='dg_'=False
+2025-04-30 18:10:48,011 - app.services.deepgram_service - INFO - Detected possible legacy key format, will try both original and with dg_ prefix
+2025-04-30 18:10:48,011 - app.services.deepgram_service - INFO - Created alternative API key with dg_ prefix for fallback
+2025-04-30 18:10:48,011 - app.services.openai_service - INFO - OpenAIService instance created (uninitialized). Mock mode: False
+2025-04-30 18:10:48,012 - app.services.deepgram_service - INFO - Deepgram API key format: length=40, has prefix='dg_'=False
+2025-04-30 18:10:48,012 - app.services.deepgram_service - INFO - Detected possible legacy key format, will try both original and with dg_ prefix
+2025-04-30 18:10:48,013 - app.services.deepgram_service - INFO - Created alternative API key with dg_ prefix for fallback
+2025-04-30 18:10:48,042 - app - INFO - Loaded configuration for environment: dev
+2025-04-30 18:10:48,042 - app.database_manager - INFO - Initializing Database Manager
+2025-04-30 18:10:48,062 - app.database_manager - INFO - Database Manager initialized successfully
+2025-04-30 18:10:48,063 - app.services.api_manager - INFO - Initializing API Manager with all services
+2025-04-30 18:10:48,063 - app.services.openai_service - INFO - Initializing OpenAIService with app context...
+2025-04-30 18:10:48,064 - app.services.openai_service - INFO - Resolved OpenAI model: gpt-4.1-mini (Config: gpt-4.1-mini, Env: None, Default: gpt-4.1-mini)
+2025-04-30 18:10:48,064 - app.services.openai_service - INFO - Resolved feedback model: gpt-4.1-mini (Config: None, Env: None, Default: gpt-4.1-mini)
+2025-04-30 18:10:48,064 - app.services.openai_service - INFO - Operating system: Windows 10 (10.0.26100)
+2025-04-30 18:10:48,071 - app.services.openai_service - INFO - Hostname: CasonsPC, Primary IP (gethostbyname): 10.0.0.150
+2025-04-30 18:10:48,072 - app.services.openai_service - INFO - All IPs for hostname (getaddrinfo): ['fe80::20d1:846a:12b1:1b1a', '10.0.0.150', '2604:3d08:ea96:700::b1cc', '2604:3d08:ea96:700:7957:d32d:349f:4af4', '2604:3d08:ea96:700:6b3e:d2ca:7404:71a8']
+2025-04-30 18:10:48,073 - app.services.openai_service - INFO - Proxy environment: HTTP_PROXY=None, HTTPS_PROXY=None, NO_PROXY=None
+2025-04-30 18:10:48,073 - app.services.openai_service - INFO - Python version: 3.11.9
+2025-04-30 18:10:48,074 - app.services.openai_service - INFO - openai version: 1.7.0
+2025-04-30 18:10:48,074 - app.services.openai_service - INFO - httpx version: 0.28.1
+2025-04-30 18:10:48,074 - app.services.openai_service - INFO - certifi path: C:\Users\cason\Downloads\salestraining-ai\.venv\Lib\site-packages\certifi\cacert.pem
+2025-04-30 18:10:48,076 - app.services.openai_service - INFO - dnspython version: 2.4.2
+2025-04-30 18:10:48,477 - app.services.openai_service - INFO - Created default httpx.Client instance explicitly with default SSL context.
+2025-04-30 18:10:48,478 - app.services.openai_service - INFO - OpenAI client created with custom http_client.
+2025-04-30 18:10:48,479 - app.services.openai_service - INFO - Testing basic connectivity to api.openai.com:443...
+2025-04-30 18:10:48,552 - app.services.openai_service - INFO - Socket connection to api.openai.com:443 successful
+2025-04-30 18:10:48,554 - app.services.openai_service - INFO - Testing OpenAI API connection with model: gpt-4.1-mini (attempt 1/5)...
+2025-04-30 18:10:49,164 - httpx - INFO - HTTP Request: GET https://api.openai.com/v1/models/gpt-4.1-mini "HTTP/1.1 200 OK"
+2025-04-30 18:10:49,166 - app.services.openai_service - INFO - OpenAI API connection successful for model: gpt-4.1-mini
+2025-04-30 18:10:49,167 - app.services.openai_service - INFO - OpenAIService initialized with client.
+2025-04-30 18:10:49,167 - app.services.openai_service - INFO - Testing basic connectivity to api.openai.com:443...
+2025-04-30 18:10:49,210 - app.services.openai_service - INFO - Socket connection to api.openai.com:443 successful
+2025-04-30 18:10:49,211 - app.services.openai_service - INFO - Testing OpenAI API connection with model: gpt-4.1-mini (attempt 1/5)...
+2025-04-30 18:10:49,678 - httpx - INFO - HTTP Request: GET https://api.openai.com/v1/models/gpt-4.1-mini "HTTP/1.1 200 OK"
+2025-04-30 18:10:49,680 - app.services.openai_service - INFO - OpenAI API connection successful for model: gpt-4.1-mini
+2025-04-30 18:10:49,681 - app.services.api_manager - INFO - OpenAI service initialized: True
+2025-04-30 18:10:49,682 - app.services.eleven_labs_service - INFO - ElevenLabsService init_app called. App config type: <class 'flask.config.Config'>
+2025-04-30 18:10:49,682 - app.services.eleven_labs_service - INFO - API Key from app.config.get('ELEVEN_LABS_API_KEY'): Exists
+2025-04-30 18:10:49,683 - app.services.eleven_labs_service - INFO - API Key from os.environ.get('ELEVEN_LABS_API_KEY'): Exists
+2025-04-30 18:10:49,684 - app.services.eleven_labs_service - INFO - API Key from os.environ.get('ELEVENLABS_API_KEY'): Exists
+2025-04-30 18:10:49,684 - app.services.eleven_labs_service - INFO - ElevenLabsService initialized successfully with API key (length: 51)
+2025-04-30 18:10:49,685 - app.services.api_manager - INFO - ElevenLabs service initialized: True
+2025-04-30 18:10:49,685 - app.services.deepgram_service - INFO - Initializing DeepgramService with app context
+2025-04-30 18:10:49,687 - app.services.deepgram_service - INFO - Deepgram API key format: length=40, has prefix='dg_'=False
+2025-04-30 18:10:49,688 - app.services.deepgram_service - INFO - Detected possible legacy key format, will try both original and with dg_ prefix
+2025-04-30 18:10:49,689 - app.services.deepgram_service - INFO - Created alternative API key with dg_ prefix for fallback
+2025-04-30 18:10:49,689 - app.services.deepgram_service - INFO - DeepgramService initialized successfully
+2025-04-30 18:10:49,690 - app.services.api_manager - INFO - Deepgram service initialized
+2025-04-30 18:10:49,694 - app.system_health - INFO - Health check routes registered
+2025-04-30 18:10:49,695 - app.extensions - INFO - Initializing extensions for app instance (id: 2218541387088)
+2025-04-30 18:10:49,696 - app.extensions - INFO - Initializing SQLAlchemy...
+2025-04-30 18:10:49,697 - app.extensions - INFO - SQLAlchemy already registered on this Flask app, skipping initialization
+2025-04-30 18:10:49,698 - app.extensions - INFO - Initializing Flask-Login...
+2025-04-30 18:10:49,698 - app.extensions - INFO - Initializing Flask-Mail...
+2025-04-30 18:10:49,699 - app.extensions - INFO - Initializing Flask-Limiter...
+2025-04-30 18:10:49,701 - app.extensions - INFO - Initializing OAuth...
+2025-04-30 18:10:49,702 - app.extensions - INFO - Initializing Flask-Migrate...
+2025-04-30 18:10:49,703 - app.extensions - INFO - Initializing Flask-Bcrypt...
+2025-04-30 18:10:49,703 - app.extensions - INFO - Initializing Flask-SocketIO...
+2025-04-30 18:10:49,704 - app.extensions - INFO - Debug mode detected, enabling detailed socketio logging
+2025-04-30 18:10:49,752 - engineio.server - INFO - Server initialized for threading.
+2025-04-30 18:10:49,753 - app.extensions - INFO - Flask-SocketIO initialized successfully
+2025-04-30 18:10:49,754 - app.extensions - INFO - All extensions initialized successfully
+2025-04-30 18:10:49,971 - app.services.voice_analysis_service - INFO - Voice Analysis Service initialized.
+2025-04-30 18:10:50,026 - app.error_handler - INFO - Registering centralized error handlers
+2025-04-30 18:10:50,043 - voice_diagnostic - INFO - === TESTING OPENAI SERVICE ===
+2025-04-30 18:10:50,044 - app.services.openai_service - WARNING - Accessing OpenAI service before init_app. Ensure init_app is called in create_app.
+2025-04-30 18:10:50,044 - voice_diagnostic - INFO - OpenAI service initialized: False
+2025-04-30 18:10:50,047 - voice_diagnostic - INFO - === TESTING CONVERSATION STATE MANAGER ===
+2025-04-30 18:10:50,047 - app.services.conversation_state_manager - INFO - Initialized ConversationStateManager
+2025-04-30 18:10:50,065 - voice_diagnostic - INFO - === TESTING ELEVENLABS SERVICE ===
+2025-04-30 18:10:50,065 - app.services.eleven_labs_service - WARNING - Accessing ElevenLabs service before init_app. Ensure init_app is called in create_app.
+2025-04-30 18:10:50,068 - voice_diagnostic - INFO - Attempting to access voices...
+2025-04-30 18:10:50,074 - voice_diagnostic - INFO - === TESTING VOICE ENDPOINT ===
+2025-04-30 18:10:50,078 - app - INFO - Loaded configuration for environment: dev
+2025-04-30 18:10:50,078 - app.database_manager - INFO - Initializing Database Manager
+2025-04-30 18:10:50,080 - app.database_manager - INFO - Database Manager initialized successfully
+2025-04-30 18:10:50,081 - app.services.api_manager - INFO - Initializing API Manager with all services
+2025-04-30 18:10:50,081 - app.services.openai_service - WARNING - OpenAIService already initialized.
+2025-04-30 18:10:50,082 - app.services.api_manager - INFO - OpenAI service initialized: True
+2025-04-30 18:10:50,082 - app.services.eleven_labs_service - INFO - ElevenLabsService init_app called. App config type: <class 'flask.config.Config'>
+2025-04-30 18:10:50,082 - app.services.eleven_labs_service - INFO - API Key from app.config.get('ELEVEN_LABS_API_KEY'): Exists
+2025-04-30 18:10:50,083 - app.services.eleven_labs_service - INFO - API Key from os.environ.get('ELEVEN_LABS_API_KEY'): Exists
+2025-04-30 18:10:50,083 - app.services.eleven_labs_service - INFO - API Key from os.environ.get('ELEVENLABS_API_KEY'): Exists
+2025-04-30 18:10:50,084 - app.services.eleven_labs_service - INFO - ElevenLabsService initialized successfully with API key (length: 51)
+2025-04-30 18:10:50,084 - app.services.api_manager - INFO - ElevenLabs service initialized: True
+2025-04-30 18:10:50,084 - app.services.deepgram_service - INFO - Initializing DeepgramService with app context
+2025-04-30 18:10:50,084 - app.services.deepgram_service - INFO - Deepgram API key format: length=40, has prefix='dg_'=False
+2025-04-30 18:10:50,085 - app.services.deepgram_service - INFO - Detected possible legacy key format, will try both original and with dg_ prefix
+2025-04-30 18:10:50,085 - app.services.deepgram_service - INFO - Created alternative API key with dg_ prefix for fallback
+2025-04-30 18:10:50,086 - app.services.deepgram_service - INFO - DeepgramService initialized successfully
+2025-04-30 18:10:50,086 - app.services.api_manager - INFO - Deepgram service initialized
+2025-04-30 18:10:50,088 - app.system_health - INFO - Health check routes registered
+2025-04-30 18:10:50,088 - app.extensions - INFO - Initializing extensions for app instance (id: 2218541486416)
+2025-04-30 18:10:50,089 - app.extensions - INFO - Initializing SQLAlchemy...
+2025-04-30 18:10:50,089 - app.extensions - INFO - SQLAlchemy already registered on this Flask app, skipping initialization
+2025-04-30 18:10:50,090 - app.extensions - INFO - Initializing Flask-Login...
+2025-04-30 18:10:50,090 - app.extensions - INFO - Initializing Flask-Mail...
+2025-04-30 18:10:50,090 - app.extensions - INFO - Initializing Flask-Limiter...
+2025-04-30 18:10:50,091 - app.extensions - INFO - Initializing OAuth...
+2025-04-30 18:10:50,091 - app.extensions - INFO - Initializing Flask-Migrate...
+2025-04-30 18:10:50,092 - app.extensions - INFO - Initializing Flask-Bcrypt...
+2025-04-30 18:10:50,092 - app.extensions - INFO - Initializing Flask-SocketIO...
+2025-04-30 18:10:50,093 - app.extensions - INFO - Debug mode detected, enabling detailed socketio logging
+2025-04-30 18:10:50,093 - engineio.server - INFO - Server initialized for threading.
+2025-04-30 18:10:50,094 - app.extensions - INFO - Flask-SocketIO initialized successfully
+2025-04-30 18:10:50,094 - app.extensions - INFO - All extensions initialized successfully
+2025-04-30 18:10:50,138 - app.error_handler - INFO - Registering centralized error handlers
+2025-04-30 18:10:50,140 - voice_diagnostic - INFO - Testing /voice-chat endpoint...
+2025-04-30 18:10:50,144 - app.error_handler - ERROR - Unhandled exception on POST http://localhost/api/voice-chat: 405 Method Not Allowed: The method is not allowed for the requested URL.
+2025-04-30 18:10:50,148 - app.error_handler - ERROR - Error rendering template errors/405.html: errors/405.html, falling back to errors/500.html
+2025-04-30 18:10:50,161 - voice_diagnostic - INFO - Response status: 500
+2025-04-30 18:10:50,167 - voice_diagnostic - ERROR - Response: <!DOCTYPE html>
+<html>
+<head>
+    <title>Internal Server Error</title>
+</head>
+<body>
+    <h1>Internal Server Error</h1>
+    <p>Sorry, something went wrong on our server.</p>
+</body>
+</html>
+2025-04-30 18:10:50,168 - voice_diagnostic - INFO - 
+=== DIAGNOSTIC SUMMARY ===
+2025-04-30 18:10:50,169 - voice_diagnostic - INFO - API Key: FAILED
+2025-04-30 18:10:50,169 - voice_diagnostic - INFO - OpenAI Service: FAILED
+2025-04-30 18:10:50,170 - voice_diagnostic - INFO - Conversation Manager: PASSED
+2025-04-30 18:10:50,170 - voice_diagnostic - INFO - ElevenLabs Service: PASSED
+2025-04-30 18:10:50,171 - voice_diagnostic - INFO - Voice Endpoint: FAILED
+2025-04-30 18:10:50,171 - voice_diagnostic - INFO - 
+Some tests failed. Review the log for details on which components are not working properly.

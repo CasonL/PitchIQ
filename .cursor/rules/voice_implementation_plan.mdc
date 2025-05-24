@@ -1,0 +1,826 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Voice-First Interface Implementation Plan
+
+## Architecture Overview
+
+The voice-first interface is built around a central orb visualization that provides real-time feedback on audio state, supported by minimal sidebars for text chat and analytics. The system follows a modular architecture with clear separation of concerns.
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  Main Container                      │
+├───────────┬─────────────────────────┬───────────────┤
+│           │                         │               │
+│  Analytics│     Central Voice       │  Chat         │
+│  Sidebar  │        Orb              │  Sidebar      │
+│ (hidden)  │                         │ (hidden)      │
+│           │                         │               │
+├───────────┴─────────────────────────┴───────────────┤
+│             Controls & Header                        │
+└─────────────────────────────────────────────────────┘
+```
+
+## Component Breakdown
+
+### 1. Core Components
+
+| Component | Description | File Location |
+|-----------|-------------|---------------|
+| `VoiceOrb` | Central visualization for audio feedback | `/app/components/voice/VoiceOrb.tsx` |
+| `VoiceContainer` | Main container for voice interface | `/app/components/voice/VoiceContainer.tsx` |
+| `ChatSidebar` | Right sidebar for text interaction | `/app/components/voice/ChatSidebar.tsx` |
+| `AnalyticsSidebar` | Left sidebar for performance metrics | `/app/components/voice/AnalyticsSidebar.tsx` |
+| `PersonaHeader` | Collapsible header for persona info | `/app/components/voice/PersonaHeader.tsx` |
+| `VoiceControls` | Bottom controls for voice interaction | `/app/components/voice/VoiceControls.tsx` |
+| `EmotionAnimations` | Emotion-specific animation effects | `/app/components/voice/EmotionAnimations.tsx` |
+
+### 2. Service Layer
+
+| Service | Description | File Location |
+|---------|-------------|---------------|
+| `AudioService` | Handles audio recording and processing | `/app/services/AudioService.ts` |
+| `SpeechRecognitionService` | Speech-to-text functionality | `/app/services/SpeechRecognitionService.ts` |
+| `TextToSpeechService` | Text-to-speech functionality | `/app/services/TextToSpeechService.ts` |
+| `ConversationService` | Manages conversation state and flow | `/app/services/ConversationService.ts` |
+| `AnalyticsService` | Processes and calculates metrics | `/app/services/AnalyticsService.ts` |
+| `EmotionDetectionService` | Detects emotions in AI responses | `/app/services/EmotionDetectionService.ts` |
+
+### 3. State Management
+
+| Store | Description | File Location |
+|-------|-------------|---------------|
+| `voiceState` | Core voice interface state | `/app/state/voiceState.ts` |
+| `conversationState` | Chat history and context | `/app/state/conversationState.ts` |
+| `analyticsState` | Performance metrics state | `/app/state/analyticsState.ts` |
+| `personaState` | Current persona information | `/app/state/personaState.ts` |
+| `emotionState` | Current emotional state of the AI | `/app/state/emotionState.ts` |
+
+## Sample Code Snippets
+
+### VoiceOrb Component with Emotion Support
+
+```tsx
+// /app/components/voice/VoiceOrb.tsx
+import React, { useEffect, useRef, useState } from 'react';
+import { useVoiceState } from '@/state/voiceState';
+import { EmotionType } from '@/types/emotions';
+import { 
+  drawHappyParticles, 
+  drawSurpriseBurst, 
+  drawConfusionSwirls,
+  drawThoughtBubbles,
+  drawExcitementSparkles,
+  drawConcernParticles
+} from './EmotionAnimations';
+
+interface VoiceOrbProps {
+  size?: number;
+}
+
+const VoiceOrb: React.FC<VoiceOrbProps> = ({ size = 300 }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { 
+    isListening, 
+    isSpeaking, 
+    isTraining, 
+    audioLevel,
+    emotion 
+  } = useVoiceState();
+  const animationFrameRef = useRef<number>();
+  
+  // Smooth audio level transitions using ref
+  const targetAudioLevelRef = useRef(audioLevel);
+  const currentAudioLevelRef = useRef(audioLevel);
+  
+  useEffect(() => {
+    targetAudioLevelRef.current = audioLevel;
+  }, [audioLevel]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Set canvas dimensions
+    canvas.width = size;
+    canvas.height = size;
+    
+    const animate = (time: number) => {
+      if (!canvas || !ctx) return;
+      
+      // Smooth audio level transition
+      const transitionSpeed = 0.1;
+      currentAudioLevelRef.current += (targetAudioLevelRef.current - currentAudioLevelRef.current) * transitionSpeed;
+      const smoothAudioLevel = currentAudioLevelRef.current;
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      
+      // Save the canvas state before applying transformations
+      ctx.save();
+      
+      // Apply emotion-specific animations and transformations
+      if (emotion) {
+        applyEmotionEffects(ctx, centerX, centerY, size * 0.4, time, emotion);
+      }
+      
+      // Get color based on state
+      let primaryColor, secondaryColor;
+      if (isTraining) {
+        primaryColor = 'rgba(34, 197, 94, 0.7)'; // Green for training
+        secondaryColor = 'rgba(34, 197, 94, 0.3)';
+      } else if (isListening) {
+        primaryColor = 'rgba(30, 58, 138, 0.7)'; // Blue for listening
+        secondaryColor = 'rgba(30, 58, 138, 0.3)';
+      } else if (isSpeaking) {
+        primaryColor = 'rgba(220, 38, 38, 0.7)'; // Red for speaking
+        secondaryColor = 'rgba(220, 38, 38, 0.3)';
+      } else {
+        primaryColor = 'rgba(100, 116, 139, 0.5)'; // Slate for idle
+        secondaryColor = 'rgba(100, 116, 139, 0.2)';
+      }
+      
+      // Draw orb background
+      const orbSize = (size * 0.4) * (1 + smoothAudioLevel * 0.2);
+      
+      // Draw gradient background
+      const gradient = ctx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, orbSize * 1.5
+      );
+      gradient.addColorStop(0, primaryColor);
+      gradient.addColorStop(1, secondaryColor);
+      
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, orbSize, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      
+      // Add ripples if active
+      if (isListening || isSpeaking || isTraining) {
+        drawRipples(ctx, centerX, centerY, orbSize, time, primaryColor);
+      }
+      
+      // Draw emotion-specific particles after the main orb
+      if (emotion) {
+        drawEmotionParticles(ctx, centerX, centerY, orbSize, time, emotion);
+      }
+      
+      // Restore the canvas state
+      ctx.restore();
+      
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+    
+    const drawRipples = (
+      ctx: CanvasRenderingContext2D, 
+      x: number, 
+      y: number, 
+      radius: number, 
+      time: number, 
+      color: string
+    ) => {
+      const rippleCount = 3;
+      const timeScale = time * 0.001;
+      
+      for (let i = 0; i < rippleCount; i++) {
+        const rippleRadius = radius * (1.2 + (i * 0.2) + Math.sin(timeScale + i) * 0.1);
+        const alpha = 0.5 - (i * 0.15);
+        
+        ctx.beginPath();
+        ctx.arc(x, y, rippleRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = color.replace(/[\d\.]+\)$/g, `${alpha})`);
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    };
+    
+    const applyEmotionEffects = (
+      ctx: CanvasRenderingContext2D, 
+      centerX: number, 
+      centerY: number,
+      orbSize: number,
+      time: number,
+      emotion: EmotionType
+    ) => {
+      const timeScale = time * 0.001;
+      
+      switch(emotion) {
+        case EmotionType.HAPPY:
+          // Gentle pulsing with slightly larger size
+          const happyScale = 1 + Math.sin(timeScale * 2) * 0.05;
+          ctx.scale(happyScale, happyScale);
+          break;
+          
+        case EmotionType.SURPRISED:
+          // Quick expansion followed by contraction
+          const surpriseScale = 1 + Math.max(0, Math.sin(timeScale * 8) * 0.2);
+          ctx.scale(surpriseScale, surpriseScale);
+          break;
+          
+        case EmotionType.CONFUSED:
+          // Slight wobble/tilt
+          ctx.translate(centerX, centerY);
+          ctx.rotate(Math.sin(timeScale * 3) * 0.05);
+          ctx.translate(-centerX, -centerY);
+          break;
+          
+        case EmotionType.THINKING:
+          // Slow, rhythmic pulsing
+          const thinkScale = 1 + Math.sin(timeScale) * 0.03;
+          ctx.scale(thinkScale, thinkScale);
+          break;
+          
+        case EmotionType.EXCITED:
+          // Energetic bouncing
+          ctx.translate(0, Math.sin(timeScale * 5) * orbSize * 0.05);
+          break;
+          
+        case EmotionType.CONCERNED:
+          // Subtle contraction
+          const concernScale = 1 - Math.abs(Math.sin(timeScale * 1.5) * 0.04);
+          ctx.scale(concernScale, concernScale);
+          break;
+      }
+    };
+    
+    const drawEmotionParticles = (
+      ctx: CanvasRenderingContext2D, 
+      centerX: number, 
+      centerY: number,
+      orbSize: number,
+      time: number,
+      emotion: EmotionType
+    ) => {
+      const timeScale = time * 0.001;
+      
+      switch(emotion) {
+        case EmotionType.HAPPY:
+          drawHappyParticles(ctx, centerX, centerY, orbSize, timeScale);
+          break;
+        case EmotionType.SURPRISED:
+          drawSurpriseBurst(ctx, centerX, centerY, orbSize, timeScale);
+          break;
+        case EmotionType.CONFUSED:
+          drawConfusionSwirls(ctx, centerX, centerY, orbSize, timeScale);
+          break;
+        case EmotionType.THINKING:
+          drawThoughtBubbles(ctx, centerX, centerY, orbSize, timeScale);
+          break;
+        case EmotionType.EXCITED:
+          drawExcitementSparkles(ctx, centerX, centerY, orbSize, timeScale);
+          break;
+        case EmotionType.CONCERNED:
+          drawConcernParticles(ctx, centerX, centerY, orbSize, timeScale);
+          break;
+      }
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+    
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [size, isListening, isSpeaking, isTraining, emotion]);
+
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0"
+        width={size}
+        height={size}
+      />
+    </div>
+  );
+};
+
+export default VoiceOrb;
+```
+
+### Emotion Animation Implementation
+
+```tsx
+// /app/components/voice/EmotionAnimations.tsx
+import { EmotionType } from '@/types/emotions';
+
+export const drawHappyParticles = (
+  ctx: CanvasRenderingContext2D, 
+  centerX: number, 
+  centerY: number, 
+  radius: number, 
+  time: number
+) => {
+  // Draw 5-10 small particles rising upward
+  const particleCount = 8;
+  for (let i = 0; i < particleCount; i++) {
+    const angle = (i / particleCount) * Math.PI * 2 + time;
+    const distance = radius * 1.2;
+    const x = centerX + Math.cos(angle) * distance;
+    const y = centerY + Math.sin(angle) * distance - (Math.sin(time * 2 + i) * radius * 0.2);
+    
+    const size = radius * 0.04 * (0.5 + Math.sin(time * 3 + i) * 0.5);
+    
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 100, 0.6)';
+    ctx.fill();
+  }
+};
+
+export const drawSurpriseBurst = (
+  ctx: CanvasRenderingContext2D, 
+  centerX: number, 
+  centerY: number, 
+  radius: number, 
+  time: number
+) => {
+  // Create burst effect with lines radiating outward
+  const lineCount = 12;
+  const burstScale = Math.max(0, Math.sin(time * 8) * 0.5);
+  
+  for (let i = 0; i < lineCount; i++) {
+    const angle = (i / lineCount) * Math.PI * 2;
+    const innerRadius = radius * 1.1;
+    const outerRadius = radius * (1.3 + burstScale * 0.3);
+    
+    const startX = centerX + Math.cos(angle) * innerRadius;
+    const startY = centerY + Math.sin(angle) * innerRadius;
+    const endX = centerX + Math.cos(angle) * outerRadius;
+    const endY = centerY + Math.sin(angle) * outerRadius;
+    
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(endX, endY);
+    ctx.strokeStyle = 'rgba(255, 180, 100, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+};
+
+export const drawConfusionSwirls = (
+  ctx: CanvasRenderingContext2D, 
+  centerX: number, 
+  centerY: number, 
+  radius: number, 
+  time: number
+) => {
+  // Draw question mark-like swirls
+  const swirlCount = 3;
+  
+  for (let i = 0; i < swirlCount; i++) {
+    const offset = (i / swirlCount) * Math.PI * 2;
+    const posX = centerX + Math.cos(time * 0.5 + offset) * radius * 1.3;
+    const posY = centerY + Math.sin(time * 0.5 + offset) * radius * 0.5;
+    
+    ctx.beginPath();
+    ctx.arc(posX, posY, radius * 0.1, 0, Math.PI * 1.5, false);
+    ctx.strokeStyle = 'rgba(150, 150, 255, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Add the dot
+    ctx.beginPath();
+    ctx.arc(posX, posY + radius * 0.2, radius * 0.03, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(150, 150, 255, 0.4)';
+    ctx.fill();
+  }
+};
+
+export const drawThoughtBubbles = (
+  ctx: CanvasRenderingContext2D, 
+  centerX: number, 
+  centerY: number, 
+  radius: number, 
+  time: number
+) => {
+  // Draw thought bubbles
+  const bubbleCount = 5;
+  
+  for (let i = 0; i < bubbleCount; i++) {
+    const scale = 0.5 + ((bubbleCount - i) / bubbleCount) * 0.5;
+    const angle = time * 0.5 + i * (Math.PI / 4);
+    const distance = radius * (1.2 + i * 0.1);
+    const x = centerX + Math.cos(angle) * distance;
+    const y = centerY - radius * 0.5 + Math.sin(angle) * radius * 0.3;
+    const size = radius * 0.08 * scale;
+    
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(200, 200, 255, 0.5)';
+    ctx.fill();
+  }
+};
+
+export const drawExcitementSparkles = (
+  ctx: CanvasRenderingContext2D, 
+  centerX: number, 
+  centerY: number, 
+  radius: number, 
+  time: number
+) => {
+  // Draw sparkles
+  const sparkleCount = 10;
+  
+  for (let i = 0; i < sparkleCount; i++) {
+    const angle = (i / sparkleCount) * Math.PI * 2 + time * 2;
+    const distance = radius * (1.2 + Math.sin(time * 3 + i) * 0.2);
+    const x = centerX + Math.cos(angle) * distance;
+    const y = centerY + Math.sin(angle) * distance;
+    
+    // Draw 4-point star
+    const size = radius * 0.05 * (0.8 + Math.sin(time * 5 + i) * 0.2);
+    
+    ctx.beginPath();
+    ctx.moveTo(x, y - size);
+    ctx.lineTo(x + size / 3, y - size / 3);
+    ctx.lineTo(x + size, y);
+    ctx.lineTo(x + size / 3, y + size / 3);
+    ctx.lineTo(x, y + size);
+    ctx.lineTo(x - size / 3, y + size / 3);
+    ctx.lineTo(x - size, y);
+    ctx.lineTo(x - size / 3, y - size / 3);
+    ctx.closePath();
+    
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.7)';
+    ctx.fill();
+  }
+};
+
+export const drawConcernParticles = (
+  ctx: CanvasRenderingContext2D, 
+  centerX: number, 
+  centerY: number, 
+  radius: number, 
+  time: number
+) => {
+  // Draw particles moving downward
+  const particleCount = 6;
+  
+  for (let i = 0; i < particleCount; i++) {
+    const offset = (i / particleCount) * Math.PI;
+    const x = centerX + Math.cos(offset) * radius * 0.8;
+    const fallSpeed = 0.3 + (i / particleCount) * 0.2;
+    const y = centerY + radius * 0.8 + Math.sin(time * fallSpeed + i) * radius * 0.3;
+    
+    const size = radius * 0.04 * (0.5 + Math.sin(time * 2 + i) * 0.5);
+    
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(100, 120, 180, 0.5)';
+    ctx.fill();
+  }
+};
+```
+
+### Emotion Detection Service
+
+```tsx
+// /app/services/EmotionDetectionService.ts
+import { EmotionType } from '@/types/emotions';
+
+export default class EmotionDetectionService {
+  /**
+   * Detects emotion from AI response text
+   */
+  public detectEmotion(text: string): EmotionType | null {
+    const lowerText = text.toLowerCase();
+    
+    // Simple keyword-based detection - could be replaced with ML-based detection in the future
+    if (/\b(wow|amazing|incredible|surprised|unexpected)\b/.test(lowerText)) {
+      return EmotionType.SURPRISED;
+    }
+    
+    if (/\b(happy|glad|pleased|delighted)\b/.test(lowerText)) {
+      return EmotionType.HAPPY;
+    }
+    
+    if (/\b(hmm|unclear|not sure|confused|wonder)\b/.test(lowerText)) {
+      return EmotionType.CONFUSED;
+    }
+    
+    if (/\b(thinking|considering|analyzing|processing)\b/.test(lowerText)) {
+      return EmotionType.THINKING;
+    }
+    
+    if (/\b(great|awesome|excellent|fantastic|excited)\b/.test(lowerText)) {
+      return EmotionType.EXCITED;
+    }
+    
+    if (/\b(concerned|worry|careful|caution|issue)\b/.test(lowerText)) {
+      return EmotionType.CONCERNED;
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Process response from backend that includes an emotion field
+   */
+  public processResponseWithEmotion(response: any): { 
+    text: string; 
+    emotion: EmotionType | null;
+  } {
+    return {
+      text: response.text || '',
+      emotion: response.emotion || null
+    };
+  }
+}
+```
+
+### Voice State with Emotion
+
+```tsx
+// /app/state/voiceState.ts
+import { create } from 'zustand';
+import { EmotionType } from '@/types/emotions';
+
+interface VoiceState {
+  isListening: boolean;
+  isSpeaking: boolean;
+  isTraining: boolean;
+  audioLevel: number;
+  volume: number;
+  emotion: EmotionType | null;
+  
+  // Actions
+  startListening: () => void;
+  stopListening: () => void;
+  startSpeaking: () => void;
+  stopSpeaking: () => void;
+  setTrainingMode: (isTraining: boolean) => void;
+  setAudioLevel: (level: number) => void;
+  setVolume: (volume: number) => void;
+  setEmotion: (emotion: EmotionType | null) => void;
+}
+
+export const useVoiceState = create<VoiceState>((set) => ({
+  isListening: false,
+  isSpeaking: false,
+  isTraining: false,
+  audioLevel: 0,
+  volume: 0.8,
+  emotion: null,
+  
+  startListening: () => set({ isListening: true, isSpeaking: false }),
+  stopListening: () => set({ isListening: false }),
+  startSpeaking: () => set({ isSpeaking: true, isListening: false }),
+  stopSpeaking: () => set({ isSpeaking: false }),
+  setTrainingMode: (isTraining) => set({ isTraining }),
+  setAudioLevel: (level) => set({ audioLevel: Math.max(0, Math.min(1, level)) }),
+  setVolume: (volume) => set({ volume: Math.max(0, Math.min(1, volume)) }),
+  setEmotion: (emotion) => set({ emotion })
+}));
+```
+
+### Emotion Types Definition
+
+```tsx
+// /app/types/emotions.ts
+export enum EmotionType {
+  NEUTRAL = 'neutral',
+  HAPPY = 'happy',
+  SURPRISED = 'surprised',
+  CONFUSED = 'confused',
+  THINKING = 'thinking',
+  EXCITED = 'excited',
+  CONCERNED = 'concerned'
+}
+```
+
+## Routes and API Endpoints
+
+### Frontend Routes
+
+| Route | Component | Description |
+|-------|-----------|-------------|
+| `/training/voice` | `VoiceTrainingPage` | Main voice training interface |
+| `/training/voice/settings` | `VoiceSettingsPage` | Voice interface settings |
+| `/training/voice/history` | `VoiceHistoryPage` | Past voice session history |
+| `/training/voice/summary/:sessionId` | `VoiceSummaryPage` | Session summary and feedback |
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/conversation/start` | POST | Start new conversation session |
+| `/api/v1/conversation/message` | POST | Send user message to backend |
+| `/api/v1/conversation/end` | POST | End conversation and save |
+| `/api/v1/analytics/metrics` | GET | Get real-time metrics |
+| `/api/v1/personas/list` | GET | Get available personas |
+| `/api/v1/personas/:id` | GET | Get specific persona details |
+
+## Implementation Phases
+
+### Phase 1: Foundation (3 weeks)
+
+#### Week 1: Core Setup
+- **Day 1-2**: Setup WebSocket infrastructure for audio streaming
+  - Create `AudioService.ts` with WebSocket connection handlers
+  - Implement audio buffering and processing methods
+- **Day 3-4**: Implement voice activity detection
+  - Add amplitude analysis for audio levels
+  - Create voice detection thresholds and smoothing algorithms
+- **Day 5**: Create basic VoiceOrb component
+  - Port existing Canvas implementation
+  - Add resize handlers and performance optimizations
+
+#### Week 2: Basic Voice Interaction
+- **Day 1-2**: Implement SpeechRecognitionService
+  - Add browser speech recognition integration
+  - Handle interim and final speech results
+- **Day 3-4**: Create TextToSpeechService
+  - Implement browser speech synthesis
+  - Add voice options and configuration
+- **Day 5**: Build VoiceContainer layout
+  - Create responsive container component
+  - Add placeholder areas for sidebars
+
+#### Week 3: Core Voice UI
+- **Day 1-2**: Implement VoiceControls component
+  - Add microphone toggle button
+  - Create volume controls
+  - Add session control buttons
+- **Day 3-4**: Create basic state management
+  - Set up voiceState store
+  - Implement core conversationState
+- **Day 5**: Connect components to state
+  - Wire up VoiceOrb to audio levels
+  - Connect controls to audio services
+
+### Phase 2: Enhanced Experience (4 weeks)
+
+#### Week 4: Chat Sidebar Implementation
+- **Day 1-2**: Create ChatSidebar component
+  - Implement collapsible sidebar UI
+  - Add message rendering
+- **Day 3-4**: Build chat interaction logic
+  - Add message handling functionality
+  - Implement sidebar toggle animations
+- **Day 5**: Create subtle sidebar indicator
+  - Implement "aura" pull interaction
+  - Add discovery tooltip for first-time users
+
+#### Week 5: Persona Integration
+- **Day 1-2**: Implement PersonaHeader component
+  - Create collapsible header design
+  - Add persona information display
+- **Day 3-4**: Build persona selection functionality
+  - Create persona selection UI
+  - Implement persona switching
+- **Day 5**: Add persona state management
+  - Implement personaState store
+  - Connect to backend persona endpoints
+
+#### Week 6: Analytics Framework
+- **Day 1-2**: Implement AnalyticsService
+  - Create metrics calculation methods
+  - Build real-time analysis algorithms
+- **Day 3-4**: Create AnalyticsSidebar component
+  - Implement metrics visualization components
+  - Add sidebar layout and toggle controls
+- **Day 5**: Connect analytics to state
+  - Implement analyticsState store
+  - Wire up real-time metric updates
+
+#### Week 7: Conversation Flow
+- **Day 1-3**: Enhance ConversationService
+  - Implement turn management system
+  - Add context tracking functionality
+  - Create audio feedback trigger points
+- **Day 4-5**: Build state machine for interaction flow
+  - Create conversation states (idle, listening, thinking, speaking)
+  - Implement state transitions and guards
+
+### Phase 3: Advanced Features (4 weeks)
+
+#### Week 8: Training Mode
+- **Day 1-2**: Implement training mode in VoiceOrb
+  - Add green state for training mode
+  - Create training-specific animations
+- **Day 3-5**: Build training flow logic
+  - Create guided instruction sequence
+  - Implement progressive training levels
+  - Add feedback collection during training
+
+#### Week 9: Moment Markers System
+- **Day 1-2**: Create audio cue manager
+  - Implement subtle audio indicators
+  - Add visual feedback for audio cues
+- **Day 3-4**: Build teachable moment detection
+  - Create algorithms to identify key learning moments
+  - Implement marker creation and storage
+- **Day 5**: Add session recording functionality
+  - Implement secure audio recording
+  - Create session playback with markers
+
+#### Week 10: Emotion Animation System
+- **Day 1-2**: Create emotion detection service
+  - Implement keyword-based emotion detection
+  - Connect with AI response processing
+- **Day 3-4**: Build emotion animation components
+  - Implement emotion-specific particle effects
+  - Create orb transformation animations
+- **Day 5**: Connect emotion system to the voice orb
+  - Link emotion detection with visualization
+  - Test and calibrate emotional expressions
+
+#### Week 11: Integration and Optimization
+- **Day 1-2**: Connect all components to backend
+  - Finalize API integration
+  - Implement error handling and recovery
+- **Day 3-4**: Optimize performance
+  - Analyze and fix performance bottlenecks
+  - Implement lazy loading for sidebars
+- **Day 5**: Add final polish
+  - Refine animations and transitions
+  - Ensure responsive behavior across devices
+
+## Technical Requirements
+
+### Frontend Technologies
+- React with TypeScript
+- Canvas API for orb visualization
+- Web Audio API for audio processing
+- WebSockets for real-time communication
+- requestAnimationFrame for smooth animations
+
+### Backend Requirements
+- WebSocket server for bi-directional audio streaming
+- Audio processing pipeline with buffer management
+- Real-time analysis services for metrics
+- Conversation context management system
+
+### Key Dependencies
+```json
+{
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "socket.io-client": "^4.7.2",
+    "zustand": "^4.4.1",
+    "lucide-react": "^0.284.0",
+    "tone": "^14.7.77",
+    "react-router-dom": "^6.16.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "vite": "^4.4.9",
+    "@types/react": "^18.2.24",
+    "@types/react-dom": "^18.2.8"
+  }
+}
+```
+
+## Integration Points
+
+### Existing Systems to Connect
+1. **User Authentication System**
+   - Connect to existing login flow
+   - Ensure session persistence
+
+2. **Persona Management**
+   - Integrate with existing persona database
+   - Sync with any admin-created personas
+
+3. **Analytics Dashboard**
+   - Feed data to main analytics dashboard
+   - Ensure consistent metrics calculation
+
+4. **Training Sessions**
+   - Connect to session history
+   - Integrate with gamification/progression system
+
+## Deployment Strategy
+
+### Development Environment
+- Setup dedicated development environment for voice features
+- Create isolated testing environment for audio processing
+
+### Testing Approach
+- Automated tests for non-audio components
+- Manual testing protocol for voice interaction
+- Browser compatibility testing (Chrome, Firefox, Safari)
+
+### Staging Rollout
+- Internal team testing (1 week)
+- Limited beta with select users (2 weeks)
+- Phased rollout to all users
+
+## Accessibility Considerations
+
+- Provide visual feedback for all audio cues
+- Support keyboard navigation for all controls
+- Ensure color choices meet WCAG contrast requirements
+- Add alternative text interaction mode for users who cannot use voice 

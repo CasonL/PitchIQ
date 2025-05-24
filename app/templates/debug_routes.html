@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title or 'Flask Routes' }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #e9e9e9;
+        }
+    </style>
+</head>
+<body>
+    <h1>{{ title or 'Flask Routes' }}</h1>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Endpoint</th>
+                <th>Methods</th>
+                <th>URL Rule</th>
+                <th>Test Link</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for route in routes %}
+                <tr>
+                    <td>{{ route.endpoint }}</td>
+                    <td>{{ route.methods }}</td>
+                    <td>{{ route.rule }}</td>
+                    <td>
+                        {% if 'GET' in route.methods and not '<' in route.rule %}
+                            <a href="{{ route.rule }}" target="_blank">Test</a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <p style="margin-top: 20px;">
+        <strong>Total Routes:</strong> {{ routes|length }}
+    </p>
+</body>
+</html> 

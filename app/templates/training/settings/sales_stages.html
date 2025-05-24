@@ -1,0 +1,531 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Process Settings | PitchIQ{% endblock %}
+
+{% block styles %}
+<style>
+    .stages-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .stage-item {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 15px;
+        margin-bottom: 15px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .stage-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .stage-drag-handle {
+        cursor: grab;
+        padding: 10px;
+        color: #ccc;
+    }
+    
+    .stage-content {
+        flex-grow: 1;
+        padding: 0 15px;
+    }
+    
+    .stage-name {
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    
+    .stage-description {
+        color: #666;
+        font-size: 0.9rem;
+    }
+    
+    .stage-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .stage-actions button {
+        border: none;
+        background: none;
+        font-size: 1rem;
+        cursor: pointer;
+        padding: 5px;
+        color: #666;
+        transition: color 0.2s;
+    }
+    
+    .stage-actions button:hover {
+        color: #000;
+    }
+    
+    .stage-delete:hover {
+        color: #dc3545 !important;
+    }
+    
+    .stage-edit:hover {
+        color: #0d6efd !important;
+    }
+    
+    .stage-form {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .form-group {
+        margin-bottom: 15px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+    
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    
+    .btn-primary {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .add-stage-btn {
+        width: 100%;
+        padding: 10px;
+        border: 2px dashed #ddd;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        text-align: center;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .add-stage-btn:hover {
+        background-color: #e9ecef;
+    }
+    
+    .stage-item.dragging {
+        opacity: 0.5;
+    }
+    
+    .stage-item.drag-over {
+        border: 2px dashed #0d6efd;
+    }
+    
+    .stage-active-toggle {
+        margin-right: 10px;
+    }
+    
+    .stage-active-toggle input {
+        margin-right: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">Sales Process Settings</h2>
+            <p class="text-muted mb-4">
+                Customize your sales process by adding, editing, or removing stages. 
+                Drag and drop to reorder them.
+            </p>
+            
+            <div class="stages-container">
+                <div id="stagesList">
+                    {% for stage in sales_stages %}
+                    <div class="stage-item" data-id="{{ stage.id }}" data-name="{{ stage.name }}" data-order="{{ stage.order }}">
+                        <div class="stage-drag-handle">
+                            <i class="fas fa-grip-vertical"></i>
+                        </div>
+                        <div class="stage-active-toggle">
+                            <input type="checkbox" id="active-{{ stage.id }}" {% if stage.is_active %}checked{% endif %}>
+                            <label for="active-{{ stage.id }}">Active</label>
+                        </div>
+                        <div class="stage-content">
+                            <div class="stage-name">{{ stage.display_name }}</div>
+                            <div class="stage-description">{{ stage.description }}</div>
+                        </div>
+                        <div class="stage-actions">
+                            <button class="stage-edit" title="Edit Stage">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            {% if not stage.is_default %}
+                            <button class="stage-delete" title="Delete Stage">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="add-stage-btn" id="addStageBtn">
+                    <i class="fas fa-plus-circle me-2"></i> Add New Stage
+                </div>
+                
+                <div class="stage-form d-none" id="stageForm">
+                    <h4 id="formTitle">Add New Stage</h4>
+                    <form id="stageEditForm">
+                        <input type="hidden" id="stageId" name="stageId" value="">
+                        <div class="form-group">
+                            <label for="stageName">Stage Name (System Name)</label>
+                            <input type="text" class="form-control" id="stageName" name="stageName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="stageDisplayName">Display Name</label>
+                            <input type="text" class="form-control" id="stageDisplayName" name="stageDisplayName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="stageDescription">Description</label>
+                            <textarea class="form-control" id="stageDescription" name="stageDescription" rows="3"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="stageActive">
+                                <input type="checkbox" id="stageActive" name="stageActive" checked>
+                                Active
+                            </label>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
+                            <button type="submit" class="btn-primary" id="saveBtn">Save</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="form-actions mt-4">
+                    <button type="button" class="btn-secondary me-2" id="resetDefaultsBtn">Reset to Defaults</button>
+                    <button type="button" class="btn-primary" id="saveAllBtn">Save All Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize variables
+    let stages = [];
+    const stagesList = document.getElementById('stagesList');
+    const stageForm = document.getElementById('stageForm');
+    const addStageBtn = document.getElementById('addStageBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const saveAllBtn = document.getElementById('saveAllBtn');
+    const resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
+    const formTitle = document.getElementById('formTitle');
+    
+    // Initialize sortable list
+    new Sortable(stagesList, {
+        animation: 150,
+        handle: '.stage-drag-handle',
+        onEnd: function() {
+            // Update order after drag and drop
+            updateStagesOrder();
+        }
+    });
+    
+    // Initialize stages from DOM
+    initializeStages();
+    
+    // Event listeners
+    addStageBtn.addEventListener('click', showAddForm);
+    cancelBtn.addEventListener('click', hideForm);
+    document.getElementById('stageEditForm').addEventListener('submit', saveStage);
+    saveAllBtn.addEventListener('click', saveAllChanges);
+    resetDefaultsBtn.addEventListener('click', resetToDefaults);
+    
+    // Add event listeners for edit and delete buttons
+    stagesList.addEventListener('click', function(e) {
+        const target = e.target.closest('button');
+        if (!target) return;
+        
+        const stageItem = target.closest('.stage-item');
+        const stageId = stageItem.dataset.id;
+        
+        if (target.classList.contains('stage-edit')) {
+            editStage(stageId);
+        } else if (target.classList.contains('stage-delete')) {
+            deleteStage(stageId);
+        }
+    });
+    
+    // Initialize stages from DOM
+    function initializeStages() {
+        stages = [];
+        document.querySelectorAll('.stage-item').forEach(item => {
+            stages.push({
+                id: item.dataset.id,
+                name: item.dataset.name,
+                display_name: item.querySelector('.stage-name').textContent.trim(),
+                description: item.querySelector('.stage-description').textContent.trim(),
+                order: parseInt(item.dataset.order),
+                is_active: item.querySelector('input[type="checkbox"]').checked,
+                is_default: !item.querySelector('.stage-delete')
+            });
+        });
+    }
+    
+    // Show add form
+    function showAddForm() {
+        formTitle.textContent = 'Add New Stage';
+        document.getElementById('stageId').value = '';
+        document.getElementById('stageName').value = '';
+        document.getElementById('stageDisplayName').value = '';
+        document.getElementById('stageDescription').value = '';
+        document.getElementById('stageActive').checked = true;
+        stageForm.classList.remove('d-none');
+        addStageBtn.classList.add('d-none');
+    }
+    
+    // Hide form
+    function hideForm() {
+        stageForm.classList.add('d-none');
+        addStageBtn.classList.remove('d-none');
+    }
+    
+    // Save stage
+    function saveStage(e) {
+        e.preventDefault();
+        
+        const stageId = document.getElementById('stageId').value;
+        const stageName = document.getElementById('stageName').value;
+        const stageDisplayName = document.getElementById('stageDisplayName').value;
+        const stageDescription = document.getElementById('stageDescription').value;
+        const stageActive = document.getElementById('stageActive').checked;
+        
+        if (!stageName || !stageDisplayName) {
+            alert('Name and Display Name are required');
+            return;
+        }
+        
+        if (stageId) {
+            // Edit existing stage
+            const index = stages.findIndex(s => s.id === stageId);
+            if (index >= 0) {
+                stages[index].name = stageName;
+                stages[index].display_name = stageDisplayName;
+                stages[index].description = stageDescription;
+                stages[index].is_active = stageActive;
+                
+                // Update DOM
+                const stageItem = document.querySelector(`.stage-item[data-id="${stageId}"]`);
+                stageItem.querySelector('.stage-name').textContent = stageDisplayName;
+                stageItem.querySelector('.stage-description').textContent = stageDescription;
+                stageItem.querySelector('input[type="checkbox"]').checked = stageActive;
+            }
+        } else {
+            // Add new stage
+            const newStage = {
+                id: 'new_' + Date.now(),
+                name: stageName,
+                display_name: stageDisplayName,
+                description: stageDescription,
+                order: stages.length,
+                is_active: stageActive,
+                is_default: false
+            };
+            
+            stages.push(newStage);
+            
+            // Add to DOM
+            const stageItem = createStageItem(newStage);
+            stagesList.appendChild(stageItem);
+        }
+        
+        hideForm();
+    }
+    
+    // Create stage item DOM element
+    function createStageItem(stage) {
+        const div = document.createElement('div');
+        div.className = 'stage-item';
+        div.dataset.id = stage.id;
+        div.dataset.name = stage.name;
+        div.dataset.order = stage.order;
+        
+        div.innerHTML = `
+            <div class="stage-drag-handle">
+                <i class="fas fa-grip-vertical"></i>
+            </div>
+            <div class="stage-active-toggle">
+                <input type="checkbox" id="active-${stage.id}" ${stage.is_active ? 'checked' : ''}>
+                <label for="active-${stage.id}">Active</label>
+            </div>
+            <div class="stage-content">
+                <div class="stage-name">${stage.display_name}</div>
+                <div class="stage-description">${stage.description}</div>
+            </div>
+            <div class="stage-actions">
+                <button class="stage-edit" title="Edit Stage">
+                    <i class="fas fa-edit"></i>
+                </button>
+                ${stage.is_default ? '' : `
+                <button class="stage-delete" title="Delete Stage">
+                    <i class="fas fa-trash"></i>
+                </button>
+                `}
+            </div>
+        `;
+        
+        return div;
+    }
+    
+    // Edit stage
+    function editStage(stageId) {
+        const stage = stages.find(s => s.id == stageId);
+        if (!stage) return;
+        
+        formTitle.textContent = 'Edit Stage';
+        document.getElementById('stageId').value = stage.id;
+        document.getElementById('stageName').value = stage.name;
+        document.getElementById('stageDisplayName').value = stage.display_name;
+        document.getElementById('stageDescription').value = stage.description;
+        document.getElementById('stageActive').checked = stage.is_active;
+        
+        stageForm.classList.remove('d-none');
+        addStageBtn.classList.add('d-none');
+    }
+    
+    // Delete stage
+    function deleteStage(stageId) {
+        if (confirm('Are you sure you want to delete this stage?')) {
+            const index = stages.findIndex(s => s.id == stageId);
+            if (index >= 0) {
+                stages.splice(index, 1);
+                
+                // Remove from DOM
+                const stageItem = document.querySelector(`.stage-item[data-id="${stageId}"]`);
+                stageItem.remove();
+                
+                updateStagesOrder();
+            }
+        }
+    }
+    
+    // Update stages order
+    function updateStagesOrder() {
+        // Update order based on DOM position
+        document.querySelectorAll('.stage-item').forEach((item, index) => {
+            const stageId = item.dataset.id;
+            const stage = stages.find(s => s.id == stageId);
+            if (stage) {
+                stage.order = index;
+            }
+        });
+    }
+    
+    // Save all changes
+    function saveAllChanges() {
+        // Update active status from checkboxes
+        document.querySelectorAll('.stage-item').forEach(item => {
+            const stageId = item.dataset.id;
+            const isActive = item.querySelector('input[type="checkbox"]').checked;
+            const stage = stages.find(s => s.id == stageId);
+            if (stage) {
+                stage.is_active = isActive;
+            }
+        });
+        
+        // Prepare data for API
+        const data = {
+            stages: stages.map(stage => ({
+                name: stage.name,
+                display_name: stage.display_name,
+                description: stage.description,
+                order: stage.order,
+                is_active: stage.is_active
+            }))
+        };
+        
+        // Send to API
+        fetch('/training/api/settings/sales_stages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Sales stages updated successfully');
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while saving changes');
+        });
+    }
+    
+    // Reset to defaults
+    function resetToDefaults() {
+        if (confirm('Are you sure you want to reset to default sales stages? This will delete any custom stages you have created.')) {
+            // Send to API with empty stages to trigger reset
+            fetch('/training/api/settings/sales_stages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({stages: []})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Sales stages reset to defaults');
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while resetting to defaults');
+            });
+        }
+    }
+});
+</script>
+{% endblock %} 

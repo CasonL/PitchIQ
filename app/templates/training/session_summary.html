@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}Session Summary | PitchIQ{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/summary-styles.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="summary-container">
+    <!-- Hero Section with Overall Assessment -->
+    <div class="hero-section">
+        <h1 class="assessment-title">Call Summary</h1>
+        <p class="assessment-subtitle">{{ session.buyer_persona.name if session and session.buyer_persona else "Unknown" }} - {{ session.end_time.strftime('%B %d, %Y') if session and session.end_time else "Unknown Date" }}</p>
+        
+        <div class="assessment-text">
+            {{ feedback.overall_assessment if feedback and feedback.overall_assessment else "Feedback not available." }}
+        </div>
+        
+        <div class="assessment-metrics">
+            <div class="metric-pill">
+                <div class="metric-icon">
+                    <i class="fas fa-handshake"></i>
+                </div>
+                <div class="metric-details">
+                    <div class="metric-value">{{ "{:.1f}%".format(session.trust_score if session and session.trust_score is not none else 0.0) }}</div>
+                    <div class="metric-label">Trust</div>
+                </div>
+            </div>
+            
+            <div class="metric-pill">
+                <div class="metric-icon">
+                    <i class="fas fa-bullhorn"></i>
+                </div>
+                <div class="metric-details">
+                    <div class="metric-value">{{ "{:.1f}%".format(session.persuasion_rating if session and session.persuasion_rating is not none else 0.0) }}</div>
+                    <div class="metric-label">Persuasion</div>
+                </div>
+            </div>
+            
+            <div class="metric-pill">
+                <div class="metric-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="metric-details">
+                    <div class="metric-value">{{ "{:.1f}%".format(session.confidence_score if session and session.confidence_score is not none else 0.0) }}</div>
+                    <div class="metric-label">Confidence</div>
+                </div>
+            </div>
+            
+            <div class="metric-pill">
+                <div class="metric-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="metric-details">
+                    <div class="metric-value">{{ session.duration if session and session.duration is not none else 0 }}</div>
+                    <div class="metric-label">Minutes</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Buyer Willingness Graph -->
+    <div class="graph-section box-section">
+        <h2 class="graph-title"><strong>Buyer Willingness to Purchase</strong></h2>
+        
+        {% if feedback and feedback.insufficient_data %}
+        <div class="insufficient-data-container">
+            <div class="insufficient-data-message">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Not enough conversation data to display meaningful metrics.</p>
+                <p class="insufficient-data-details">Complete a longer roleplay session to get detailed metrics and charts.</p>
+            </div>
+        </div>
+        {% else %}
+        <div class="graph-container">
+            <canvas id="buyerWillingnessChart" 
+                    data-stages='[{% if session and session.reached_stages_list %}{% for stage in session.reached_stages_list %}"{{ stage }}"{% if not loop.last %},{% endif %}{% endfor %}{% else %}"Introduction","Discovery","Presentation","Objection","Closing"{% endif %}]'
+                    data-duration="{{ session.duration if session and session.duration is not none else 15 }}"
+                    data-trust-score="{{ session.trust_score if session and session.trust_score is not none else 50 }}"
+                    data-persuasion-score="{{ session.persuasion_rating if session and session.persuasion_rating is not none else 50 }}"
+                    data-confidence-score="{{ session.confidence_score if session and session.confidence_score is not none else 50 }}">
+            </canvas>
+        </div>
+        <div class="graph-legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #d01e3b;"></div>
+                <span>Willingness to Buy</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: rgba(220, 53, 69, 0.8);"></div>
+                <span>Critical Threshold (20%)</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Feedback Tabs -->
+    <div class="feedback-tabs">
+        <div class="tabs-container">
+            <div class="tab active" data-tab="rapport">Rapport Building</div>
+            <div class="tab" data-tab="discovery">Needs Discovery</div>
+            <div class="tab" data-tab="objection">Objection Handling</div>
+            <div class="tab" data-tab="closing">Closing</div>
+            <div class="tab" data-tab="transcript">Transcript</div>
+            <div class="tab" data-tab="persona">Buyer Persona</div>
+        </div>
+    </div>
+    
+    <!-- Tab Contents -->
+    <div id="rapport" class="tab-content active box-section">
+        <h3 class="feedback-category-title"><strong>Rapport Building</strong></h3>
+        <p>{{ feedback.rapport_feedback if feedback and feedback.rapport_feedback else "No specific feedback available for rapport building." }}</p>
+    </div>
+    
+    <div id="discovery" class="tab-content box-section">
+        <h3 class="feedback-category-title"><strong>Needs Discovery</strong></h3>
+        <p>{{ feedback.discovery_feedback if feedback and feedback.discovery_feedback else "No specific feedback available for needs discovery." }}</p>
+    </div>
+    
+    <div id="objection" class="tab-content box-section">
+        <h3 class="feedback-category-title"><strong>Objection Handling</strong></h3>
+        <p>{{ feedback.objection_feedback if feedback and feedback.objection_feedback else "No specific feedback available for objection handling." }}</p>
+    </div>
+    
+    <div id="closing" class="tab-content box-section">
+        <h3 class="feedback-category-title"><strong>Closing</strong></h3>
+        <p>{{ feedback.closing_feedback if feedback and feedback.closing_feedback else "No specific feedback available for closing." }}</p>
+    </div>
+    
+    <div id="transcript" class="tab-content box-section">
+        <h3 class="feedback-category-title"><strong>Conversation Transcript</strong></h3>
+        <div class="conversation-transcript compressed">
+            {% if messages %}
+                <!-- Check what we're getting in messages -->
+                <script>console.log("Messages data:", {{ messages|tojson|safe }});</script>
+                {% for message in messages %}
+                    <div class="transcript-message-compact {% if message.role == 'user' %}user-message{% else %}ai-message{% endif %}">
+                        <span class="message-sender-compact">{% if message.role == 'user' %}You{% else %}{{ session.buyer_persona.name if session and session.buyer_persona else "AI Persona" }}{% endif %}</span>
+                        <span class="message-content-compact">{{ message.content }}</span>
+                    </div>
+                {% endfor %}
+            {% elif session.conversation_history_dict %}
+                <!-- Check what we're getting in session.conversation_history_dict -->
+                <script>console.log("Conversation history data:", {{ session.conversation_history_dict|tojson|safe }});</script>
+                {% for message in session.conversation_history_dict %}
+                    <div class="transcript-message-compact {% if message.role == 'user' %}user-message{% else %}ai-message{% endif %}">
+                        <span class="message-sender-compact">{% if message.role == 'user' %}You{% else %}{{ session.buyer_persona.name if session and session.buyer_persona else "AI Persona" }}{% endif %}</span>
+                        <span class="message-content-compact">{{ message.content }}</span>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <!-- Log when no messages are found -->
+                <script>console.log("No messages or conversation history found");</script>
+                <p>No conversation transcript available.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div id="persona" class="tab-content box-section">
+        <h3 class="feedback-category-title"><strong>Buyer Persona: {{ session.buyer_persona.name if session and session.buyer_persona else "Unknown" }}</strong></h3>
+        {% if session and session.buyer_persona %}
+            <p><strong>Role:</strong> {{ session.buyer_persona.role or "N/A" }}</p>
+            <p><strong>Personality Traits:</strong></p>
+            <ul>
+                {% for trait, value in session.buyer_persona.personality_traits_dict.items() %}
+                    <li>{{ trait }}</li>
+                {% endfor %}
+            </ul>
+            <p><strong>Objections Faced:</strong></p>
+            <ul>
+                {% for obj in session.buyer_persona.objections_list %}
+                    <li>{{ obj }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Buyer persona details not available.</p>
+        {% endif %}
+    </div>
+    
+    <!-- Interactive Grid -->
+    <div class="grid-section">
+        <h2 class="grid-title"><strong>Key Insights & Action Steps</strong></h2>
+        <div class="interactive-grid">
+            <!-- Strengths Card -->
+            <div class="grid-card strengths">
+                <div class="grid-card-title">
+                    <div class="grid-card-icon">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <h3><strong>Strengths</strong></h3>
+                </div>
+                {% if feedback and feedback.strengths_demonstrated_list %}
+                    <ul class="grid-card-list">
+                        {% for item in feedback.strengths_demonstrated_list %}
+                            <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No specific strengths identified in feedback.</p>
+                {% endif %}
+            </div>
+            
+            <!-- Areas for Improvement Card -->
+            <div class="grid-card improvements">
+                <div class="grid-card-title">
+                    <div class="grid-card-icon">
+                        <i class="fas fa-tools"></i>
+                    </div>
+                    <h3><strong>Areas to Improve</strong></h3>
+                </div>
+                {% if feedback and feedback.areas_for_improvement_list %}
+                    <ul class="grid-card-list">
+                        {% for item in feedback.areas_for_improvement_list %}
+                            <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No specific areas for improvement identified.</p>
+                {% endif %}
+            </div>
+            
+            <!-- Mindset Card -->
+            <div class="grid-card mindset">
+                <div class="grid-card-title">
+                    <div class="grid-card-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h3><strong>Mindset</strong></h3>
+                </div>
+                <p>{{ feedback.mindset_insights if feedback and feedback.mindset_insights else "No specific mindset insights available." }}</p>
+                {% if feedback and feedback.limiting_beliefs_detected_list %}
+                    <p><strong>Limiting Beliefs:</strong></p>
+                    <ul class="grid-card-list">
+                        {% for belief in feedback.limiting_beliefs_detected_list %}
+                            <li>{{ belief }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+            
+            <!-- Action Items Card -->
+            <div class="grid-card actions">
+                <div class="grid-card-title">
+                    <div class="grid-card-icon">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <h3><strong>Action Items</strong></h3>
+                </div>
+                {% if feedback and feedback.action_items_list %}
+                    <ul class="grid-card-list">
+                        {% for item in feedback.action_items_list %}
+                            <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No specific action items provided.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button id="newRoleplayBtn" class="btn btn-primary" data-url="{{ url_for('training.display_roleplay_interface') }}">
+            <i class="fas fa-play"></i> New Roleplay
+        </button>
+        <button id="dashboardBtn" class="btn btn-secondary" data-url="{{ url_for('training.show_dashboard') }}">
+            <i class="fas fa-chart-bar"></i> Dashboard
+        </button>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/summary-scripts.js') }}"></script>
+{% endblock %} 

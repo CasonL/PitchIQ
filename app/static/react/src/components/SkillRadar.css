@@ -1,0 +1,119 @@
+.skill-radar {
+  padding: 1.5rem;
+  height: 100%;
+}
+
+.radar-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.radar-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.score-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.score-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.radar-container {
+  margin: 0 auto;
+  width: 100%;
+  height: 300px;
+  position: relative;
+}
+
+.radar-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.radar-level {
+  fill: none;
+  stroke: #e0e0e0;
+  stroke-width: 1;
+}
+
+.radar-axis {
+  stroke: #dee2e6;
+  stroke-width: 1;
+}
+
+.radar-area {
+  fill: rgba(74, 109, 245, 0.2);
+  stroke: var(--primary-color);
+  stroke-width: 2;
+}
+
+.radar-point {
+  fill: var(--primary-color);
+  stroke: white;
+  stroke-width: 2;
+  cursor: pointer;
+}
+
+.radar-label {
+  font-size: 0.8rem;
+  fill: var(--text-secondary);
+  font-weight: 500;
+}
+
+.radar-legend {
+  margin-top: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.legend-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.legend-name {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.legend-bar {
+  height: 0.35rem;
+  width: 100%;
+  background-color: #f1f3f5;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.legend-value {
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: 2px;
+}
+
+.legend-score {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  margin-top: 0.25rem;
+  text-align: right;
+}
+
+.radar-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+} 

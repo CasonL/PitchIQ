@@ -1,0 +1,443 @@
+/**
+ * Global Dashboard Styles
+ */
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  background-color: #f5f7fa;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+a {
+  color: #4a6df5;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Dashboard Layout */
+.dashboard-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-header {
+  background-color: #fff;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-header h1 {
+  color: #333;
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.user-info {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.dashboard-content {
+  flex: 1;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.dashboard-footer {
+  background-color: #fff;
+  padding: 1rem;
+  text-align: center;
+  color: #666;
+  font-size: 0.9rem;
+  border-top: 1px solid #eaeaea;
+}
+
+/* Layout Rows */
+.top-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+}
+
+.middle-row, .bottom-row {
+  width: 100%;
+}
+
+/* Section Titles */
+.section-title {
+  font-size: 1.3rem;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+/* Loading & Error States */
+.dashboard-loading,
+.dashboard-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #f5f7fa;
+  text-align: center;
+  padding: 2rem;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(74, 109, 245, 0.3);
+  border-radius: 50%;
+  border-top-color: #4a6df5;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.dashboard-error h2 {
+  color: #e53e3e;
+  margin-bottom: 1rem;
+}
+
+.retry-button {
+  margin-top: 1rem;
+  background-color: #4a6df5;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.retry-button:hover {
+  background-color: #3a5bd5;
+}
+
+.login-button {
+  display: inline-block;
+  margin-top: 1rem;
+  background-color: #4a6df5;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.login-button:hover {
+  background-color: #3a5bd5;
+  text-decoration: none;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 992px) {
+  .dashboard-content {
+    padding: 1.5rem;
+  }
+  
+  .top-row {
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-header {
+    padding: 1rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
+  }
+  
+  .dashboard-content {
+    padding: 1rem;
+    gap: 1.5rem;
+  }
+  
+  .top-row {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+/**
+ * Main Dashboard Styles
+ */
+
+/* General Layout */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f5f7fa;
+  color: #333;
+}
+
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.dashboard-header {
+  background-color: #fff;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-content {
+  flex: 1;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.dashboard-footer {
+  padding: 1rem;
+  text-align: center;
+  background-color: #fff;
+  border-top: 1px solid #eaeaea;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.section-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+/* Grid Layout */
+.top-row, .middle-row, .bottom-row {
+  display: flex;
+  gap: 2rem;
+  width: 100%;
+}
+
+.top-row {
+  height: 200px;
+}
+
+.middle-row {
+  flex: 1;
+}
+
+.bottom-row {
+  height: 150px;
+}
+
+/* Metrics Section */
+.dashboard-metrics {
+  flex: 1;
+  background-color: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.metrics-grid {
+  display: flex;
+  justify-content: space-around;
+  gap: 1rem;
+}
+
+.metric-card {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.metric-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #4a6df5;
+}
+
+.metric-label {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Skill Radar */
+.skill-radar {
+  flex: 1;
+  background-color: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.radar-placeholder {
+  height: 140px;
+  position: relative;
+  border: 1px dashed #ccc;
+  border-radius: 50%;
+  margin: 0 auto;
+  width: 140px;
+}
+
+.radar-mock {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+.skill-point {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background-color: #4a6df5;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+/* Timeline */
+.call-timeline {
+  flex: 1;
+  background-color: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.timeline-container {
+  padding: 2rem 0;
+}
+
+.timeline-track {
+  height: 4px;
+  background-color: #eaeaea;
+  position: relative;
+  margin: 0 10%;
+}
+
+.timeline-marker {
+  position: absolute;
+  transform: translateX(-50%);
+  top: -25px;
+  background-color: #4a6df5;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+/* AI Card System */
+.ai-card-system {
+  flex: 1;
+  background-color: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.cards-container {
+  display: flex;
+  gap: 16px;
+  transition: all 0.3s ease;
+}
+
+/* Card States */
+.insight-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  padding: 1.5rem;
+  cursor: pointer;
+}
+
+.insight-card.dormant {
+  flex: 1;
+  height: 100px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.insight-card.active {
+  flex: 3;
+  min-height: 160px;
+  background: white;
+}
+
+.card-icon {
+  font-size: 24px;
+  margin-right: 12px;
+}
+
+.card-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.card-content {
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* Loading States */
+.loading, .card-system-skeleton {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #666;
+  font-size: 1.1rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .top-row, .middle-row, .bottom-row {
+    flex-direction: column;
+  }
+  
+  .dashboard-content {
+    padding: 1rem;
+  }
+  
+  .insight-card.dormant {
+    height: auto;
+    padding: 1rem;
+  }
+} 

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat API Test Tool</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #response {
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            min-height: 100px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chat API Test Tool</h1>
+    
+    <div class="card">
+        <h2>API Configuration</h2>
+        <label for="baseUrl">Base URL:</label>
+        <input type="text" id="baseUrl" value="http://localhost:8081" placeholder="http://localhost:8081">
+        
+        <label for="endpoint">Endpoint:</label>
+        <select id="endpoint">
+            <option value="/api/health">Health Check</option>
+            <option value="/api/chat">Chat</option>
+        </select>
+    </div>
+
+    <div class="card">
+        <h2>Request Parameters</h2>
+        <div id="messageContainer">
+            <label for="message">Message:</label>
+            <textarea id="message" rows="3" placeholder="Enter your message here"></textarea>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Send Request</h2>
+        <button id="sendRequest">Send Request</button>
+        <div class="status" id="status"></div>
+    </div>
+
+    <div class="card">
+        <h2>Response</h2>
+        <div id="response">No response yet...</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const endpointSelect = document.getElementById('endpoint');
+            const messageContainer = document.getElementById('messageContainer');
+            const sendButton = document.getElementById('sendRequest');
+            const statusDiv = document.getElementById('status');
+            const responseDiv = document.getElementById('response');
+
+            // Show/hide message field based on endpoint
+            endpointSelect.addEventListener('change', function() {
+                if (this.value === '/api/chat') {
+                    messageContainer.style.display = 'block';
+                } else {
+                    messageContainer.style.display = 'none';
+                }
+            });
+
+            // Initialize visibility
+            if (endpointSelect.value === '/api/chat') {
+                messageContainer.style.display = 'block';
+            } else {
+                messageContainer.style.display = 'none';
+            }
+
+            // Send request
+            sendButton.addEventListener('click', async function() {
+                const baseUrl = document.getElementById('baseUrl').value.trim();
+                const endpoint = endpointSelect.value;
+                const message = document.getElementById('message').value;
+                
+                if (!baseUrl) {
+                    setStatus('Please enter a base URL', 'error');
+                    return;
+                }
+
+                let url = baseUrl + endpoint;
+                let options = {
+                    method: endpoint === '/api/chat' ? 'POST' : 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'include' // Include cookies
+                };
+
+                // Add body for POST requests
+                if (endpoint === '/api/chat') {
+                    if (!message.trim()) {
+                        setStatus('Please enter a message', 'error');
+                        return;
+                    }
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify({ message: message });
+                }
+
+                setStatus('Sending request...', '');
+                try {
+                    const response = await fetch(url, options);
+                    const statusText = `Status: ${response.status} ${response.statusText}`;
+                    
+                    try {
+                        const data = await response.json();
+                        setStatus(`${statusText}`, response.ok ? 'success' : 'error');
+                        responseDiv.textContent = JSON.stringify(data, null, 2);
+                    } catch (e) {
+                        const text = await response.text();
+                        setStatus(`${statusText} (Not JSON)`, response.ok ? 'success' : 'error');
+                        responseDiv.textContent = text;
+                    }
+                } catch (e) {
+                    setStatus(`Error: ${e.message}`, 'error');
+                    responseDiv.textContent = `${e.message}`;
+                }
+            });
+
+            function setStatus(message, type) {
+                statusDiv.textContent = message;
+                statusDiv.className = 'status';
+                if (type) {
+                    statusDiv.classList.add(type);
+                }
+            }
+        });
+    </script>
+</body>
+</html> 

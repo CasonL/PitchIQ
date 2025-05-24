@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome to PitchIQ{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <h1 class="display-4 mb-4">Welcome to PitchIQ</h1>
+            <p class="lead mb-4">Your AI sales training assistant</p>
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Start a new conversation</h5>
+                    <p class="card-text">Practice your sales skills with our advanced AI assistant.</p>
+                    <a href="{{ url_for('dashboard_raw') }}" class="btn btn-primary btn-lg">Go to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

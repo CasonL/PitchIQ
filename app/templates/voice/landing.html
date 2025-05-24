@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Voice Interface | PitchIQ{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .voice-landing {
+        padding: 3rem 0;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .voice-title {
+        font-size: 2.5rem;
+        margin-bottom: 1.5rem;
+        color: #4a6da7;
+    }
+    
+    .voice-subtitle {
+        font-size: 1.2rem;
+        margin-bottom: 2rem;
+        color: #6c757d;
+    }
+    
+    .feature-card {
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: transform 0.3s ease;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .feature-icon {
+        font-size: 2rem;
+        color: #4a6da7;
+        margin-bottom: 1rem;
+    }
+    
+    .cta-container {
+        text-align: center;
+        margin-top: 3rem;
+    }
+    
+    .voice-cta {
+        padding: 0.75rem 2rem;
+        font-size: 1.1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="voice-landing">
+    <h1 class="voice-title text-center">Voice-Enabled Practice</h1>
+    <p class="voice-subtitle text-center">Experience natural, voice-driven roleplay sessions to enhance your sales skills</p>
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-microphone"></i></div>
+                <h3>Speech Recognition</h3>
+                <p>Speak naturally to your AI practice partner using industry-leading speech recognition technology.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-volume-up"></i></div>
+                <h3>Realistic Voices</h3>
+                <p>Hear responses in lifelike voices that match different buyer personas you'll encounter.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-comments"></i></div>
+                <h3>Natural Conversations</h3>
+                <p>Engage in dynamic, flowing conversations that simulate real-world sales interactions.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="cta-container">
+        <a href="{{ url_for('voice.voice_demo') }}" class="btn btn-primary voice-cta">Try Voice Demo</a>
+        <a href="{{ url_for('voice.chat') }}" class="btn btn-outline-primary voice-cta ml-3">Start Voice Practice</a>
+    </div>
+</div>
+{% endblock %} 

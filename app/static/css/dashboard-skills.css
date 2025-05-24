@@ -1,0 +1,164 @@
+/* Skills Section Styles */
+
+/* Radar Chart */
+.radar-chart {
+  display: block;
+  margin: 0 auto;
+}
+
+.radar-level {
+  fill: none;
+  stroke: #e0e0e0;
+  stroke-width: 1;
+}
+
+.radar-axis {
+  stroke: #ccc;
+  stroke-width: 1;
+}
+
+.radar-area {
+  fill: rgba(74, 109, 245, 0.2);
+  stroke: #4A6DF5;
+  stroke-width: 2;
+}
+
+.radar-point {
+  fill: #4A6DF5;
+  stroke: white;
+  stroke-width: 2;
+  cursor: pointer;
+}
+
+.radar-label {
+  font-size: 12px;
+  fill: #555;
+  user-select: none;
+}
+
+/* Skills List and Bars */
+.skills-list {
+  margin-top: 30px;
+}
+
+.skill-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.skill-name {
+  width: 150px;
+  font-size: 14px;
+  color: #333;
+}
+
+.skill-bar-container {
+  flex: 1;
+  height: 8px;
+  background-color: #f2f2f2;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 0 15px;
+}
+
+.skill-bar {
+  height: 100%;
+  background-color: #4A6DF5;
+  border-radius: 4px;
+}
+
+.skill-value {
+  width: 50px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Skills Section Layout */
+.skills-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .skills-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.skills-card {
+  background-color: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.skills-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* Stats Widget */
+.stats-widget {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.stat-item {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+  flex: 1;
+  margin: 0 5px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #4A6DF5;
+  margin-bottom: 5px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #666;
+}
+
+/* Skills Status */
+.skill-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.status-improving {
+  background-color: #42f584;
+}
+
+.status-declining {
+  background-color: #f5a742;
+}
+
+.status-stable {
+  background-color: #4A6DF5;
+}
+
+.skill-status-text {
+  font-size: 12px;
+  color: #666;
+} 

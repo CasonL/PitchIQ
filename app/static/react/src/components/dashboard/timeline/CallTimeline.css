@@ -1,0 +1,159 @@
+/**
+ * Call Timeline Styles
+ */
+
+.call-timeline {
+  width: 100%;
+  padding: 1.5rem;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+/* Session Selector */
+.session-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.session-button {
+  background: #f5f7fa;
+  border: 1px solid #e4e8eb;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 100px;
+  transition: all 0.2s ease;
+}
+
+.session-button.active {
+  background: #4a6df5;
+  color: white;
+  border-color: #4a6df5;
+}
+
+.session-date {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+/* Timeline Container */
+.timeline-container {
+  position: relative;
+  padding: 2rem 0;
+  margin: 0 10%;
+}
+
+.timeline-track {
+  height: 8px;
+  background-color: #f0f0f0;
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.timeline-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(to right, 
+    #4a6df5 0%, 
+    #4a6df5 90%, 
+    #63c5da 90%, 
+    #63c5da 100%
+  );
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.timeline-marker {
+  position: absolute;
+  transform: translateX(-50%);
+  top: -25px;
+  background-color: #4a6df5;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  z-index: 1;
+}
+
+/* Legend */
+.timeline-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 1.5rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.legend-color {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.legend-color.completed {
+  background-color: #4a6df5;
+}
+
+.legend-color.current {
+  background-color: #63c5da;
+}
+
+.legend-color.upcoming {
+  background-color: #f0f0f0;
+}
+
+/* States */
+.timeline-loading,
+.timeline-error,
+.timeline-empty {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.timeline-error {
+  color: #e53e3e;
+  background-color: #fff5f5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .session-selector {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+  }
+  
+  .timeline-container {
+    margin: 0 5%;
+  }
+  
+  .timeline-legend {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+} 

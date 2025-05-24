@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up - PitchIQ{% endblock %}
+
+{% block styles %}
+{# REMOVE Custom auth.css link if styles are mainly Bootstrap now #}
+{# <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}"> #}
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4 p-md-5">
+                <div class="text-center mb-4">
+                    <h1 class="h3 mb-3 fw-normal">Create Your Account</h1>
+                    <p class="text-muted">Join thousands of sales professionals improving their skills</p>
+                </div>
+
+                <form id="signupForm">
+                    <input type="hidden" name="csrf_token" value="{{ g.csrf_token }}">
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Full Name</label>
+                        <input type="text" id="name" name="name" class="form-control" placeholder="Your full name" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" id="email" name="email" class="form-control" placeholder="you@example.com" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <input type="password" id="password" name="password" class="form-control" placeholder="Create a password" required minlength="8">
+                        </div>
+                        {# Password strength meter - Keep structure but ensure it works with BS5 #}
+                        <div class="password-strength mt-2 small text-muted">
+                            {#{ <div class="strength-meter"> ... </div> }#} {# Visually might need rethink #}
+                            Password strength: <span id="strengthText">Weak</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <div class="input-group">
+                            <input type="password" id="confirmPassword" name="confirmPassword" class="form-control" placeholder="Confirm your password" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="agree" name="agree" required>
+                        <label class="form-check-label" for="agree">I agree to the <a href="#">Terms</a> and <a href="#">Privacy Policy</a></label>
+                    </div>
+
+                    <div class="d-grid gap-2 mb-3">
+                        <button type="submit" class="btn btn-primary">Create Account</button>
+                    </div>
+
+                    <div id="signupError" class="alert alert-danger mt-3" style="display: none;"></div>
+                </form>
+
+                <div class="text-center text-muted my-3">or</div>
+
+                <div class="d-grid gap-2 mb-3">
+                    <a href="{{ url_for('auth.google_login') }}" class="btn btn-outline-secondary">
+                        <i class="fab fa-google me-2"></i> Continue with Google
+                    </a>
+                </div>
+
+                <div class="text-center mt-3">
+                    <p class="text-muted">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{# Assume auth.js is still needed for form submission/password toggle/strength? Keep it. #}
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+{% endblock %}

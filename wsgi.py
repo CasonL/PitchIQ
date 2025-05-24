@@ -1,19 +1,19 @@
 """
-WSGI Entry Point for Elastic Beanstalk Deployment
+WSGI Entry Point for Deployment
 """
+import os
+import sys
+
+# Ensure the current directory and parent directory are in the Python path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
+sys.path.insert(0, os.path.dirname(current_dir))
+
+# Import the create_app function
 from app import create_app
-from models import db
 
-# Create application instance
-application = create_app()
+# Create the Flask application
+app = create_app()
 
-# Database initialization
-def init_db():
-    with application.app_context():
-        db.create_all()
-
-# Initialize database on startup
-init_db()
-
-if __name__ == "__main__":
-    application.run()
+if __name__ == '__main__':
+    app.run(debug=True)

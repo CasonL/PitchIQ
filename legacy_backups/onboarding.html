@@ -1,0 +1,1011 @@
+{% extends "base.html" %}
+
+{% block title %}Onboarding - PitchIQ{% endblock %}
+
+{% block styles %}
+<style>
+    .onboarding-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        background-color: white;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+    }
+    
+    .onboarding-header {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 1.5rem 2rem;
+        position: relative;
+    }
+    
+    .onboarding-header h1 {
+        font-size: 1.75rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .onboarding-header p {
+        margin-bottom: 0;
+        opacity: 0.9;
+    }
+    
+    .logo-container {
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    
+    .logo-container img {
+        height: 60px;
+        margin-bottom: 1rem;
+    }
+    
+    .progress-container {
+        margin: 1rem 0;
+        position: relative;
+    }
+    
+    .progress-steps {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        position: relative;
+        padding: 0 2rem;
+    }
+    
+    .progress-steps::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background-color: var(--border-color);
+        z-index: 1;
+        transform: translateY(-50%);
+    }
+    
+    .step {
+        position: relative;
+        z-index: 2;
+        background-color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: var(--text-color-light);
+        border: 2px solid var(--border-color);
+        transition: all 0.2s;
+    }
+    
+    .step.active {
+        background-color: var(--secondary-color);
+        color: white;
+        border-color: var(--secondary-color);
+    }
+    
+    .step.completed {
+        background-color: var(--success-color);
+        color: white;
+        border-color: var(--success-color);
+    }
+    
+    .step-label {
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--text-color-light);
+        white-space: nowrap;
+    }
+    
+    .step.active .step-label {
+        color: var(--secondary-color);
+        font-weight: 500;
+    }
+    
+    .onboarding-step {
+        display: none;
+        animation: fadeIn 0.3s;
+        padding: 2rem;
+    }
+    
+    .onboarding-step.active {
+        display: block;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--primary-color);
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background-color: #fff;
+        color: var(--text-color);
+        font-size: 1rem;
+        transition: all 0.2s;
+    }
+    
+    .form-control:focus {
+        border-color: var(--secondary-color);
+        box-shadow: 0 0 0 2px rgba(230, 57, 70, 0.2);
+        outline: none;
+    }
+    
+    textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
+    }
+    
+    .tag-input {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background-color: #fff;
+        min-height: 100px;
+        align-items: flex-start;
+        width: 100%;
+    }
+    
+    .tag {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        color: white;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        margin-bottom: 0.25rem;
+        width: auto;
+        max-width: 100%;
+        word-break: break-word;
+        text-align: left;
+        line-height: 1.3;
+    }
+    
+    .tag-text {
+        flex: 1;
+        padding-right: 0.25rem;
+    }
+    
+    .tag .remove {
+        margin-left: 0.5rem;
+        cursor: pointer;
+        opacity: 0.8;
+        flex-shrink: 0;
+    }
+    
+    .tag .remove:hover {
+        opacity: 1;
+    }
+    
+    .tag-input input {
+        flex-grow: 1;
+        min-width: 100px;
+        width: 100%;
+        border: none;
+        outline: none;
+        background: none;
+        padding: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--text-color);
+    }
+    
+    .navigation-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 2rem;
+    }
+    
+    .navigation-buttons .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--radius-md);
+        font-weight: 500;
+    }
+    
+    .btn-skip {
+        background-color: transparent;
+        color: var(--text-color-light);
+        border: 1px solid var(--border-color);
+    }
+    
+    .btn-skip:hover {
+        background-color: var(--light-bg-color);
+        color: var(--text-color);
+    }
+    
+    .btn-secondary {
+        background-color: var(--text-color-lighter);
+        border-color: var(--text-color-lighter);
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: var(--text-color-light);
+        border-color: var(--text-color-light);
+    }
+    
+    /* Tag input container styles with unique colors */
+    #pain-points-input {
+        border-left: 4px solid var(--danger-color);
+    }
+    
+    #wins-input {
+        border-left: 4px solid var(--success-color);
+    }
+    
+    #mindset-input {
+        border-left: 4px solid var(--info-color);
+    }
+    
+    #goals-input {
+        border-left: 4px solid var(--warning-color);
+    }
+    
+    /* Tag styles with unique colors */
+    #pain-points-input .tag {
+        background-color: var(--danger-color);
+    }
+    
+    #wins-input .tag {
+        background-color: var(--success-color);
+    }
+    
+    #mindset-input .tag {
+        background-color: var(--info-color);
+    }
+    
+    #goals-input .tag {
+        background-color: var(--warning-color);
+    }
+    
+    /* Add section descriptions */
+    .form-text {
+        font-size: 0.875rem;
+        color: var(--text-color-light);
+        margin-top: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Validation styling */
+    .is-invalid {
+        border-color: var(--danger-color) !important;
+    }
+    
+    .invalid-feedback {
+        display: none;
+        width: 100%;
+        margin-top: 0.25rem;
+        font-size: 0.875em;
+        color: var(--danger-color);
+    }
+    
+    .is-invalid ~ .invalid-feedback {
+        display: block;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+        margin-bottom: 1.5rem;
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+    
+    /* Debug controls */
+    #debugControls {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 1rem;
+        margin-top: 2rem;
+        display: none;
+    }
+    
+    /* Animation */
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="onboarding-container">
+        <div class="onboarding-header">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/PitchIQ Logo.png') }}" alt="PitchIQ Logo">
+                </div>
+            <h1>Welcome to PitchIQ</h1>
+            <p>Let's set up your personalized sales training experience</p>
+                </div>
+        
+        <div class="progress-container">
+            <div class="progress-steps">
+                <div class="step active">
+                    1
+                    <span class="step-label">Basic Info</span>
+            </div>
+                <div class="step">
+                    2
+                    <span class="step-label">Sales Profile</span>
+        </div>
+    </div>
+</div>
+        
+        <form id="onboardingForm">
+            <input type="hidden" name="csrf_token" value="{{ g.csrf_token }}">
+            
+            <!-- Step 1: Basic Information -->
+            <div id="step1" class="onboarding-step active">
+                <h3 class="section-title">Tell us about your sales context</h3>
+                
+                <div class="form-group">
+                    <label for="experience_level" class="form-label">Sales Experience Level</label>
+                    <select name="experience_level" id="experience_level" class="form-control" required>
+                        <option value="" disabled selected>Select your experience level</option>
+                        <option value="beginner">Beginner (0-1 years)</option>
+                        <option value="intermediate">Intermediate (1-3 years)</option>
+                        <option value="advanced">Advanced (3-5 years)</option>
+                        <option value="expert">Expert (5+ years)</option>
+                    </select>
+                    <div class="invalid-feedback">Please select your experience level</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="product_description" class="form-label">Product or Service Description</label>
+                    <div class="form-text">What do you sell? Describe your product or service briefly.</div>
+                    <textarea name="product_description" id="product_description" class="form-control" rows="3" required></textarea>
+                    <div class="invalid-feedback">Please describe your product or service</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="target_market" class="form-label">Target Market</label>
+                    <div class="form-text">Who are your typical customers? (B2B, B2C, etc.)</div>
+                    <input type="text" name="target_market" id="target_market" class="form-control" required>
+                    <div class="invalid-feedback">Please enter your target market</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="industry" class="form-label">Industry</label>
+                    <div class="form-text">What industry do you primarily work in?</div>
+                    <input type="text" name="industry" id="industry" class="form-control" required>
+                    <div class="invalid-feedback">Please enter your industry</div>
+                </div>
+                
+                <div class="navigation-buttons">
+                    <button type="button" id="prevButton" class="btn btn-secondary" style="display: none;">Back</button>
+                    <a href="/training/dashboard" id="skipButton" class="btn btn-skip">Skip for Now</a>
+                    <button type="button" id="step1NextBtn" class="btn btn-primary">Continue</button>
+                </div>
+            </div>
+            
+            <!-- Step 2: Sales Profile -->
+            <div id="step2" class="onboarding-step">
+                <h3 class="section-title">Your Sales Profile</h3>
+                
+                <div class="form-group">
+                    <label for="pain-points-input" class="form-label">Sales Pain Points</label>
+                    <div class="form-text">What challenges do you face in your sales process? (Press Enter after each item)</div>
+                    <div id="pain-points-input" class="tag-input">
+                        <input type="text" placeholder="Enter a pain point and press Enter">
+                    </div>
+                    <input type="hidden" id="pain-points-hidden" name="pain_points" value="[]">
+                </div>
+                
+                <div class="form-group">
+                    <label for="wins-input" class="form-label">Recent Wins</label>
+                    <div class="form-text">What recent sales successes are you proud of? (Press Enter after each item)</div>
+                    <div id="wins-input" class="tag-input">
+                        <input type="text" placeholder="Enter a recent win and press Enter">
+                    </div>
+                    <input type="hidden" id="wins-hidden" name="recent_wins" value="[]">
+                </div>
+                
+                <div class="form-group">
+                    <label for="mindset-input" class="form-label">Mindset Challenges</label>
+                    <div class="form-text">What mental obstacles do you face during sales? (Press Enter after each item)</div>
+                    <div id="mindset-input" class="tag-input">
+                        <input type="text" placeholder="Enter a mindset challenge and press Enter">
+                    </div>
+                    <input type="hidden" id="mindset-hidden" name="mindset_challenges" value="[]">
+                </div>
+                
+                <div class="form-group">
+                    <label for="goals-input" class="form-label">Improvement Goals</label>
+                    <div class="form-text">What sales skills do you want to improve? (Press Enter after each item)</div>
+                    <div id="goals-input" class="tag-input">
+                        <input type="text" placeholder="Enter a goal and press Enter">
+                    </div>
+                    <input type="hidden" id="goals-hidden" name="improvement_goals" value="[]">
+                </div>
+                
+                <div class="navigation-buttons">
+                    <button type="button" id="prevButton" class="btn btn-secondary">Back</button>
+                    <button type="button" id="step2NextBtn" class="btn btn-primary">Complete</button>
+                </div>
+            </div>
+        </form>
+        
+        <!-- Debug Controls (Hidden by default, toggle with Ctrl+Shift+D) -->
+        <div id="debugControls">
+            <h5>Debug Controls</h5>
+            <div class="mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="debugLoggingToggle">
+                    <label class="form-check-label" for="debugLoggingToggle">
+                        Enable Verbose Logging
+                    </label>
+                </div>
+            </div>
+            <div class="mb-3">
+                <button class="btn btn-sm btn-primary" id="goToStep1Btn">Go to Step 1</button>
+                <button class="btn btn-sm btn-primary" id="goToStep2Btn">Go to Step 2</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Global vars and functions
+    let currentStep = 1;
+    const totalSteps = 2;
+    const STORAGE_KEY = 'onboarding_form_data';
+    
+    // Next step function
+    function nextStep(step) {
+        console.log(`Attempting to move from step ${step} to step ${step+1}`);
+        
+        try {
+            const isValid = validateStep(step);
+            console.log(`Form validation result: ${isValid}`);
+            
+            if (!isValid) {
+                console.log('Validation failed, highlighting fields...');
+                return;
+            }
+            
+            // Save form data after each step
+            saveFormData();
+            
+            if (step < totalSteps) {
+                document.getElementById(`step${step}`).classList.remove('active');
+                document.getElementById(`step${step + 1}`).classList.add('active');
+                
+                document.querySelector(`.step:nth-child(${step})`).classList.remove('active');
+                document.querySelector(`.step:nth-child(${step})`).classList.add('completed');
+                document.querySelector(`.step:nth-child(${step + 1})`).classList.add('active');
+                
+                document.getElementById('prevButton').style.display = 'block';
+                
+                // Find the next button by its position in the navigation-buttons div
+                const nextBtn = document.querySelector('.navigation-buttons .btn-primary');
+                if (nextBtn) {
+                    if (step + 1 === totalSteps) {
+                        nextBtn.textContent = 'Complete';
+                    } else {
+                        nextBtn.textContent = 'Continue';
+                    }
+                }
+                
+                currentStep = step + 1;
+                console.log(`Successfully moved to step ${currentStep}`);
+            } else {
+                submitForm();
+            }
+        } catch (error) {
+            console.error('Error in nextStep function:', error);
+            alert('An error occurred. Please check the browser console for details.');
+        }
+    }
+    
+    // Previous step function
+    function prevStep(step) {
+        console.log(`Moving back from step ${step} to step ${step-1}`);
+        
+        if (step > 1) {
+            document.getElementById(`step${step}`).classList.remove('active');
+            document.getElementById(`step${step - 1}`).classList.add('active');
+            
+            document.querySelector(`.step:nth-child(${step})`).classList.remove('active');
+            document.querySelector(`.step:nth-child(${step - 1})`).classList.remove('completed');
+            document.querySelector(`.step:nth-child(${step - 1})`).classList.add('active');
+            
+            if (step - 1 === 1) {
+                document.getElementById('prevButton').style.display = 'none';
+            }
+            
+            const nextBtn = document.querySelector('.navigation-buttons .btn-primary');
+            if (nextBtn) {
+                nextBtn.textContent = 'Continue';
+            }
+            
+            currentStep = step - 1;
+            console.log(`Now on step ${currentStep}`);
+        }
+    }
+    
+    // Save form data to localStorage
+    function saveFormData() {
+        const formData = {
+            // Step 1
+            experience_level: document.querySelector('select[name="experience_level"]').value,
+            product_description: document.querySelector('textarea[name="product_description"]').value,
+            target_market: document.querySelector('input[name="target_market"]').value,
+            industry: document.querySelector('input[name="industry"]').value,
+            
+            // Step 2
+            pain_points: document.getElementById('pain-points-hidden').value,
+            recent_wins: document.getElementById('wins-hidden').value,
+            mindset_challenges: document.getElementById('mindset-hidden').value,
+            improvement_goals: document.getElementById('goals-hidden').value,
+        };
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+    }
+    
+    // Load form data from localStorage
+    function loadFormData() {
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (!savedData) return;
+        
+        const formData = JSON.parse(savedData);
+        
+        // Fill Step 1 fields
+        if (formData.experience_level) {
+            document.querySelector('select[name="experience_level"]').value = formData.experience_level;
+        }
+        if (formData.product_description) {
+            document.querySelector('textarea[name="product_description"]').value = formData.product_description;
+        }
+        if (formData.target_market) {
+            document.querySelector('input[name="target_market"]').value = formData.target_market;
+        }
+        if (formData.industry) {
+            document.querySelector('input[name="industry"]').value = formData.industry;
+        }
+        
+        // Fill Step 2 fields (tag inputs)
+        try {
+            if (formData.pain_points) {
+                const painPoints = JSON.parse(formData.pain_points);
+                painPoints.forEach(point => addTag('pain-points-input', point));
+            }
+            if (formData.recent_wins) {
+                const wins = JSON.parse(formData.recent_wins);
+                wins.forEach(win => addTag('wins-input', win));
+            }
+            if (formData.mindset_challenges) {
+                const challenges = JSON.parse(formData.mindset_challenges);
+                challenges.forEach(challenge => addTag('mindset-input', challenge));
+            }
+            if (formData.improvement_goals) {
+                const goals = JSON.parse(formData.improvement_goals);
+                goals.forEach(goal => addTag('goals-input', goal));
+            }
+        } catch (e) {
+            console.error('Error loading tag data:', e);
+        }
+    }
+    
+    // Helper function to add a tag to a tag input
+    function addTag(containerId, value) {
+        const container = document.getElementById(containerId);
+        const input = container.querySelector('input');
+        
+        const tag = document.createElement('div');
+        tag.className = 'tag';
+        tag.innerHTML = `
+            <span class="tag-text">${value}</span>
+            <span class="remove">&times;</span>
+        `;
+        
+        tag.querySelector('.remove').addEventListener('click', function() {
+            tag.remove();
+            updateHiddenInput(containerId);
+            saveFormData();
+        });
+        
+        container.insertBefore(tag, input);
+        updateHiddenInput(containerId);
+    }
+    
+    // Helper function to update hidden input for a specific tag input
+    function updateHiddenInput(containerId) {
+        const container = document.getElementById(containerId);
+        const hiddenId = containerId.replace('-input', '-hidden');
+        const hidden = document.getElementById(hiddenId);
+        const tags = container.querySelectorAll('.tag');
+        const values = Array.from(tags).map(tag => 
+            tag.querySelector('.tag-text').textContent.trim()
+        );
+        hidden.value = JSON.stringify(values);
+    }
+    
+    // Validation function for checking required fields in each step
+    function validateStep(step) {
+        console.log(`Validating step ${step}`);
+        
+        // For step 1, validate all required fields
+        if (step === 1) {
+            console.log('Validating Basic Info (step 1)');
+            const currentForm = document.getElementById('step1');
+            
+            // Get key fields
+            const experienceLevel = currentForm.querySelector('select[name="experience_level"]');
+            const productDesc = currentForm.querySelector('textarea[name="product_description"]');
+            const market = currentForm.querySelector('input[name="target_market"]');
+            const industry = currentForm.querySelector('input[name="industry"]');
+            
+            let isValid = true;
+            
+            // Validate experience level
+            if (!experienceLevel || !experienceLevel.value) {
+                console.log('Experience level invalid');
+                if (experienceLevel) experienceLevel.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                if (experienceLevel) experienceLevel.classList.remove('is-invalid');
+            }
+            
+            // Validate product description
+            if (!productDesc || !productDesc.value.trim()) {
+                console.log('Product description invalid');
+                if (productDesc) productDesc.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                if (productDesc) productDesc.classList.remove('is-invalid');
+            }
+            
+            // Validate target market
+            if (!market || !market.value.trim()) {
+                console.log('Target market field invalid');
+                if (market) market.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                if (market) market.classList.remove('is-invalid');
+            }
+            
+            if (!industry || !industry.value.trim()) {
+                console.log('Industry field invalid');
+                if (industry) industry.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                if (industry) industry.classList.remove('is-invalid');
+            }
+            
+            console.log(`Step 1 validation result: ${isValid}`);
+            return isValid;
+        }
+        
+        // Default case - step 2 doesn't require validation as tag fields are optional
+        return true;
+    }
+    
+    function initTagInput(inputId, hiddenId) {
+        const input = document.querySelector(`#${inputId} input`);
+        const container = document.getElementById(inputId);
+        const hidden = document.getElementById(hiddenId);
+        
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const value = this.value.trim();
+                
+                if (value) {
+                    addTag(inputId, value);
+                    this.value = '';
+                    saveFormData();
+                }
+            }
+        });
+    }
+    
+    function submitForm() {
+        // Save form data one final time
+        saveFormData();
+        
+        // Create a form data object
+        const formData = new FormData();
+        
+        // Collect data from each step
+        // Step 1
+        formData.append('experience_level', document.querySelector('select[name="experience_level"]').value);
+        formData.append('product_service', document.querySelector('textarea[name="product_description"]').value);
+        formData.append('target_market', document.querySelector('input[name="target_market"]').value);
+        formData.append('industry', document.querySelector('input[name="industry"]').value);
+        
+        // Step 2 (tag inputs)
+        formData.append('pain_points', document.getElementById('pain-points-hidden').value);
+        formData.append('recent_wins', document.getElementById('wins-hidden').value);
+        formData.append('mindset_challenges', document.getElementById('mindset-hidden').value);
+        formData.append('improvement_goals', document.getElementById('goals-hidden').value);
+        
+        // Set default preferences
+        formData.append('preferred_training_style', 'structured');
+        formData.append('preferred_feedback_frequency', 'end-session');
+        
+        // Show processing state
+        document.getElementById('step2NextBtn').disabled = true;
+        document.getElementById('step2NextBtn').textContent = 'Processing...';
+        
+        // First check if we need to create a profile
+        fetch('/training/api/training/onboarding/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                'experience_level': document.querySelector('select[name="experience_level"]').value,
+                'product_service': document.querySelector('textarea[name="product_description"]').value,
+                'target_market': document.querySelector('input[name="target_market"]').value,
+                'industry': document.querySelector('input[name="industry"]').value
+            })
+        })
+        .then(response => {
+            // Check if response is ok
+            if (!response.ok) {
+                console.error('Profile creation failed with status:', response.status);
+                return response.text().then(text => {
+                    throw new Error(`Failed to create profile: ${text}`);
+                });
+            }
+            
+            // Ignore errors if profile already exists (400 status)
+            // We'll just update it in the next step
+            console.log("Profile creation attempt status:", response.status);
+            
+            // Wait a bit to ensure database operations complete
+            return new Promise(resolve => setTimeout(() => resolve(), 1000));
+        })
+        .then(() => {
+            // Send data to server to update profile
+            return fetch('/training/api/training/onboarding/update', {
+            method: 'POST',
+            body: formData
+            });
+        })
+        .then(response => {
+            // Check if response is ok
+            if (!response.ok) {
+                console.error('Profile update failed with status:', response.status);
+                return response.text().then(text => {
+                    throw new Error(`Failed to update profile: ${text}`);
+                });
+            }
+            return response.text().then(text => {
+                // Try to parse as JSON, but handle non-JSON responses
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.log('Response is not JSON:', text);
+                    if (text.includes('success')) {
+                        return { status: 'success' };
+                    } else {
+                        throw new Error('Invalid JSON response from server');
+                    }
+                }
+            });
+        })
+        .then(data => {
+            if (data.status === 'success') {
+                // Wait a bit before trying to complete onboarding
+                return new Promise(resolve => setTimeout(() => {
+                // Mark onboarding as complete and redirect to dashboard
+                fetch('/training/api/training/onboarding/complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            console.error('Completion failed with status:', response.status);
+                            return response.text().then(text => {
+                                throw new Error(`Failed to complete onboarding: ${text}`);
+                            });
+                        }
+                        return response.text().then(text => {
+                            // Try to parse as JSON, but handle non-JSON responses
+                            try {
+                                return JSON.parse(text);
+                            } catch (e) {
+                                console.log('Response is not JSON:', text);
+                                if (text.includes('success')) {
+                                    return { status: 'success' };
+                                } else {
+                                    throw new Error('Invalid JSON response from server');
+                                }
+                            }
+                        });
+                    })
+                .then(completionData => {
+                    if (completionData.status === 'success') {
+                        // Clear saved form data after successful completion
+                        localStorage.removeItem(STORAGE_KEY);
+                        window.location.href = '/training/dashboard';
+                    } else {
+                            document.getElementById('step2NextBtn').disabled = false;
+                            document.getElementById('step2NextBtn').textContent = 'Complete';
+                            alert('Failed to complete onboarding: ' + (completionData.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                        document.getElementById('step2NextBtn').disabled = false;
+                        document.getElementById('step2NextBtn').textContent = 'Complete';
+                    console.error('Error completing onboarding:', error);
+                        alert('Error completing onboarding: ' + error.message);
+                });
+                }, 1000));
+            } else {
+                document.getElementById('step2NextBtn').disabled = false;
+                document.getElementById('step2NextBtn').textContent = 'Complete';
+                alert('Failed to save profile: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            document.getElementById('step2NextBtn').disabled = false;
+            document.getElementById('step2NextBtn').textContent = 'Complete';
+            console.error('Error:', error);
+            alert('Error: ' + error.message);
+        });
+    }
+    
+    // Direct step navigation function (for debugging)
+    function goToStep(targetStep) {
+        if (targetStep < 1 || targetStep > totalSteps) {
+            console.log(`Invalid target step: ${targetStep}`);
+            return;
+        }
+        
+        console.log(`Manually going to step ${targetStep} from step ${currentStep}`);
+        
+        // Hide all steps
+        for (let i = 1; i <= totalSteps; i++) {
+            document.getElementById(`step${i}`).classList.remove('active');
+            document.querySelector(`.step:nth-child(${i})`).classList.remove('active');
+        }
+        
+        // Show target step
+        document.getElementById(`step${targetStep}`).classList.add('active');
+        document.querySelector(`.step:nth-child(${targetStep})`).classList.add('active');
+        
+        // Update button visibility
+        if (targetStep === 1) {
+            document.getElementById('prevButton').style.display = 'none';
+        } else {
+            document.getElementById('prevButton').style.display = 'block';
+        }
+        
+        // Update button text
+        const nextBtn = document.querySelector('.navigation-buttons .btn-primary');
+        if (nextBtn) {
+            if (targetStep === totalSteps) {
+                nextBtn.textContent = 'Complete';
+            } else {
+                nextBtn.textContent = 'Continue';
+            }
+        }
+        
+        // Mark previous steps as completed
+        for (let i = 1; i < targetStep; i++) {
+            document.querySelector(`.step:nth-child(${i})`).classList.add('completed');
+        }
+        
+        // Update current step
+        currentStep = targetStep;
+        
+        console.log(`Successfully set current step to ${currentStep}`);
+    }
+    
+    // Initialize tag inputs and load saved data
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set up button click handlers
+        document.getElementById('step1NextBtn').addEventListener('click', function() {
+            nextStep(1);
+        });
+        
+        document.getElementById('step2NextBtn').addEventListener('click', function() {
+            nextStep(2);
+        });
+        
+        document.getElementById('prevButton').addEventListener('click', function() {
+            prevStep(2);
+        });
+        
+        // Initialize debug button handlers
+        document.getElementById('goToStep1Btn').addEventListener('click', function() {
+            goToStep(1);
+        });
+        
+        document.getElementById('goToStep2Btn').addEventListener('click', function() {
+            goToStep(2);
+        });
+        
+        // Initialize tag inputs
+        initTagInput('pain-points-input', 'pain-points-hidden');
+        initTagInput('wins-input', 'wins-hidden');
+        initTagInput('mindset-input', 'mindset-hidden');
+        initTagInput('goals-input', 'goals-hidden');
+        
+        // Add event listeners for form changes to save data
+        document.querySelectorAll('input, select, textarea').forEach(input => {
+            input.addEventListener('change', saveFormData);
+        });
+        
+        // Debug controls activation with Ctrl+Shift+D
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                const debugControls = document.getElementById('debugControls');
+                debugControls.style.display = debugControls.style.display === 'none' ? 'block' : 'none';
+                console.log('Debug controls toggled');
+            }
+        });
+        
+        // Debug logging toggle
+        document.getElementById('debugLoggingToggle').addEventListener('change', function() {
+            window.verboseLogging = this.checked;
+            console.log(`Verbose logging ${this.checked ? 'enabled' : 'disabled'}`);
+        });
+        
+        // Load saved form data
+        loadFormData();
+        
+        console.log('Onboarding form initialized successfully');
+    });
+
+    document.getElementById('skipButton').addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Set the bypass flag in a session cookie
+        document.cookie = "bypass_onboarding=true; path=/";
+        
+        // Send a request to mark onboarding as partially complete
+        fetch('/training/api/training/onboarding/complete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                skip_mode: true
+            })
+        })
+        .then(response => {
+            if (response.ok) {
+                // Redirect to dashboard on success
+                window.location.href = '/training/dashboard';
+            } else {
+                console.error('Error setting bypass mode');
+                // Still redirect even if there's an error
+                window.location.href = '/training/dashboard';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            // Still redirect even if there's an error
+            window.location.href = '/training/dashboard';
+        });
+    });
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Script moved to content block -->
+{% endblock %} 

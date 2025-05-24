@@ -1,0 +1,79 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Whenever designing UX, UI, or design involving colors, brand experience, etc.
+
+
+
+
+**Comprehensive PitchIQ Brand**
+1. Design
+Colors: Black text, White and grey background. 
+Accent Color: Red
+Feel: Modern, Crisp, revolutionary, minimal, informative, fun.
+
+Design: User experience first, minimalistic, section information into tabs and collapsable sidebars.
+2. UX Design
+From research, these principles will guide our redesign:
+Simplicity: Reduce cognitive load, focus on essential features
+Consistency: Maintain unified patterns across components
+Accessibility: Design for all users regardless of abilities
+Responsiveness: Ensure seamless experience across devices
+Feedback: Provide clear system status and response to actions
+Natural Mapping: Controls should relate to their functions intuitively
+Personalization: Adapt to user needs and preferences
+Error Prevention: Design to minimize user mistakes
+Component-by-Component Improvement Plan
+A. Navigation System (Sidebars & Headers)
+Create a unified navigation system that works across device sizes
+Implement collapsible sidebar for desktop with proper state management
+Design mobile-optimized navigation with bottom tabs for thumb accessibility
+Ensure proper focus states and keyboard navigation
+B. Dashboard
+Design data visualization components for skills tracking
+Create action cards with visual hierarchy for main functions
+Implement recent activity feed with meaningful information
+Add quick-access features for common tasks
+C. Chat Interface (with Voice Integration)
+Redesign chat UI for better readability and conversation flow
+Implement voice input/output interface with proper feedback
+Create contextual tools for roleplay scenarios
+Design feedback visualizations during/after sessions
+D. User Profile
+Simplify profile editing with inline validation
+Create visual representation of progress and skills
+Implement achievement system tied to training completion
+Design preference controls with immediate visual feedback
+ Settings Panel
+Organize settings in logical categories
+Implement toggles and controls with proper sizing for touch
+Create visual feedback for changed settings
+Provide contextual help for complex options
+4. Implementation Approach
+
+
+**Speecific Pages**
+Settings>Preferences:
+
+By letting users choose how they want to learn and receive feedback, the app acknowledges that different salespeople have different learning styles and preferences.
+These learning methods include structured, flexible, Challenge-based, etc. 
+accessible from settings. People's preferences change as they use the system, and having to reset onboarding to adjust these settings creates friction.
+The training styles could benefit from brief examples or descriptions. For instance, what exactly does "Challenge-based" mean compared to "Structured"?
+The feedback frequency options are useful, but users might not understand the implications of each choice during onboarding. For example, "Real-time" feedback might interrupt the flow of conversation but provide immediate guidance.
+I think these preference controls would work well as part of an accessible settings panel that users can adjust anytime, with the onboarding just setting initial defaults. This would maintain the personalization aspect while making the app more adaptable to changing user needs.
+
+
+
+
+
+
+
+
+
+
+
+
+
+

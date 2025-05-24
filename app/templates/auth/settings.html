@@ -1,0 +1,610 @@
+{% extends "base.html" %}
+
+{% block title %}Settings | PitchIQ{% endblock %}
+
+{% block styles %}
+<style>
+  /* Remove max-width from container as layout is now handled by grid */
+  .settings-container {
+    /* max-width: 800px; */ 
+    margin: 2rem auto;
+    padding: 0; /* Remove padding, add to cols */
+    background-color: var(--surface-color, #ffffff);
+    border-radius: var(--radius-lg, 12px);
+    box-shadow: var(--shadow-md, 0 4px 6px rgba(0,0,0,0.1));
+    border: 1px solid var(--border-color, #dee2e6);
+    overflow: hidden; /* Prevent content overflow */
+  }
+  
+  /* Tab Navigation Styling */
+  .nav-pills .nav-link {
+      border-radius: var(--radius-md, 8px) 0 0 var(--radius-md, 8px); /* Rounded corners only on left */
+      text-align: left;
+      padding: 0.8rem 1.2rem;
+      margin-bottom: 0.5rem; 
+      font-weight: 500;
+      color: var(--text-color-light);
+      border-left: 4px solid transparent;
+      transition: all 0.2s ease;
+  }
+  .nav-pills .nav-link.active,
+  .nav-pills .show > .nav-link {
+      color: var(--primary-color);
+      background-color: var(--background-color); /* Light background for active tab */
+      border-left-color: var(--secondary-color);
+      font-weight: 600;
+  }
+  .nav-pills .nav-link:hover:not(.active) {
+       background-color: rgba(0,0,0,0.03);
+       color: var(--text-color);
+  }
+  
+  .settings-tab-nav {
+      padding: 1.5rem 0 1.5rem 1.5rem; /* Padding for nav column */
+      border-right: 1px solid var(--border-color-light);
+  }
+  
+  .settings-tab-content {
+       padding: 2rem; /* Padding for content column */
+  }
+
+  /* Section styling remains similar */
+  .settings-section {
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border-color-light, #e9ecef);
+  }
+  .settings-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .settings-section h2 {
+    font-size: var(--font-size-xl, 1.25rem);
+    font-weight: 600;
+    color: var(--primary-color, #212529);
+    margin-bottom: 1.5rem;
+    position: relative;
+    padding-bottom: 0.5rem;
+  }
+  .settings-section h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 50px;
+      height: 3px;
+      background-color: var(--secondary-color, #E63946);
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: var(--text-color, #212529);
+  }
+
+  .form-control {
+      display: block;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      font-size: var(--font-size-base);
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--text-color);
+      background-color: #fff;
+      background-clip: padding-box;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+  }
+  .form-control:focus {
+      border-color: var(--secondary-color-light);
+      outline: 0;
+      box-shadow: 0 0 0 0.25rem rgba(var(--secondary-rgb, 230, 57, 70), 0.25);
+  }
+  
+  .form-select {
+      display: block;
+      width: 100%;
+      padding: 0.75rem 2.25rem 0.75rem 1rem;
+      -moz-padding-start: calc(1rem - 3px);
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--text-color);
+      background-color: #fff;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 1rem center;
+      background-size: 16px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+  }
+  .form-select:focus {
+       border-color: var(--secondary-color-light);
+      outline: 0;
+      box-shadow: 0 0 0 0.25rem rgba(var(--secondary-rgb, 230, 57, 70), 0.25);
+  }
+  
+  .preference-description {
+      font-size: 0.85rem;
+      color: var(--text-color-light);
+      margin-top: 0.5rem;
+  }
+  
+  .settings-actions {
+      margin-top: 2rem;
+  }
+
+  .delete-section {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px dashed var(--danger-color);
+  }
+  .delete-section h3 {
+      color: var(--danger-color);
+  }
+  .delete-section p {
+      margin-bottom: 1.5rem;
+  }
+
+  /* Specific styles for outline button hover */
+  .btn-outline-primary {
+      color: var(--primary-color, #212529);
+      border-color: var(--primary-color, #212529);
+  }
+  .btn-outline-primary:hover {
+      color: #ffffff; /* White text on hover */
+      background-color: var(--primary-color, #212529);
+      border-color: var(--primary-color, #212529);
+  }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Settings</h1>
+<div class="settings-container">
+  <div class="row g-0"> <!-- No gutters between columns -->
+      
+      <!-- Tab Navigation Column -->
+      <div class="col-md-3 settings-tab-nav">
+          <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+              <button class="nav-link active" id="v-pills-general-tab" data-bs-toggle="pill" data-bs-target="#v-pills-general" type="button" role="tab" aria-controls="v-pills-general" aria-selected="true">
+                  <i class="fas fa-user-cog me-2"></i>General
+              </button>
+              <button class="nav-link" id="v-pills-preferences-tab" data-bs-toggle="pill" data-bs-target="#v-pills-preferences" type="button" role="tab" aria-controls="v-pills-preferences" aria-selected="false">
+                  <i class="fas fa-sliders-h me-2"></i>Preferences
+              </button>
+              <button class="nav-link" id="v-pills-account-tab" data-bs-toggle="pill" data-bs-target="#v-pills-account" type="button" role="tab" aria-controls="v-pills-account" aria-selected="false">
+                  <i class="fas fa-shield-alt me-2"></i>Account
+              </button>
+          </div>
+      </div>
+      
+      <!-- Tab Content Column -->
+      <div class="col-md-9 settings-tab-content">
+          <div class="tab-content" id="v-pills-tabContent">
+              
+              <!-- General Tab Pane -->
+              <div class="tab-pane fade show active" id="v-pills-general" role="tabpanel" aria-labelledby="v-pills-general-tab">
+                  <!-- Account Information -->
+                  <section class="settings-section">
+                    <h2>Account Information</h2>
+                    <form action="{{ url_for('auth.update_account_info') }}" method="POST" id="accountInfoForm">
+                      <input type="hidden" name="csrf_token" value="{{ g.csrf_token }}">
+                      <div class="form-group">
+                        <label for="name" class="form-label">Name</label>
+                        <input type="text" id="name" name="name" class="form-control" value="{{ current_user.name }}" required>
+                      </div>
+                      <div class="form-group">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" id="email" name="email" class="form-control" value="{{ current_user.email }}" readonly disabled>
+                        <small class="text-muted">Email address cannot be changed.</small>
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Subscription Tier</label>
+                        <input type="text" class="form-control" value="{{ current_user.profile.subscription_tier|capitalize }}" readonly disabled>
+                        <small class="text-muted">
+                          {% if current_user.profile.subscription_tier == 'free' %}
+                            You are on the Free tier. <a href="{{ url_for('auth.upgrade_account') }}">Upgrade to Premium</a> for additional features.
+                          {% elif current_user.profile.subscription_tier == 'premium' %}
+                            You have a Premium subscription with access to all advanced features.
+                          {% elif current_user.profile.subscription_tier == 'enterprise' %}
+                            You have an Enterprise subscription with access to all premium features and team management.
+                          {% endif %}
+                        </small>
+                      </div>
+                      <div class="settings-actions">
+                        <button type="submit" class="btn btn-primary">Update Account Info</button>
+                      </div>
+                    </form>
+                  </section>
+
+                  <!-- Password Management -->
+                  <section class="settings-section">
+                    <h2>Change Password</h2>
+                    <form action="{{ url_for('auth.change_password') }}" method="POST" id="changePasswordForm">
+                      <input type="hidden" name="csrf_token" value="{{ g.csrf_token }}">
+                      <div class="form-group">
+                        <label for="current_password" class="form-label">Current Password</label>
+                        <input type="password" id="current_password" name="current_password" class="form-control" required>
+                      </div>
+                      <div class="form-group">
+                        <label for="new_password" class="form-label">New Password</label>
+                        <input type="password" id="new_password" name="new_password" class="form-control" required minlength="{{ config.PASSWORD_MIN_LENGTH or 8 }}">
+                      </div>
+                      <div class="form-group">
+                        <label for="confirm_password" class="form-label">Confirm New Password</label>
+                        <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
+                      </div>
+                      <div class="settings-actions">
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                      </div>
+                    </form>
+                  </section>
+              </div>
+              
+              <!-- Preferences Tab Pane -->
+              <div class="tab-pane fade" id="v-pills-preferences" role="tabpanel" aria-labelledby="v-pills-preferences-tab">
+                  <!-- Training Preferences -->
+                  <section class="settings-section" id="preferences">
+                    <h2>Training Preferences</h2>
+                    <form id="updatePreferencesForm" action="{{ url_for('training.update_profile') }}" method="POST" class="pt-2">
+                      <input type="hidden" name="csrf_token" value="{{ g.csrf_token }}">
+                      
+                      <div class="form-group">
+                        <label for="preferred_training_style" class="form-label">Preferred Training Style</label>
+                        <select id="preferred_training_style" name="preferred_training_style" class="form-select">
+                            <option value="structured" {% if current_user.profile.preferred_training_style == 'structured' %}selected{% endif %}>Structured</option>
+                            <option value="conversational" {% if current_user.profile.preferred_training_style == 'conversational' %}selected{% endif %}>Conversational</option>
+                            <option value="challenge-based" {% if current_user.profile.preferred_training_style == 'challenge-based' %}selected{% endif %}>Challenge-Based</option>
+                            {# Add other styles as they become available #}
+                        </select>
+                        <div class="preference-description">
+                            Choose how you prefer the AI to interact during roleplay.<br>
+                            <strong>Structured:</strong> Follows a more defined script. 
+                            <strong>Conversational:</strong> More flexible and natural flow. 
+                            <strong>Challenge-Based:</strong> Focuses intensely on specific skill challenges.
+                        </div>
+                      </div>
+                      
+                      <div class="form-group">
+                        <label for="preferred_feedback_frequency" class="form-label">Preferred Feedback Frequency</label>
+                        <select id="preferred_feedback_frequency" name="preferred_feedback_frequency" class="form-select">
+                            <option value="real-time" {% if current_user.profile.preferred_feedback_frequency == 'real-time' %}selected{% endif %}>Real-Time</option>
+                            <option value="end-session" {% if current_user.profile.preferred_feedback_frequency == 'end-session' %}selected{% endif %}>End of Session</option>
+                            <option value="daily" {% if current_user.profile.preferred_feedback_frequency == 'daily' %}selected{% endif %}>Daily Summary</option>
+                             {# Add other frequencies as they become available #}
+                       </select>
+                       <div class="preference-description">
+                            Select how often you want to receive performance feedback.<br>
+                            <strong>Real-Time:</strong> Instant feedback (may interrupt flow). 
+                            <strong>End of Session:</strong> Detailed summary after each roleplay. 
+                            <strong>Daily Summary:</strong> Consolidated feedback once per day.
+                       </div>
+                      </div>
+
+                      <!-- Reset Onboarding (Developer/Admin Function) -->
+                      <div class="form-group mt-4">
+                        <h4>Development Testing</h4>
+                        <div class="alert alert-warning">
+                          <p><strong>Reset Onboarding Process</strong></p>
+                          <p>This will reset your onboarding status, allowing you to go through the onboarding process again. Useful for testing or if you want to change your basic profile information.</p>
+                          <form action="{{ url_for('training.update_profile') }}" method="POST" id="resetOnboardingForm" onsubmit="return confirm('Are you sure you want to reset your onboarding status? You will need to complete the onboarding process again.');">
+                            <input type="hidden" name="csrf_token" value="{{ g.csrf_token }}">
+                            <input type="hidden" name="reset_onboarding" value="true">
+                            <button type="submit" class="btn btn-warning">Reset Onboarding</button>
+                          </form>
+                        </div>
+                      </div>
+                      
+                      <div class="settings-actions">
+                        <button type="submit" class="btn btn-primary">Save Preferences</button>
+                      </div>
+                    </form>
+                  </section>
+              </div>
+              
+              <!-- Account Tab Pane -->
+              <div class="tab-pane fade" id="v-pills-account" role="tabpanel" aria-labelledby="v-pills-account-tab">
+                  <!-- Delete All Roleplays -->
+                  <section class="settings-section">
+                    <h3>Delete All Roleplays</h3>
+                    <p>Remove all your roleplay sessions while keeping your account and profile intact. This will reset your training history.</p>
+                    <form action="{{ url_for('training.delete_all_roleplays') }}" method="POST" onsubmit="return confirm('Are you sure you want to delete all your roleplay sessions? This cannot be undone.');">
+                        <input type="hidden" name="csrf_token" value="{{ g.csrf_token }}">
+                        <button type="submit" class="btn btn-warning">Delete All Roleplays</button>
+                    </form>
+                  </section>
+                  
+                  {% if config.FLASK_ENV != 'production' or current_user.role == 'admin' %}
+                  <!-- Subscription Management (Admin/Development Only) -->
+                  <section class="settings-section">
+                    <h3>Manage Subscription Tier</h3>
+                    <p><strong>Note:</strong> This is only visible in development mode or for admin users.</p>
+                    <form action="{{ url_for('auth.update_subscription') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ g.csrf_token }}">
+                        <div class="form-group">
+                            <label for="subscription_tier" class="form-label">Subscription Tier</label>
+                            <select id="subscription_tier" name="subscription_tier" class="form-select">
+                                <option value="free" {% if current_user.profile.subscription_tier == 'free' %}selected{% endif %}>Free</option>
+                                <option value="premium" {% if current_user.profile.subscription_tier == 'premium' %}selected{% endif %}>Premium</option>
+                                <option value="enterprise" {% if current_user.profile.subscription_tier == 'enterprise' %}selected{% endif %}>Enterprise</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update Subscription</button>
+                    </form>
+                    
+                    <!-- Deepgram Connection Test -->
+                    <div class="mt-4">
+                        <h4>Voice Recognition API Test</h4>
+                        <p>Test the voice recognition API connection for your current subscription tier.</p>
+                        <div class="d-flex gap-2">
+                            <button id="testDeepgramBtn" class="btn btn-outline-primary">Test Deepgram API</button>
+                            <button id="testWebSpeechBtn" class="btn btn-outline-primary">Test Web Speech API</button>
+                            <button id="clearDeepgramResultsBtn" class="btn btn-outline-secondary" style="display: none;">Clear Results</button>
+                        </div>
+                        
+                        <div id="connectionTestResults" class="mt-3" style="display: none;">
+                            <div class="alert" id="connectionTestAlert">
+                                <h5 id="connectionTestTitle">Testing connection...</h5>
+                                <p id="connectionTestMessage"></p>
+                            </div>
+                            
+                            <div id="connectionTestDetails" class="mt-2" style="display: none;">
+                                <h6>Detailed Information:</h6>
+                                <pre id="connectionTestJson" class="p-3 bg-light border rounded" style="max-height: 200px; overflow-y: auto; font-size: 0.85rem;"></pre>
+                            </div>
+                        </div>
+                    </div>
+                  </section>
+                  {% endif %}
+                  
+                  <!-- Account Deletion -->
+                  <section class="settings-section delete-section">
+                    <h3>Delete Account</h3>
+                    <p>Permanently delete your account and all associated data. This action cannot be undone.</p>
+                    <form action="{{ url_for('auth.delete_account') }}" method="POST" onsubmit="return confirm('Are you absolutely sure you want to delete your account? This cannot be undone.');">
+                        <input type="hidden" name="csrf_token" value="{{ g.csrf_token }}">
+                        <button type="submit" class="btn btn-danger">Delete My Account</button>
+                    </form>
+                  </section>
+              </div>
+              
+          </div> <!-- /.tab-content -->
+      </div> <!-- /.col-md-9 -->
+      
+  </div> <!-- /.row -->
+</div> <!-- /.settings-container -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Add any JS needed for settings page, e.g., password confirmation validation
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordForm = document.getElementById('changePasswordForm');
+    if (passwordForm) {
+        passwordForm.addEventListener('submit', function(event) {
+            const newPassword = document.getElementById('new_password');
+            const confirmPassword = document.getElementById('confirm_password');
+            if (newPassword.value !== confirmPassword.value) {
+                event.preventDefault(); // Stop form submission
+                alert('New password and confirmation password do not match.');
+                confirmPassword.focus(); // Focus on the confirmation field
+            }
+        });
+    }
+    
+    // Deepgram Connection Test
+    const testDeepgramBtn = document.getElementById('testDeepgramBtn');
+    const testWebSpeechBtn = document.getElementById('testWebSpeechBtn');
+    const clearDeepgramResultsBtn = document.getElementById('clearDeepgramResultsBtn');
+    const connectionTestResults = document.getElementById('connectionTestResults');
+    const connectionTestAlert = document.getElementById('connectionTestAlert');
+    const connectionTestTitle = document.getElementById('connectionTestTitle');
+    const connectionTestMessage = document.getElementById('connectionTestMessage');
+    const connectionTestDetails = document.getElementById('connectionTestDetails');
+    const connectionTestJson = document.getElementById('connectionTestJson');
+    
+    if (testDeepgramBtn) {
+        testDeepgramBtn.addEventListener('click', async function() {
+            // Show the results container and set loading state
+            connectionTestResults.style.display = 'block';
+            connectionTestAlert.className = 'alert alert-info';
+            connectionTestTitle.textContent = 'Testing Deepgram API connection...';
+            connectionTestMessage.textContent = 'Please wait while we test the connection.';
+            connectionTestDetails.style.display = 'none';
+            testDeepgramBtn.disabled = true;
+            testWebSpeechBtn.disabled = true;
+            clearDeepgramResultsBtn.style.display = 'inline-block';
+            
+            try {
+                // Call the API test endpoint
+                const response = await fetch('/api/test_connection');
+                const data = await response.json();
+                
+                // Display results
+                if (data.status === 'success') {
+                    connectionTestAlert.className = 'alert alert-success';
+                    connectionTestTitle.textContent = 'Deepgram Connection Successful ✓';
+                    connectionTestMessage.textContent = data.message;
+                } else {
+                    connectionTestAlert.className = 'alert alert-danger';
+                    connectionTestTitle.textContent = 'Deepgram Connection Failed ✗';
+                    connectionTestMessage.textContent = data.message || 'Unknown error occurred';
+                }
+                
+                // Show detailed JSON
+                connectionTestJson.textContent = JSON.stringify(data, null, 2);
+                connectionTestDetails.style.display = 'block';
+            } catch (error) {
+                connectionTestAlert.className = 'alert alert-danger';
+                connectionTestTitle.textContent = 'Deepgram Test Failed ✗';
+                connectionTestMessage.textContent = `Error: ${error.message}`;
+                
+                // Show error details
+                connectionTestJson.textContent = JSON.stringify({ error: error.toString() }, null, 2);
+                connectionTestDetails.style.display = 'block';
+            } finally {
+                testDeepgramBtn.disabled = false;
+                testWebSpeechBtn.disabled = false;
+            }
+        });
+    }
+    
+    if (testWebSpeechBtn) {
+        testWebSpeechBtn.addEventListener('click', function() {
+            // Show the results container and set loading state
+            connectionTestResults.style.display = 'block';
+            connectionTestAlert.className = 'alert alert-info';
+            connectionTestTitle.textContent = 'Testing Web Speech API...';
+            connectionTestMessage.textContent = 'Checking browser compatibility...';
+            connectionTestDetails.style.display = 'none';
+            testDeepgramBtn.disabled = true;
+            testWebSpeechBtn.disabled = true;
+            clearDeepgramResultsBtn.style.display = 'inline-block';
+            
+            try {
+                // Test if Web Speech API is available
+                const results = {
+                    api_available: false,
+                    speech_recognition: false,
+                    continuous: false,
+                    interim_results: false,
+                    microphone_permission: null
+                };
+                
+                // Check if Web Speech API is available
+                if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                    results.api_available = true;
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    
+                    // Create a test instance
+                    try {
+                        const recognition = new SpeechRecognition();
+                        results.speech_recognition = true;
+                        
+                        // Check if continuous mode is supported
+                        try {
+                            recognition.continuous = true;
+                            results.continuous = true;
+                        } catch (e) {
+                            results.continuous = false;
+                        }
+                        
+                        // Check if interim results are supported
+                        try {
+                            recognition.interimResults = true;
+                            results.interim_results = true;
+                        } catch (e) {
+                            results.interim_results = false;
+                        }
+                        
+                        // Check microphone permission
+                        navigator.permissions.query({ name: 'microphone' })
+                            .then(permissionStatus => {
+                                results.microphone_permission = permissionStatus.state;
+                                
+                                // Update UI with results
+                                const success = results.api_available && results.speech_recognition;
+                                
+                                connectionTestAlert.className = success ? 'alert alert-success' : 'alert alert-danger';
+                                connectionTestTitle.textContent = success ? 
+                                    'Web Speech API Available ✓' : 
+                                    'Web Speech API Not Available ✗';
+                                
+                                let message = success ? 
+                                    'Your browser supports the Web Speech API needed for voice recognition.' : 
+                                    'Your browser does not fully support the Web Speech API.';
+                                    
+                                if (results.microphone_permission) {
+                                    message += ` Microphone permission: ${results.microphone_permission}.`;
+                                }
+                                
+                                connectionTestMessage.textContent = message;
+                                
+                                // Show detailed JSON
+                                connectionTestJson.textContent = JSON.stringify(results, null, 2);
+                                connectionTestDetails.style.display = 'block';
+                                
+                                testDeepgramBtn.disabled = false;
+                                testWebSpeechBtn.disabled = false;
+                            })
+                            .catch(error => {
+                                results.microphone_permission = 'error: ' + error.message;
+                                
+                                // Still show partial results
+                                connectionTestAlert.className = 'alert alert-warning';
+                                connectionTestTitle.textContent = 'Web Speech API Test Incomplete';
+                                connectionTestMessage.textContent = 'Could not verify microphone permissions.';
+                                
+                                connectionTestJson.textContent = JSON.stringify(results, null, 2);
+                                connectionTestDetails.style.display = 'block';
+                                
+                                testDeepgramBtn.disabled = false;
+                                testWebSpeechBtn.disabled = false;
+                            });
+                    } catch (e) {
+                        // SpeechRecognition constructor failed
+                        results.speech_recognition = false;
+                        
+                        connectionTestAlert.className = 'alert alert-danger';
+                        connectionTestTitle.textContent = 'Web Speech API Not Fully Supported ✗';
+                        connectionTestMessage.textContent = 'The SpeechRecognition interface is not fully supported in your browser.';
+                        
+                        connectionTestJson.textContent = JSON.stringify({
+                            ...results,
+                            error: e.toString()
+                        }, null, 2);
+                        connectionTestDetails.style.display = 'block';
+                        
+                        testDeepgramBtn.disabled = false;
+                        testWebSpeechBtn.disabled = false;
+                    }
+                } else {
+                    // Web Speech API not available
+                    connectionTestAlert.className = 'alert alert-danger';
+                    connectionTestTitle.textContent = 'Web Speech API Not Available ✗';
+                    connectionTestMessage.textContent = 'Your browser does not support the Web Speech API needed for free-tier voice recognition.';
+                    
+                    connectionTestJson.textContent = JSON.stringify(results, null, 2);
+                    connectionTestDetails.style.display = 'block';
+                    
+                    testDeepgramBtn.disabled = false;
+                    testWebSpeechBtn.disabled = false;
+                }
+            } catch (error) {
+                // General error
+                connectionTestAlert.className = 'alert alert-danger';
+                connectionTestTitle.textContent = 'Web Speech API Test Failed ✗';
+                connectionTestMessage.textContent = `Error: ${error.message}`;
+                
+                connectionTestJson.textContent = JSON.stringify({ error: error.toString() }, null, 2);
+                connectionTestDetails.style.display = 'block';
+                
+                testDeepgramBtn.disabled = false;
+                testWebSpeechBtn.disabled = false;
+            }
+        });
+    }
+    
+    if (clearDeepgramResultsBtn) {
+        clearDeepgramResultsBtn.addEventListener('click', function() {
+            connectionTestResults.style.display = 'none';
+            clearDeepgramResultsBtn.style.display = 'none';
+        });
+    }
+});
+</script>
+{% endblock %} 

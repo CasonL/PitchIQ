@@ -1,0 +1,2040 @@
+// Voice Interface Script
+
+// DOM elements
+const orb = document.getElementById('voice-orb');
+const transcriptContainer = document.getElementById('transcript');
+const conversationStatus = document.getElementById('conversation-status');
+const toggleRecordButton = document.getElementById('toggle-record');
+const feedbackPanel = document.getElementById('feedback-panel');
+const voiceSelectionToggle = document.getElementById('voice-selection-toggle');
+const voiceSelectionModal = document.getElementById('voice-selection-modal');
+const closeModalButton = document.getElementById('close-modal');
+const voiceOptions = document.querySelectorAll('.voice-option');
+
+// Voice settings
+let useElevenLabs = false; // Default to false, will be set based on DOM element
+
+// Get conversation ID from hidden field or window variable
+const conversationId = document.getElementById('conversation-id')?.value || window.conversationId;
+
+// Voice selection state
+let selectedVoice = {
+    id: 'rachel',
+    name: 'Rachel',
+    description: 'Clear and professional female voice'
+};
+
+// Speech recognition setup
+let recognition;
+let isRecognizing = false;
+let transcript = "";
+let isUserTurn = true;
+let isAISpeaking = false;
+
+// Add pause detection variables
+let pauseDetectionTimeout = null;
+let warningTimeout = null;
+let pendingText = '';
+let isProcessing = false;
+
+// Add a variable to track if we're showing the "about to send" indicator
+let sendIndicatorShown = false;
+let sendIndicatorTimer = null;
+
+// Add Deepgram integration for better turn detection
+let deepgramSocket = null;
+let isDeepgramAvailable = false;
+let isEndOfUtterance = false;
+let audioContext = null;
+let mediaStream = null;
+let sourceNode = null;
+let processorNode = null;
+
+// Add interruption constants
+// const INTERRUPTION_THRESHOLD = 0.4; // Remove static threshold
+
+// Add adaptive threshold variables
+let baseNoiseLevel = 0.05; // Starting estimate, will be calibrated
+let interruptionThreshold = 0.35; // Starting threshold, will be adjusted
+let noiseCalibrationSamples = []; // Array to store noise samples
+const MIN_THRESHOLD = 0.15; // Lowest acceptable threshold
+const MAX_THRESHOLD = 0.6; // Highest acceptable threshold
+const CALIBRATION_SAMPLE_COUNT = 100; // Number of samples to collect
+let isCalibrating = false;
+let calibrationInterval = null;
+
+// Add a variable to track the current audio playing
+let currentAudioElement = null;
+let interruptionDetected = false; // Flag to track if interruption occurred
+
+// Add at the top of the file, with other state variables
+let interruptionCount = 0;
+let awkwardnessQueue = []; // Queue to track when we should add awkwardness to responses
+let lastInterruptionTime = 0;
+
+// Add continuous mode flag
+let isContinuousMode = false;
+
+// Initialize Deepgram for better speech detection
+async function initDeepgram() {
+    try {
+        console.log('Attempting to initialize Deepgram...');
+        
+        // Immediately set Deepgram as unavailable to use Web Speech API first
+        isDeepgramAvailable = false;
+        
+        // Try to get token with timeout to prevent blocking
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2-second timeout
+        
+        try {
+            const response = await fetch(`${window.location.origin}/api/get_deepgram_token`, {
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            // If we get a 404, Deepgram is not set up on this server - gracefully disable it
+            if (response.status === 404) {
+                console.log('Deepgram API endpoint not found - quietly disabling Deepgram integration');
+                return false; // Silently fail and continue with Web Speech API
+            }
+            
+            if (!response.ok) {
+                console.warn('Failed to get Deepgram token, falling back to basic detection');
+                return false;
+            }
+            
+            const tokenData = await response.json();
+            if (!tokenData || !tokenData.apiKey) {
+                console.warn('Invalid Deepgram token received, falling back to basic detection');
+                return false;
+            }
+            
+            const token = tokenData.apiKey;
+            
+            // Initialize Deepgram connection with the token
+            deepgramSocket = new WebSocket(`wss://api.deepgram.com/v1/listen?model=nova-2&endpointing=true&punctuate=true&interim_results=true`, [
+                'token', token
+            ]);
+            
+            // Set up event handlers
+            deepgramSocket.onopen = () => {
+                console.log('Deepgram WebSocket connection established');
+                isDeepgramAvailable = true;
+                
+                // Set up audio capture for Deepgram if we're already supposed to be listening
+                if (isRecognizing && !isAISpeaking) {
+                    setupAudioForDeepgram();
+                }
+            };
+            
+            deepgramSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                // Skip processing if AI is speaking
+                if (isAISpeaking) return;
+                
+                // Check for a valid response from Deepgram
+                if (data && data.type === 'Results') {
+                    // Process transcript and detect turn-taking signals
+                    processDeepgramResults(data);
+                }
+            };
+            
+            deepgramSocket.onerror = (error) => {
+                console.error('Deepgram WebSocket error:', error);
+                isDeepgramAvailable = false;
+            };
+            
+            deepgramSocket.onclose = () => {
+                console.log('Deepgram WebSocket connection closed');
+                isDeepgramAvailable = false;
+            };
+            
+            return true;
+        } catch (fetchError) {
+            // Handle timeout or other fetch errors
+            clearTimeout(timeoutId);
+            if (fetchError.name === 'AbortError') {
+                console.log('Deepgram token request timed out, continuing with Web Speech API only');
+            } else {
+                console.warn('Deepgram fetch failed:', fetchError);
+            }
+            return false;
+        }
+    } catch (error) {
+        console.error('Error initializing Deepgram:', error);
+        return false;
+    }
+}
+
+// Process Deepgram results to detect natural turn-taking
+function processDeepgramResults(data) {
+    try {
+        // Check if there's speech_final which is a definite indicator of completed speech
+        if (data.speech_final === true) {
+            console.log('Deepgram detected end of speech');
+            isEndOfUtterance = true;
+            
+            // Get the final transcript
+            const transcript = data.channel?.alternatives[0]?.transcript;
+            if (transcript && transcript.trim().length > 0) {
+                // APPEND to pending text instead of replacing it
+                if (pendingText) {
+                    pendingText += ' ' + transcript.trim();
+                } else {
+                    pendingText = transcript.trim();
+                }
+                console.log('Accumulated pending text:', pendingText);
+                
+                // CORRECT UNDERSTANDING OF SPEECH PATTERNS:
+                // 1. Questions usually end with upward inflection AND question mark - these are definite endings
+                // 2. Don't rely on downward inflection/volume for detecting endings
+                const hasQuestionEnding = /\?$/.test(pendingText);
+                const hasExplicitEndMarker = /(that's all|over to you|thanks)$/i.test(pendingText);
+                
+                // Only auto-send if we have a proper question or explicit end marker
+                if (hasQuestionEnding || hasExplicitEndMarker) {
+                    logState('Before speech_final send');
+                    sendAccumulatedTranscript();
+                } else {
+                    // Otherwise rely on timeout - don't make assumptions about speech patterns
+                    console.log('End of speech detected but waiting for timeout');
+                    resetPauseTimer(pendingText);
+                }
+            }
+            return;
+        }
+        
+        // Process interim results for visual feedback
+        if (data.is_final === false) {
+            const interimTranscript = data.channel?.alternatives[0]?.transcript;
+            if (interimTranscript) {
+                // Show the full accumulated text + new interim text
+                let displayText = pendingText ? pendingText + ' ' + interimTranscript : interimTranscript;
+                updateConversationStatus('Listening: ' + displayText);
+            }
+            return;
+        }
+        
+        // Process final results (but not necessarily end of utterance)
+        const transcript = data.channel?.alternatives[0]?.transcript;
+        if (transcript && transcript.trim().length > 0) {
+            // APPEND to existing transcript instead of replacing it
+            if (pendingText) {
+                pendingText += ' ' + transcript.trim();
+            } else {
+                pendingText = transcript.trim();
+            }
+            
+            // Display the accumulated text in the status
+            updateConversationStatus('Listening: ' + pendingText);
+            
+            // CORRECT UNDERSTANDING OF SPEECH PATTERNS:
+            // Focus primarily on question marks as definitive endings
+            const hasQuestionMark = /\?$/.test(pendingText);
+            
+            // Only send immediately for clear questions
+            if (hasQuestionMark) {
+                console.log('Question mark detected - sending immediately');
+                sendAccumulatedTranscript();
+            } else {
+                // Otherwise, use timeout system
+                resetPauseTimer(pendingText);
+            }
+        }
+    } catch (error) {
+        console.error('Error processing Deepgram results:', error);
+        // Reset processing in case of error
+        isProcessing = false;
+    }
+}
+
+// Set up audio capturing for Deepgram (higher quality analysis)
+function setupAudioForDeepgram() {
+    try {
+        if (deepgramAudioContext) {
+            return true; // Already set up
+        }
+        
+        // Create audio context with specific options for echo cancellation
+        deepgramAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Request microphone access with echo cancellation enabled
+        const constraints = {
+            audio: {
+                echoCancellation: true,      // Enable echo cancellation
+                noiseSuppression: true,      // Enable noise suppression
+                autoGainControl: true,       // Enable automatic gain control
+                channelCount: 1,             // Mono audio is sufficient and more efficient
+                sampleRate: 16000            // 16kHz is ideal for speech recognition
+            }
+        };
+        
+        navigator.mediaDevices.getUserMedia(constraints)
+            .then(stream => {
+                mediaStream = stream;
+                deepgramStream = stream;
+                deepgramSource = deepgramAudioContext.createMediaStreamSource(stream);
+                
+                // Create audio context and nodes
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                sourceNode = audioContext.createMediaStreamSource(mediaStream);
+                
+                // Use ScriptProcessor for maximum browser compatibility
+                processorNode = audioContext.createScriptProcessor(4096, 1, 1);
+                
+                // Connect nodes
+                sourceNode.connect(processorNode);
+                processorNode.connect(audioContext.destination);
+                
+                // Set up audio processing function
+                processorNode.onaudioprocess = (e) => {
+                    // Only send audio when we're listening and Deepgram is connected
+                    if (isRecognizing && 
+                        isDeepgramAvailable && deepgramSocket && 
+                        deepgramSocket.readyState === WebSocket.OPEN) {
+                        
+                        // Get audio data
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        
+                        // Calculate audio level for interruption detection
+                        let sum = 0;
+                        for (let i = 0; i < inputData.length; i++) {
+                            sum += Math.abs(inputData[i]);
+                        }
+                        const audioLevel = Math.min(1, sum / inputData.length / 0.1);
+                        
+                        // Adjust for current noise level if needed
+                        const normalizedLevel = Math.max(0, audioLevel - baseNoiseLevel);
+                        
+                        // Check for interruption if AI is speaking
+                        if (isAISpeaking && normalizedLevel > interruptionThreshold) {
+                            handleInterruption();
+                        }
+                        
+                        // Only send to Deepgram if not AI speaking or if we detected an interruption
+                        if (!isAISpeaking || interruptionDetected) {
+                            // Convert to format Deepgram expects
+                            const pcmData = convertFloat32ToInt16(inputData);
+                            
+                            // Send to Deepgram
+                            deepgramSocket.send(pcmData);
+                        }
+                    }
+                };
+                
+                console.log('Audio capture set up for Deepgram');
+            })
+            .catch(error => {
+                console.error('Error accessing microphone with echo cancellation:', error);
+            });
+            
+        return true;
+    } catch (error) {
+        console.error('Error setting up audio for Deepgram:', error);
+        return false;
+    }
+}
+
+// Helper function to convert Float32Array from Web Audio API to Int16Array for Deepgram
+function convertFloat32ToInt16(float32Array) {
+    const int16Array = new Int16Array(float32Array.length);
+    for (let i = 0; i < float32Array.length; i++) {
+        // Convert from [-1, 1] to [-32768, 32767]
+        const s = Math.max(-1, Math.min(1, float32Array[i]));
+        int16Array[i] = s < 0 ? s * 32768 : s * 32767;
+    }
+    return int16Array.buffer;
+}
+
+// Cleanup function for Deepgram and audio resources
+function cleanupDeepgramAudio() {
+    // Close Deepgram connection
+    if (deepgramSocket && deepgramSocket.readyState === WebSocket.OPEN) {
+        deepgramSocket.close();
+        isDeepgramAvailable = false;
+    }
+    
+    // Stop audio tracks
+    if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+    }
+    
+    // Disconnect audio nodes
+    if (sourceNode) {
+        sourceNode.disconnect();
+        sourceNode = null;
+    }
+    
+    if (processorNode) {
+        processorNode.disconnect();
+        processorNode = null;
+    }
+    
+    // Close audio context
+    if (audioContext) {
+        audioContext.close().catch(err => console.error('Error closing audio context:', err));
+        audioContext = null;
+    }
+}
+
+// Initialize the speech recognition API
+function initSpeechRecognition() {
+    // Try to initialize Deepgram, but handle the case where it's not available
+    initDeepgram().then(isAvailable => {
+        console.log(`Deepgram advanced turn detection: ${isAvailable ? 'ENABLED' : 'DISABLED'}`);
+        
+        // We'll continue with Web Speech API regardless of Deepgram status
+    }).catch(error => {
+        console.error('Error setting up Deepgram - continuing with basic Web Speech API:', error);
+        isDeepgramAvailable = false;
+    });
+    
+    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!window.SpeechRecognition) {
+        alert('Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.');
+        return;
+    }
+    
+    try {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        
+        // Add a property to track if recognition is active
+        recognition.isActive = false;
+        
+        let finalTranscript = '';
+        
+        recognition.onresult = function(event) {
+            // If AI is speaking, check for interruption
+            if (isAISpeaking) {
+                // Get an approximation of audio level from the confidence
+                const latestResult = event.results[event.results.length - 1];
+                const confidence = latestResult[0].confidence;
+                // Scale confidence (typically 0-1) to audio level equivalent
+                const audioLevel = confidence * 0.8; // Scale factor to match audio levels
+                
+                // Simple heuristic: if we get a result with decent confidence while AI is speaking,
+                // count it as an interruption
+                if (confidence > 0.3 && latestResult[0].transcript.trim().length > 1) {
+                    handleInterruption();
+                } 
+                
+                // After interruption, we start collecting the transcript normally
+                if (!interruptionDetected) {
+                    return; // Skip processing results until interruption is detected
+                }
+            }
+            
+            // Normal transcript processing for when AI is not speaking or after interruption
+            let interimTranscript = '';
+            let finalizedText = '';
+            
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                
+                if (event.results[i].isFinal) {
+                    finalizedText += transcript + ' ';
+                    
+                    // Only use Web Speech API results for sending if Deepgram is not available
+                    if (!isDeepgramAvailable) {
+                        // ACCUMULATE text rather than replacing it
+                        pendingText = pendingText ? pendingText + ' ' + transcript.trim() : transcript.trim();
+                        console.log('Web Speech accumulated:', pendingText);
+                        
+                        // Check if the accumulated text contains a question
+                        const containsQuestion = /\?/.test(pendingText) && 
+                                               /\b(who|what|where|when|why|how|is|are|can|could|would|do|does|did|should|will|has|have).*\?/i.test(pendingText.toLowerCase());
+                        
+                        // Check for natural sentence endings on the ENTIRE accumulated text
+                        const hasEndPunctuation = /[.!?]$/.test(pendingText);
+                        
+                        // Filter out false questions
+                        const isProbablyNotQuestion = /\b(so the reason|what I'm looking for|let me know|the reason for|in this case|reason for the call today is)\s*\?$/i.test(pendingText);
+                        
+                        // If we just interrupted the AI, wait for a more complete thought before sending
+                        if (interruptionDetected) {
+                            // Just keep accumulating text and reset the timer
+                            resetPauseTimer(pendingText);
+                            // Update UI with full accumulated text
+                            updateConversationStatus('Listening: ' + pendingText);
+                        }
+                        else if (hasEndPunctuation || (containsQuestion && !isProbablyNotQuestion)) {
+                            // Immediately send complete thoughts
+                            sendAccumulatedTranscript();
+                        } else {
+                            // Otherwise use pause detection for incomplete thoughts
+                            resetPauseTimer(pendingText);
+                            // Update UI with full accumulated text
+                            updateConversationStatus('Listening: ' + pendingText);
+                        }
+                    }
+                } else {
+                    interimTranscript += transcript;
+                    // Show full accumulated text plus current interim text
+                    const displayText = pendingText ? pendingText + ' ' + interimTranscript : interimTranscript;
+                    updateConversationStatus('Listening: ' + displayText);
+                }
+            }
+        };
+        
+        recognition.onstart = () => {
+            isRecognizing = true;
+            recognition.isActive = true;
+            orb.classList.add('listening');
+            updateConversationStatus('Listening...');
+            toggleRecordButton.innerText = 'Stop Recording';
+            
+            // Clear any existing transcript when starting a new recognition session
+            pendingText = '';
+            clearPauseTimer();
+            isEndOfUtterance = false;
+            
+            // Set up Deepgram audio if available
+            if (isDeepgramAvailable) {
+                setupAudioForDeepgram();
+            }
+        };
+        
+        recognition.onend = () => {
+            recognition.isActive = false;
+            
+            if (isRecognizing) { // If we're still supposed to be recording
+                try {
+                    // Add delay to prevent rapid restart cycles
+                    setTimeout(() => {
+                        try {
+                            recognition.start(); // Restart recognition
+                            recognition.isActive = true;
+                        } catch (error) {
+                            console.error('Error restarting recognition after delay:', error);
+                            // Try complete reinitialization
+                            reinitializeRecognition();
+                        }
+                    }, 300);
+                } catch (error) {
+                    console.error('Error scheduling recognition restart:', error);
+                    orb.classList.remove('listening');
+                    updateConversationStatus('Speech recognition error. Try again.');
+                    toggleRecordButton.innerText = 'Start Recording';
+                }
+            } else {
+                orb.classList.remove('listening');
+                updateConversationStatus('Recording stopped');
+                toggleRecordButton.innerText = 'Start Recording';
+                
+                // If there's accumulated transcript when stopping, send it
+                if (pendingText.trim()) {
+                    sendAccumulatedTranscript();
+                }
+                
+                // Clean up Deepgram audio
+                cleanupDeepgramAudio();
+            }
+        };
+        
+        recognition.onerror = (event) => {
+            // Handle common errors gracefully
+            if (event.error === 'no-speech') {
+                // This is a common error, just log it and keep going
+                console.log('No speech detected, will continue listening');
+                // No need to report this to the user
+            } else if (event.error === 'audio-capture') {
+                console.error('Audio capture error, microphone may be disconnected');
+                updateConversationStatus('Microphone error: Please check your microphone connection');
+            } else if (event.error === 'not-allowed') {
+                console.error('Microphone access denied');
+                updateConversationStatus('Microphone access denied. Please allow microphone access.');
+            } else if (event.error === 'network') {
+                console.error('Network error with speech recognition');
+                updateConversationStatus('Network error. Check your connection.');
+            } else {
+                console.error('Speech recognition error', event.error);
+                updateConversationStatus('Error: ' + event.error);
+            }
+            
+            recognition.isActive = false;
+            
+            // For non-fatal errors, try to restart if we should be recognizing
+            if (isRecognizing && ['no-speech', 'aborted'].includes(event.error)) {
+                try {
+                    // Add delay to prevent rapid restart cycles
+                    setTimeout(() => {
+                        try {
+                            recognition.start(); // Restart recognition
+                            recognition.isActive = true;
+                        } catch (restartError) {
+                            console.error('Failed to restart after error:', restartError);
+                            // If restart fails, try complete reinitialization
+                            reinitializeRecognition();
+                        }
+                    }, 300);
+                } catch (error) {
+                    console.error('Error scheduling recognition restart after error:', error);
+                }
+            }
+        };
+    } catch (error) {
+        console.error('Critical error initializing speech recognition:', error);
+        updateConversationStatus('Error initializing speech. Please reload the page.');
+    }
+}
+
+// Function to completely reinitialize recognition
+function reinitializeRecognition() {
+    try {
+        // First, stop any active recognition
+        if (recognition) {
+            try {
+                recognition.stop();
+            } catch (e) {
+                // Ignore errors when stopping
+            }
+        }
+        
+        // Clear the recognition object
+        recognition = null;
+        
+        // Re-initialize with fresh object
+        console.log('Completely reinitializing speech recognition...');
+        initSpeechRecognition();
+        
+        // Start recognition if we're supposed to be listening
+        if (isRecognizing) {
+            setTimeout(() => {
+                try {
+                    if (recognition) {
+                        recognition.start();
+                        recognition.isActive = true;
+                    }
+                } catch (e) {
+                    console.error('Failed to start recognition after reinitialization:', e);
+                    updateConversationStatus('Speech recognition error. Please reload the page.');
+                }
+            }, 500);
+        }
+    } catch (error) {
+        console.error('Failed to reinitialize recognition:', error);
+        updateConversationStatus('Speech recognition error. Please reload the page.');
+    }
+}
+
+// Reset the pause timer when user speaks
+function resetPauseTimer(transcript) {
+    // Clear any existing timeout
+    clearPauseTimer();
+    
+    // Get the current text to analyze for question patterns
+    const currentText = pendingText.trim();
+    
+    // Determine if the sentence appears to be a question or ends with interrogative syntax
+    const isLikelyQuestion = /\?$/.test(currentText) || 
+                             /\b(who|what|where|when|why|how|is|are|can|could|would|do|does|did|should|will)\b.*$/i.test(currentText);
+    
+    // Additional time for non-questions - give more thinking time
+    const baseTimeout = isLikelyQuestion ? 30000 : 60000; // 30s for questions, 60s for statements
+    
+    // Increase the pause detection threshold to a much longer time
+    // For sales conversations with upward inflections, we need an even longer timeout
+    pauseDetectionTimeout = setTimeout(() => {
+        const pendingTranscript = pendingText.trim();
+        // Only send if there's actual content
+        if (pendingTranscript.length > 0) {
+            // Add additional check for sentence completeness
+            const seemsComplete = /[.!?]$/.test(pendingTranscript) || 
+                                  pendingTranscript.length > 100 || // Long enough to likely be complete
+                                  pendingTranscript.split(/\s+/).length > 15; // Enough words to be complete
+            
+            if (seemsComplete) {
+                sendAccumulatedTranscript();
+            } else {
+                // For sentences that might have upward inflection, wait even longer
+                console.log('Potential incomplete thought detected - extending timeout');
+                // Wait even longer for potential unfinished thoughts
+                const extendedTimeout = setTimeout(() => {
+                    if (pendingText.trim().length > 0) {
+                        sendAccumulatedTranscript();
+                    }
+                }, 15000); // Additional 15 seconds
+            }
+        }
+    }, baseTimeout); // Adaptive base timeout (30s or 60s)
+    
+    // Add visual indicator later in the process - 70% through the base timeout
+    warningTimeout = setTimeout(() => {
+        document.querySelector('.voice-orb').classList.add('pending-send');
+        updateConversationStatus('Message will send soon... (continue speaking to cancel)');
+    }, baseTimeout * 0.7); // 70% of the base timeout
+}
+
+// Clear the pause timer
+function clearPauseTimer() {
+    if (pauseDetectionTimeout) {
+        clearTimeout(pauseDetectionTimeout);
+        pauseDetectionTimeout = null;
+    }
+    
+    // Clear warning timeout and remove warning class
+    if (warningTimeout) {
+        clearTimeout(warningTimeout);
+        warningTimeout = null;
+    }
+    document.querySelector('.voice-orb').classList.remove('pending-send');
+}
+
+// Send the accumulated transcript to the backend
+function sendAccumulatedTranscript() {
+    logState('Before send');
+    
+    // Don't send if we're already processing
+    if (isProcessing) {
+        console.log('BLOCKED SEND: Already processing a message');
+        return;
+    }
+    
+    let transcript = pendingText.trim();
+    console.log('Preparing to send transcript:', transcript);
+    
+    // Don't send empty messages
+    if (transcript.length === 0) {
+        console.log('BLOCKED SEND: Empty message');
+        return;
+    }
+    
+    // Use correct understanding of speech patterns for sales conversations:
+    // 1. Question mark endings are definite sentence endings (with upward inflection)
+    // 2. Don't rely on downward inflection for ending detection
+    
+    // Check for question marks (which correctly indicate upward inflection + question)
+    const isQuestion = /\?$/.test(transcript);
+    
+    // Check for explicit end markers
+    const hasExplicitEnding = /\.$/.test(transcript) || 
+                            /(that's all|over to you|thanks|goodbye)$/i.test(transcript);
+    
+    // If not a question or explicit ending and timeout hasn't expired, we wait
+    if (!isQuestion && !hasExplicitEnding && !isEndOfUtterance && pauseDetectionTimeout) {
+        console.log('DELAYED SEND: No question mark or explicit ending detected - relying on timeout');
+        return;
+    }
+    
+    // Update UI to show message
+    addMessageToTranscript('user', transcript);
+    
+    // Clear the pending text after sending
+    pendingText = '';
+    
+    // Use the handleUserMessage function for consistent processing
+    handleUserMessage(transcript);
+    hideSendIndicator();
+    
+    logState('After send');
+}
+
+// Initialize page
+function init() {
+    console.log('Initializing voice interface...');
+    
+    // Initialize speech recognition API
+    initSpeechRecognition();
+    
+    // Set up the "Use Eleven Labs" feature
+    const useElevenLabsElement = document.getElementById('use-eleven-labs');
+    if (useElevenLabsElement) {
+        useElevenLabs = useElevenLabsElement.value === 'true';
+        console.log(`Using Eleven Labs TTS: ${useElevenLabs}`);
+    }
+    
+    // Set up microphone calibration
+    setupMicCalibration();
+    
+    // Start calibration process
+    startAutoCalibration();
+    
+    // Set initial status
+    updateConversationStatus('Ready to start conversation');
+    
+    // Always use continuous mode for better responsiveness
+    isContinuousMode = true;
+    
+    // Set up event listeners - using the existing constants instead of reassigning them
+    if (toggleRecordButton) {
+        toggleRecordButton.addEventListener('click', toggleRecording);
+    }
+    
+    // Set up voice selection
+    if (voiceSelectionToggle) {
+        voiceSelectionToggle.addEventListener('click', openVoiceSelectionModal);
+    }
+    
+    if (closeModalButton) {
+        closeModalButton.addEventListener('click', closeVoiceSelectionModal);
+    }
+    
+    if (voiceOptions) {
+        voiceOptions.forEach(option => {
+            option.addEventListener('click', () => selectVoice(option));
+        });
+    }
+    
+    // Pre-initialize audio components immediately on page load to reduce first message latency
+    console.log('Pre-initializing audio components...');
+    
+    // Start recording right away in continuous mode - don't wait for button press
+    setTimeout(() => {
+        startRecording(true); // Start with continuous mode enabled
+        
+        // Also initialize speech recognition immediately
+        if (!recognition) {
+            initSpeechRecognition();
+        }
+        
+        // Initialize Deepgram in the background too (if available)
+        initDeepgram().then(available => {
+            console.log('Deepgram pre-initialization complete:', available ? 'available' : 'unavailable');
+        });
+    }, 500); // Small delay to ensure DOM is fully loaded
+}
+
+// Toggle recording
+function toggleRecording() {
+    if (!recognition) {
+        console.log('No recognition found, initializing');
+        initSpeechRecognition();
+    }
+    
+    if (isRecognizing) {
+        console.log('Stopping recording');
+        stopListening();
+    } else {
+        console.log('Starting recording with fresh recognition');
+        
+        // Reset everything
+        recognition = null;
+        initSpeechRecognition();
+        
+        // Start fresh
+        setTimeout(() => {
+            startListening();
+        }, 300);
+    }
+}
+
+// Function to stop listening
+function stopListening() {
+    console.log("Stopping listening...");
+    isRecognizing = false;
+    
+    // If there's accumulated text when stopping, send it
+    if (pendingText.trim()) {
+        sendAccumulatedTranscript();
+    }
+    
+    // Clear any pause detection timers
+    clearPauseTimer();
+    
+    // Stop recognition if it's active
+    if (recognition && recognition.isActive) {
+        try {
+            recognition.stop();
+            recognition.isActive = false;
+        } catch (error) {
+            console.error('Error stopping recognition:', error);
+        }
+    }
+    
+    // Update UI
+    orb.classList.remove('listening');
+    toggleRecordButton.classList.remove('listening');
+    updateConversationStatus('Recording stopped');
+    toggleRecordButton.innerText = 'Start Recording';
+}
+
+// Start recording
+function startRecording(continuous = false) {
+    // Don't try to start if already recording unless we're switching to continuous mode
+    if (isRecognizing && !(continuous && !isContinuousMode)) {
+        console.log('Already recording, not starting again');
+        return;
+    }
+    
+    // Set continuous mode flag based on parameter
+    isContinuousMode = continuous;
+    
+    // Instead, log that we're starting recording even though AI is speaking
+    if (isAISpeaking && isContinuousMode) {
+        console.log('Starting recording while AI is speaking (continuous mode)');
+    }
+    
+    console.log('Starting recording...');
+    isRecognizing = true;
+    
+    // Reset state to ensure clean start
+    pendingText = '';
+    isProcessing = false;
+    clearPauseTimer();
+    
+    // Handle recognition restart
+    if (recognition) {
+        // If it's already active, stop it first to ensure clean state
+        if (recognition.isActive) {
+            try {
+                recognition.stop();
+                // Brief pause to allow stop to complete
+                setTimeout(() => {
+                    try {
+                        recognition.start();
+                        recognition.isActive = true;
+                        orb.classList.add('listening');
+                    } catch (e) {
+                        console.error('Error starting recognition after stop:', e);
+                        reinitializeRecognition();
+                    }
+                }, 300);
+            } catch (e) {
+                console.warn('Error stopping active recognition:', e);
+                reinitializeRecognition();
+            }
+        } else {
+            // If not active, start directly
+            try {
+                recognition.start();
+                recognition.isActive = true;
+                orb.classList.add('listening');
+            } catch (e) {
+                console.error('Error starting inactive recognition:', e);
+                reinitializeRecognition();
+            }
+        }
+    } else {
+        // If recognition doesn't exist, initialize it
+        console.log('Recognition not initialized, creating now');
+        initSpeechRecognition();
+        // Try to start after a brief delay
+        setTimeout(() => {
+            if (recognition) {
+                try {
+                    recognition.start();
+                    recognition.isActive = true;
+                    orb.classList.add('listening');
+                } catch (e) {
+                    console.error('Error starting new recognition:', e);
+                }
+            }
+        }, 500);
+    }
+    
+    // Update UI
+    updateConversationStatus('Listening...');
+    toggleRecordButton.innerText = 'Stop Recording';
+    
+    // Keep recognition active even when AI is speaking if in continuous mode
+    if (isContinuousMode) {
+        // This allows us to detect interruptions
+        console.log('Starting recording in continuous mode (will stay active during AI speech)');
+    } else {
+        console.log('Starting recording in standard mode');
+    }
+}
+
+// Stop recording
+function stopRecording() {
+    console.log('Stopping recording - checking continuous mode first');
+    
+    // In continuous mode, we don't actually stop recording
+    // This allows detection of interruptions during AI speech
+    if (isContinuousMode) {
+        console.log('Continuous mode active - maintaining recognition');
+        // Just make sure UI shows the right state, but keep recognition active
+        orb.classList.remove('listening');
+        updateConversationStatus('Processing...');
+        return;
+    }
+    
+    // Standard non-continuous mode behavior
+    isRecognizing = false;
+    if (recognition && recognition.isActive) {
+        try {
+            recognition.stop();
+            recognition.isActive = false;
+        } catch (error) {
+            console.error('Error stopping recognition:', error);
+        }
+    }
+    orb.classList.remove('listening');
+    updateConversationStatus('Recording stopped');
+}
+
+// Add a message to the transcript
+function addMessageToTranscript(sender, message) {
+    const messageElement = document.createElement('div');
+    messageElement.className = `message ${sender}-message`;
+    
+    const nameElement = document.createElement('div');
+    nameElement.className = 'message-name';
+    nameElement.innerText = sender === 'user' ? 'You' : 'AI';
+    
+    const textElement = document.createElement('div');
+    textElement.className = 'message-text';
+    textElement.innerText = message;
+    
+    messageElement.appendChild(nameElement);
+    messageElement.appendChild(textElement);
+    
+    transcriptContainer.appendChild(messageElement);
+    transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+}
+
+// Update the conversation status
+function updateConversationStatus(status) {
+    conversationStatus.innerText = status;
+}
+
+// Send a message to the backend
+function sendMessageToBackend(message) {
+    if (!conversationId) {
+        console.error('No conversation ID available');
+        updateConversationStatus('Error: No conversation ID available');
+        isProcessing = false; // Reset processing flag on error
+        return;
+    }
+    
+    updateConversationStatus('Sending message...');
+    
+    // Check for unusual input
+    if (isUnusualInput(message)) {
+        console.log('Unusual input detected, adding to awkwardness queue');
+        awkwardnessQueue.push({
+            type: 'unusual_input',
+            timestamp: Date.now(),
+            content: message
+        });
+    }
+    
+    // Prepare payload with awkwardness information
+    const payload = {
+        message: message
+    };
+    
+    // Add awkwardness metadata if needed
+    if (awkwardnessQueue.length > 0) {
+        // Only include recent awkwardness events (within last minute)
+        const recentAwkwardness = awkwardnessQueue.filter(
+            event => (Date.now() - event.timestamp) < 60000
+        );
+        
+        if (recentAwkwardness.length > 0) {
+            payload.conversation_metadata = {
+                awkwardness: {
+                    interruption_count: interruptionCount,
+                    recent_events: recentAwkwardness,
+                    should_act_awkward: true
+                }
+            };
+        }
+        
+        // Clear old items from the queue
+        awkwardnessQueue = recentAwkwardness;
+    }
+    
+    const currentOrigin = window.location.origin;
+    console.log(`Sending message to: ${currentOrigin}/chat/${conversationId}/message`);
+    
+    // Add natural timing delay before sending to simulate a more natural conversation pace
+    // Research shows 200-500ms response delays feel natural
+    setTimeout(() => {
+        fetch(`${currentOrigin}/chat/${conversationId}/message`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Received response:', data);
+            processAIResponse(data);
+            // Don't reset isProcessing here - we're still processing the AI response
+        })
+        .catch(error => {
+            console.error('Error sending message:', error);
+            updateConversationStatus('Error sending message: ' + error.message);
+            isProcessing = false; // Reset processing flag on error
+        });
+    }, getNaturalResponseDelay());
+}
+
+// Process AI response and speak it
+function processAIResponse(response) {
+    console.log('Processing AI response:', response);
+    
+    // If no response, handle error
+    if (!response) {
+        console.error('Empty response from AI');
+        updateConversationStatus('Error: Empty response from AI');
+        
+        // Restart recording even on error
+        if (!isRecognizing) {
+            startRecording(isContinuousMode);
+        }
+        return;
+    }
+    
+    // Update UI
+    updateConversationStatus('AI is responding...');
+    orb.classList.remove('processing');
+    orb.classList.add('ai-speaking');
+    
+    // Add AI message to transcript
+    addMessageToTranscript('ai', response);
+    
+    // Speak the response - this will automatically handle the continuous mode
+    // and restart recognition as appropriate when speech ends
+    speak(response, function() {
+        console.log('AI finished speaking');
+        
+        // Reset UI after AI finishes speaking
+        orb.classList.remove('ai-speaking');
+        if (!isContinuousMode && !isRecognizing) {
+            // Only in non-continuous mode, we start fresh after AI speaks
+            startRecording(false);
+            orb.classList.add('ready');
+        } else if (isContinuousMode) {
+            // In continuous mode, we ensure recognition is still active
+            if (!isRecognizing) {
+                console.log('Recognition became inactive in continuous mode - restarting');
+                startRecording(true);
+            }
+            orb.classList.add('recording');
+        }
+        
+        updateConversationStatus(isContinuousMode ? 'Listening (continuous mode)' : 'Ready');
+    });
+}
+
+// Function to handle audio playback completion
+function handleAudioComplete() {
+    console.log('AI finished speaking - cleaning up state');
+    
+    // Reset AI speaking flags
+    isAISpeaking = false;
+    interruptionDetected = false;
+    isProcessing = false;
+    
+    // Clean up any leftover pause detection
+    clearPauseTimer();
+    
+    // Update UI to show we're ready for user input
+    updateAISpeakingState(false);
+    updateConversationStatus('Listening...');
+    
+    // In continuous mode, we should already be listening, just ensure it's active
+    if (isContinuousMode) {
+        console.log('Continuing active listening after AI speech (continuous mode)');
+        // Just check if recognition got interrupted somehow
+        if (!isRecognizing || (recognition && !recognition.isActive)) {
+            console.log('Recognition inactive in continuous mode - restarting');
+            startRecording(true); // restart with continuous mode
+        }
+    }
+    // Otherwise follow original logic for non-continuous mode
+    else if (!isRecognizing || (recognition && !recognition.isActive)) {
+        console.log('Ensuring recognition is active after AI speech');
+        setTimeout(() => {
+            try {
+                isRecognizing = true;
+                if (recognition && !recognition.isActive) {
+                    recognition.start();
+                    recognition.isActive = true;
+                    orb.classList.add('listening');
+                } else if (!recognition) {
+                    // If recognition somehow got destroyed, reinitialize
+                    initSpeechRecognition();
+                    setTimeout(() => {
+                        try {
+                            recognition.start();
+                            recognition.isActive = true;
+                            orb.classList.add('listening');
+                        } catch (e) {
+                            console.error('Failed to start recognition after AI speech:', e);
+                        }
+                    }, 300);
+                }
+            } catch (e) {
+                console.error('Error ensuring recognition is active:', e);
+            }
+        }, 200);
+    }
+    
+    // Call the stored callback if available
+    if (window.currentSpeechCallback && typeof window.currentSpeechCallback === 'function') {
+        try {
+            window.currentSpeechCallback();
+        } catch (e) {
+            console.error('Error calling speech completion callback:', e);
+        }
+        // Clear the callback reference
+        window.currentSpeechCallback = null;
+    }
+    
+    console.log('Audio complete - ready for next message');
+}
+
+// Eleven Labs text-to-speech function
+async function elevenLabsTextToSpeech(text, voiceId = 'eleven_monolingual_v1') {
+    // Map app voice IDs to Eleven Labs voice IDs
+    const voiceIdMap = {
+        'male': 'pNInz6obpgDQGcFmaJgB', // Adam
+        'female': 'EXAVITQu4vr4xnSDxMaL', // Emily
+        'default': 'EXAVITQu4vr4xnSDxMaL'
+    };
+    
+    const elevenLabsVoiceId = voiceIdMap[voiceId] || voiceIdMap['default'];
+    
+    const requestBody = {
+        text: text,
+        voice_id: elevenLabsVoiceId,
+        model_id: 'eleven_monolingual_v1',
+        stream: true, // Request streaming audio
+        optimize_streaming_latency: 4, // Higher optimization level for more natural streaming
+        output_format: "mp3_44100_128"  // Higher quality audio
+    };
+    
+    try {
+        // Use the current origin to ensure we're connecting to the right port
+        const currentOrigin = window.location.origin;
+        console.log(`Using current origin for TTS: ${currentOrigin}`);
+        
+        // Update UI immediately
+        isAISpeaking = true;
+        updateAISpeakingState(true);
+        
+        // Use streaming to get faster audio playback
+        const response = await fetch(`${currentOrigin}/api/tts`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`TTS endpoint failed with status: ${response.status}`);
+        }
+        
+        // Handle streaming audio
+        if (response.headers.get('content-type')?.includes('audio/')) {
+            const reader = response.body.getReader();
+            const mediaSource = new MediaSource();
+            const audio = new Audio();
+            audio.src = URL.createObjectURL(mediaSource);
+            
+            mediaSource.addEventListener('sourceopen', async () => {
+                const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+                const bufferQueue = [];
+                let isAppending = false;
+                let hasStartedPlaying = false;
+                
+                // Handle the queue of audio chunks
+                const appendNextBuffer = () => {
+                    if (bufferQueue.length === 0 || isAppending) {
+                        return;
+                    }
+                    
+                    isAppending = true;
+                    const buffer = bufferQueue.shift();
+                    try {
+                        sourceBuffer.appendBuffer(buffer);
+                        
+                        // Start playing after the first chunk has been appended
+                        // This helps ensure we start playback as soon as possible
+                        if (!hasStartedPlaying && sourceBuffer.buffered.length > 0 && 
+                            sourceBuffer.buffered.end(0) > 0.1) { // 100ms of audio is enough to start
+                            console.log('Starting audio playback with buffer:', 
+                                        sourceBuffer.buffered.end(0), 'seconds');
+                            audio.play().catch(e => {
+                                console.error('Error starting audio playback:', e);
+                            });
+                            hasStartedPlaying = true;
+                        }
+                    } catch (e) {
+                        console.error('Error appending buffer:', e);
+                        isAppending = false;
+                        appendNextBuffer(); // Try next buffer
+                    }
+                };
+                
+                // Listen for updateend to process the next buffer
+                sourceBuffer.addEventListener('updateend', () => {
+                    isAppending = false;
+                    appendNextBuffer();
+                });
+                
+                // Process the stream
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        // Create a buffer from the received chunk
+                        const buffer = new Uint8Array(value);
+                        
+                        // Add to queue and attempt to append
+                        bufferQueue.push(buffer);
+                        appendNextBuffer();
+                    }
+                    
+                    // Wait for all buffers to be processed
+                    const waitForBuffers = () => {
+                        if (bufferQueue.length > 0 || isAppending) {
+                            setTimeout(waitForBuffers, 100);
+                        } else {
+                            try {
+                                mediaSource.endOfStream();
+                            } catch (e) {
+                                console.error('Error ending media stream:', e);
+                            }
+                        }
+                    };
+                    
+                    waitForBuffers();
+                } catch (e) {
+                    console.error('Error in stream processing:', e);
+                    if (!hasStartedPlaying) {
+                        // If we couldn't stream properly, try playing what we have
+                        try {
+                            audio.play().catch(e => {
+                                console.error('Error starting audio playback after error:', e);
+                            });
+                        } catch (playError) {
+                            console.error('Error with fallback playback:', playError);
+                            handleAudioComplete(); // End the speech process
+                        }
+                    }
+                }
+            });
+            
+            audio.onended = () => {
+                handleAudioComplete();
+            };
+            
+            audio.onerror = (e) => {
+                console.error('Audio playback error:', e);
+                handleAudioComplete();
+            };
+            
+            // Let the MediaSource listeners start the audio playback
+            // when enough data is buffered
+            return;
+        }
+        
+        // Fallback to non-streaming if response isn't streamed
+        const audioBlob = await response.blob();
+        playAudioBlob(audioBlob);
+        
+    } catch (error) {
+        console.error('Error with TTS endpoint:', error);
+        
+        try {
+            // Try the fallback endpoint with current origin
+            const currentOrigin = window.location.origin;
+            console.log(`Trying fallback TTS endpoint at: ${currentOrigin}/chat/api/tts`);
+            
+            const fallbackResponse = await fetch(`${currentOrigin}/chat/api/tts`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!fallbackResponse.ok) {
+                throw new Error(`Fallback TTS endpoint failed with status: ${fallbackResponse.status}`);
+            }
+            
+            const audioBlob = await fallbackResponse.blob();
+            playAudioBlob(audioBlob);
+            
+        } catch (fallbackError) {
+            console.error('Error with fallback TTS endpoint:', fallbackError);
+            // If both fail, use native TTS as final fallback
+            useNativeTTS(text);
+        }
+    }
+}
+
+// Helper function to play audio blob
+function playAudioBlob(audioBlob) {
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    
+    // Store reference to current audio element
+    currentAudioElement = audio;
+    
+    audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        currentAudioElement = null;
+        handleAudioComplete();
+    };
+    
+    audio.onerror = (e) => {
+        console.error('Audio playback error:', e);
+        URL.revokeObjectURL(audioUrl);
+        currentAudioElement = null;
+        handleAudioComplete();
+    };
+    
+    audio.play();
+}
+
+// Finish AI speaking
+function finishAISpeaking() {
+    isAISpeaking = false;
+    orb.classList.remove('ai-speaking');
+    updateConversationStatus('Your turn to speak');
+    
+    // Only try to start recognition if we're supposed to be recording
+    // AND recognition isn't already active
+    if (isRecognizing && recognition && !recognition.isActive) {
+        try {
+            recognition.start();
+        } catch (error) {
+            console.error('Error restarting speech recognition:', error);
+            
+            // If we failed to restart, try resetting the recognition object
+            try {
+                stopRecording();
+                setTimeout(() => {
+                    if (isRecognizing) {
+                        startRecording();
+                    }
+                }, 300);
+            } catch (e) {
+                console.error('Failed to reset recognition:', e);
+            }
+        }
+    }
+}
+
+// Voice selection functions
+function openVoiceSelectionModal() {
+    voiceSelectionModal.style.display = 'flex';
+}
+
+function closeVoiceSelectionModal() {
+    voiceSelectionModal.style.display = 'none';
+}
+
+// Add this function to handle toggle functionality
+function toggleVoiceModal() {
+    if (voiceSelectionModal.style.display === 'flex') {
+        closeVoiceSelectionModal();
+    } else {
+        openVoiceSelectionModal();
+    }
+}
+
+function selectVoice(optionElement) {
+    // Clear previous selection
+    voiceOptions.forEach(option => {
+        option.classList.remove('active');
+        option.querySelector('.voice-check').classList.remove('selected');
+    });
+    
+    // Set new selection
+    optionElement.classList.add('active');
+    optionElement.querySelector('.voice-check').classList.add('selected');
+    
+    // Update selected voice
+    selectedVoice = {
+        id: optionElement.dataset.voiceId,
+        name: optionElement.querySelector('.voice-name').innerText,
+        description: optionElement.querySelector('.voice-desc').innerText
+    };
+    
+    // Preview voice (you can implement this feature later)
+    // previewVoice(selectedVoice.id);
+    
+    updateConversationStatus(`Voice changed to ${selectedVoice.name}`);
+}
+
+// Initialize the page when DOM is loaded
+document.addEventListener('DOMContentLoaded', init);
+
+function startListening() {
+    console.log("Starting listening with full system reset...");
+    updateStatus("Resetting recognition system...");
+    
+    // Full reset of state
+    isRecognizing = true;
+    pendingText = '';
+    isProcessing = false;
+    clearPauseTimer();
+    
+    // Make sure recognition is good to go
+    if (!recognition) {
+        initSpeechRecognition();
+    }
+    
+    // Completely reset recognition to be safe
+    try {
+        if (recognition.isActive) {
+            recognition.stop();
+            recognition.isActive = false;
+            
+            // Brief delay before restarting
+            setTimeout(() => {
+                try {
+                    recognition.start();
+                    recognition.isActive = true;
+                    orb.classList.add('listening');
+                    toggleRecordButton.classList.add('listening');
+                    updateStatus("Listening...");
+                } catch (error) {
+                    console.error("Failed to restart recognition:", error);
+                    // Try one more time with new instance
+                    recognition = null;
+                    initSpeechRecognition();
+                    setTimeout(() => {
+                        try {
+                            recognition.start();
+                            recognition.isActive = true;
+                            orb.classList.add('listening');
+                            toggleRecordButton.classList.add('listening');
+                            updateStatus("Listening...");
+                        } catch (finalError) {
+                            console.error("Critical error starting recognition:", finalError);
+                            updateStatus("Failed to start listening. Please reload page.");
+                        }
+                    }, 500);
+                }
+            }, 300);
+        } else {
+            // Not active, just start
+            recognition.start();
+            recognition.isActive = true;
+            orb.classList.add('listening');
+            toggleRecordButton.classList.add('listening');
+            updateStatus("Listening...");
+        }
+    } catch (error) {
+        console.error("Error in startListening:", error);
+        // Complete reset as fallback
+        recognition = null;
+        initSpeechRecognition();
+        setTimeout(() => {
+            try {
+                recognition.start();
+                recognition.isActive = true;
+                orb.classList.add('listening');
+                toggleRecordButton.classList.add('listening');
+                updateStatus("Listening...");
+            } catch (e) {
+                console.error("Critical failure in recognition startup:", e);
+                updateStatus("Microphone error. Please reload page.");
+            }
+        }, 500);
+    }
+}
+
+function updateStatus(status) {
+    conversationStatus.innerText = status;
+}
+
+function updateAISpeakingState(isSpeaking) {
+    if (isSpeaking) {
+        orb.classList.add('ai-speaking');
+    } else {
+        orb.classList.remove('ai-speaking');
+    }
+}
+
+function useNativeTTS(text) {
+    // Fallback to browser's built-in text-to-speech
+    console.log("Using native browser TTS as fallback");
+    
+    if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Set some properties for better voice quality
+        utterance.rate = 1.0;  // Normal speed
+        utterance.pitch = 1.0; // Normal pitch
+        utterance.volume = 1.0; // Full volume
+        
+        // Select a voice if available (optional)
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+            // Try to find a female English voice as default
+            const englishVoice = voices.find(voice => 
+                voice.lang.includes('en') && voice.name.includes('Female')
+            ) || voices.find(voice => 
+                voice.lang.includes('en')
+            ) || voices[0];
+            
+            utterance.voice = englishVoice;
+        }
+        
+        // Handle events
+        utterance.onend = () => {
+            handleAudioComplete();
+        };
+        
+        utterance.onerror = (e) => {
+            console.error('Speech synthesis error:', e);
+            handleAudioComplete();
+        };
+        
+        // Start speaking
+        isAISpeaking = true;
+        updateAISpeakingState(true);
+        window.speechSynthesis.speak(utterance);
+    } else {
+        // If speech synthesis is not available, just update status
+        console.error("Browser does not support speech synthesis");
+        isAISpeaking = false;
+        updateAISpeakingState(false);
+        updateConversationStatus("TTS not available in this browser");
+    }
+}
+
+function previewVoice(voiceId) {
+    // Implementation of previewVoice function
+}
+
+// When the page is unloaded, clean up resources
+window.addEventListener('beforeunload', () => {
+    cleanupDeepgramAudio();
+});
+
+// Add new functions to show/hide the "about to send" indicator
+function showSendIndicator() {
+    sendIndicatorShown = true;
+    updateConversationStatus('About to send message... (continue speaking to cancel)');
+    
+    // Change the orb appearance to indicate pending message send
+    orb.classList.add('pending-send');
+}
+
+function hideSendIndicator() {
+    sendIndicatorShown = false;
+    if (isRecognizing) {
+        updateConversationStatus('Listening...');
+    }
+    
+    // Remove the visual indicator
+    orb.classList.remove('pending-send');
+}
+
+// Add function to handle interruptions
+function handleInterruption() {
+    if (!interruptionDetected && isAISpeaking) {
+        console.log('User interruption detected, stopping AI speech');
+        interruptionDetected = true;
+        
+        // Stop AI speech
+        stopAISpeech();
+        
+        // Reset state to let user speak
+        isAISpeaking = false;
+        updateAISpeakingState(false);
+        
+        // Show visual indication of successful interruption
+        orb.classList.add('user-interrupt');
+        setTimeout(() => {
+            orb.classList.remove('user-interrupt');
+        }, 1000);
+        
+        // Update status
+        updateConversationStatus('Listening to you...');
+        
+        // Reset the pause timer to ensure any accumulated text gets a fresh timeout
+        clearPauseTimer();
+        
+        // Record the interruption for awkwardness
+        interruptionCount++;
+        lastInterruptionTime = Date.now();
+        awkwardnessQueue.push({
+            type: 'interruption',
+            timestamp: Date.now()
+        });
+        
+        // Make sure we're recording - we should already be, but just in case
+        if (!isRecognizing) {
+            startRecording();
+        }
+    }
+}
+
+// Add function to stop AI speech
+function stopAISpeech() {
+    // Stop any playing audio
+    if (currentAudioElement) {
+        currentAudioElement.pause();
+        currentAudioElement.currentTime = 0;
+        currentAudioElement = null;
+    }
+    
+    // Stop any speaking synthesis
+    if (window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+    }
+}
+
+// Add CSS for interruption indicator
+document.head.insertAdjacentHTML('beforeend', `
+<style>
+.user-interrupt {
+    background-color: #ec4899 !important; /* Pink */
+    animation: interrupt-flash 0.5s ease-in-out !important;
+}
+
+@keyframes interrupt-flash {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7); }
+    50% { transform: scale(1.1); box-shadow: 0 0 20px 5px rgba(236, 72, 153, 0.5); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7); }
+}
+</style>
+`);
+
+// Add calibration button to the interface
+function setupMicCalibration() {
+    // Create calibration button
+    const controlsDiv = document.querySelector('.voice-controls');
+    if (!controlsDiv) return;
+    
+    const calibrateButton = document.createElement('button');
+    calibrateButton.id = 'calibrate-mic';
+    calibrateButton.className = 'control-button secondary-button';
+    calibrateButton.innerText = 'Calibrate Mic';
+    calibrateButton.style.marginTop = '8px';
+    
+    calibrateButton.addEventListener('click', startManualCalibration);
+    
+    // Insert after toggle record button
+    const toggleRecordButton = document.getElementById('toggle-record');
+    if (toggleRecordButton && toggleRecordButton.parentNode) {
+        toggleRecordButton.parentNode.insertBefore(calibrateButton, toggleRecordButton.nextSibling);
+    } else {
+        controlsDiv.appendChild(calibrateButton);
+    }
+    
+    // Start automatic calibration
+    startAutoCalibration();
+}
+
+// Auto-calibrate when starting listening
+function startAutoCalibration() {
+    if (isCalibrating) return;
+    
+    console.log('Starting automatic mic calibration');
+    
+    // Set up automatic recalibration every 2 minutes
+    if (calibrationInterval) {
+        clearInterval(calibrationInterval);
+    }
+    
+    calibrationInterval = setInterval(() => {
+        // Only calibrate if we're not in the middle of a conversation
+        if (!isAISpeaking && !interruptionDetected) {
+            calibrateMicrophone(false); // false = automatic mode
+        }
+    }, 120000); // 2 minutes
+    
+    // Initial calibration
+    calibrateMicrophone(false);
+}
+
+// Manual calibration when user clicks button
+function startManualCalibration() {
+    calibrateMicrophone(true); // true = manual/user-initiated
+}
+
+// Calibration process
+function calibrateMicrophone(isManual) {
+    if (isCalibrating) return;
+    
+    isCalibrating = true;
+    noiseCalibrationSamples = [];
+    
+    // Update UI if manual calibration
+    if (isManual) {
+        updateConversationStatus('Calibrating microphone... Please be quiet');
+        orb.classList.add('calibrating');
+        
+        const calibrateButton = document.getElementById('calibrate-mic');
+        if (calibrateButton) {
+            calibrateButton.disabled = true;
+            calibrateButton.innerText = 'Calibrating...';
+        }
+    }
+    
+    // Set up audio capture for calibration
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const analyser = audioContext.createAnalyser();
+            const microphone = audioContext.createMediaStreamSource(stream);
+            const processor = audioContext.createScriptProcessor(2048, 1, 1);
+            
+            // Connect the nodes
+            microphone.connect(analyser);
+            analyser.connect(processor);
+            processor.connect(audioContext.destination);
+            
+            // Configure analyser
+            analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = 0.8;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            // Process audio samples
+            let sampleCount = 0;
+            
+            processor.onaudioprocess = function(e) {
+                // Get sound data
+                analyser.getByteFrequencyData(dataArray);
+                
+                // Calculate average level
+                let sum = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    sum += dataArray[i];
+                }
+                
+                // Normalize to 0-1 range
+                const avgLevel = sum / (bufferLength * 255);
+                
+                // Add to samples array
+                noiseCalibrationSamples.push(avgLevel);
+                sampleCount++;
+                
+                // Update UI for manual calibration
+                if (isManual) {
+                    updateConversationStatus(`Calibrating: ${Math.floor((sampleCount / CALIBRATION_SAMPLE_COUNT) * 100)}%`);
+                }
+                
+                // Check if we have enough samples
+                if (sampleCount >= CALIBRATION_SAMPLE_COUNT) {
+                    // Stop listening
+                    processor.disconnect();
+                    analyser.disconnect();
+                    microphone.disconnect();
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    // Calculate the new base noise level and threshold
+                    calculateNoiseThreshold();
+                    
+                    // Update UI
+                    if (isManual) {
+                        updateConversationStatus(`Calibration complete. Threshold: ${interruptionThreshold.toFixed(2)}`);
+                        orb.classList.remove('calibrating');
+                        
+                        const calibrateButton = document.getElementById('calibrate-mic');
+                        if (calibrateButton) {
+                            calibrateButton.disabled = false;
+                            calibrateButton.innerText = 'Calibrate Mic';
+                        }
+                        
+                        // Show result for 3 seconds, then go back to normal
+                        setTimeout(() => {
+                            if (!isAISpeaking && !isRecognizing) {
+                                updateConversationStatus('Ready to start conversation');
+                            }
+                        }, 3000);
+                    } else {
+                        console.log(`Auto-calibration complete. New threshold: ${interruptionThreshold.toFixed(2)}`);
+                    }
+                    
+                    isCalibrating = false;
+                }
+            };
+        })
+        .catch(err => {
+            console.error('Error accessing microphone during calibration:', err);
+            isCalibrating = false;
+            
+            if (isManual) {
+                updateConversationStatus('Calibration failed. Please try again.');
+                orb.classList.remove('calibrating');
+                
+                const calibrateButton = document.getElementById('calibrate-mic');
+                if (calibrateButton) {
+                    calibrateButton.disabled = false;
+                    calibrateButton.innerText = 'Calibrate Mic';
+                }
+            }
+        });
+}
+
+// Calculate the ambient noise level and set appropriate thresholds
+function calculateNoiseThreshold() {
+    // Sort samples to find median and percentiles
+    noiseCalibrationSamples.sort((a, b) => a - b);
+    
+    // Calculate median (50th percentile)
+    const midIndex = Math.floor(noiseCalibrationSamples.length / 2);
+    const medianNoise = noiseCalibrationSamples[midIndex];
+    
+    // Calculate 95th percentile for noise spikes
+    const p95Index = Math.floor(noiseCalibrationSamples.length * 0.95);
+    const p95Noise = noiseCalibrationSamples[p95Index];
+    
+    // Set the base noise level to the median
+    baseNoiseLevel = medianNoise;
+    
+    // Set interruption threshold to 3x the 95th percentile noise level, with constraints
+    interruptionThreshold = Math.min(Math.max(p95Noise * 3, MIN_THRESHOLD), MAX_THRESHOLD);
+    
+    console.log(`Noise analysis - Median: ${baseNoiseLevel.toFixed(3)}, P95: ${p95Noise.toFixed(3)}, New Threshold: ${interruptionThreshold.toFixed(3)}`);
+    
+    // If the noise level is very high, show a warning
+    if (baseNoiseLevel > 0.2) {
+        console.warn('High background noise detected. Voice commands may be less reliable.');
+        if (document.getElementById('toggle-record')) {
+            updateConversationStatus('Warning: High background noise detected');
+        }
+    }
+}
+
+// Utility function to log the current state for debugging
+function logState(message) {
+    console.log(`[STATE] ${message} - isRecognizing: ${isRecognizing}, isAISpeaking: ${isAISpeaking}, isProcessing: ${isProcessing}, pendingText: "${pendingText}"`);
+}
+
+// Helper function to determine if the input is unusual (for awkwardness detection)
+function isUnusualInput(text) {
+    // Simple heuristic: very short inputs during a conversation might be unusual
+    if (text.length < 5 && transcriptContainer.querySelectorAll('.message').length > 2) {
+        return true;
+    }
+    
+    // Random chance of detecting "unusual" input to make AI occasionally awkward
+    return Math.random() < 0.1;
+}
+
+// Get a natural response delay to simulate human conversation
+function getNaturalResponseDelay() {
+    // Base delay between 100-400ms (feels natural)
+    return 100 + Math.random() * 300;
+}
+
+// Handle user message - make sure recognition continues in continuous mode
+function handleUserMessage(message) {
+    console.log('Handling user message:', message);
+    
+    // Don't process empty messages
+    if (!message || message.trim().length === 0) {
+        console.log('Empty message, ignoring');
+        return;
+    }
+    
+    // Update conversation status
+    updateConversationStatus('Processing your message...');
+    
+    // Update UI to show we're processing
+    isProcessing = true;
+    
+    // In continuous mode, make sure recognition stays active
+    if (isContinuousMode) {
+        // Check if recognition is not active or not initializing
+        if (!recognition || !recognition.isActive) {
+            console.log('Continuous mode: Ensuring recognition stays active');
+            // If recognition isn't properly initialized or active, restart it
+            try {
+                if (!recognition) {
+                    initSpeechRecognition();
+                    setTimeout(() => {
+                        if (recognition) {
+                            recognition.start();
+                            recognition.isActive = true;
+                        }
+                    }, 300);
+                } else {
+                    recognition.start();
+                    recognition.isActive = true;
+                }
+            } catch (error) {
+                console.error('Error restarting recognition in continuous mode:', error);
+                // Try to reinitialize completely
+                recognition = null;
+                initSpeechRecognition();
+            }
+        } else {
+            console.log('Continuous mode: Recognition is already active');
+        }
+    } else {
+        // In non-continuous mode, stop recognition while processing
+        console.log('Non-continuous mode: Stopping recognition during processing');
+        if (recognition && recognition.isActive) {
+            try {
+                recognition.stop();
+                recognition.isActive = false;
+            } catch (error) {
+                console.error('Error stopping recognition in non-continuous mode:', error);
+            }
+        }
+    }
+    
+    // Send the message to the backend
+    sendMessageToBackend(message);
+}
+
+// Speak the given text
+function speak(text, callback) {
+    console.log("Speaking text with TTS:", text.substring(0, 50) + "...");
+    
+    // Update UI
+    isAISpeaking = true;
+    updateAISpeakingState(true);
+    
+    // First check if we should use Eleven Labs
+    if (useElevenLabs) {
+        console.log("Using Eleven Labs TTS");
+        // Use Eleven Labs for higher quality TTS
+        elevenLabsTextToSpeech(text, selectedVoice.id).then(() => {
+            // This will be handled by the audio completion event
+            // The callback will be triggered by the handleAudioComplete function
+        }).catch(error => {
+            console.error("Error with Eleven Labs TTS:", error);
+            // Fall back to browser TTS
+            useNativeTTS(text);
+            // Ensure callback is called
+            if (callback && typeof callback === 'function') {
+                setTimeout(callback, 500);
+            }
+        });
+    } else {
+        // Use browser's built-in TTS
+        console.log("Using native browser TTS");
+        useNativeTTS(text);
+        
+        // Ensure callback is called after speech is complete
+        // This is already handled by useNativeTTS through event handlers
+        
+        // As a fallback, ensure callback is called after a reasonable timeout
+        // even if speech events fail
+        setTimeout(() => {
+            if (isAISpeaking) {
+                console.log("Forcing speech completion due to timeout");
+                isAISpeaking = false;
+                updateAISpeakingState(false);
+                if (callback && typeof callback === 'function') {
+                    callback();
+                }
+            }
+        }, text.length * 60); // Rough estimate: ~60ms per character
+    }
+    
+    // Store the callback for later use when the audio completes
+    window.currentSpeechCallback = callback;
+}

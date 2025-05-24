@@ -1,0 +1,23 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Useful if implimenting/working on features
+
+
+#Rules#
+
+##AI features##
+- NEVER hard code responses into the code. 
+- Always connect AI responses to the generated persona. 
+
+
+##Legendary Personas - what they are, how we'll use them##
+- Viral Marketing feature
+- 1% encounter rate
+- Fun characters that are instantly marketable
+- personalities that are bigger than life
+- quirks that make the roleplay call interesting and unique
+- social sharing features tailored for every character
+- different, branded chat interfaces with fun animations, sounds, colors, fonts, etc.

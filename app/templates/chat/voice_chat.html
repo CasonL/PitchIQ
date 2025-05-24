@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title | default('Voice Chat') }} | PitchIQ{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/voice_chat.css') }}">
+<style>
+  /* Inline styles for voice features */
+  .voice-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    align-items: center;
+  }
+  
+  .voice-button {
+    background-color: #4a6da7;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 30px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+  
+  .voice-button:hover {
+    background-color: #5d93d6;
+  }
+  
+  .voice-button.listening {
+    background-color: #ff5252;
+    animation: pulse 1.5s infinite;
+  }
+  
+  .voice-button.speaking {
+    background-color: #06d6a0;
+  }
+  
+  .voice-button i {
+    margin-right: 8px;
+  }
+  
+  .voice-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 15px;
+    border-radius: 20px;
+    background-color: #f5f5f5;
+    font-size: 0.9rem;
+  }
+  
+  .voice-status {
+    font-weight: bold;
+  }
+  
+  .voice-waves {
+    display: flex;
+    align-items: center;
+    height: 20px;
+  }
+  
+  .voice-wave {
+    width: 3px;
+    height: 100%;
+    margin: 0 2px;
+    background-color: #4a6da7;
+    border-radius: 2px;
+    animation: wave 1s infinite ease-in-out;
+  }
+  
+  .voice-wave:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  
+  .voice-wave:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+  
+  .voice-wave:nth-child(4) {
+    animation-delay: 0.6s;
+  }
+  
+  @keyframes wave {
+    0%, 100% {
+      height: 6px;
+    }
+    50% {
+      height: 18px;
+    }
+  }
+  
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.4);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(255, 82, 82, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(255, 82, 82, 0);
+    }
+  }
+  
+  .settings-panel {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    display: none;
+  }
+  
+  .settings-panel.visible {
+    display: block;
+  }
+  
+  .persona-selector {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+  <div class="chat-header">
+    <h1>{{ page_title | default('Voice Chat Interface') }}</h1>
+    <div class="voice-mode-indicator">
+      <span>Voice Mode: <strong>{{ voice_mode | default('disabled') }}</strong></span>
+      <button id="settings-toggle" class="settings-button">⚙ Settings</button>
+    </div>
+  </div>
+  
+  <div id="settings-panel" class="settings-panel">
+    <h3>Voice Settings</h3>
+    <div class="settings-form">
+      <div class="form-group">
+        <label for="persona-selector">AI Persona:</label>
+        <select id="persona-selector" class="persona-selector">
+          <option value="friendly">Friendly</option>
+          <option value="professional">Professional</option>
+          <option value="casual">Casual</option>
+          <option value="enthusiastic">Enthusiastic</option>
+          <option value="serious">Serious</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="voice-volume">Voice Volume:</label>
+        <input type="range" id="voice-volume" min="0" max="1" step="0.1" value="0.8">
+      </div>
+    </div>
+  </div>
+  
+  <div class="voice-controls">
+    <button id="voice-button" class="voice-button">
+      <i class="fas fa-microphone"></i>
+      <span>Start Voice</span>
+    </button>
+    <div id="voice-indicator" class="voice-indicator" style="display: none;">
+      <div class="voice-waves">
+        <div class="voice-wave"></div>
+        <div class="voice-wave"></div>
+        <div class="voice-wave"></div>
+        <div class="voice-wave"></div>
+      </div>
+      <span class="voice-status">Listening...</span>
+    </div>
+  </div>
+  
+  <div class="chat-messages" id="chat-messages">
+    <!-- Messages will be added here dynamically -->
+    <div class="message ai-message">
+      <div class="message-content">
+        <p>Hello! I'm your AI assistant. How can I help you today?</p>
+      </div>
+      <div class="message-time">Now</div>
+    </div>
+  </div>
+  
+  <div class="chat-input">
+    <textarea id="message-input" placeholder="Type your message or click the voice button to speak..."></textarea>
+    <button id="send-button">
+      <i class="fas fa-paper-plane"></i>
+    </button>
+  </div>
+</div>
+
+<!-- Hidden elements for system use -->
+<input type="hidden" id="voice-mode" value="{{ voice_mode | default('disabled') }}">
+<div id="error-container" style="display: none;"></div>
+
+<!-- Voice interaction scripts -->
+<script type="module">
+  import { VoiceInteractionController } from '{{ url_for("static", filename="js/voice/voice_interaction_controller.js") }}';
+  
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Elements
+    const voiceButton = document.getElementById('voice-button');
+    const voiceIndicator = document.getElementById('voice-indicator');
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-button');
+    const chatMessages = document.getElementById('chat-messages');
+    const personaSelector = document.getElementById('persona-selector');
+    const settingsToggle = document.getElementById('settings-toggle');
+    const settingsPanel = document.getElementById('settings-panel');
+    const voiceMode = document.getElementById('voice-mode').value;
+    const errorContainer = document.getElementById('error-container');
+    
+    // Only initialize voice features if enabled
+    if (voiceMode === 'enabled') {
+      let controller;
+      
+      try {
+        // Fetch API keys from server
+        const response = await fetch('/voice/api/elevenlabs-key');
+        const data = await response.json();
+        const elevenLabsApiKey = data.apiKey;
+        
+        // Get Deepgram API key from localStorage or server
+        const deepgramApiKey = localStorage.getItem('deepgramApiKey') || '';
+        
+        if (!elevenLabsApiKey || !deepgramApiKey) {
+          showError('Missing API keys. Please set up your API keys in the voice demo first.');
+          return;
+        }
+        
+        // Function to process AI responses
+        // In a real app, this would call your backend API
+        const processAiResponse = async (transcript) => {
+          // Add user message to chat
+          addMessage(transcript, 'user');
+          
+          // Simulate processing time
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Generate response based on selected persona
+          const persona = personaSelector.value;
+          let response = '';
+          
+          switch (persona) {
+            case 'friendly':
+              response = `That's interesting! You said "${transcript}". How can I help you with that?`;
+              break;
+            case 'professional':
+              response = `Thank you for your input. I understand you mentioned "${transcript}". How may I assist you further with this matter?`;
+              break;
+            case 'casual':
+              response = `Cool, so you're talking about "${transcript}". What else would you like to know?`;
+              break;
+            case 'enthusiastic':
+              response = `Wow! That's really fascinating about "${transcript}"! Let me help you with that right away!`;
+              break;
+            case 'serious':
+              response = `I've noted your point about "${transcript}". Please let me know what specific assistance you require.`;
+              break;
+            default:
+              response = `I heard you mention "${transcript}". How can I help with that?`;
+          }
+          
+          return response;
+        };
+        
+        // Initialize voice controller
+        controller = new VoiceInteractionController({
+          deepgramApiKey,
+          elevenLabsApiKey,
+          defaultPersona: 'friendly',
+          responseProcessor: processAiResponse,
+          
+          // Event handlers
+          onReady: () => {
+            console.log('Voice interaction ready');
+            voiceButton.disabled = false;
+          },
+          onListeningStart: () => {
+            voiceButton.classList.add('listening');
+            voiceButton.querySelector('span').textContent = 'Listening...';
+            voiceIndicator.style.display = 'flex';
+          },
+          onListeningEnd: () => {
+            voiceButton.classList.remove('listening');
+            voiceButton.querySelector('span').textContent = 'Start Voice';
+            voiceIndicator.style.display = 'none';
+          },
+          onTranscript: (transcript) => {
+            messageInput.value = transcript;
+          },
+          onResponse: (response) => {
+            addMessage(response, 'ai');
+          },
+          onSpeakingStart: () => {
+            voiceButton.classList.add('speaking');
+            voiceButton.disabled = true;
+          },
+          onSpeakingEnd: () => {
+            voiceButton.classList.remove('speaking');
+            voiceButton.disabled = false;
+          },
+          onError: (error) => {
+            console.error('Voice interaction error:', error);
+            showError(error.message || 'An error occurred with voice processing');
+          }
+        });
+        
+        // Initialize the controller
+        await controller.initialize();
+        
+        // Add event listeners
+        voiceButton.addEventListener('click', async () => {
+          if (controller.isListening) {
+            await controller.stopListening();
+          } else {
+            messageInput.value = '';
+            await controller.startListening();
+          }
+        });
+        
+        // Enable persona selection
+        personaSelector.addEventListener('change', () => {
+          controller.setPersona(personaSelector.value);
+        });
+        
+      } catch (error) {
+        console.error('Failed to initialize voice features:', error);
+        showError('Failed to initialize voice features: ' + error.message);
+      }
+    }
+    
+    // Regular chat functionality
+    sendButton.addEventListener('click', () => {
+      const message = messageInput.value.trim();
+      if (message) {
+        addMessage(message, 'user');
+        messageInput.value = '';
+        
+        // If voice mode is not enabled, we'll simulate a response
+        if (voiceMode !== 'enabled') {
+          setTimeout(() => {
+            addMessage(`I received your message: "${message}". How can I help further?`, 'ai');
+          }, 1000);
+        }
+      }
+    });
+    
+    // Support for Enter key
+    messageInput.addEventListener('keypress', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendButton.click();
+      }
+    });
+    
+    // Settings toggle
+    settingsToggle.addEventListener('click', () => {
+      settingsPanel.classList.toggle('visible');
+    });
+    
+    // Helper function to add messages
+    function addMessage(text, type) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${type}-message`;
+      
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'message-content';
+      contentDiv.innerHTML = `<p>${text}</p>`;
+      
+      const timeDiv = document.createElement('div');
+      timeDiv.className = 'message-time';
+      timeDiv.textContent = 'Now';
+      
+      messageDiv.appendChild(contentDiv);
+      messageDiv.appendChild(timeDiv);
+      
+      chatMessages.appendChild(messageDiv);
+      
+      // Scroll to bottom
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    // Helper function to show errors
+    function showError(message) {
+      errorContainer.textContent = message;
+      errorContainer.style.display = 'block';
+      
+      setTimeout(() => {
+        errorContainer.style.display = 'none';
+      }, 5000);
+    }
+  });
+</script>
+{% endblock %} 

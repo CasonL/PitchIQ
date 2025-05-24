@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenAI API Key Tester</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #e11d48;
+            margin-bottom: 24px;
+        }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #e11d48;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #be123c;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            background-color: #f5f5f5;
+            white-space: pre-wrap;
+        }
+        .success {
+            border-left: 4px solid #22c55e;
+        }
+        .error {
+            border-left: 4px solid #ef4444;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>OpenAI API Key Tester</h1>
+    
+    <div class="card">
+        <h2>Test Your API Key</h2>
+        <div>
+            <label for="apiKey">Your OpenAI API Key:</label>
+            <input type="text" id="apiKey" placeholder="sk-..." />
+        </div>
+        
+        <div>
+            <label for="model">Model to Test:</label>
+            <select id="model">
+                <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                <option value="gpt-4">gpt-4</option>
+                <option value="gpt-4o">gpt-4o</option>
+                <option value="gpt-4-turbo">gpt-4-turbo</option>
+                <option value="gpt-4-vision-preview">gpt-4-vision-preview</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="test-type">Test Type:</label>
+            <select id="test-type">
+                <option value="models">List Models</option>
+                <option value="chat">Chat Completion</option>
+            </select>
+        </div>
+        
+        <button id="testButton" onclick="testApiKey()">Test API Key</button>
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        async function testApiKey() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const model = document.getElementById('model').value;
+            const testType = document.getElementById('test-type').value;
+            const resultDiv = document.getElementById('result');
+            const testButton = document.getElementById('testButton');
+            
+            if (!apiKey) {
+                resultDiv.textContent = "Please enter an API key";
+                resultDiv.className = "result error";
+                resultDiv.style.display = "block";
+                return;
+            }
+            
+            // Show loading state
+            testButton.disabled = true;
+            const loadingSpinner = document.createElement('span');
+            loadingSpinner.className = 'loading';
+            testButton.appendChild(loadingSpinner);
+            
+            resultDiv.textContent = "Testing...";
+            resultDiv.className = "result";
+            resultDiv.style.display = "block";
+            
+            try {
+                let response;
+                
+                if (testType === 'models') {
+                    // List models
+                    response = await fetch('https://api.openai.com/v1/models', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                } else {
+                    // Chat completion
+                    response = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: model,
+                            messages: [
+                                {
+                                    role: "user",
+                                    content: "Hello, this is a test message. Please respond with a short greeting."
+                                }
+                            ],
+                            max_tokens: 50
+                        })
+                    });
+                }
+                
+                const data = await response.json();
+                
+                // Display results
+                if (response.ok) {
+                    resultDiv.className = "result success";
+                    if (testType === 'models') {
+                        const modelNames = data.data.map(model => model.id).slice(0, 10);
+                        resultDiv.textContent = `Success! Available models include:\n${modelNames.join('\n')}`;
+                        resultDiv.textContent += "\n\n...and more";
+                    } else {
+                        resultDiv.textContent = `Success! Response:\n${JSON.stringify(data, null, 2)}`;
+                    }
+                } else {
+                    resultDiv.className = "result error";
+                    resultDiv.textContent = `Error: ${data.error.message}`;
+                }
+            } catch (error) {
+                resultDiv.className = "result error";
+                resultDiv.textContent = `Error: ${error.message}`;
+            } finally {
+                // Remove loading spinner
+                testButton.removeChild(loadingSpinner);
+                testButton.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html> 

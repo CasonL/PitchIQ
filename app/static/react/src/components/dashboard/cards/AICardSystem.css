@@ -1,0 +1,356 @@
+/**
+ * AI Card System Styles
+ */
+
+/* Card System Container */
+.ai-card-system {
+  width: 100%;
+  padding: 1.5rem;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+.section-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.cards-container {
+  display: flex;
+  gap: 16px;
+  transition: all 0.3s ease;
+}
+
+/* Card States */
+.insight-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.insight-card.dormant {
+  flex: 1;
+  height: 100px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  cursor: pointer;
+}
+
+.insight-card.active {
+  flex: 3;
+  min-height: 160px;
+  background: white;
+  cursor: pointer;
+}
+
+.insight-card.interactive {
+  flex: 4;
+  min-height: 400px;
+  background: white;
+  z-index: 10;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+}
+
+/* When a card becomes interactive, shrink others */
+.insight-card.interactive ~ .insight-card {
+  flex: 0.5;
+}
+
+/* Card Header */
+.card-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: #f8fafc;
+}
+
+.card-icon {
+  font-size: 24px;
+  margin-right: 12px;
+}
+
+.card-title {
+  font-weight: 600;
+  flex: 1;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0.6;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.close-button:hover {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Card Content */
+.card-content {
+  padding: 16px;
+}
+
+.card-content.expanded {
+  height: calc(100% - 50px);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.insight-text {
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.action-prompt {
+  font-size: 14px;
+  color: #4a6df5;
+  font-weight: 500;
+  margin-top: auto;
+}
+
+/* Challenge Card Meta */
+.challenge-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  margin-bottom: 16px;
+}
+
+.challenge-difficulty, .challenge-time {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background-color: #f0f4ff;
+  color: #4a6df5;
+}
+
+/* Call Segment */
+.call-segment {
+  background-color: #f8fafc;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 16px 0;
+}
+
+.segment-time {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.segment-transcript {
+  font-family: monospace;
+  white-space: pre-wrap;
+  font-size: 14px;
+  background-color: #fff;
+  border-radius: 6px;
+  padding: 8px;
+  border: 1px solid #eaeaea;
+  margin: 0;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* Chat Interface */
+.chat-interface {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid #eaeaea;
+  margin-bottom: 16px;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 200px;
+  max-height: 300px;
+}
+
+.message {
+  border-radius: 18px;
+  padding: 10px 14px;
+  max-width: 85%;
+}
+
+.message.user {
+  align-self: flex-end;
+  background: #4a6df5;
+  color: white;
+}
+
+.message.assistant {
+  align-self: flex-start;
+  background: #f0f4ff;
+  color: #333;
+}
+
+.chat-input {
+  display: flex;
+  padding: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: #f8fafc;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 24px;
+  outline: none;
+}
+
+.chat-input input:focus {
+  border-color: #4a6df5;
+  box-shadow: 0 0 0 2px rgba(74, 109, 245, 0.2);
+}
+
+.send-button {
+  background: #4a6df5;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  margin-left: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send-button:hover {
+  background: #3a5bd5;
+}
+
+.send-icon {
+  font-size: 12px;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: #f8fafc;
+}
+
+.action-button {
+  flex: 1;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.action-button:hover {
+  background: #f0f4ff;
+  border-color: #4a6df5;
+}
+
+/* Loading States */
+.cards-container.skeleton {
+  display: flex;
+  gap: 16px;
+}
+
+.insight-card-skeleton {
+  flex: 1;
+  height: 160px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 12px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Error States */
+.error-container {
+  background-color: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.error-message {
+  color: #e53e3e;
+  margin-bottom: 16px;
+}
+
+.retry-button {
+  background-color: #4a6df5;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.retry-button:hover {
+  background-color: #3a5bd5;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .cards-container {
+    flex-direction: column;
+  }
+  
+  .insight-card.dormant {
+    height: 80px;
+  }
+  
+  .insight-card.active,
+  .insight-card.interactive {
+    min-height: auto;
+  }
+  
+  .insight-card.interactive ~ .insight-card {
+    flex: 1;
+  }
+} 

@@ -1,0 +1,242 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Whenever a broad picture of the project is needed, or when planning next steps.
+
+# project vision
+
+## SYSTEM OVERVIEW:
+Build a modular, LLM-based AI trainer that includes:
+1. **User Profile Engine**: Collects and stores user context (experience, product, target market, struggles, mindset).
+2. **Roleplay Engine**: Simulates dynamic, psychologically intelligent buyer personas tailored to the user's profile.
+3. **Feedback Engine**: Analyzes performance, identifies key moments, and provides structured coaching through visuals, graphs, and psychological models.
+4. modern, dark designs with prop
+
+---
+
+## 5. IMPLEMENTATION ROADMAP:
+Structure development in phases with clear priorities:
+
+### a. Phase 1: Core MVP (Months 1-3)
+- Basic user profile creation and storage
+- Fundamental roleplay engine with limited persona variations
+- Simple feedback with scores and basic recommendations
+- Free tier functionality
+- Basic paid tier
+- Live conversational capabilities (Voice to Voice, Direct Audio Processing)
+- Basic tone recognition features (measure confidence, hesitation, and enthusiasm. Real-time emotional feedback, process audio chunks in real-time rather than after completing recording)
+- Publish cite with domain: www.PitchIQ.ca
+
+### b. Phase 2: Enhanced Experience (Months 4-6)
+- Advanced persona generation with full attribute range
+- Comprehensive feedback dashboard with visualizations
+- Professional tier features and payment processing
+- Settings panel for preference adjustments
+
+### c. Phase 3: Enterprise Capabilities (Months 7-12)
+- Team management and administrative controls
+- Custom scenario creation tools
+- Advanced analytics and benchmarking
+- Enterprise tier deployment and onboarding
+
+## 6. SUCCESS METRICS:
+Establish key performance indicators at different levels:
+
+### a. User Experience Metrics
+- Engagement: Average session duration and frequency
+- Completion: Percentage of roleplays completed vs. abandoned
+- Progression: Measurable skill improvement over time
+- Satisfaction: NPS scores and qualitative feedback
+
+### b. Business Performance Metrics
+- Conversion: Free to paid user conversion rate
+- Retention: Monthly and annual subscription retention rates
+- Growth: New user acquisition cost and velocity
+- Revenue: Average revenue per user and lifetime value
+
+### c. Training Effectiveness Metrics
+- Skill Development: Pre/post assessment scores
+- Real-world Application: Reported sales performance improvement
+- Knowledge Retention: Performance consistency over time
+- Behavior Change: Adoption of recommended techniques
+
+## 7. USER RESEARCH FRAMEWORK:
+Establish systematic approach to user-centered development:
+
+### a. User Personas
+- Novice Sales Representatives (0-2 years experience)
+- Mid-career Sales Professionals (3-9 years experience)
+- Senior Sales Experts (10+ years experience)
+- Sales Managers and Trainers
+- Sales Operations and Enablement Teams
+
+### b. Feedback Collection Methods
+- In-app feedback mechanisms after each roleplay session
+- Periodic user surveys for product improvement
+- User interviews for deep qualitative insights
+- Usage pattern analysis for behavioral understanding
+
+### c. Iterative Improvement Process
+- Bi-weekly review of user feedback and metrics
+- Monthly prioritization of enhancements based on impact
+- Quarterly roadmap adjustments based on learnings
+- A/B testing framework for new feature validation
+
+## 8. ACCESSIBILITY & INCLUSIVITY:
+Ensure the platform serves diverse user needs:
+
+### a. Learning Style Adaptations
+- Visual learners: Enhanced charts and visualization options
+- Auditory learners: Voice feedback and audio summaries
+- Kinesthetic learners: Interactive exercises and simulations
+
+### b. Global Sales Methodology Support
+- Regional sales approach variations (US, Europe, Asia, etc.)
+- Industry-specific methodology adaptations
+- Cultural nuance awareness in feedback and recommendations
+
+### c. Technical Accessibility
+- Mobile-responsive design for on-the-go learning
+- Offline mode capabilities for limited connectivity
+- Low-bandwidth options for users in remote locations
+
+## 9. DATA PRIVACY & SECURITY:
+Establish robust data handling principles:
+
+### a. User Data Protection
+- End-to-end encryption for all conversation data
+- Anonymization procedures for feedback analysis
+- Configurable data retention periods (30-365 days)
+
+### b. Enterprise Security Features
+- Single sign-on integration capabilities
+- Role-based access controls for team data
+- Audit logs for compliance and security monitoring
+
+### c. Compliance Framework
+- GDPR and CCPA compliance for personal data
+- SOC 2 certification path for enterprise adoption
+- Regular penetration testing and security audits
+
+---
+
+## 1. ONBOARDING PHASE (User Profile Engine):
+- Create a multi-turn conversation flow to gather:
+  - Sales experience level
+  - Product/service they sell
+  - Target audience (B2B, B2C, both)
+  - Industry or niche
+  - Pain points / areas of struggle
+  - Recent wins or highlights
+  - Mindset challenges (confidence, fear of rejection, etc.)
+  - Personal goals for improvement
+- Store all responses in a persistent user profile object.
+- Use this profile to adjust future simulations and feedback.
+
+## 2. ROLEPLAY PHASE (Roleplay Simulation Engine):
+- Dynamically generate buyer personas using 50+ attributes:
+  - Personality traits (e.g., skeptical, expressive, logical)
+  - Emotions (e.g., cautious, frustrated, curious)
+  - Buyer type (economic, technical, user)
+  - Role and decision authority
+  - Pain points and objections
+  - Industry-specific context (e.g., SaaS, finance, retail)
+- Tailor objections and tone based on user profile:
+  - If user is weak at handling objections, introduce controlled resistance
+  - If user needs confidence training, balance challenge with positive reinforcement
+- Simulate cognitive biases:
+  - Anchoring, scarcity, loss aversion, social proof, commitment, reciprocity
+- Track and log key interaction points:
+  - Objections raised and handled
+  - Rapport-building moments
+  - Persuasion tactics used
+
+## 3. FEEDBACK PHASE (Interactive Dashboard Engine):
+Build an output interface with the following structured components:
+
+### a. Performance Summary
+- Win/loss status
+- Buyer trust score
+- Persuasion rating (based on use of psychology)
+
+### b. Key Moment Analyzer
+- Extract and label turning points (positive/negative)
+- Generate snippet playback markers (text or timestamp-based)
+- Highlight phrases that gained or lost trust
+
+### c. Cognitive Bias Map
+- Detect which biases were used (or missed)
+- Rate effectiveness (1-10 scale)
+
+### d. Objection Radar
+- Categorize all objections raised (price, trust, urgency, timing)
+- Grade response quality with suggestions
+
+### e. Emotional Tone & Confidence Graph
+- Assess vocal or text tone consistency
+- Confidence score over call duration (visual timeline)
+
+### f. Mindset Coaching Layer
+- Identify negative self-talk or limiting phrases
+- Suggest reframes and affirmations
+- Offer meditation prompts or focus resets
+
+### g. Progress Tracker
+- Show improvements across skill areas over time
+- Track objection handling growth, rapport-building, use of sales psychology
+- Include motivational quotes or positive reinforcement based on progress
+
+---
+
+## TECHNOLOGY GUIDANCE:
+- Use LLM-based natural language understanding for dialogue and coaching
+- Store persistent user memory/profile and simulate role evolution over time
+- Optional: integrate voice-to-text and tone analysis APIs
+- Optional: front-end dashboard with React or Streamlit for visualization
+
+---
+
+## 4. MONETIZATION & FEATURE TIERS:
+Implement a tiered approach to monetization with distinct feature sets:
+
+### a. Subscription Plans
+- **Free Tier**: Limited to 1 roleplay per day, maximum 4 per week
+- **Professional Tier**: Unlimited roleplays, enhanced feedback reports, additional buyer personas
+- **Enterprise Tier**: Team management capabilities, analytics, and customization options
+
+### b. Enhanced User Customization
+- Allow preferences to be accessible and adjustable from dashboard after initial onboarding
+- Make training style selection (Structured, Conversational, Challenge-based) adjustable anytime
+- Provide options for feedback frequency (Real-time, End of Session, Daily) that can be changed
+- Include descriptions and examples for each training style option
+- Explain implications of feedback frequency choices (e.g., real-time may interrupt flow)
+- Create a dedicated settings panel for adjusting preferences without resetting onboarding
+
+### c. Advanced One-Time Setup Features
+- Industry/Domain Specialization with sub-niches (beyond general categories)
+- Competitive landscape configuration to simulate objections based on real competitors
+- Specific learning focus areas tied to sales metrics (close rate, deal size, sales cycle)
+- Communication style assessment to tailor roleplay interactions
+
+### d. Team & Enterprise Features
+- Administrative controls for team managers to configure shared knowledge bases
+- Custom scenario creation for company-specific sales situations
+- Role hierarchy settings for different training paths (SDR, AE, Sales Manager)
+- Team performance benchmarking with anonymized comparisons
+- Compliance guidelines integration for industry-specific regulations
+- Data export capabilities for integration with existing sales training systems
+
+---
+
+## GOAL:
+Deliver a complete AI Sales Training assistant that combines:
+- Behavioral science
+- Cognitive bias application
+- Sales methodology (consultative, challenger, B2B/B2C)
+- Self-belief and mindset coaching
+
+- Design with adaptability, realism, and measurable growth in mind. Allow for gamification and replay to reinforce learning.
+
+"""End of Builder Prompt"""

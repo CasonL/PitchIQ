@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice Interaction Demo</title>
+  <style>
+    :root {
+      --primary-color: #4a6da7;
+      --secondary-color: #5d93d6;
+      --accent-color: #ff7e5f;
+      --text-color: #333;
+      --light-color: #f5f7fa;
+      --dark-color: #2c3e50;
+      --border-radius: 8px;
+      --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: var(--text-color);
+      background-color: var(--light-color);
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: white;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+    }
+    
+    h1, h2 {
+      color: var(--primary-color);
+      margin-bottom: 20px;
+    }
+    
+    .demo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+    
+    .demo-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .demo-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .speech-panel {
+      border: 1px solid #e1e1e1;
+      border-radius: var(--border-radius);
+      padding: 15px;
+      min-height: 200px;
+    }
+    
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e1e1e1;
+      font-weight: bold;
+      color: var(--dark-color);
+    }
+    
+    .settings-panel {
+      background-color: white;
+      padding: 20px;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      margin-top: 20px;
+      display: none;
+    }
+    
+    .settings-panel.visible {
+      display: block;
+    }
+    
+    .settings-form {
+      display: grid;
+      gap: 15px;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    
+    label {
+      font-weight: bold;
+      color: var(--dark-color);
+    }
+    
+    input, select, button {
+      padding: 10px;
+      border: 1px solid #e1e1e1;
+      border-radius: var(--border-radius);
+      font-size: 1rem;
+    }
+    
+    button {
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.3s;
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--secondary-color);
+    }
+    
+    .btn-secondary {
+      background-color: var(--light-color);
+      color: var(--text-color);
+      border: 1px solid #e1e1e1;
+    }
+    
+    .btn-secondary:hover:not(:disabled) {
+      background-color: #e9ecef;
+    }
+    
+    .btn-accent {
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+    }
+    
+    .btn-accent:hover:not(:disabled) {
+      background-color: #ff6b4a;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      padding: 5px 15px;
+      border-radius: 20px;
+      background-color: #e1e1e1;
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+    
+    .status-indicator.listening {
+      background-color: #ff7e5f;
+      color: white;
+    }
+    
+    .status-indicator.processing {
+      background-color: #ffd166;
+      color: var(--dark-color);
+    }
+    
+    .status-indicator.speaking {
+      background-color: #06d6a0;
+      color: white;
+    }
+    
+    .status-indicator.initializing {
+      background-color: #118ab2;
+      color: white;
+    }
+    
+    .error-container {
+      background-color: #ff5252;
+      color: white;
+      padding: 10px;
+      border-radius: var(--border-radius);
+      margin-bottom: 20px;
+      display: none;
+    }
+    
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      color: #6c757d;
+      font-size: 0.9rem;
+    }
+    
+    .integration-panel {
+      margin-top: 30px;
+      padding: 20px;
+      background-color: #f8f9fa;
+      border-radius: var(--border-radius);
+      border: 1px solid #e1e1e1;
+    }
+    
+    @media (max-width: 768px) {
+      .demo-content {
+        grid-template-columns: 1fr;
+      }
+      
+      .demo-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+      }
+      
+      .demo-controls {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="demo-header">
+      <h1>Voice Interaction Demo</h1>
+      <div>
+        <button id="settings-toggle" class="btn-secondary">⚙ Settings</button>
+      </div>
+    </div>
+    
+    <div id="error-container" class="error-container"></div>
+    
+    <div id="settings-panel" class="settings-panel">
+      <h2>API Settings</h2>
+      <form id="api-key-form" class="settings-form">
+        <div class="form-group">
+          <label for="deepgramApiKey">Deepgram API Key</label>
+          <input type="password" id="deepgramApiKey" name="deepgramApiKey" placeholder="Enter your Deepgram API key" required>
+        </div>
+        <div class="form-group">
+          <label for="elevenLabsApiKey">ElevenLabs API Key</label>
+          <input type="password" id="elevenLabsApiKey" name="elevenLabsApiKey" placeholder="Enter your ElevenLabs API key" required>
+        </div>
+        <button type="submit" class="btn-primary">Save and Initialize</button>
+      </form>
+    </div>
+    
+    <div class="demo-controls">
+      <button id="start-button" class="btn-primary" disabled>Start Listening</button>
+      <button id="stop-button" class="btn-secondary" disabled>Stop Listening</button>
+      <select id="persona-selector" disabled>
+        <option value="friendly">Friendly</option>
+        <option value="professional">Professional</option>
+        <option value="casual">Casual</option>
+        <option value="enthusiastic">Enthusiastic</option>
+        <option value="serious">Serious</option>
+      </select>
+      <div id="status-indicator" class="status-indicator initializing">Initializing...</div>
+    </div>
+    
+    <div class="demo-content">
+      <div class="speech-panel">
+        <div class="panel-header">
+          <div>User Speech</div>
+        </div>
+        <div id="transcript-container"></div>
+      </div>
+      
+      <div class="speech-panel">
+        <div class="panel-header">
+          <div>AI Response</div>
+        </div>
+        <div id="response-container"></div>
+      </div>
+    </div>
+    
+    <div class="integration-panel">
+      <h2>Voice Integration</h2>
+      <p>Ready to use this voice technology in the main chat interface?</p>
+      <button id="integrate-button" class="btn-accent">Launch Voice-Enabled Chat</button>
+    </div>
+    
+    <div class="footer">
+      <p>Powered by Deepgram and ElevenLabs | © 2025 PitchIQ</p>
+    </div>
+  </div>
+  
+  <script type="module" src="{{ url_for('static', filename='js/voice_demo.js') }}"></script>
+  <script>
+    // Add integration button functionality
+    document.getElementById('integrate-button').addEventListener('click', function() {
+      // Redirect to the chat interface with voice mode enabled
+      window.location.href = "http://127.0.0.1:5001/chat/?conversation_id=4";
+    });
+  </script>
+</body>
+</html> 

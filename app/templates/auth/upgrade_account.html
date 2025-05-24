@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Upgrade Your Account | PitchIQ{% endblock %}
+
+{% block styles %}
+<style>
+  .upgrade-container {
+    margin: 2rem auto;
+    max-width: 1000px;
+  }
+  
+  .tier-card {
+    background-color: var(--surface-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .tier-card.premium {
+    border: 2px solid var(--secondary-color);
+  }
+  
+  .tier-card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+  }
+  
+  .tier-card.premium h3 {
+    color: var(--secondary-color);
+  }
+  
+  .tier-price {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+  }
+  
+  .tier-price small {
+    font-size: 1rem;
+    font-weight: normal;
+    opacity: 0.7;
+  }
+  
+  .feature-list {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 2rem;
+  }
+  
+  .feature-list li {
+    margin-bottom: 0.75rem;
+    padding-left: 1.5rem;
+    position: relative;
+  }
+  
+  .feature-list li::before {
+    content: "✓";
+    color: var(--success-color);
+    position: absolute;
+    left: 0;
+    font-weight: bold;
+  }
+  
+  .tier-action {
+    text-align: center;
+    margin-top: 1.5rem;
+  }
+  
+  .badge-current {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background-color: var(--primary-color-light);
+    color: var(--primary-color);
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  
+  .coming-soon {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: var(--secondary-color);
+    color: white;
+    padding: 0.25rem 1rem;
+    transform: rotate(45deg) translate(25%, -50%);
+    transform-origin: top right;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="upgrade-container">
+  <h1>Upgrade Your Account</h1>
+  <p class="lead mb-4">Choose the plan that's right for you and unlock advanced features to enhance your sales training experience.</p>
+  
+  <div class="row">
+    <div class="col-md-6">
+      <div class="tier-card">
+        {% if current_user.profile.subscription_tier == 'free' %}
+        <div class="badge-current">Current Plan</div>
+        {% endif %}
+        <h3>Free Tier</h3>
+        <div class="tier-price">$0 <small>forever</small></div>
+        <ul class="feature-list">
+          <li>Limited AI practice sessions</li>
+          <li>Basic feedback analysis</li>
+          <li>Web Speech API for voice recognition</li>
+          <li>Standard buyer personas</li>
+          <li>Email support</li>
+        </ul>
+        <div class="tier-action">
+          {% if current_user.profile.subscription_tier == 'free' %}
+          <button disabled class="btn btn-outline-secondary">Current Plan</button>
+          {% else %}
+          <form action="{{ url_for('auth.update_subscription') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ g.csrf_token }}">
+            <input type="hidden" name="subscription_tier" value="free">
+            <button type="submit" class="btn btn-outline-primary">Downgrade to Free</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="tier-card premium">
+        <div class="coming-soon">Coming Soon</div>
+        {% if current_user.profile.subscription_tier == 'premium' %}
+        <div class="badge-current">Current Plan</div>
+        {% endif %}
+        <h3>Premium Tier</h3>
+        <div class="tier-price">$39 <small>per month</small></div>
+        <ul class="feature-list">
+          <li>Unlimited AI practice sessions</li>
+          <li>Advanced feedback analysis with detailed metrics</li>
+          <li>Deepgram API for superior voice recognition</li>
+          <li>Voice analytics and visualizations</li>
+          <li>All buyer personas</li>
+          <li>Priority support</li>
+          <li>Performance tracking dashboard</li>
+        </ul>
+        <div class="tier-action">
+          {% if current_user.profile.subscription_tier == 'premium' %}
+          <button disabled class="btn btn-outline-secondary">Current Plan</button>
+          {% else %}
+          <!-- For now we just show the button but don't actually implement payment -->
+          <button class="btn btn-primary" disabled>Upgrade to Premium (Coming Soon)</button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="text-center mt-4">
+    <p><strong>Note:</strong> Automatic payment processing is coming soon! Currently, account upgrades are managed manually.</p>
+    <p>Contact <a href="mailto:support@pitchiq.ca">support@pitchiq.ca</a> for assistance with account upgrades.</p>
+  </div>
+</div>
+{% endblock %} 

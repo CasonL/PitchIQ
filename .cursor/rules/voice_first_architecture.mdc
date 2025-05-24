@@ -1,0 +1,157 @@
+---
+description: working on implimenting voice features
+globs: 
+alwaysApply: false
+---
+# Voice-First Interface Architecture for PitchIQ
+
+## Core Components
+
+### 1. Audio Processing Layer
+- **Speech Recognition Service**
+  - Real-time streaming API integration
+  - WebSocket connection for continuous audio
+  - Voice activity detection module
+  - Utterance boundary detection
+
+### 2. Voice Interaction Core
+- **Conversation Controller**
+  - Turn management system
+  - Context tracking
+  - Audio feedback trigger points
+  - State machine for interaction flow
+
+### 3. Visual Interface
+- **Visualization Component**
+  - Central voice animation renderer
+  - Ambient background manager
+  - Audio state indicators
+  - Feedback visualization system
+
+### 4. Feedback System
+- **Real-time Analysis Engine**
+  - Confidence detection module
+  - Pace/rhythm analyzer
+  - Key phrase detection
+  - Teaching moment identification
+- **Feedback Panel**
+  - Minimalist toggle controls
+  - Intuitive visual indicators
+  - Customizable display options
+
+### 5. Coaching Intelligence
+- **Moment Markers System**
+  - Audio cue manager
+  - Teachable moment detection
+  - Session recording for review
+- **AI Coach Integration**
+  - Specialized feedback model
+  - Performance analysis engine
+  - Improvement recommendation system
+
+## Implementation Phases
+
+### Phase 1: Foundation (2-3 weeks)
+1. Set up WebSocket audio streaming infrastructure
+2. Implement basic voice activity detection
+3. Create simple visualization component
+4. Develop audio state indicators (listening, processing, speaking)
+
+### Phase 2: Core Experience (3-4 weeks)
+1. Enhance conversation controller with turn management
+2. Implement ambient background with minimal transitions
+3. Build primary visualization animations
+4. Develop tap-to-begin interface with clear visual feedback
+
+### Phase 3: Feedback Systems (4-5 weeks)
+1. Create minimalist sidebar with toggle controls
+2. Implement confidence and pace analysis
+3. Develop key phrase detection system
+4. Build teaching moment identification logic
+
+### Phase 4: Advanced Features (5-6 weeks)
+1. Create moment markers system with audio cues
+2. Implement specialized AI coach for feedback page
+3. Build performance analysis engine
+4. Develop recommendation system
+
+## Technical Requirements
+
+### Frontend
+- **Web Audio API** for audio processing and visualization
+- **Canvas/WebGL** for dynamic visualizations
+- **WebSockets** for real-time communication
+- **requestAnimationFrame** for smooth animations
+
+### Backend
+- **Audio Processing Pipeline**
+  - Stream handling for continuous audio
+  - Buffer management for processing chunks
+- **Real-time Analysis Services**
+  - Audio feature extraction
+  - Confidence/emotion detection models
+- **WebSocket Server**
+  - Bi-directional audio streaming
+  - Low-latency state updates
+
+### Voice Processing Services
+- **Eleven Labs Integration**
+  - High-quality voice synthesis
+  - Voice cloning capabilities
+  - Emotion/tone control for feedback delivery
+
+## Interface Design Principles
+- **Speech as primary input/output** - not just an alternative
+- **Minimal visual distractions**
+- **No text transcripts** - pure audio conversation
+- **Tap to begin** simple interaction
+- **Audio cues** for different system states
+- **Right sidebar** for minimalist feedback toggles 
+
+
+
+# =======Vision======= #
+
+
+# Refined Voice-First Interface for PitchIQ
+
+Here's my refined vision incorporating your feedback:
+
+## Core Experience
+
+**Immersive Environment:**
+- Subtle ambient background that shifts based on conversation energy (very minimal gradient changes)
+- No text transcripts whatsoever - pure audio conversation
+- Simple tap to begin interaction with clear visual feedback
+- Clean, distraction-free central space to maintain focus
+
+**Interaction Flow:**
+- Single tap activation (no wake words)
+- Natural conversation rhythm with intelligent turn-taking
+- Audio cues use distinct, professional tones for different states (listening, processing, speaking)
+- Highlighted coaching moments signaled by gentle audio indicators
+
+## Feedback Implementation
+
+**Right Sidebar Feedback:**
+- Minimalist toggle panel with intuitive icons
+- Real-time indicators showing:
+  - Confidence meter (simple vertical bar)
+  - Pace indicator (rhythm visualization)
+  - Key phrase detection (subtle pulse when detected)
+- All visualizations use consistent visual language
+
+**Alternative to Whispered Coaching:**
+- "Moment Markers" - subtle audio tones that indicate teachable moments without interrupting flow
+- These moments are saved for post-session review
+- Optional visual indicator that a moment was flagged (can be disabled)
+
+**Feedback Page Enhancement:**
+- Adding a dedicated AI coach chatbox is excellent - keeps the main experience clean while allowing deeper analysis
+- This specialized feedback AI could:
+  - Answer specific questions about performance
+  - Explain nuances behind feedback metrics
+  - Suggest targeted improvement exercises
+  - Help refine the feedback page itself through user questions
+
+The technical foundation will be crucial - especially low-latency speech recognition and accurate voice activity detection to create that seamless conversation feel without awkward pauses or interruptions.

@@ -1,0 +1,246 @@
+.dashboard-container {
+  padding: 1.5rem 2rem;
+  max-width: 1280px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+.dashboard-header {
+  margin-bottom: 2.5rem;
+  position: relative;
+  padding-bottom: 1.25rem;
+}
+
+.dashboard-header::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(to right, #e11d48, #be123c);
+  border-radius: 1.5px;
+}
+
+.dashboard-welcome {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.75rem;
+  line-height: 1.2;
+}
+
+.dashboard-welcome span {
+  color: #e11d48;
+}
+
+.dashboard-subtitle {
+  font-size: 1.125rem;
+  color: #64748b;
+  max-width: 760px;
+}
+
+.section-title {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: #1e3a8a;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.section-title::before {
+  content: "";
+  width: 4px;
+  height: 1.375rem;
+  background-color: #e11d48;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.dashboard-section {
+  margin-bottom: 2.5rem;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.dashboard-main-column {
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 1.75rem;
+  border: 1px solid #f1f5f9;
+}
+
+.dashboard-side-column {
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 1.75rem;
+  border: 1px solid #f1f5f9;
+}
+
+.dashboard-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  gap: 1.5rem;
+}
+
+.dashboard-loading span {
+  color: #64748b;
+  font-size: 1.125rem;
+}
+
+/* Animation keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 992px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  .dashboard-welcome {
+    font-size: 1.875rem;
+  }
+  
+  .section-title {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1.25rem;
+  }
+  
+  .dashboard-welcome {
+    font-size: 1.625rem;
+  }
+  
+  .dashboard-subtitle {
+    font-size: 1rem;
+  }
+  
+  .dashboard-main-column,
+  .dashboard-side-column {
+    padding: 1.25rem;
+  }
+}
+
+/* Basic layout for main content + sidebar */
+.dashboard-layout {
+  display: flex;
+  height: calc(100vh - 60px); /* Adjust based on header height */
+  overflow: hidden;
+}
+
+.dashboard-main-content {
+  flex-grow: 1;
+  overflow-y: auto; /* Allow main content to scroll */
+  transition: margin-right 0.3s ease-in-out;
+}
+
+.analytics-sidebar {
+  width: 350px; /* Adjust width as needed */
+  flex-shrink: 0;
+  border-left: 1px solid hsl(var(--border));
+  transform: translateX(100%);
+  transition: transform 0.3s ease-in-out;
+  position: fixed; /* Or absolute, depending on desired behavior */
+  right: 0;
+  top: 60px; /* Adjust based on header height */
+  height: calc(100vh - 60px);
+  background-color: hsl(var(--background));
+  overflow-y: auto;
+  z-index: 10; /* Ensure it's above main content if overlapping */
+}
+
+.analytics-sidebar.open {
+  transform: translateX(0);
+}
+
+/* Adjust main content when sidebar is open to prevent overlap */
+/* Comment this out if you prefer the sidebar to overlap */
+/*
+.dashboard-layout.sidebar-open .dashboard-main-content {
+  margin-right: 350px; 
+}
+*/
+
+/* Placeholder Styling */
+.ai-summary-card-container {
+  /* Add specific styles if needed */
+}
+
+/* Styles for rendering Markdown list items correctly */
+.markdown ul {
+  list-style-type: disc;
+  margin-left: 20px; /* Adjust as needed for indentation */
+  padding-left: 20px; /* Ensures space for bullets */
+  margin-top: 0.5em; /* Add some space before the list */
+  margin-bottom: 0.5em; /* Add some space after the list */
+}
+
+.markdown ol {
+  list-style-type: decimal;
+  margin-left: 20px; /* Adjust as needed for indentation */
+  padding-left: 20px; /* Ensures space for numbers */
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.markdown li {
+  display: list-item;
+  margin-bottom: 0.25em; /* Space between list items */
+}
+
+/* Optional: Styling for nested lists */
+.markdown ul ul, .markdown ol ul {
+  list-style-type: circle;
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+  margin-left: 20px; /* Further indent nested lists */
+  padding-left: 0; /* Reset padding if margin-left handles indentation */
+}
+
+.markdown ol ol, .markdown ul ol {
+  list-style-type: lower-alpha;
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+  margin-left: 20px; /* Further indent nested lists */
+  padding-left: 0; /* Reset padding if margin-left handles indentation */
+}
+
+/* Style for paragraphs within markdown content */
+.markdown p {
+  margin-bottom: 0.75em; /* Adjust as needed for spacing between paragraphs */
+}
+
+/* Ensure there's a blank line or appropriate spacing before a list if it follows a paragraph */
+.markdown p + ul,
+.markdown p + ol {
+  margin-top: 0.5em; /* Or adjust based on existing ul/ol margin-top */
+} 

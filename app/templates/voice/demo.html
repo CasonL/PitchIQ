@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Interface Demo</title>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --warning: #FF9800;
+            --error: #F44336;
+            --dark: #121212;
+            --text: #F5F5F5;
+            --bg: #1E1E1E;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        header {
+            background-color: var(--dark);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .settings-button {
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        
+        .voice-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 800px;
+            width: 100%;
+        }
+        
+        .orb-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 2rem 0;
+        }
+        
+        .voice-orb {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .orb-inner {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+            opacity: 0.7;
+        }
+        
+        .orb-pulse {
+            position: absolute;
+            top: -10%;
+            left: -10%;
+            width: 120%;
+            height: 120%;
+            border-radius: 50%;
+            background: transparent;
+            border: 2px solid var(--primary);
+            opacity: 0;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(1.2); opacity: 0; }
+        }
+        
+        .listening .orb-inner {
+            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+            animation: breathe 2s infinite alternate;
+        }
+        
+        .listening .orb-pulse {
+            border-color: var(--primary);
+            animation: pulse 2s infinite;
+        }
+        
+        .speaking .orb-inner {
+            background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
+            animation: wave 1.5s infinite;
+        }
+        
+        .speaking .orb-pulse {
+            border-color: var(--secondary);
+            animation: pulse 1.5s infinite;
+        }
+        
+        .processing .orb-inner {
+            background: radial-gradient(circle, var(--warning) 0%, transparent 70%);
+            animation: rotate 2s infinite linear;
+        }
+        
+        @keyframes breathe {
+            0% { transform: scale(0.95); opacity: 0.7; }
+            100% { transform: scale(1.05); opacity: 0.9; }
+        }
+        
+        @keyframes wave {
+            0% { transform: scale(0.9); opacity: 0.7; }
+            50% { transform: scale(1.1); opacity: 0.9; }
+            100% { transform: scale(0.9); opacity: 0.7; }
+        }
+        
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status-indicator {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: var(--dark);
+            border-radius: 20px;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        
+        .controls {
+            display: flex;
+            margin-top: 2rem;
+            gap: 1rem;
+        }
+        
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 30px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #388E3C;
+        }
+        
+        button.secondary {
+            background-color: #424242;
+        }
+        
+        button.secondary:hover {
+            background-color: #616161;
+        }
+        
+        .persona-container {
+            margin-top: 2rem;
+            background-color: var(--dark);
+            padding: 1rem;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .persona-container h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #424242;
+            padding-bottom: 0.5rem;
+        }
+        
+        .persona-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .select-wrapper {
+            flex: 1;
+            position: relative;
+        }
+        
+        select {
+            width: 100%;
+            padding: 0.5rem;
+            background-color: #424242;
+            color: var(--text);
+            border: none;
+            border-radius: 5px;
+            appearance: none;
+        }
+        
+        .select-wrapper::after {
+            content: '▼';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+        
+        .traits-display {
+            margin-top: 1rem;
+        }
+        
+        .trait-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .trait-name {
+            flex: 1;
+            font-size: 0.9rem;
+        }
+        
+        .trait-bar {
+            flex: 2;
+            height: 8px;
+            background-color: #424242;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .trait-fill {
+            height: 100%;
+            background-color: var(--primary);
+        }
+        
+        .transcript-container {
+            margin-top: 2rem;
+            width: 100%;
+            max-width: 600px;
+            background-color: var(--dark);
+            border-radius: 10px;
+            padding: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .transcript-container h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #424242;
+            padding-bottom: 0.5rem;
+        }
+        
+        .message {
+            padding: 0.5rem 1rem;
+            margin: 0.5rem 0;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .user-message {
+            background-color: #2c5834;
+            align-self: flex-end;
+            margin-left: 2rem;
+        }
+        
+        .ai-message {
+            background-color: #1e4976;
+            align-self: flex-start;
+            margin-right: 2rem;
+        }
+        
+        .message-sender {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-bottom: 0.2rem;
+        }
+        
+        .message-content {
+            word-break: break-word;
+        }
+        
+        .notification-area {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            width: 300px;
+            z-index: 1000;
+        }
+        
+        .notification {
+            padding: 0.75rem 1rem;
+            border-radius: 5px;
+            background-color: var(--dark);
+            color: var(--text);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s;
+        }
+        
+        .notification.error {
+            background-color: var(--error);
+        }
+        
+        .notification.success {
+            background-color: var(--primary);
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        
+        .notification.fade-out {
+            animation: slideOut 0.3s forwards;
+        }
+        
+        /* New styles for integration */
+        .integration-panel {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #e6f7ff;
+            border: 1px solid #91d5ff;
+            text-align: center;
+        }
+        
+        .integration-heading {
+            margin-bottom: 15px;
+            color: #0050b3;
+        }
+        
+        .integration-button {
+            background-color: #1890ff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .integration-button:hover {
+            background-color: #096dd9;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>PitchIQ Voice Interface</h1>
+        <button class="settings-button" id="settings-button">⚙️</button>
+    </header>
+    
+    <main>
+        <div class="voice-container">
+            <div class="orb-container">
+                <div class="voice-orb" id="voice-orb">
+                    <div class="orb-inner"></div>
+                    <div class="orb-pulse"></div>
+                </div>
+            </div>
+            
+            <div class="status-indicator" id="status-indicator">
+                Ready to start
+            </div>
+            
+            <div class="controls">
+                <button id="toggle-voice">Start Listening</button>
+                <button class="secondary" id="reset-conversation">Reset</button>
+            </div>
+            
+            <div class="persona-container">
+                <h2>Buyer Persona</h2>
+                <div class="persona-controls">
+                    <div class="select-wrapper">
+                        <select id="persona-selector">
+                            <option value="b2b">B2B</option>
+                            <option value="b2c">B2C</option>
+                            <option value="impatient">Impatient</option>
+                            <option value="patient">Patient</option>
+                            <option value="technical">Technical</option>
+                            <option value="casual">Casual</option>
+                        </select>
+                    </div>
+                    <button id="generate-persona">Generate</button>
+                </div>
+                
+                <div class="traits-display" id="persona-traits">
+                    <div class="trait-item">
+                        <div class="trait-name">Formal</div>
+                        <div class="trait-bar">
+                            <div class="trait-fill" style="width: 70%"></div>
+                        </div>
+                    </div>
+                    <div class="trait-item">
+                        <div class="trait-name">Technical</div>
+                        <div class="trait-bar">
+                            <div class="trait-fill" style="width: 60%"></div>
+                        </div>
+                    </div>
+                    <div class="trait-item">
+                        <div class="trait-name">Patience</div>
+                        <div class="trait-bar">
+                            <div class="trait-fill" style="width: 40%"></div>
+                        </div>
+                    </div>
+                    <div class="trait-item">
+                        <div class="trait-name">Verbose</div>
+                        <div class="trait-bar">
+                            <div class="trait-fill" style="width: 80%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="transcript-container" id="transcript-container">
+                <h2>Conversation</h2>
+                <div id="messages">
+                    <!-- Messages will be added here dynamically -->
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <div class="notification-area" id="notification-area">
+        <!-- Notifications will be added here dynamically -->
+    </div>
+    
+    <script type="module">
+        import Voice from '/static/js/voice/index.js';
+        
+        // DOM elements
+        const voiceOrb = document.getElementById('voice-orb');
+        const statusIndicator = document.getElementById('status-indicator');
+        const toggleButton = document.getElementById('toggle-voice');
+        const resetButton = document.getElementById('reset-conversation');
+        const personaSelector = document.getElementById('persona-selector');
+        const generateButton = document.getElementById('generate-persona');
+        const messagesContainer = document.getElementById('messages');
+        const notificationArea = document.getElementById('notification-area');
+        
+        // Initialize Voice Interface
+        Voice.init().then(() => {
+            showNotification('Voice interface initialized successfully', 'success');
+            
+            // Subscribe to state changes
+            Voice.on('stateChange', handleStateChange);
+            
+            // Set up UI events
+            toggleButton.addEventListener('click', () => {
+                if (Voice.state.system.isListening || Voice.state.system.isSpeaking) {
+                    Voice.stop();
+                    toggleButton.textContent = 'Start Listening';
+                } else {
+                    Voice.start();
+                    toggleButton.textContent = 'Stop Listening';
+                }
+            });
+            
+            resetButton.addEventListener('click', () => {
+                Voice.state.resetConversation();
+                messagesContainer.innerHTML = '';
+                showNotification('Conversation reset', 'success');
+            });
+            
+            generateButton.addEventListener('click', () => {
+                const selectedPersonaType = personaSelector.value;
+                Voice.persona.generatePersona(selectedPersonaType);
+                showNotification(`Generated new ${selectedPersonaType} persona`, 'success');
+            });
+        });
+        
+        // Handle state changes
+        function handleStateChange(event) {
+            const { type, data } = event;
+            
+            switch (type) {
+                case 'system':
+                    updateOrbState(data);
+                    break;
+                case 'messageAdded':
+                    addMessageToTranscript(data);
+                    break;
+                case 'personaChange':
+                    updatePersonaDisplay(data);
+                    break;
+                case 'error':
+                    showNotification(data.message, 'error');
+                    break;
+            }
+        }
+        
+        // Update orb visualization based on system state
+        function updateOrbState(systemState) {
+            // Remove all state classes
+            voiceOrb.classList.remove('listening', 'speaking', 'processing', 'inactive');
+            
+            // Update status text
+            if (systemState.hasError) {
+                statusIndicator.textContent = systemState.currentErrorMessage || 'Error occurred';
+                voiceOrb.classList.add('error');
+            } else if (systemState.isProcessing) {
+                statusIndicator.textContent = 'Processing...';
+                voiceOrb.classList.add('processing');
+            } else if (systemState.isSpeaking) {
+                statusIndicator.textContent = 'Speaking...';
+                voiceOrb.classList.add('speaking');
+            } else if (systemState.isListening) {
+                statusIndicator.textContent = 'Listening...';
+                voiceOrb.classList.add('listening');
+            } else {
+                statusIndicator.textContent = 'Ready';
+                voiceOrb.classList.add('inactive');
+            }
+            
+            // Update button text
+            if (systemState.isListening || systemState.isSpeaking) {
+                toggleButton.textContent = 'Stop';
+            } else {
+                toggleButton.textContent = 'Start Listening';
+            }
+        }
+        
+        // Add message to transcript
+        function addMessageToTranscript(message) {
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${message.role}-message`;
+            
+            const senderElement = document.createElement('div');
+            senderElement.className = 'message-sender';
+            senderElement.textContent = message.role === 'user' ? 'You' : 'PitchIQ';
+            
+            const contentElement = document.createElement('div');
+            contentElement.className = 'message-content';
+            contentElement.textContent = message.content;
+            
+            messageElement.appendChild(senderElement);
+            messageElement.appendChild(contentElement);
+            
+            messagesContainer.appendChild(messageElement);
+            
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // Update persona traits display
+        function updatePersonaDisplay(persona) {
+            const traitsContainer = document.getElementById('persona-traits');
+            if (!traitsContainer || !persona) return;
+            
+            traitsContainer.innerHTML = '';
+            
+            // Add traits visualization
+            for (const [trait, value] of Object.entries(persona)) {
+                if (trait === 'type') continue;
+                
+                const traitItem = document.createElement('div');
+                traitItem.className = 'trait-item';
+                
+                const traitName = document.createElement('div');
+                traitName.className = 'trait-name';
+                traitName.textContent = trait.charAt(0).toUpperCase() + trait.slice(1);
+                
+                const traitBar = document.createElement('div');
+                traitBar.className = 'trait-bar';
+                
+                const traitFill = document.createElement('div');
+                traitFill.className = 'trait-fill';
+                
+                if (typeof value === 'boolean') {
+                    traitFill.style.width = value ? '100%' : '0%';
+                } else if (typeof value === 'number') {
+                    traitFill.style.width = `${value * 100}%`;
+                }
+                
+                traitBar.appendChild(traitFill);
+                traitItem.appendChild(traitName);
+                traitItem.appendChild(traitBar);
+                
+                traitsContainer.appendChild(traitItem);
+            }
+        }
+        
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            notificationArea.appendChild(notification);
+            
+            // Remove after delay
+            setTimeout(() => {
+                notification.classList.add('fade-out');
+                setTimeout(() => {
+                    if (notification.parentNode === notificationArea) {
+                        notificationArea.removeChild(notification);
+                    }
+                }, 300);
+            }, 5000);
+        }
+    </script>
+    
+    <div class="integration-panel">
+        <h2 class="integration-heading">Try Voice-Enabled Chat Interface</h2>
+        <p>Experience our integrated chat interface with voice capabilities. Speak with our AI using your voice and hear responses!</p>
+        <button id="launch-voice-chat" class="integration-button">Launch Voice-Enabled Chat</button>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add event listener to the launch voice chat button
+            const launchVoiceChatButton = document.getElementById('launch-voice-chat');
+            if (launchVoiceChatButton) {
+                launchVoiceChatButton.addEventListener('click', () => {
+                    // Redirect to the voice chat interface with voice mode enabled
+                    window.location.href = 'http://127.0.0.1:5001/chat/?conversation_id=4';
+                });
+            }
+        });
+    </script>
+</body>
+</html> 

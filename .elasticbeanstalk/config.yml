@@ -1,0 +1,7 @@
+global:
+  application_name: PitchIQ
+  default_region: ca-central-1
+  profile: null
+
+deploy:
+  artifact: deploy.zip

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/voice_chat.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <div class="chat-container" id="chat-container">
+        <div class="chat-header">
+            <h2>Voice Chat</h2>
+            <div class="header-actions">
+                <button id="settings-button" class="icon-button">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="settings-panel" id="settings-panel">
+            <div class="settings-group">
+                <label for="persona-select">Persona:</label>
+                <select id="persona-select">
+                    <option value="default">Default</option>
+                </select>
+            </div>
+            
+            <div class="settings-group">
+                <label for="volume-slider">Volume:</label>
+                <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="0.8">
+            </div>
+        </div>
+        
+        <div class="chat-messages" id="chat-messages">
+            <!-- Messages will be added here dynamically -->
+        </div>
+        
+        <div class="chat-input">
+            <textarea id="text-input" placeholder="Type a message..."></textarea>
+            <button id="send-button">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+            <button id="voice-button">
+                <i class="fas fa-microphone"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div id="error-container" class="error-container"></div>
+    
+    <script type="module">
+        import { VoiceChatController } from "{{ url_for('static', filename='js/voice/voice_chat_controller.js') }}";
+        
+        // Initialize voice chat controller when DOM is loaded
+        document.addEventListener('DOMContentLoaded', async () => {
+            const controller = new VoiceChatController({
+                apiKeys: {
+                    deepgram: "{{ deepgram_api_key }}",
+                    elevenlabs: "{{ elevenlabs_api_key }}"
+                },
+                defaultPersona: "default",
+                defaultVolume: 0.8
+            });
+            
+            try {
+                await controller.initialize();
+                
+                // Add welcome message
+                controller.addAiMessage("Welcome to Voice Chat! You can type a message or click the microphone button to start speaking.");
+            } catch (error) {
+                console.error("Failed to initialize voice chat:", error);
+                document.getElementById('error-container').textContent = "Failed to initialize voice chat: " + error.message;
+                document.getElementById('error-container').style.display = 'block';
+            }
+            
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', () => {
+                controller.cleanup();
+            });
+        });
+    </script>
+</body>
+</html> 

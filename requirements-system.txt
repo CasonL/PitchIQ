@@ -1,0 +1,17 @@
+# System dependencies for SalesTraining-AI
+# These need to be installed at the OS level before running the application
+
+# FFmpeg - Required for audio conversions
+# Install on Windows: 
+#   Download from https://ffmpeg.org/download.html
+#   Add to system PATH
+
+# Install on Ubuntu/Debian:
+#   sudo apt update
+#   sudo apt install ffmpeg
+
+# Install on macOS with Homebrew:
+#   brew install ffmpeg
+
+# For Python FFmpeg bindings (installed via pip):
+ffmpeg-python==0.2.0 

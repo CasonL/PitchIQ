@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Voice Roleplay | PitchIQ{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/voice_interface.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="voice-interface-container">
+    <!-- Persona Information Header -->
+    <div class="persona-header">
+        <h1>Role Play with <span id="persona-name">{{ persona_name }}</span></h1>
+        <div class="persona-details">
+            <p><strong>Position:</strong> <span id="persona-position">{{ persona_title }}</span></p>
+        </div>
+    </div>
+    
+    <!-- Main Conversation Area -->
+    <div class="conversation-area">
+        <div id="transcript" class="transcript-container"></div>
+        
+        <div class="voice-controls">
+            <div id="conversation-status" class="status-indicator">Ready to start conversation</div>
+            <div id="voice-orb" class="voice-orb"></div>
+            <button id="toggle-record" class="control-button primary-button">Start Recording</button>
+            <button id="voice-selection-toggle" class="control-button secondary-button">Change Voice</button>
+        </div>
+    </div>
+    
+    <!-- Feedback Panel -->
+    <div id="feedback-panel" class="feedback-panel">
+        <h3>Feedback Options</h3>
+        <div class="feedback-toggle">
+            <label>Show Sentiment Analysis</label>
+            <input type="checkbox" id="sentiment-toggle">
+            <div class="toggle-slider"></div>
+        </div>
+        <div class="feedback-toggle">
+            <label>Show Key Points</label>
+            <input type="checkbox" id="key-points-toggle">
+            <div class="toggle-slider"></div>
+        </div>
+        <div class="feedback-toggle">
+            <label>Record for Later Review</label>
+            <input type="checkbox" id="record-toggle">
+            <div class="toggle-slider"></div>
+        </div>
+        
+        <div class="feedback-content">
+            <div id="sentiment-feedback" class="feedback-section">
+                <h4>Sentiment Analysis</h4>
+                <div class="sentiment-meter">
+                    <div id="sentiment-value" class="sentiment-value" style="width: 50%;"></div>
+                </div>
+                <div class="sentiment-labels">
+                    <span>Negative</span>
+                    <span>Positive</span>
+                </div>
+            </div>
+            
+            <div id="key-points-feedback" class="feedback-section">
+                <h4>Key Points Covered</h4>
+                <ul id="key-points-list">
+                    <!-- Will be populated dynamically -->
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Voice Selection Modal -->
+<div id="voice-selection-modal" class="voice-selection-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Select AI Voice</h2>
+            <button id="close-modal" class="close-button">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="voice-options-grid">
+                <div class="voice-option" data-voice-id="9BWtsMINqrJLrRacOk9x">
+                    <div class="voice-info">
+                        <div class="voice-name">Aria</div>
+                        <div class="voice-desc">Clear and professional female voice</div>
+                    </div>
+                    <div class="voice-check"></div>
+                    <div class="voice-speaking-animation">
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                    </div>
+                </div>
+                
+                <div class="voice-option" data-voice-id="CwhRBWXzGAHq8TQ4Fs17">
+                    <div class="voice-info">
+                        <div class="voice-name">Roger</div>
+                        <div class="voice-desc">Confident and articulate male voice</div>
+                    </div>
+                    <div class="voice-check"></div>
+                    <div class="voice-speaking-animation">
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                    </div>
+                </div>
+                
+                <div class="voice-option" data-voice-id="EXAVITQu4vr4xnSDxMaL">
+                    <div class="voice-info">
+                        <div class="voice-name">Sarah</div>
+                        <div class="voice-desc">Warm and natural female voice</div>
+                    </div>
+                    <div class="voice-check"></div>
+                    <div class="voice-speaking-animation">
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                    </div>
+                </div>
+                
+                <div class="voice-option" data-voice-id="TX3LPaxmHKxFdv7VOQHJ">
+                    <div class="voice-info">
+                        <div class="voice-name">Liam</div>
+                        <div class="voice-desc">Deep and authoritative male voice</div>
+                    </div>
+                    <div class="voice-check"></div>
+                    <div class="voice-speaking-animation">
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                    </div>
+                </div>
+                
+                <div class="voice-option" data-voice-id="XB0fDUnXU5powFXDhCwa">
+                    <div class="voice-info">
+                        <div class="voice-name">Charlotte</div>
+                        <div class="voice-desc">Friendly and engaging female voice</div>
+                    </div>
+                    <div class="voice-check"></div>
+                    <div class="voice-speaking-animation">
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                    </div>
+                </div>
+                
+                <div class="voice-option" data-voice-id="onwK4e9ZLuTAKqWW03F9">
+                    <div class="voice-info">
+                        <div class="voice-name">Daniel</div>
+                        <div class="voice-desc">Conversational male voice with natural tone</div>
+                    </div>
+                    <div class="voice-check"></div>
+                    <div class="voice-speaking-animation">
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                    </div>
+                </div>
+                
+                <div class="voice-option" data-voice-id="pFZP5JQG7iQjIQuC4Bku">
+                    <div class="voice-info">
+                        <div class="voice-name">Lily</div>
+                        <div class="voice-desc">Calm and soothing female voice</div>
+                    </div>
+                    <div class="voice-check"></div>
+                    <div class="voice-speaking-animation">
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                    </div>
+                </div>
+                
+                <div class="voice-option" data-voice-id="iP95p4xoKVk53GoZ742B">
+                    <div class="voice-info">
+                        <div class="voice-name">Chris</div>
+                        <div class="voice-desc">Clear and precise male voice</div>
+                    </div>
+                    <div class="voice-check"></div>
+                    <div class="voice-speaking-animation">
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden field for conversation ID -->
+<input type="hidden" id="conversation-id" value="{{ conversation_id }}">
+
+<!-- Scripts -->
+<script>
+    // Make the conversation ID available to the voice interface script
+    window.conversationId = "{{ conversation_id }}";
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@deepgram/sdk"></script>
+<script src="{{ url_for('static', filename='js/voice_interface.js') }}"></script>
+{% endblock %} 

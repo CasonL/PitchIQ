@@ -1,0 +1,229 @@
+import React, { useEffect, useState, useId, useRef } from 'react';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkRehype from 'remark-rehype';
+import rehypeReact from 'rehype-react';
+import { visit } from 'unist-util-visit';
+import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
+
+const fadeInStyles = `
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.streaming-text-fade-chunk {
+  opacity: 0;
+  animation: fadeIn 0.6s ease-out forwards;
+  display: block !important; /* Force display */
+  visibility: visible !important; /* Ensure visibility */
+  color: inherit !important; /* Ensure color inheritance */
+}
+`;
+
+const createFadeStyles = () => {
+  if (!document.getElementById('streaming-fade-styles')) {
+    const style = document.createElement('style');
+    style.id = 'streaming-fade-styles';
+    style.innerHTML = fadeInStyles;
+    document.head.appendChild(style);
+    console.log("Streaming text styles created");
+  } else {
+    console.log("Streaming text styles already exist");
+  }
+};
+
+interface StreamingTextSimpleProps {
+  markdown: string;
+  baseDelayMs?: number;
+  onComplete?: () => void;
+  responseKey?: string;
+}
+
+const StreamingTextSimple: React.FC<StreamingTextSimpleProps> = ({
+  markdown,
+  baseDelayMs = 800,
+  onComplete,
+  responseKey
+}) => {
+  const componentId = useId();
+  const [visibleCount, setVisibleCount] = useState(0);
+  const [chunks, setChunks] = useState<React.ReactNode[]>([]);
+  const timerRef = useRef<number | null>(null);
+  const animationIdRef = useRef<number>(0);
+  const completedRef = useRef<boolean>(false);
+  
+  // Reset on response key change
+  useEffect(() => {
+    if (responseKey) {
+      completedRef.current = false;
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      setVisibleCount(0);
+      animationIdRef.current += 1;
+    }
+  }, [responseKey]);
+
+  useEffect(() => {
+    createFadeStyles();
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, []);
+  
+  // Parse content into chunks when markdown changes
+  useEffect(() => {
+    if (!markdown) {
+      setChunks([]);
+      return;
+    }
+    
+    // Don't reparse if already showing content
+    if (chunks.length > 0 && visibleCount > 0 && !completedRef.current) {
+      return;
+    }
+    
+    // Increment animation ID
+    animationIdRef.current += 1;
+    const currentAnimationId = animationIdRef.current;
+    
+    // Clear previous animation
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    setVisibleCount(0);
+    completedRef.current = false;
+    
+    const parser = unified()
+      .use(remarkParse)
+      .use(remarkGfm)
+      .use(remarkRehype)
+      .use(rehypeReact, {
+        createElement: React.createElement,
+        Fragment,
+        jsx,
+        jsxs
+      });
+
+    const ast = unified().use(remarkParse).use(remarkGfm).parse(markdown);
+    const contentChunks: React.ReactNode[] = [];
+    let chunkIndex = 0;
+
+    // Process paragraphs, headings, etc. separately
+    visit(ast, (node: any) => {
+      if (node.type === 'paragraph' || 
+          node.type === 'heading' ||
+          node.type === 'list' ||
+          node.type === 'blockquote') {
+        
+        const subtree = { type: 'root', children: [node] };
+        const rendered = parser.processSync(subtree).result;
+        
+        // Force block level for consistent layout
+        contentChunks.push(
+          <div 
+            key={`${componentId}-chunk-${chunkIndex++}`} 
+            className="streaming-text-fade-chunk"
+            style={{ 
+              display: 'block',
+              marginBottom: '1rem'
+            }}
+          >
+            {rendered}
+          </div>
+        );
+      } else if (node.type === 'code') {
+        // Special handling for code blocks to preserve formatting
+        const subtree = { type: 'root', children: [node] };
+        const rendered = parser.processSync(subtree).result;
+        
+        contentChunks.push(
+          <div 
+            key={`${componentId}-code-${chunkIndex++}`} 
+            className="streaming-text-fade-chunk"
+            style={{ 
+              display: 'block',
+              marginBottom: '1rem'
+            }}
+          >
+            {rendered}
+          </div>
+        );
+      }
+    });
+
+    // Fallback if no paragraphs found
+    if (contentChunks.length === 0 && markdown.trim()) {
+      const rendered = parser.processSync(markdown).result;
+      contentChunks.push(
+        <div 
+          key={`${componentId}-fallback`} 
+          className="streaming-text-fade-chunk"
+        >
+          {rendered}
+        </div>
+      );
+    }
+
+    setChunks(contentChunks);
+  }, [markdown, componentId, chunks.length, visibleCount]);
+
+  // Animate chunks appearing one by one
+  useEffect(() => {
+    // Skip if no chunks or already all visible
+    if (chunks.length === 0 || visibleCount >= chunks.length) {
+      return;
+    }
+    
+    const currentAnimationId = animationIdRef.current;
+    
+    // Schedule next chunk reveal
+    timerRef.current = window.setTimeout(() => {
+      // Only proceed if still the current animation
+      if (animationIdRef.current === currentAnimationId) {
+        setVisibleCount(prev => prev + 1);
+      }
+    }, baseDelayMs);
+    
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [visibleCount, chunks.length, baseDelayMs]);
+  
+  // Call onComplete when all chunks are visible
+  useEffect(() => {
+    if (chunks.length > 0 && visibleCount >= chunks.length && !completedRef.current) {
+      completedRef.current = true;
+      onComplete?.();
+    }
+  }, [visibleCount, chunks.length, onComplete]);
+
+  return (
+    <div className="text-gray-800 space-y-4">
+      {chunks.length === 0 ? (
+        <div className="p-1 text-sm text-gray-500">
+          Parsing content...
+        </div>
+      ) : visibleCount === 0 ? (
+        <div className="p-1 text-sm text-gray-500">
+          Preparing animation... ({chunks.length} chunks)
+        </div>
+      ) : (
+        chunks.slice(0, visibleCount)
+      )}
+    </div>
+  );
+};
+
+export default StreamingTextSimple; 

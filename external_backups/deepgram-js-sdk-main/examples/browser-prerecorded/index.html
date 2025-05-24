@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="../../dist/umd/deepgram.js"></script>
+    <script>
+      const { createClient } = deepgram;
+      const _deepgram = createClient("deepgram-api-key", {
+        global: {
+          fetch: {
+            options: {
+              url: "https://api.mock.deepgram.com",
+            },
+          },
+        },
+      });
+
+      console.log("Deepgram Instance: ", _deepgram);
+
+      const transcribeUrl = async () => {
+        const { result, error } = await _deepgram.listen.prerecorded.transcribeUrl(
+          {
+            url: "https://dpgr.am/spacewalk.wav",
+          },
+          {
+            model: "nova",
+          }
+        );
+
+        if (error) console.error(error, result);
+        if (!error) console.dir(result, { depth: null });
+      };
+
+      const transcribeFile = async () => {
+        const { result, error } = await _deepgram.listen.prerecorded.transcribeFile(
+          fs.readFileSync("./examples/nasa.mp4"),
+          {
+            model: "nova",
+          }
+        );
+
+        if (error) console.error(error, result);
+        if (!error) console.dir(result, { depth: null });
+      };
+
+      transcribeUrl();
+      transcribeFile();
+      // ...
+    </script>
+  </head>
+  <body>
+    Running test... check the developer console.
+  </body>
+</html>

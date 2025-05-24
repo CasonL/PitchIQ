@@ -1,0 +1,310 @@
+import React, { useEffect, useState, useId, useRef } from 'react';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkRehype from 'remark-rehype';
+import rehypeReact from 'rehype-react';
+import { visit } from 'unist-util-visit';
+import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
+
+const styleSheet = `
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.streaming-text-enhanced {
+  position: relative;
+  display: block !important;
+}
+.streaming-text-chunk {
+  opacity: 0;
+  animation: fadeIn 0.5s ease-out forwards;
+  display: block !important;
+  margin-bottom: 1rem;
+  visibility: visible !important;
+}
+.streaming-text-sentence {
+  opacity: 0;
+  animation: fadeIn 0.4s ease-out forwards;
+  visibility: visible !important;
+}
+`;
+
+const createStyles = () => {
+  if (!document.getElementById('streaming-text-enhanced-styles')) {
+    const style = document.createElement('style');
+    style.id = 'streaming-text-enhanced-styles';
+    style.innerHTML = styleSheet;
+    document.head.appendChild(style);
+    console.log('Enhanced text styles created');
+  } else {
+    console.log('Enhanced text styles already exist');
+  }
+};
+
+interface StreamingTextEnhancedProps {
+  markdown: string;
+  baseDelayMs?: number;
+  onComplete?: () => void;
+  responseKey?: string;
+  animationMode?: 'paragraph' | 'sentence';
+}
+
+const splitSentences = (text: string): string[] => {
+  // Split by sentence-ending punctuation, preserving the punctuation
+  const regex = /[^.!?:;]+[.!?:;]+(?:["'\)\s]*)|(\.\.\.)|([\n\r]{2,})|[^.!?:;]+$/g;
+  return (text.match(regex) || [text]).filter(s => s.trim().length > 0);
+};
+
+const StreamingTextEnhanced: React.FC<StreamingTextEnhancedProps> = ({
+  markdown,
+  baseDelayMs = 600,
+  onComplete,
+  responseKey,
+  animationMode = 'paragraph'
+}) => {
+  const componentId = useId();
+  const [content, setContent] = useState<React.ReactNode[]>([]);
+  const [visibleChunks, setVisibleChunks] = useState<number>(0);
+  const [visibleSentences, setVisibleSentences] = useState<number>(0);
+  const timerRef = useRef<number | null>(null);
+  const animationIdRef = useRef<number>(0);
+  const completedRef = useRef<boolean>(false);
+  const totalSentencesRef = useRef<number>(0);
+
+  // Reset on response key change
+  useEffect(() => {
+    if (responseKey) {
+      resetAnimation();
+    }
+  }, [responseKey]);
+
+  const resetAnimation = () => {
+    completedRef.current = false;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setVisibleChunks(0);
+    setVisibleSentences(0);
+    animationIdRef.current += 1;
+  };
+
+  useEffect(() => {
+    createStyles();
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!markdown) {
+      setContent([]);
+      return;
+    }
+    
+    // Don't reparse if already showing content and not completed
+    if (content.length > 0 && 
+       ((animationMode === 'paragraph' && visibleChunks > 0) || 
+        (animationMode === 'sentence' && visibleSentences > 0)) && 
+       !completedRef.current) {
+      return;
+    }
+
+    // Reset animation state
+    resetAnimation();
+    
+    // Parse markdown into components
+    const parser = unified()
+      .use(remarkParse)
+      .use(remarkGfm)
+      .use(remarkRehype)
+      .use(rehypeReact, {
+        createElement: React.createElement,
+        Fragment,
+        jsx,
+        jsxs
+      });
+
+    const ast = unified().use(remarkParse).use(remarkGfm).parse(markdown);
+    const processedContent: React.ReactNode[] = [];
+    let sentenceCount = 0;
+
+    // Process AST nodes
+    visit(ast, (node: any) => {
+      if (['paragraph', 'heading', 'list', 'blockquote', 'code'].includes(node.type)) {
+        const subtree = { type: 'root', children: [node] };
+        
+        if (animationMode === 'paragraph') {
+          // For paragraph mode, render each block as a single animated chunk
+          const rendered = parser.processSync(subtree).result;
+          processedContent.push(
+            <div 
+              key={`${componentId}-block-${processedContent.length}`} 
+              className="streaming-text-chunk"
+              style={{ 
+                animationDelay: `${processedContent.length * 100}ms`
+              }}
+            >
+              {rendered}
+            </div>
+          );
+          sentenceCount++;
+        } else {
+          // For sentence mode, we need to split text within paragraphs
+          if (node.type === 'paragraph') {
+            // Extract text content for sentence splitting
+            let textContent = '';
+            visit(node, 'text', (textNode) => {
+              textContent += textNode.value;
+            });
+            
+            // Split into sentences
+            const sentences = splitSentences(textContent);
+            
+            if (sentences.length > 0) {
+              // Create paragraph wrapper with visible sentences
+              processedContent.push(
+                <div 
+                  key={`${componentId}-para-${processedContent.length}`} 
+                  className="streaming-text-chunk"
+                  style={{ 
+                    animationDelay: '0ms',
+                    opacity: 1, // Paragraph container is always visible
+                    animation: 'none' 
+                  }}
+                >
+                  {sentences.map((sentence, i) => {
+                    sentenceCount++;
+                    return (
+                      <span 
+                        key={`${componentId}-sentence-${sentenceCount}`}
+                        className="streaming-text-sentence"
+                        style={{
+                          animationDelay: `${sentenceCount * 200}ms`,
+                          display: 'inline'
+                        }}
+                      >
+                        {sentence}
+                      </span>
+                    );
+                  })}
+                </div>
+              );
+            }
+          } else {
+            // Non-paragraph blocks (code, lists, etc) are treated as single chunks
+            const rendered = parser.processSync(subtree).result;
+            sentenceCount++;
+            processedContent.push(
+              <div 
+                key={`${componentId}-block-${processedContent.length}`} 
+                className="streaming-text-sentence"
+                style={{ 
+                  animationDelay: `${sentenceCount * 200}ms`,
+                  display: 'block'
+                }}
+              >
+                {rendered}
+              </div>
+            );
+          }
+        }
+      }
+    });
+
+    // Fallback if no proper blocks found
+    if (processedContent.length === 0 && markdown.trim()) {
+      const rendered = parser.processSync(markdown).result;
+      processedContent.push(
+        <div 
+          key={`${componentId}-fallback`} 
+          className="streaming-text-chunk"
+        >
+          {rendered}
+        </div>
+      );
+      sentenceCount = 1;
+    }
+
+    totalSentencesRef.current = sentenceCount;
+    setContent(processedContent);
+  }, [markdown, componentId, animationMode]);
+
+  // Animate paragraphs appearing one by one
+  useEffect(() => {
+    if (animationMode !== 'paragraph') return;
+    
+    // Skip if no content or already all visible
+    if (content.length === 0 || visibleChunks >= content.length) {
+      if (content.length > 0 && visibleChunks >= content.length && !completedRef.current) {
+        completedRef.current = true;
+        onComplete?.();
+      }
+      return;
+    }
+    
+    const currentAnimationId = animationIdRef.current;
+    
+    // Schedule next paragraph reveal
+    timerRef.current = window.setTimeout(() => {
+      if (animationIdRef.current === currentAnimationId) {
+        setVisibleChunks(prev => prev + 1);
+      }
+    }, baseDelayMs);
+    
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [visibleChunks, content.length, baseDelayMs, onComplete, animationMode]);
+
+  // Handle sentence animation mode completion
+  useEffect(() => {
+    if (animationMode !== 'sentence') return;
+    
+    if (content.length > 0 && !completedRef.current) {
+      // Set a timer for when all sentences should be visible
+      // We add a buffer to the animation time
+      const animationCompletionTime = 
+        totalSentencesRef.current * 200 + // Animation delay for last sentence
+        400 + // Animation duration
+        500;  // Buffer
+        
+      const currentAnimationId = animationIdRef.current;
+      
+      timerRef.current = window.setTimeout(() => {
+        if (animationIdRef.current === currentAnimationId && !completedRef.current) {
+          completedRef.current = true;
+          onComplete?.();
+        }
+      }, animationCompletionTime);
+      
+      return () => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+      };
+    }
+  }, [content.length, onComplete, animationMode]);
+
+  // Return the rendered content with debug info
+  return (
+    <div className="streaming-text-enhanced text-gray-800">
+      {content.length === 0 ? (
+        <div className="p-1 text-sm text-gray-500">
+          Parsing content...
+        </div>
+      ) : animationMode === 'paragraph' && visibleChunks === 0 ? (
+        <div className="p-1 text-sm text-gray-500">
+          Preparing animation... ({content.length} chunks)
+        </div>
+      ) : (
+        animationMode === 'paragraph' 
+          ? content.slice(0, visibleChunks)
+          : content
+      )}
+    </div>
+  );
+};
+
+export default StreamingTextEnhanced; 

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Forbidden{% endblock %}
+
+{% block content %}
+<div class="container mt-5 text-center">
+    <h1 class="display-4">403</h1>
+    <h2>Forbidden Access</h2>
+    <p class="lead">Sorry, you do not have permission to access this page.</p>
+    <p>
+        This might be due to security restrictions or invalid request parameters.
+        Please ensure you are logged in with the correct account or contact support if you believe this is an error.
+    </p>
+    <hr>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">Go Home</a>
+</div>
+{% endblock %} 

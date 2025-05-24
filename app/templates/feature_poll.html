@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+
+{% block title %}PitchEdu - The Future of Sales Training{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style nonce="{{ g.csp_nonce }}">
+    .pitchedu-info-container {
+        margin-top: 2rem;
+    }
+    .pitchedu-sidebar a {
+        display: block;
+        padding: 0.5rem 1rem;
+        color: #0d6efd; /* Bootstrap primary blue */
+        text-decoration: none;
+        border-radius: 0.25rem;
+    }
+    .pitchedu-sidebar a:hover, .pitchedu-sidebar a.active {
+        background-color: #e9ecef; /* Light gray background */
+        color: #0a58ca; /* Darker blue */
+        font-weight: 500;
+    }
+    .pitchedu-content {
+        padding-left: 2rem;
+    }
+    .content-section {
+        display: none; /* Hide all sections by default */
+        margin-bottom: 2rem;
+        opacity: 0; /* Start transparent for fade */
+        transition: opacity 0.3s ease-in-out; /* Fade transition */
+    }
+    .content-section.active {
+        display: block; /* Show active section */
+    }
+    .content-section.active.fade-in {
+        opacity: 1; /* Fade in */
+    }
+    .poll-button {
+        margin-top: 1.5rem;
+    }
+
+    /* Feature Card Enhancements */
+    #features-content .card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        background-color: #f8f9fa; /* Very light gray background (Bootstrap bg-light) */
+    }
+    #features-content .card:hover {
+        transform: translateY(-5px); /* Lift effect */
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important; /* Slightly stronger shadow on hover */
+    }
+    #features-content .card-title {
+        font-weight: 600; /* Make title slightly bolder */
+        /* font-size: 1.1rem; /* Optional: Slightly larger title */
+    }
+    #features-content .card-title i {
+        font-size: 0.9em; /* Make icon slightly smaller relative to title */
+        opacity: 0.8; /* Slightly reduce icon opacity */
+    }
+     #features-content .card-text {
+        font-size: 0.9rem; /* Make description text slightly smaller */
+        color: #6c757d; /* Slightly muted text color (Bootstrap secondary) */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="text-center mb-4">
+        <p class="text-muted fs-5">Coming soon...</p>
+        <h1 class="display-4">PitchEdu</h1>
+        <p class="lead text-muted">
+            Your interactive, automatically customized training partner
+        </p>
+    </div>
+    <hr>
+
+    <div class="row pitchedu-info-container">
+        <!-- Sidebar Navigation -->
+        <div class="col-md-3 pitchedu-sidebar">
+            <nav class="nav flex-column sticky-top">
+                <a href="#vision" class="nav-link active" data-target="#vision-content">Vision</a>
+                <a href="#features" class="nav-link" data-target="#features-content">Features</a>
+                <a href="#qa" class="nav-link" data-target="#qa-content">Q&A</a>
+                <a href="#poll" class="nav-link poll-button" data-target="#poll-content">Shape our Future</a>
+            </nav>
+        </div>
+        <!-- Main Content Area -->
+        <div class="col-md-9 pitchedu-content">
+
+            <!-- Vision Section -->
+            <div id="vision-content" class="content-section active fade-in">
+                <h2><i class="fas fa-rocket text-primary me-3"></i>Unlock Your Sales Potential with PitchEdu</h2>
+                <p class="lead">Stop guessing. Start selling smarter. PitchEdu is your personal AI coach, built right into PitchIQ. It learns how *you* sell.</p>
+                <p>Imagine knowing exactly what to practice next. PitchEdu finds your weak spots from your roleplays. Then, it gives you short, focused lessons and AI practice partners to help you improve fast. No more one-size-fits-all training. This is about *your* success.</p>
+                
+                <h5 class="mt-4">How PitchEdu Helps You Grow:</h5>
+                <div class="accordion mt-3" id="visionAccordion">
+
+                    <!-- Benefit 1 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="visionHeadingOne">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#visionCollapseOne" aria-expanded="false" aria-controls="visionCollapseOne">
+                                <i class="fas fa-user-cog fa-fw me-3 text-info"></i>
+                                Get Training Made Just For You
+                            </button>
+                        </h2>
+                        <div id="visionCollapseOne" class="accordion-collapse collapse" aria-labelledby="visionHeadingOne" data-bs-parent="#visionAccordion">
+                            <div class="accordion-body">
+                                Forget generic courses! PitchEdu looks at your actual performance in PitchIQ roleplays. It identifies exactly where you can improve and builds a learning path focused *only* on the skills you need to develop right now.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Benefit 2 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="visionHeadingTwo">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#visionCollapseTwo" aria-expanded="false" aria-controls="visionCollapseTwo">
+                                <i class="fas fa-brain fa-fw me-3 text-info"></i>
+                                Practice Smarter with AI
+                            </button>
+                        </h2>
+                        <div id="visionCollapseTwo" class="accordion-collapse collapse" aria-labelledby="visionHeadingTwo" data-bs-parent="#visionAccordion">
+                            <div class="accordion-body">
+                                Practice makes perfect, especially with the right partner. PitchEdu provides specialized AI tutors within lessons. Need to work on handling objections? There's an AI for that. Want to improve your opening? Practice with an AI focused on first impressions.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Benefit 3 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="visionHeadingThree">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#visionCollapseThree" aria-expanded="false" aria-controls="visionCollapseThree">
+                                <i class="fas fa-chart-line fa-fw me-3 text-info"></i>
+                                See Real Improvement
+                            </button>
+                        </h2>
+                        <div id="visionCollapseThree" class="accordion-collapse collapse" aria-labelledby="visionHeadingThree" data-bs-parent="#visionAccordion">
+                            <div class="accordion-body">
+                                No more wondering if you're getting better. PitchEdu tracks your skill development based on your practice sessions and feedback. Watch your scores climb and see your progress visualized right on your dashboard.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Benefit 4 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="visionHeadingFour">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#visionCollapseFour" aria-expanded="false" aria-controls="visionCollapseFour">
+                                <i class="fas fa-gamepad fa-fw me-3 text-info"></i>
+                                Stay Engaged and Motivated
+                            </button>
+                        </h2>
+                        <div id="visionCollapseFour" class="accordion-collapse collapse" aria-labelledby="visionHeadingFour" data-bs-parent="#visionAccordion">
+                            <div class="accordion-body">
+                                Learning shouldn't feel like a chore. PitchEdu uses interactive lessons, practical examples, and maybe even challenges or achievements to keep you hooked and make improving your skills feel rewarding.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Benefit 5 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="visionHeadingFive">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#visionCollapseFive" aria-expanded="false" aria-controls="visionCollapseFive">
+                                <i class="fas fa-dollar-sign fa-fw me-3 text-info"></i>
+                                Level Up Your Sales Game Affordably
+                            </button>
+                        </h2>
+                        <div id="visionCollapseFive" class="accordion-collapse collapse" aria-labelledby="visionHeadingFive" data-bs-parent="#visionAccordion">
+                            <div class="accordion-body">
+                                Get access to cutting-edge, personalized sales coaching powered by AI without the hefty price tag of traditional trainers or generic online courses. Effective training for everyone.
+                            </div>
+                        </div>
+                    </div>
+
+                </div> <!-- End Accordion -->
+
+                <p class="mt-4 fw-bold">PitchEdu isn't just another course. It's your partner in becoming unstoppable. Ready to transform your results?</p>
+
+                <!-- NEW Opt-in Section -->
+                <div class="mt-4 p-3 bg-light border rounded text-center">
+                    {% if current_user.is_authenticated %}
+                        <h5>Get Notified When PitchEdu Launches!</h5>
+                        {# NOTE: Requires backend to pass g.user_subscribed_to_pitchedu status #}
+                        {% if g.user_subscribed_to_pitchedu %} 
+                            <p class="text-success mb-1"><i class="fas fa-check-circle me-1"></i> You're on the list!</p>
+                            <p class="text-muted small">We'll email you at {{ current_user.email }}.</p>
+                            {# Optional: Add an unsubscribe button/logic here #}
+                        {% else %}
+                            <p class="text-muted mb-2 small">Click below and we'll email <strong class="text-dark">{{ current_user.email }}</strong> when it's ready.</p>
+                            {# NOTE: Requires backend route at url_for('training.pitchedu_notify_toggle') #}
+                            <form id="pitcheduNotifyForm" method="POST" action="#"> {# Placeholder action #} 
+                                <input type="hidden" name="csrf_token" value="{{ g.csrf_token }}">
+                                <button type="button" id="notifyMeBtn" class="btn btn-success btn-sm">
+                                    <i class="fas fa-envelope me-2"></i> Yes, Notify Me!
+                                </button>
+                            </form>
+                            <div id="notify-response" class="mt-2 small"></div> {# For JS feedback #}
+                        {% endif %}
+                    {% endif %}
+                </div>
+                <!-- End Opt-in Section -->
+            </div>
+
+            <!-- Features Section -->
+            <div id="features-content" class="content-section">
+                <h2>How PitchEdu Coaches You</h2>
+                <p>These tools work together to create your personal learning path, turning practice into progress:</p>
+                <div class="row row-cols-1 row-cols-md-2 g-4 mt-3">
+                    
+                    <!-- Practice Card -->
+                    <div class="col">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-comments me-2 text-primary"></i>Targeted AI Practice</h5>
+                                <p class="card-text">Practice specific skills with AI partners directly within the relevant lesson content.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Analyze Card -->
+                    <div class="col">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-search-plus me-2 text-primary"></i>AI Performance Insights</h5>
+                                <p class="card-text">Let AI analyze your roleplays to find your strengths and weaknesses, then suggest personalized lessons.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Learn Card -->
+                    <div class="col">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-graduation-cap me-2 text-primary"></i>Skill-Building Lessons</h5>
+                                <p class="card-text">Access easy-to-follow guides covering sales strategy, psychology, handling objections, and more.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Hints/Feedback Card -->
+                    <div class="col">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-lightbulb me-2 text-primary"></i>Real-Time Hints & Scores</h5>
+                                <p class="card-text">Receive tips during practice and get immediate scoring to see how you're doing.</p>
+                            </div>
+                        </div>
+                    </div>
+                     <!-- Interactive Card -->
+                    <div class="col">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-film me-2 text-primary"></i>Interactive Learning</h5>
+                                <p class="card-text">Engage with lessons through text, real-world examples, and potentially short instructional videos.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Track Card -->
+                    <div class="col">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-chart-line me-2 text-primary"></i>Track Your Growth</h5>
+                                <p class="card-text">Visualize your skill improvement over time directly on your main dashboard.</p>
+                            </div>
+                        </div>
+                    </div>
+                     <!-- Gamify Card -->
+                    <div class="col">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-trophy me-2 text-primary"></i>Fun Challenges & Rewards</h5>
+                                <p class="card-text">Stay motivated by unlocking achievements and progressing through learning milestones.</p>
+                            </div>
+                        </div>
+                    </div>
+                     <!-- Poll Card -->
+                    <div class="col">
+                        <div class="card h-100 shadow-sm border-primary">
+                            <div class="card-body text-center">
+                                <h5 class="card-title"><i class="fas fa-question-circle me-2 text-primary"></i>More Ideas?</h5>
+                                <p class="card-text">Your feedback matters! What else would you like to see? Let us know in the poll.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Q&A Section -->
+            <div id="qa-content" class="content-section">
+                <h2>Quick Questions</h2>
+                <div class="accordion mt-3" id="faqAccordion">
+                    
+                    <!-- Q1 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingOne">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                                When can I use PitchEdu?
+                            </button>
+                        </h2>
+                        <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                We're building it now! Your votes in the poll help us decide what to release first. We'll keep you updated!
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Q2 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingTwo">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                What makes PitchEdu different?
+                            </button>
+                        </h2>
+                        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                It's personal! Unlike fixed courses, PitchEdu uses AI to see how *you* sell and creates a unique plan to help you improve faster.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Q3 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingThree">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                Will PitchEdu cost extra?
+                            </button>
+                        </h2>
+                        <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                We're still working out the details. We're thinking about special deals for current PitchIQ users.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Q4 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingFour">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                                Who is this for?
+                            </button>
+                        </h2>
+                        <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                Anyone who wants to sell better! New salespeople, experienced pros, or whole teams can benefit.
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div> <!-- End Accordion -->
+            </div>
+
+            <!-- Poll Section -->
+            <div id="poll-content" class="content-section">
+                <h2>Help Shape PitchEdu!</h2>
+                 <p class="lead">Your input is crucial! Tell us which AI-powered learning tools you'd find most valuable in PitchEdu.</p>
+                <form action="{{ url_for('training.feature_poll') }}" method="POST" class="needs-validation mt-4" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="mb-4">
+                        <p>Select the <strong>one</strong> feature you are most excited about:</p>
+                        <div class="list-group">
+                        {% if features %}
+                            {% for feature in features %}
+                            <label class="list-group-item d-flex gap-3 p-3 border rounded shadow-sm mb-2" for="feature_{{ feature.id }}">
+                                <input class="form-check-input flex-shrink-0" type="radio" name="feature_vote" id="feature_{{ feature.id }}" value="{{ feature.id }}" required style="margin-top: 0.1em;">
+                                <span class="pt-0">
+                                    <strong class="fs-5 d-block">{{ feature.name }}</strong>
+                                </span>
+                            </label>
+                            {% endfor %}
+                        {% else %}
+                            <p class="list-group-item">No features available for polling at this time.</p>
+                        {% endif %}
+                        </div>
+                        <div class="invalid-feedback">Please select a feature to vote for.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4>Additional Comments (Optional):</h4>
+                        <label for="comments" class="form-label visually-hidden">Additional Comments</label>
+                        <textarea class="form-control" id="comments" name="comments" rows="4" placeholder="Have other ideas or feedback about PitchEdu features?"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg">Submit My Vote!</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script nonce="{{ g.csp_nonce }}">
+console.log("Poll Page Script Execution Test"); // Simple log right at the start
+document.addEventListener('DOMContentLoaded', function() {
+  'use strict';
+  console.log("DOMContentLoaded event fired."); // Log script start
+
+  // Bootstrap validation
+  var forms = document.querySelectorAll('.needs-validation');
+  Array.prototype.slice.call(forms)
+    .forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        if (!form.checkValidity()) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+      }, false);
+    });
+
+  // Sidebar navigation logic (Reverted to simpler direct listeners)
+  const sidebarLinks = document.querySelectorAll('.pitchedu-sidebar a[data-target]');
+  const contentSections = document.querySelectorAll('.content-section');
+  console.log("Found sidebar links:", sidebarLinks.length);
+  console.log("Found content sections:", contentSections.length);
+
+  sidebarLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+      console.log("Link clicked:", this.getAttribute('data-target')); // Log which link was clicked
+      e.preventDefault(); // Prevent default anchor behavior
+      const targetId = this.getAttribute('data-target');
+
+      // Update active link
+      sidebarLinks.forEach(l => l.classList.remove('active'));
+      this.classList.add('active');
+
+      // Update active content section - Corrected Logic
+      contentSections.forEach(section => {
+        // First, remove active and fade-in from all sections
+        section.classList.remove('active', 'fade-in');
+
+        // Then, add active and fade-in (with delay) to the target section
+        if ('#' + section.id === targetId) {
+          section.classList.add('active');
+          setTimeout(() => {
+              section.classList.add('fade-in');
+          }, 10); 
+          console.log("Showing section:", targetId);
+        }
+      });
+    });
+  });
+
+  // Log if no links/sections were found
+  if (sidebarLinks.length === 0) {
+      console.warn("No sidebar links with data-target found!");
+  }
+  if (contentSections.length === 0) {
+      console.warn("No content sections found!");
+  }
+
+}); // End DOMContentLoaded
+</script>
+{% endblock %} 

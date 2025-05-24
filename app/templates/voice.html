@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Sales AI Voice Chat{% endblock %}
+
+{% block head %}
+{{ super() }}
+<meta name="description" content="Practice sales conversations with an AI sales coach">
+<!-- Deepgram SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@deepgram/sdk/dist/index.iife.js"></script>
+<!-- Styles -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/voice.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/orb.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/metrics.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="voice-chat-container">
+    <div class="voice-header">
+        <h1>Sales AI Voice Chat</h1>
+        <p class="voice-subheading">Practice your sales skills with voice-based AI feedback</p>
+        
+        <!-- Mode Toggle Button -->
+        <button id="mode-toggle" class="mode-toggle coach-mode">Switch to Roleplay</button>
+        
+        <div id="conversation-status">Click button to talk</div>
+        <div id="conversation-phase" style="display: none;">Phase: Rapport</div>
+    </div>
+
+    <div class="voice-interaction">
+        <div id="voice-orb-container">
+            <canvas id="voice-orb" width="200" height="200"></canvas>
+            <div id="toggle-record" class="record-button">
+                <div class="mic-icon"></div>
+            </div>
+        </div>
+
+        <div id="transcript-container">
+            <div class="transcript-message system">
+                <div class="transcript-text">How can I help with your sales training today?</div>
+            </div>
+            <!-- Transcript messages will be added here -->
+        </div>
+    </div>
+
+    <div id="feedback-panel" style="display: none;">
+        <h3>Feedback</h3>
+        <div class="metrics-container">
+            <div class="metric-item">
+                <div class="metric-label">Rapport</div>
+                <div class="metric-bar-container">
+                    <div class="metric-bar" data-value="0" style="width: 0%;"></div>
+                </div>
+                <div class="metric-value">0%</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-label">Discovery</div>
+                <div class="metric-bar-container">
+                    <div class="metric-bar" data-value="0" style="width: 0%;"></div>
+                </div>
+                <div class="metric-value">0%</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-label">Value Prop</div>
+                <div class="metric-bar-container">
+                    <div class="metric-bar" data-value="0" style="width: 0%;"></div>
+                </div>
+                <div class="metric-value">0%</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-label">Objection Handling</div>
+                <div class="metric-bar-container">
+                    <div class="metric-bar" data-value="0" style="width: 0%;"></div>
+                </div>
+                <div class="metric-value">0%</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-label">Closing</div>
+                <div class="metric-bar-container">
+                    <div class="metric-bar" data-value="0" style="width: 0%;"></div>
+                </div>
+                <div class="metric-value">0%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast container for notifications -->
+    <div id="toast-container"></div>
+
+    <!-- Hidden field to store conversation ID -->
+    <input type="hidden" id="conversation-id" value="{{ conversation_id }}" />
+</div>
+
+<!-- Scripts -->
+<script src="{{ url_for('static', filename='js/voice_interface.js') }}"></script>
+<script src="{{ url_for('static', filename='js/metrics.js') }}"></script>
+{% endblock %} 

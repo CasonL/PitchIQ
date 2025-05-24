@@ -10,7 +10,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 import json
 
-db = SQLAlchemy()
+# Import the db instance from extensions.py
+from extensions import db 
 
 class User(db.Model, UserMixin):
     """User model for authentication and profile data."""
@@ -108,7 +109,13 @@ class Conversation(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Sales context information
+    # Archive flag
+    is_archived = db.Column(db.Boolean, default=False)
+    
+    # Session setup state
+    session_setup_step = db.Column(db.String(50), nullable=False, default='confirm_context')
+
+    # Sales context information (can be overridden from profile for a session)
     product_service = db.Column(db.Text, nullable=True)
     target_market = db.Column(db.String(50), nullable=True)
     sales_experience = db.Column(db.String(50), nullable=True)
@@ -116,8 +123,15 @@ class Conversation(db.Model):
     # AI persona for this conversation
     persona = db.Column(db.Text, nullable=True)
     
+    # Meta data for storing additional information like labels
+    meta_data = db.Column(db.JSON, nullable=True)
+    
+    # NOTE: We'll use meta_data for storing saved state instead of a dedicated column
+    # is_saved = db.Column(db.Boolean, default=False)
+    
     # Relationships
     messages = db.relationship('Message', backref='conversation', lazy=True, cascade="all, delete-orphan")
+    feedback = db.relationship('Feedback', backref='conversation', uselist=False, lazy=True, cascade="all, delete-orphan")
     
     def __repr__(self):
         return f'<Conversation {self.id}: {self.title}>'
@@ -134,3 +148,505 @@ class Message(db.Model):
     
     def __repr__(self):
         return f'<Message {self.id}: {self.role}>'
+
+
+class UserProfile(db.Model):
+    """Extended profile for sales training users."""
+    
+    __tablename__ = 'user_profile'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    
+    # Onboarding status/step
+    onboarding_complete = db.Column(db.Boolean, default=False)
+    onboarding_step = db.Column(db.String(50), default='product')  # Changed from 'experience'
+    onboarding_step_new = db.Column(db.Integer, default=0)
+
+    # Sales context
+    product_service = db.Column(db.Text, nullable=True)
+    product_type = db.Column(db.String(100), nullable=True)
+    target_market = db.Column(db.String(50), nullable=True)  # B2B, B2C, both
+    industry = db.Column(db.String(100), nullable=True)
+    experience_level = db.Column(db.String(50), nullable=True)  # Added back experience_level field
+    
+    # Pain points and goals
+    pain_points = db.Column(db.Text, default='[]')  # JSON string with pain points
+    recent_wins = db.Column(db.Text, default='[]')  # JSON string with recent wins
+    mindset_challenges = db.Column(db.Text, default='[]')  # JSON string with challenges
+    improvement_goals = db.Column(db.Text, default='[]')  # JSON string with goals
+    
+    # Training preferences
+    preferred_training_style = db.Column(db.String(50), default='structured')  # structured, conversational, challenge-based
+    preferred_feedback_frequency = db.Column(db.String(50), default='end-session')  # real-time, end-session, daily
+    
+    # Performance tracking across sessions
+    total_roleplays = db.Column(db.Integer, default=0)
+    total_feedback_received = db.Column(db.Integer, default=0)
+    last_roleplay_date = db.Column(db.DateTime, nullable=True)
+    
+    # Historical skill progress (to track improvements over time)
+    skill_history = db.Column(db.Text, default='{}')  # JSON with timestamp -> skills mapping
+    
+    # Common objections and handling history
+    common_objections = db.Column(db.Text, default='[]')  # JSON with objections encountered
+    objection_handling_scores = db.Column(db.Text, default='{}')  # JSON with objection -> score mapping
+    
+    # Biases used vs biases missed
+    biases_used = db.Column(db.Text, default='[]')  # JSON with biases properly leveraged
+    biases_missed = db.Column(db.Text, default='[]')  # JSON with bias opportunities missed
+    
+    # Emotional intelligence and personality metrics
+    emotional_intelligence_score = db.Column(db.Float, default=0.0)  # 0-10 scale
+    empathy_score = db.Column(db.Float, nullable=True)
+    active_listening_score = db.Column(db.Float, nullable=True)
+    
+    # Relationship to User
+    user = db.relationship('User', backref=db.backref('profile', uselist=False, lazy=True))
+    
+    # Relationships
+    training_sessions = db.relationship('TrainingSession', backref='user_profile', lazy=True, cascade="all, delete-orphan")
+    performance_metrics = db.relationship('PerformanceMetrics', backref='user_profile', lazy=True, cascade="all, delete-orphan")
+    feedback_analysis = db.relationship('FeedbackAnalysis', backref='user_profile', lazy=True, cascade="all, delete-orphan")
+    
+    @property
+    def pain_points_list(self):
+        try:
+            return json.loads(self.pain_points)
+        except:
+            return []
+    
+    @pain_points_list.setter
+    def pain_points_list(self, value):
+        self.pain_points = json.dumps(value)
+    
+    @property
+    def recent_wins_list(self):
+        try:
+            return json.loads(self.recent_wins)
+        except:
+            return []
+    
+    @recent_wins_list.setter
+    def recent_wins_list(self, value):
+        self.recent_wins = json.dumps(value)
+    
+    @property
+    def mindset_challenges_list(self):
+        try:
+            return json.loads(self.mindset_challenges)
+        except:
+            return []
+    
+    @mindset_challenges_list.setter
+    def mindset_challenges_list(self, value):
+        self.mindset_challenges = json.dumps(value)
+    
+    @property
+    def improvement_goals_list(self):
+        try:
+            return json.loads(self.improvement_goals)
+        except:
+            return []
+    
+    @improvement_goals_list.setter
+    def improvement_goals_list(self, value):
+        self.improvement_goals = json.dumps(value)
+        
+    @property
+    def skill_history_dict(self):
+        try:
+            return json.loads(self.skill_history)
+        except:
+            return {}
+    
+    @skill_history_dict.setter
+    def skill_history_dict(self, value):
+        self.skill_history = json.dumps(value)
+        
+    @property
+    def common_objections_list(self):
+        try:
+            return json.loads(self.common_objections)
+        except:
+            return []
+    
+    @common_objections_list.setter
+    def common_objections_list(self, value):
+        self.common_objections = json.dumps(value)
+        
+    @property
+    def objection_handling_scores_dict(self):
+        try:
+            return json.loads(self.objection_handling_scores)
+        except:
+            return {}
+    
+    @objection_handling_scores_dict.setter
+    def objection_handling_scores_dict(self, value):
+        self.objection_handling_scores = json.dumps(value)
+        
+    @property
+    def biases_used_list(self):
+        try:
+            return json.loads(self.biases_used)
+        except:
+            return []
+    
+    @biases_used_list.setter
+    def biases_used_list(self, value):
+        self.biases_used = json.dumps(value)
+        
+    @property
+    def biases_missed_list(self):
+        try:
+            return json.loads(self.biases_missed)
+        except:
+            return []
+    
+    @biases_missed_list.setter
+    def biases_missed_list(self, value):
+        self.biases_missed = json.dumps(value)
+        
+    def update_skill_history(self, skills_dict):
+        """Add a new entry to skill history with timestamp"""
+        history = self.skill_history_dict
+        timestamp = datetime.utcnow().isoformat()
+        history[timestamp] = skills_dict
+        self.skill_history_dict = history
+        
+    def get_skill_trend(self, skill_name):
+        """Get historical trend data for a specific skill"""
+        history = self.skill_history_dict
+        trend = []
+        for timestamp, skills in sorted(history.items()):
+            if skill_name in skills:
+                trend.append({
+                    'timestamp': timestamp,
+                    'value': skills[skill_name]
+                })
+        return trend
+
+    def get_skill_level(self, skill_name):
+        """Get the current level of a specific skill."""
+        history = self.skill_history_dict
+        if not history:
+            return 0
+        
+        # Get the most recent skill score
+        latest_entry = max(history.keys())
+        latest_skills = history[latest_entry]
+        return latest_skills.get(skill_name, 0)
+
+    def get_overall_skill_level(self):
+        """Calculate overall skill level from all skills."""
+        history = self.skill_history_dict
+        if not history:
+            return 0
+        
+        latest_entry = max(history.keys())
+        latest_skills = history[latest_entry]
+        if not latest_skills:
+            return 0
+            
+        return sum(latest_skills.values()) / len(latest_skills)
+
+    def __repr__(self):
+        return f'<UserProfile user_id={self.user_id}>'
+        
+    def get_safe_emotional_intelligence_score(self, default=5.0):
+        """Safely get emotional intelligence score with a default fallback."""
+        if self.emotional_intelligence_score is None:
+            return default
+        return self.emotional_intelligence_score
+
+
+class BuyerPersona(db.Model):
+    """Model for AI-generated buyer personas."""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    
+    # Personality traits
+    personality_traits = db.Column(db.Text, nullable=False)  # JSON string with traits
+    emotional_state = db.Column(db.String(50), nullable=False)
+    buyer_type = db.Column(db.String(50), nullable=False)  # economic, technical, user
+    decision_authority = db.Column(db.String(50), nullable=False)
+    
+    # Context and pain points
+    industry_context = db.Column(db.Text, nullable=True)
+    pain_points = db.Column(db.Text, nullable=False)  # JSON string with pain points
+    objections = db.Column(db.Text, nullable=False)  # JSON string with common objections
+    
+    # Cognitive biases to simulate
+    cognitive_biases = db.Column(db.Text, nullable=False)  # JSON string with biases
+    
+    # Relationships
+    training_sessions = db.relationship('TrainingSession', backref='buyer_persona', lazy=True)
+    
+    @property
+    def personality_traits_dict(self):
+        try:
+            return json.loads(self.personality_traits)
+        except:
+            return {}
+    
+    @personality_traits_dict.setter
+    def personality_traits_dict(self, value):
+        self.personality_traits = json.dumps(value)
+    
+    @property
+    def pain_points_list(self):
+        try:
+            return json.loads(self.pain_points)
+        except:
+            return []
+    
+    @pain_points_list.setter
+    def pain_points_list(self, value):
+        self.pain_points = json.dumps(value)
+    
+    @property
+    def objections_list(self):
+        try:
+            return json.loads(self.objections)
+        except:
+            return []
+    
+    @objections_list.setter
+    def objections_list(self, value):
+        self.objections = json.dumps(value)
+    
+    @property
+    def cognitive_biases_dict(self):
+        try:
+            return json.loads(self.cognitive_biases)
+        except:
+            return {}
+    
+    @cognitive_biases_dict.setter
+    def cognitive_biases_dict(self, value):
+        self.cognitive_biases = json.dumps(value)
+
+
+class TrainingSession(db.Model):
+    """Model for individual training sessions."""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_profile_id = db.Column(db.Integer, db.ForeignKey('user_profile.id'), nullable=False)
+    buyer_persona_id = db.Column(db.Integer, db.ForeignKey('buyer_persona.id'), nullable=False)
+    
+    # Session metadata
+    start_time = db.Column(db.DateTime, default=datetime.utcnow)
+    end_time = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(50), default='in_progress')  # in_progress, completed, abandoned
+    
+    # Session content
+    conversation_history = db.Column(db.Text, nullable=False)  # JSON string with messages
+    key_moments = db.Column(db.Text, default='[]')  # JSON string with key moments
+    objections_handled = db.Column(db.Text, default='[]')  # JSON string with objections
+    
+    # Performance metrics
+    trust_score = db.Column(db.Float, nullable=True)
+    persuasion_rating = db.Column(db.Float, nullable=True)
+    confidence_score = db.Column(db.Float, nullable=True)
+    
+    # Relationships
+    performance_metrics = db.relationship('PerformanceMetrics', backref='training_session', uselist=False)
+    feedback_analysis = db.relationship('FeedbackAnalysis', backref='training_session', uselist=False)
+    
+    @property
+    def conversation_history_dict(self):
+        try:
+            return json.loads(self.conversation_history)
+        except:
+            return []
+    
+    @conversation_history_dict.setter
+    def conversation_history_dict(self, value):
+        self.conversation_history = json.dumps(value)
+    
+    @property
+    def key_moments_list(self):
+        try:
+            return json.loads(self.key_moments)
+        except:
+            return []
+    
+    @key_moments_list.setter
+    def key_moments_list(self, value):
+        self.key_moments = json.dumps(value)
+    
+    @property
+    def objections_handled_list(self):
+        try:
+            return json.loads(self.objections_handled)
+        except:
+            return []
+    
+    @objections_handled_list.setter
+    def objections_handled_list(self, value):
+        self.objections_handled = json.dumps(value)
+
+
+class PerformanceMetrics(db.Model):
+    """Model for storing detailed performance metrics."""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    training_session_id = db.Column(db.Integer, db.ForeignKey('training_session.id'), nullable=False)
+    user_profile_id = db.Column(db.Integer, db.ForeignKey('user_profile.id'), nullable=False)
+    
+    # Skill ratings (1-10)
+    rapport_building = db.Column(db.Float, nullable=False)
+    needs_discovery = db.Column(db.Float, nullable=False)
+    objection_handling = db.Column(db.Float, nullable=False)
+    closing_techniques = db.Column(db.Float, nullable=False)
+    product_knowledge = db.Column(db.Float, nullable=False)
+    
+    # Cognitive bias effectiveness
+    bias_effectiveness = db.Column(db.Text, nullable=False)  # JSON string with bias ratings
+    
+    # Emotional intelligence metrics
+    emotional_awareness = db.Column(db.Float, nullable=False)
+    tone_consistency = db.Column(db.Float, nullable=False)
+    
+    @property
+    def bias_effectiveness_dict(self):
+        try:
+            return json.loads(self.bias_effectiveness)
+        except:
+            return {}
+    
+    @bias_effectiveness_dict.setter
+    def bias_effectiveness_dict(self, value):
+        self.bias_effectiveness = json.dumps(value)
+
+
+class FeedbackAnalysis(db.Model):
+    """Model for storing detailed feedback analysis."""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    training_session_id = db.Column(db.Integer, db.ForeignKey('training_session.id'), nullable=False)
+    user_profile_id = db.Column(db.Integer, db.ForeignKey('user_profile.id'), nullable=False)
+    
+    # Overall assessment
+    overall_assessment = db.Column(db.Text, nullable=False)
+    strengths_demonstrated = db.Column(db.Text, nullable=False)  # JSON string
+    areas_for_improvement = db.Column(db.Text, nullable=False)  # JSON string
+    
+    # Detailed feedback
+    rapport_feedback = db.Column(db.Text, nullable=True)
+    discovery_feedback = db.Column(db.Text, nullable=True)
+    objection_feedback = db.Column(db.Text, nullable=True)
+    closing_feedback = db.Column(db.Text, nullable=True)
+    
+    # Mindset coaching
+    mindset_insights = db.Column(db.Text, nullable=True)
+    limiting_beliefs_detected = db.Column(db.Text, nullable=True)  # JSON string
+    reframe_suggestions = db.Column(db.Text, nullable=True)  # JSON string
+    
+    # Action items
+    action_items = db.Column(db.Text, nullable=False)  # JSON string
+    
+    @property
+    def strengths_demonstrated_list(self):
+        try:
+            return json.loads(self.strengths_demonstrated)
+        except:
+            return []
+    
+    @strengths_demonstrated_list.setter
+    def strengths_demonstrated_list(self, value):
+        self.strengths_demonstrated = json.dumps(value)
+    
+    @property
+    def areas_for_improvement_list(self):
+        try:
+            return json.loads(self.areas_for_improvement)
+        except:
+            return []
+    
+    @areas_for_improvement_list.setter
+    def areas_for_improvement_list(self, value):
+        self.areas_for_improvement = json.dumps(value)
+    
+    @property
+    def limiting_beliefs_detected_list(self):
+        try:
+            return json.loads(self.limiting_beliefs_detected)
+        except:
+            return []
+    
+    @limiting_beliefs_detected_list.setter
+    def limiting_beliefs_detected_list(self, value):
+        self.limiting_beliefs_detected = json.dumps(value)
+    
+    @property
+    def reframe_suggestions_list(self):
+        try:
+            return json.loads(self.reframe_suggestions)
+        except:
+            return []
+    
+    @reframe_suggestions_list.setter
+    def reframe_suggestions_list(self, value):
+        self.reframe_suggestions = json.dumps(value)
+    
+    @property
+    def action_items_list(self):
+        try:
+            return json.loads(self.action_items)
+        except:
+            return []
+    
+    @action_items_list.setter
+    def action_items_list(self, value):
+        self.action_items = json.dumps(value)
+
+
+class Feedback(db.Model):
+    """Model to store generated feedback for a conversation."""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    conversation_id = db.Column(db.Integer, db.ForeignKey('conversation.id'), nullable=False, unique=True) # Ensure one feedback per convo
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_feedback_user_id'), nullable=False)
+    feedback_text = db.Column(db.Text, nullable=False)
+    model_used = db.Column(db.String(100), nullable=True) # e.g., 'gpt-4o-mini'
+    generated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    overall_score = db.Column(db.Float, nullable=True)
+    skill_scores = db.Column(db.Text, default='{}')  # JSON string with skill scores
+    
+    @property
+    def skill_scores_dict(self):
+        """Get skill scores as dictionary."""
+        try:
+            return json.loads(self.skill_scores)
+        except:
+            return {}
+            
+    @skill_scores_dict.setter
+    def skill_scores_dict(self, value):
+        """Set skill scores from dictionary."""
+        self.skill_scores = json.dumps(value)
+    
+    def __repr__(self):
+        return f'<Feedback {self.id} for Conversation {self.conversation_id}>'
+
+# Moved FeatureVote definition higher
+class FeatureVote(db.Model):
+    """Stores user votes and comments for potential PitchEdu features."""
+    __tablename__ = 'feature_vote'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_feature_vote_user_id'), nullable=False)
+    feature_id_voted_for = db.Column(db.String(100), nullable=False) # Matches the ID from the form
+    comments = db.Column(db.Text, nullable=True)
+    voted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationship back to User (optional but good practice)
+    user = db.relationship('User', backref=db.backref('feature_votes', lazy=True))
+
+    def __repr__(self):
+        return f'<FeatureVote {self.id} by User {self.user_id} for {self.feature_id_voted_for}>'

@@ -1,0 +1,859 @@
+/* 
+ * Sales Training AI - Landing Page Styles
+ * Updated for PitchIQ Branding
+ */
+
+/* Hero Section */
+.hero {
+  background-color: var(--pitchiq-light-gray); /* Lighter background */
+  position: relative;
+  overflow: hidden;
+  padding: var(--spacing-xl) 0; /* Use spacing vars from main.css */
+}
+
+.hero-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-xl); /* Use spacing vars */
+  position: relative;
+  z-index: 1;
+}
+
+.hero-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--surface-color); /* White */
+  padding: var(--spacing-xs) var(--spacing-sm); /* Use spacing vars */
+  border-radius: var(--radius-full);
+  font-weight: 500; /* Match main.css btn font-weight */
+  font-size: var(--font-size-sm); /* Use font vars */
+  color: var(--primary-color); /* Black text */
+  margin-bottom: var(--spacing-lg); /* Use spacing vars */
+  box-shadow: var(--shadow-sm);
+}
+
+.hero-badge i {
+  margin-right: var(--spacing-xs);
+  color: var(--secondary-color); /* Red icon */
+}
+
+.hero-title {
+  /* Use clamp for responsive font size, adjust values if needed */
+  font-size: clamp(var(--font-size-3xl), 5vw, var(--font-size-4xl)); 
+  font-weight: 700; /* Bolder */
+  line-height: 1.2;
+  margin-bottom: var(--spacing-md);
+  color: var(--text-color); /* Black */
+}
+
+.hero-title .highlight {
+  color: var(--secondary-color); /* Red highlight */
+}
+
+.hero-subtitle {
+  font-size: var(--font-size-lg); /* Use font vars */
+  color: var(--text-color-light); /* Lighter text */
+  margin-bottom: var(--spacing-lg);
+  max-width: 500px;
+}
+
+.hero-cta {
+  display: block; /* Change to block for margin auto to work */
+  max-width: 280px; /* Reduced max-width slightly */
+  width: 100%; /* Allow it to shrink on smaller screens */
+  margin-bottom: var(--spacing-xl);
+  margin-left: auto; /* Center the button */
+  margin-right: auto; /* Center the button */
+}
+
+/* Adjust button sizes if needed */
+.hero-cta .btn-large {
+    padding: var(--spacing-md) var(--spacing-xl);
+    font-size: var(--font-size-lg);
+}
+
+/* Make btn-outline-primary use red */
+.btn-outline-primary {
+    color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+.btn-outline-primary:hover {
+    color: #fff;
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+
+/* Ensure primary buttons use brand color */
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--button-text-color, #ffffff); /* Assume white text, add var if needed */
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-color-dark); /* Assuming you have a darker shade variable */
+    border-color: var(--primary-color-dark);
+    color: var(--button-text-color, #ffffff); 
+}
+
+/* Style the light button for primary background */
+.cta-section .btn-light {
+    /* Keep it light or style differently if needed */
+    /* Example: Make it an outline button */
+     background-color: transparent;
+     border-color: #ffffff;
+     color: #ffffff;
+}
+
+.cta-section .btn-light:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: #ffffff;
+    color: #ffffff;
+}
+
+.hero-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  max-width: 500px;
+}
+
+.hero-feature {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: var(--surface-color); /* White background */
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--text-color-light); /* Lighter text */
+}
+
+.hero-feature i {
+  color: var(--secondary-color); /* Red icon */
+}
+
+.hero-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.hero-image img {
+  max-width: 100%;
+  height: auto;
+  filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.1)); /* Softer shadow */
+  /* animation: float 6s ease-in-out infinite; Keeping animation */
+}
+
+.hero-shape {
+  position: absolute;
+  z-index: -1;
+  opacity: 0.1; /* Make shapes subtle */
+}
+
+.hero-shape-1 {
+  top: 10%;
+  right: 5%;
+  width: 50px;
+  height: 50px;
+  background-color: var(--secondary-color); /* Red */
+  border-radius: var(--radius-md);
+  /* animation: spin 15s linear infinite; Keeping animation */
+}
+
+.hero-shape-2 {
+  bottom: 15%;
+  left: 10%;
+  width: 70px;
+  height: 70px;
+  border: 3px solid var(--secondary-color); /* Red */
+  border-radius: var(--radius-full);
+  /* animation: pulse 5s ease-in-out infinite; Keeping animation */
+}
+
+/* Features Section */
+.features {
+  padding: var(--spacing-xl) 0; /* Use spacing vars */
+  background-color: var(--background-color); /* Off-white background */
+}
+
+.section-header {
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto var(--spacing-xl);
+}
+
+.section-header h2 {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-color);
+}
+
+.section-header p {
+  font-size: var(--font-size-lg);
+  color: var(--text-color-light);
+}
+
+.feature-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Adjust minmax */
+  gap: var(--spacing-lg);
+}
+
+.feature-card {
+  background-color: var(--surface-color); /* White */
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
+  border: 1px solid var(--border-color-light);
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--secondary-color-light); /* Lighter red border */
+}
+
+.feature-icon {
+  width: 50px; /* Slightly smaller */
+  height: 50px;
+  border-radius: var(--radius-md);
+  background-color: var(--secondary-color-light); /* Lighter red */
+  color: var(--secondary-color); /* Red icon */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xl); /* Adjust icon size */
+  margin-bottom: var(--spacing-md);
+}
+
+.feature-card h3 {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-color);
+}
+
+.feature-card p {
+  color: var(--text-color-light);
+  line-height: 1.6;
+  font-size: var(--font-size-sm);
+}
+
+/* How It Works Section */
+.how-it-works {
+  padding: var(--spacing-xl) 0;
+  background-color: var(--pitchiq-light-gray); /* Light gray background */
+  position: relative;
+  overflow: hidden;
+}
+
+.steps {
+  position: relative;
+  z-index: 1;
+}
+
+.step {
+  display: grid;
+  /* Adjust grid layout for better alignment? Maybe alternating? */
+  grid-template-columns: auto 1fr auto;
+  align-items: center; /* Vertically align items */
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  position: relative;
+}
+
+/* Alternate image/content */
+.step:nth-child(odd) {
+  grid-template-columns: auto auto 1fr;
+}
+.step:nth-child(odd) .step-image {
+   grid-column: 1 / 2;
+   grid-row: 1 / 3;
+}
+.step:nth-child(odd) .step-number {
+   grid-column: 2 / 3;
+}
+.step:nth-child(odd) .step-content {
+   grid-column: 3 / 4;
+}
+
+.step:nth-child(even) .step-image {
+   grid-column: 3 / 4;
+   grid-row: 1 / 3;
+}
+
+.step:last-child {
+  margin-bottom: 0;
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background-color: var(--secondary-color); /* Red background */
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+  grid-row: 1 / 2; /* Align with top content */
+}
+
+.step-content {
+    grid-row: 1 / 3; /* Span both rows */
+    padding: var(--spacing-sm) 0;
+}
+
+.step-content h3 {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-color);
+}
+
+.step-content p {
+  color: var(--text-color-light);
+  line-height: 1.6;
+  font-size: var(--font-size-base);
+}
+
+.step-image {
+  text-align: center; /* Center image within its column */
+}
+
+.step-image img {
+  max-width: 250px; /* Control image size */
+  height: auto;
+  border-radius: var(--radius-md);
+}
+
+.cta-center {
+  text-align: center;
+  margin-top: var(--spacing-xl);
+}
+
+.cta-center .btn-large {
+    padding: var(--spacing-md) var(--spacing-xl);
+    font-size: var(--font-size-lg);
+}
+
+/* Testimonials Section */
+.testimonials {
+  padding: var(--spacing-xl) 0;
+  background-color: var(--background-color); /* Off-white */
+}
+
+.testimonial-carousel {
+  position: relative;
+  margin-bottom: var(--spacing-lg);
+  /* Basic carousel setup - requires JS for functionality */
+  overflow: hidden;
+}
+
+.testimonial {
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg); /* Space below each */
+  display: none; /* Hide inactive slides */
+}
+
+.testimonial.active {
+  display: block; /* Show active slide */
+}
+
+.testimonial-content {
+  margin-bottom: var(--spacing-md);
+}
+
+.testimonial-content p {
+  font-size: var(--font-size-base);
+  color: var(--text-color-light);
+  line-height: 1.6;
+  font-style: italic;
+}
+
+/* Optional quote style */
+/* .testimonial-content p::before, */
+/* .testimonial-content p::after { ... } */
+
+.testimonial-author {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.testimonial-author img {
+  width: 50px;
+  height: 50px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+.author-info h4 {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  margin-bottom: 0;
+  color: var(--text-color);
+}
+
+.author-info p {
+  font-size: var(--font-size-sm);
+  color: var(--text-color-light);
+  margin-bottom: 0;
+}
+
+.testimonial-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.testimonial-prev,
+.testimonial-next {
+  background-color: transparent;
+  border: none;
+  color: var(--text-color-lighter);
+  font-size: var(--font-size-xl);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  transition: color var(--transition-base);
+}
+
+.testimonial-prev:hover,
+.testimonial-next:hover {
+  color: var(--secondary-color); /* Red hover */
+}
+
+.testimonial-dots {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background-color: var(--border-color);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background-color var(--transition-base);
+}
+
+.dot.active {
+  background-color: var(--secondary-color); /* Red active dot */
+}
+
+/* CTA Section */
+.cta-section {
+  padding: var(--spacing-xl) 0;
+  background-color: var(--pitchiq-black); /* Black background */
+  color: var(--pitchiq-white); /* White text */
+  text-align: center;
+}
+
+.cta-content {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.cta-content h2 {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  margin-bottom: var(--spacing-md);
+}
+
+.cta-content p {
+  font-size: var(--font-size-lg);
+  color: rgba(248, 248, 248, 0.8); /* Slightly transparent white */
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Use secondary (red) button for primary CTA here */
+.cta-content .btn-secondary {
+    padding: var(--spacing-md) var(--spacing-xl);
+    font-size: var(--font-size-lg);
+}
+
+/* Animations (Keep existing) */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+/* Media Queries */
+
+/* Adjust layout for tablets */
+@media (max-width: 992px) {
+  .hero-container {
+    grid-template-columns: 1fr; /* Stack hero content */
+    text-align: center;
+  }
+  .hero-content {
+      align-items: center; /* Center content */
+  }
+  .hero-image {
+      order: -1; /* Move image above text */
+      margin-bottom: var(--spacing-lg);
+  }
+  .hero-subtitle,
+  .hero-features {
+      max-width: 100%; /* Allow full width */
+      justify-content: center;
+  }
+  .hero-cta {
+      justify-content: center;
+  }
+
+  /* How it works - stack layout */
+  .step,
+  .step:nth-child(odd),
+  .step:nth-child(even) {
+    grid-template-columns: auto 1fr; /* Number and content */
+    text-align: left;
+  }
+  .step-image {
+     grid-column: 1 / -1; /* Full width below content */
+     grid-row: 3 / 4; /* Below number and content */
+     margin-top: var(--spacing-md);
+     justify-self: center; /* Center the image container */
+  }
+  .step-number {
+      grid-row: 1 / 2;
+      grid-column: 1 / 2;
+      justify-self: start; /* Align number left */
+  }
+  .step-content {
+      grid-row: 1 / 3;
+      grid-column: 2 / 3;
+  }
+
+  /* Removed step::after line for stacked layout */
+  /* .step:not(:last-child)::after { ... } */
+}
+
+/* Adjust layout for mobile */
+@media (max-width: 768px) {
+  .hero {
+    padding: var(--spacing-lg) 0;
+  }
+  .hero-title {
+      font-size: var(--font-size-3xl); /* Adjust font size */
+  }
+  .hero-subtitle {
+      font-size: var(--font-size-base);
+  }
+  .hero-cta {
+      flex-direction: column; /* Stack buttons */
+      align-items: center;
+  }
+
+  .features,
+  .how-it-works,
+  .testimonials,
+  .cta-section {
+      padding: var(--spacing-lg) 0;
+  }
+
+  .section-header {
+      margin-bottom: var(--spacing-lg);
+  }
+  .section-header h2 {
+      font-size: var(--font-size-2xl);
+  }
+  .section-header p {
+      font-size: var(--font-size-base);
+  }
+
+  .feature-cards {
+    grid-template-columns: 1fr; /* Single column */
+    gap: var(--spacing-md);
+  }
+
+  .testimonial-content p {
+      font-size: var(--font-size-sm);
+  }
+
+  .step {
+      gap: var(--spacing-md);
+  }
+  .step-image img {
+      max-width: 200px;
+  }
+
+  .cta-content h2 {
+      font-size: var(--font-size-2xl);
+  }
+  .cta-content p {
+      font-size: var(--font-size-base);
+  }
+
+}
+
+/*
+Landing Page Specific Stylesheet for PitchIQ
+Focus: Clean, professional, minimalist, empathetic, guiding.
+Palette: Calm blues, grays, whites, subtle accents.
+*/
+
+/* --- Base & Typography --- */
+body {
+    font-family: 'Inter', sans-serif; /* Assuming Inter is loaded in base.html */
+    color: #34495E; /* Wet Asphalt - Dark Gray Text */
+    background-color: #ECF0F1; /* Clouds - Light Gray Background */
+    line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #2C3E50; /* Midnight Blue - Headers */
+    font-weight: 600; /* Slightly bolder headers */
+}
+
+.lead {
+    font-weight: 400;
+}
+
+.text-muted {
+    color: #7F8C8D !important; /* Asbestos - Muted Gray */
+}
+
+.text-primary {
+     color: #2980B9 !important; /* Belize Hole - Primary Blue */
+}
+
+.bg-primary {
+    background-color: #2980B9 !important; /* Belize Hole - Primary Blue */
+}
+
+.bg-white {
+    background-color: #FFFFFF !important;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--button-text-color, #ffffff); /* Assume white text, add var if needed */
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-color-dark); /* Assuming you have a darker shade variable */
+    border-color: var(--primary-color-dark);
+    color: var(--button-text-color, #ffffff); 
+}
+
+.btn-light {
+    background-color: #FFFFFF;
+    border-color: #FFFFFF;
+    color: #2980B9;
+    padding: 12px 24px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-light:hover {
+    background-color: #ECF0F1;
+    border-color: #ECF0F1;
+    color: #2C3E50;
+}
+
+.btn-lg {
+    font-size: 1.1rem;
+}
+
+/* --- Sections --- */
+.landing-main > section {
+    padding: 80px 0;
+    overflow: hidden; /* Prevent horizontal scroll */
+}
+
+.section-title {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    font-weight: 700;
+}
+
+.section-subtitle, .section-text {
+    font-size: 1.1rem;
+    max-width: 700px; /* Limit width for readability */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* --- Hero Section --- */
+.hero-section {
+    background-color: #ECF0F1; /* Clouds */
+    padding-top: 100px;
+    padding-bottom: 60px;
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hero-title {
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: #2C3E50; /* Midnight Blue */
+    margin-bottom: 1rem;
+}
+
+.hero-subtitle {
+    font-size: 1.25rem;
+    color: #7F8C8D; /* Asbestos */
+    margin-bottom: 2.5rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.hero-cta {
+    margin-top: 1rem;
+}
+
+.hero-visual {
+    margin-top: 40px;
+    height: 100px; /* Placeholder space */
+    /* Add background image or SVG here */
+}
+
+/* --- Empathy Section --- */
+.empathy-section {
+    border-bottom: 1px solid #BDC3C7; /* Silver border */
+}
+
+.feature-icon i {
+    color: #2980B9; /* Belize Hole */
+    transition: transform 0.3s ease;
+}
+
+.feature-icon:hover i {
+    transform: scale(1.1);
+}
+
+.feature-title {
+    font-size: 1.1rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+/* --- Guide Section --- */
+.guide-section {
+    background-color: #ECF0F1; /* Clouds */
+}
+
+.guide-step {
+    background-color: #FFFFFF;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    margin-bottom: 30px !important; /* Override Bootstrap margin */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.guide-step:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+}
+
+.guide-icon {
+    display: inline-block;
+    /* background-color: rgba(41, 128, 185, 0.1); Primary blue with alpha */
+    /* padding: 15px; */
+    /* border-radius: 50%; */
+}
+
+.guide-icon i {
+     color: #2980B9; /* Primary Blue */
+}
+
+.guide-step-title {
+    font-size: 1.4rem;
+    margin-bottom: 0.5rem;
+    color: #2C3E50; /* Midnight Blue */
+}
+
+/* --- CTA Section --- */
+.cta-section {
+    /* Uses bg-primary class */
+}
+
+.cta-section .section-title {
+    color: #FFFFFF;
+}
+
+.cta-section p {
+     color: rgba(255, 255, 255, 0.9);
+}
+
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 991px) {
+    .hero-title {
+        font-size: 3rem;
+    }
+    .section-title {
+        font-size: 2.2rem;
+    }
+    .guide-step .col-md-2 {
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 767px) {
+    .landing-main > section {
+        padding: 60px 0;
+    }
+    .hero-section {
+        padding-top: 80px;
+        min-height: auto;
+    }
+    .hero-title {
+        font-size: 2.5rem;
+    }
+    .hero-subtitle {
+        font-size: 1.1rem;
+    }
+    .section-title {
+        font-size: 2rem;
+    }
+    .feature-icon {
+        margin-bottom: 1rem !important;
+    }
+    .col-md-4 {
+        margin-bottom: 2rem;
+    }
+    .guide-step {
+        padding: 20px;
+    }
+    .guide-step-title {
+        font-size: 1.2rem;
+    }
+}

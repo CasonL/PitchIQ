@@ -1,0 +1,59 @@
+{% extends "react_base.html" %}
+
+{% block title %}PitchIQ Onboarding{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    /* Specific styles for the React app page */
+    body {
+        overflow: hidden; /* This was for the onboarding, might need adjustment for other react apps */
+    }
+    #react-root {
+        height: 100vh;
+        width: 100%;
+        display: flex; /* Ensure it can flex its children if needed */
+        flex-direction: column; /* Default direction */
+    }
+
+    /* Styles for markdown content within chat bubbles */
+    .markdown-content ul,
+    .markdown-content ol {
+        list-style: revert; /* Use browser default or specify (e.g., disc, decimal) */
+        margin-block-start: 0.5em; /* Space above list */
+        margin-block-end: 0.5em;   /* Space below list */
+        padding-inline-start: 2em; /* Indentation for list items */
+    }
+
+    .markdown-content li {
+        margin-bottom: 0.2em; /* Space between list items */
+    }
+
+    .markdown-content p {
+        margin-bottom: 0.5em; /* Space below paragraphs */
+    }
+
+    .markdown-content p:last-child {
+        margin-bottom: 0; /* No extra space after the last paragraph in a message */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- React App Root -->
+<div id="react-root"></div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- Load React and the app scripts -->
+{# Assuming your vite build places assets in static/react/dist or similar #}
+{# You'll need to adjust these paths based on your Vite build output #}
+{# Also, ensure your Flask app serves these static files #}
+{# Example for Vite default output names (may need adjustment) #}
+{# <script type="module" src="{{ url_for('static', filename='react/dist/assets/index.js') }}" nonce="{{ g.csp_nonce|default('') }}"></script> #}
+{# <link rel="stylesheet" href="{{ url_for('static', filename='react/dist/assets/index.css') }}"> #}
+
+{# Fallback to previous script if Vite setup is not yet complete for this specific entry point #}
+<script src="{{ url_for('static', filename='js/react/voice_test.js') }}" nonce="{{ g.csp_nonce|default('') }}"></script>
+{% endblock %} 

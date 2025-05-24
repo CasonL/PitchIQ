@@ -6,7 +6,8 @@ Run this script to create the initial database schema.
 
 import os
 from flask import Flask
-from models import db, User
+from app.extensions import db
+from app.models import User
 from werkzeug.security import generate_password_hash
 import logging
 

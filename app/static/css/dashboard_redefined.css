@@ -1,0 +1,543 @@
+:root {
+    /* Core Palette - Dashboard Override */
+    --primary-navy: #1e3a8a !important;
+    --hover-navy: #1e40af !important;
+    --primary-black: #1f2937 !important;
+    --hover-black: #000000 !important;
+    --light-grey: #f8fafc !important; /* Light Background */
+    --secondary-white: #ffffff !important; /* Card Backgrounds */
+    --border-grey: #e5e7eb !important; /* Borders */
+    --text-primary: #1f2937 !important; /* Primary Text (Black) */
+    --text-secondary: #6b7280 !important; /* Secondary Text (Grey) */
+    --text-on-accent: #ffffff !important;
+
+    /* Functional Colors */
+    --success-color: #10b981 !important; /* Adjusted Green */
+    --warning-color: #f59e0b !important; /* Adjusted Orange */
+    --danger-color: #ef4444 !important; /* Adjusted Red */
+    --info-color: var(--primary-navy) !important; /* Use Navy for Info */
+    
+    /* Custom Colors */
+    --mint-green: #98FB98; /* Color for completed roadmap steps */
+}
+
+/* Apply base styles selectively if needed, assuming base.html handles main body styles */
+/* Example: Ensure dashboard container has correct padding */
+.dashboard-container {
+    padding-top: 2rem !important;
+    padding-bottom: 3rem !important;
+}
+
+/* --- Redefined Card Style --- */
+.data-card {
+    background-color: var(--secondary-white) !important;
+    border-radius: 0.75rem !important;
+    padding: 1.5rem !important; 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+    border: 1px solid var(--border-grey) !important;
+    height: 100% !important; 
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.data-card-header {
+    border-bottom: 1px solid var(--border-grey) !important;
+    padding-bottom: 1rem !important;
+    margin-bottom: 1rem !important;
+}
+
+.data-card-title {
+    font-weight: 600 !important;
+    font-size: 1.1rem !important;
+    color: var(--text-primary) !important;
+}
+.data-card-title i {
+    color: var(--primary-navy) !important;
+}
+
+/* --- Metric Card Styles --- */
+.metric-card .metric-value {
+    color: var(--primary-navy) !important;
+}
+.metric-card .metric-label {
+    color: var(--text-secondary) !important;
+}
+.metric-card .metric-change {
+    color: var(--success-color) !important;
+}
+
+/* --- Skill Card Styles --- */
+.skill-name {
+    color: var(--text-primary) !important;
+}
+.skill-name i {
+    color: var(--primary-navy) !important;
+}
+.skill-percent {
+    color: var(--text-primary) !important;
+}
+.skill-bar {
+    background-color: var(--border-grey) !important;
+}
+.skill-progress {
+    background-color: var(--primary-navy) !important;
+}
+
+/* --- Activity List Styles --- */
+.activity-info strong {
+    color: var(--text-primary) !important;
+}
+.activity-info .time {
+    color: var(--text-secondary) !important;
+}
+
+/* --- Status Badge Styles --- */
+.status-completed {
+    background-color: rgba(30, 58, 138, 0.1) !important;
+    color: var(--primary-navy) !important;
+}
+.status-active {
+    background-color: rgba(31, 41, 55, 0.1) !important;
+    color: var(--gray-700) !important;
+}
+.status-other {
+    background-color: var(--gray-200) !important;
+    color: var(--gray-600) !important;
+}
+
+/* --- Action Button Styles --- */
+/* Primary Button: Black */
+.action-button.primary {
+    background-color: var(--primary-black) !important;
+    color: var(--text-on-accent) !important;
+    border-color: var(--primary-black) !important;
+}
+.action-button.primary:hover {
+    background-color: var(--hover-black) !important;
+    border-color: var(--hover-black) !important;
+}
+/* Secondary Button: White/Bordered */
+.action-button.secondary {
+    background-color: var(--secondary-white) !important;
+    color: var(--primary-black) !important;
+    border: 1px solid var(--border-grey) !important;
+}
+.action-button.secondary:hover {
+    background-color: var(--light-grey) !important;
+    border-color: var(--gray-400) !important;
+}
+
+/* --- Empty State --- */
+.empty-state-card {
+     border: 1px dashed var(--border-grey) !important;
+     background-color: var(--light-grey) !important;
+}
+.empty-state-icon i {
+    color: var(--gray-400) !important;
+}
+.empty-state h3 {
+    color: var(--text-primary) !important;
+}
+.empty-state p {
+    color: var(--text-secondary) !important;
+}
+.empty-state-button {
+    background-color: var(--primary-navy) !important;
+    color: var(--text-on-accent) !important;
+}
+.empty-state-button:hover {
+    background-color: var(--hover-navy) !important;
+}
+
+/* --- Tab Styles --- */
+.nav-tabs {
+    border-bottom: 1px solid var(--border-grey) !important;
+}
+.nav-tabs .nav-link {
+    color: var(--text-secondary) !important;
+}
+.nav-tabs .nav-link:hover {
+    border-bottom-color: var(--gray-400) !important;
+    color: var(--text-primary) !important;
+}
+.nav-tabs .nav-link.active {
+    color: var(--primary-navy) !important;
+    border-bottom-color: var(--primary-navy) !important;
+    font-weight: 600 !important;
+} 
+
+/* --- Roadmap to Insights Card Styles --- */
+.roadmap-card .data-card-header i {
+    color: var(--primary-navy); /* Match other card headers */
+}
+
+.roadmap-container {
+    width: 100%;
+    overflow-x: auto; /* Allow scrolling on small screens if needed */
+    padding: 1rem 0;
+}
+
+.roadmap-track {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: auto;
+    position: relative;
+    width: 95%;
+    margin: 0 auto;
+}
+
+/* Dashed connecting line - Slower Animation */
+@keyframes dash {
+  to {
+    background-position: 16px 0; /* Shift background by twice the dash length */
+  }
+}
+.roadmap-track::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 24px; 
+    right: 24px; 
+    height: 2px;
+    background-image: linear-gradient(to right, var(--border-grey) 50%, transparent 50%);
+    background-size: 8px 2px; 
+    /* background-repeat: repeat-x; /* Animation handles repeat */
+    transform: translateY(-50%);
+    z-index: 1;
+    animation: dash 2s linear infinite; /* Slower animation (was 1s) */
+}
+
+.roadmap-step {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.roadmap-circle {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: var(--secondary-white);
+    border: 2px solid var(--border-grey);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+    cursor: default;
+    line-height: 1;
+}
+
+.roadmap-circle:hover {
+    transform: scale(1.1);
+}
+
+.roadmap-step.completed .roadmap-circle {
+    background-color: var(--mint-green);
+    border-color: var(--success-color);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+    color: var(--text-primary);
+    transform: scale(1.05);
+}
+
+.roadmap-teaser {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Locked State Enhancements */
+
+/* Remove overlay */
+/* .roadmap-card:not(.unlocked)::after { display: none; } */
+
+/* Keep background icon */
+.roadmap-card:not(.unlocked) .data-card-body::before {
+    content: "\f023";
+    font-family: "Font Awesome 5 Free", "Font Awesome 5 Brands";
+    font-weight: 900;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 6rem;
+    color: var(--border-grey);
+    opacity: 0.15;
+    z-index: 0;
+}
+
+/* Make *future* steps appear faded/desaturated when locked, *except* the next step */
+.roadmap-card:not(.unlocked) .roadmap-step:not(.completed):not(.next-step) .roadmap-circle {
+    opacity: 0.6; 
+    /* filter: grayscale(50%); */
+    border-color: var(--border-grey); /* Use slightly darker border */
+}
+
+/* Disable hover scale on faded steps */
+.roadmap-card:not(.unlocked) .roadmap-step:not(.completed):not(.next-step) .roadmap-circle:hover {
+    transform: scale(1); 
+}
+
+/* Ensure completed steps remain fully visible when locked */
+.roadmap-card:not(.unlocked) .roadmap-step.completed .roadmap-circle {
+    opacity: 1;
+    filter: none;
+}
+
+/* Unlocked Insights Area */
+.unlocked-insights h6 {
+    font-weight: 600;
+}
+.insight-card {
+    background-color: var(--light-grey);
+    border: 1px solid var(--border-grey);
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+.insight-card ul {
+    padding-left: 1.2rem;
+    margin-bottom: 0;
+    font-size: 0.9rem;
+}
+
+/* --- User Title Card --- */
+.title-card .icon-container i {
+    color: var(--primary-navy);
+}
+.title-card .title-label {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.title-card .user-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* --- Level Progress Card --- */
+.level-card .progress-bar-container {
+    height: 10px;
+    background-color: var(--border-grey);
+    border-radius: 5px;
+    overflow: hidden;
+}
+.level-card .progress-bar-level {
+    height: 100%;
+    background-color: var(--danger-color); /* Use Accent Red */
+    border-radius: 5px;
+    transition: width 0.5s ease-in-out;
+}
+.level-card .progress-text {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+.level-card .level-indicator {
+    font-weight: 600;
+    color: var(--primary-navy);
+}
+
+/* --- FAB Pulsing Animation --- */
+/* Define the pulse animation - MORE PROMINENT */
+@keyframes subtlePulse {
+    0% {
+        /* Start with a slightly more opaque shadow */
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); /* Increased alpha */
+        transform: scale(1); /* Start at normal size */
+    }
+    /* Expand shadow over a similar period, but make it larger */
+    20% { 
+        /* Slightly larger scale effect */
+        transform: scale(1.04);
+        /* Expand shadow further out */
+        box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); 
+    }
+    /* Ensure it returns fully to normal after the pulse */
+    30% {
+         transform: scale(1);
+         box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); 
+    }
+    /* Stay normal for the rest */
+    100% { 
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+/* Apply pulse to the FAB container */
+#roleplayFab { /* Correct selector */
+    animation: subtlePulse 10s infinite; 
+    border-radius: 50px; /* Keep for rounded shadow */
+    /* Ensure other FAB styles are defined elsewhere */
+}
+
+/* --- Compact Level & Title Card (NEW) --- */
+.level-title-card {
+    padding: 0.75rem 1.5rem !important;
+}
+
+.level-title-card-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.level-info {
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.level-info .level-indicator {
+    font-weight: 600;
+    color: var(--primary-navy);
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+}
+
+.level-info .progress-bar-container {
+    height: 8px;
+    background-color: var(--border-grey);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.level-info .progress-bar-level {
+    height: 100%;
+    background-color: var(--danger-color);
+    border-radius: 4px;
+    transition: width 0.5s ease-in-out;
+}
+
+.level-info .level-percentage {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-left: 0.75rem;
+    min-width: 35px;
+    text-align: right;
+}
+
+.title-info {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.title-info .title-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-right: 0.4rem;
+}
+
+.title-info .user-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+/* Remove styles for the old separate cards if they exist (cleanup) */
+/* .level-card { ... } */
+/* .title-card { ... } */
+/* These specific selectors might not exist if they were just general .data-card */
+
+/* Style the next step circle */
+@keyframes subtlePulseBorder {
+  0% { border-color: var(--danger-color); box-shadow: 0 0 3px rgba(239, 68, 68, 0.4); } 
+  50% { border-color: rgba(239, 68, 68, 0.6); box-shadow: 0 0 7px rgba(239, 68, 68, 0.2); } 
+  100% { border-color: var(--danger-color); box-shadow: 0 0 3px rgba(239, 68, 68, 0.4); } 
+}
+
+.roadmap-card:not(.unlocked) .roadmap-step.next-step .roadmap-circle {
+    border-color: var(--danger-color); /* Accent Red border */
+    color: var(--danger-color); /* Make number red too */
+    font-weight: 700; 
+    opacity: 0.9; /* Make slightly less faded than other future steps */
+    animation: subtlePulseBorder 2s ease-in-out infinite; /* Pulsing border/shadow */
+}
+
+.roadmap-card:not(.unlocked) .roadmap-step.next-step .roadmap-circle:hover {
+    transform: scale(1.1); /* Allow hover scale on next step */
+}
+
+/* Milestone Styles - Adjusted Sizes */
+.roadmap-step.milestone-sm .roadmap-circle {
+    width: 40px; /* Significantly larger than base (30px) */
+    height: 40px;
+    border-width: 3px; /* Slightly thicker border */
+    font-size: 0.9rem; /* Larger number */
+    font-weight: 700; 
+}
+
+/* No medium milestone currently, but could add .milestone-md later */
+
+.roadmap-step.milestone-lg .roadmap-circle {
+    width: 48px; /* Largest size */
+    height: 48px;
+    border-width: 3px; 
+    font-size: 1.4rem; /* Larger icon size */
+}
+
+/* Style the key icon */
+.roadmap-step.milestone-lg .roadmap-circle i.fa-key {
+    color: #FFD700; /* Gold */
+    opacity: 0.85; /* Slightly transparent */
+}
+
+/* Ensure completed milestones still get visual distinction */
+.roadmap-step.milestone-sm.completed .roadmap-circle,
+.roadmap-step.milestone-lg.completed .roadmap-circle {
+    transform: scale(1.05); 
+    /* Add specific completed icon color if needed */
+}
+.roadmap-step.milestone-lg.completed .roadmap-circle i.fa-key {
+     color: #FFC400; /* Slightly darker gold when complete? */
+     opacity: 1.0;
+}
+
+/* Ensure completed milestones also get the size increase */
+.roadmap-step.milestone-sm.completed .roadmap-circle,
+.roadmap-step.milestone-lg.completed .roadmap-circle {
+    transform: scale(1.05); /* Keep slight scale on complete */
+}
+
+/* --- Key Metrics Tab Enhancements --- */
+.sparkline-container {
+    width: 100%;
+    max-width: 150px; /* Limit sparkline width */
+    margin-left: auto; /* Push to right if container allows */
+    margin-right: auto; /* Center if container doesn't push */
+    height: 40px; /* Ensure consistent height */
+}
+
+/* Highlight Card (Top Skill) Styles */
+.highlight-card {
+    /* Uses base .data-card styles */
+    text-align: center; /* Center content */
+}
+
+.highlight-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.highlight-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.highlight-score {
+    font-size: 0.85rem;
+    color: var(--primary-navy); /* Match metric value color */
+    font-weight: 500;
+} 

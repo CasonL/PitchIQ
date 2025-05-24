@@ -1,0 +1,162 @@
+/**
+ * Key Metrics Styles
+ */
+
+.key-metrics {
+  width: 100%;
+  padding: 1.5rem;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Metric Card */
+.metric-card {
+  padding: 1rem;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  text-align: center;
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.metric-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.metric-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.metric-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #4a6df5;
+}
+
+.metric-label {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.metric-indicator {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+.metric-indicator.positive {
+  background-color: #c6f6d5;
+  color: #38a169;
+}
+
+.metric-indicator.negative {
+  background-color: #fed7d7;
+  color: #e53e3e;
+}
+
+/* Skills Progress */
+.metrics-extra {
+  margin-top: 1.5rem;
+}
+
+.metrics-progress h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.progress-item {
+  margin-bottom: 0.75rem;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+  color: #666;
+}
+
+.progress-bar-container {
+  height: 8px;
+  background-color: #edf2f7;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(to right, #4a6df5, #63c5da);
+  border-radius: 4px;
+  position: relative;
+}
+
+.progress-value {
+  position: absolute;
+  right: 4px;
+  top: -1px;
+  font-size: 0.6rem;
+  color: white;
+  font-weight: 600;
+}
+
+/* State Styles */
+.metrics-loading,
+.metrics-error,
+.metrics-empty {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.metrics-error {
+  color: #e53e3e;
+  background-color: #fff5f5;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .metric-card {
+    padding: 0.75rem;
+  }
+  
+  .metric-value {
+    font-size: 1.75rem;
+  }
+} 

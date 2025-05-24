@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PitchIQ Dashboard</title>
+    <!-- Use Bootstrap from CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Custom Dashboard Styles - no React dependency -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-custom.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-tabs.css') }}">
+    <!-- Preload React app data -->
+    <script id="react-app-data" type="application/json">
+        {{ initial_data|safe }}
+    </script>
+    <style>
+        /* Navigation Bar Styles */
+        .main-header {
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 0;
+        }
+        .nav-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        .logo-area {
+            display: flex;
+            align-items: center;
+        }
+        .logo-area img {
+            height: 40px;
+            margin-right: 10px;
+        }
+        .app-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #4A6DF5;
+            margin: 0;
+        }
+        .nav-menu {
+            display: flex;
+            gap: 20px;
+        }
+        .nav-link {
+            color: #444;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-link:hover {
+            color: #4A6DF5;
+        }
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: #4A6DF5;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        .user-name {
+            font-weight: 500;
+        }
+        /* Override to hide React card containers */
+        .ai-card-system, .row:has(.ai-card-system), 
+        .row:has(.section-title), .section-title {
+            display: none !important;
+        }
+        .dashboard-container {
+            padding-top: 0 !important;
+        }
+        .focus-card-container {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="main-header">
+        <div class="nav-container">
+            <div class="logo-area">
+                <h1 class="app-name">PitchIQ</h1>
+            </div>
+            <nav class="nav-menu">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/dashboard-react" class="nav-link">Dashboard</a>
+                <a href="/training/dashboard" class="nav-link">Training</a>
+                <a href="/chat" class="nav-link">Practice</a>
+            </nav>
+            <div class="user-menu">
+                <div class="user-avatar">U</div>
+                <span class="user-name">User</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="dashboard-welcome">Welcome to Your Dashboard</h1>
+                <p class="dashboard-subtitle">Get insights and track your progress.</p>
+                
+                <!-- Dashboard Tabs -->
+                <div class="dashboard-tabs">
+                    <div class="dashboard-tab active" data-tab="insights">Insights</div>
+                    <div class="dashboard-tab" data-tab="analytics">Analytics</div>
+                </div>
+                
+                <!-- Tab Content -->
+                <div class="dashboard-content active" id="insights-content">
+                    <!-- Our focused insight card container -->
+                    <div class="focus-card-container">
+                        <!-- Focus card will render here by JS -->
+                    </div>
+                </div>
+                
+                <div class="dashboard-content" id="analytics-content">
+                    <div class="analytics-container">
+                        <!-- Sidebar Navigation -->
+                        <div class="analytics-sidebar">
+                            <a href="#" class="sidebar-link active" data-section="skills">
+                                <i class="fas fa-chart-line sidebar-icon"></i>
+                                Skills
+                            </a>
+                            <a href="#" class="sidebar-link" data-section="sessions">
+                                <i class="fas fa-history sidebar-icon"></i>
+                                Sessions
+                            </a>
+                            <a href="#" class="sidebar-link" data-section="metrics">
+                                <i class="fas fa-tachometer-alt sidebar-icon"></i>
+                                Metrics
+                            </a>
+                            <a href="#" class="sidebar-link" data-section="timeline">
+                                <i class="fas fa-stream sidebar-icon"></i>
+                                Timeline
+                            </a>
+                        </div>
+                        
+                        <!-- Analytics Content Area -->
+                        <div class="analytics-content">
+                            <!-- Skills Section -->
+                            <div class="analytics-section active" id="skills-section">
+                                <h2 class="section-title">Skills Profile</h2>
+                                <div class="skill-radar">
+                                    <p>Skill radar chart and detailed breakdown will appear here.</p>
+                                    <div class="placeholder-content">
+                                        <div style="height: 300px; background-color: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-chart-line" style="font-size: 48px; color: #dee2e6;"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Sessions Section -->
+                            <div class="analytics-section" id="sessions-section">
+                                <h2 class="section-title">Training Sessions</h2>
+                                <div class="placeholder-content">
+                                    <div style="height: 300px; background-color: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-history" style="font-size: 48px; color: #dee2e6;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Metrics Section -->
+                            <div class="analytics-section" id="metrics-section">
+                                <h2 class="section-title">Performance Metrics</h2>
+                                <div class="placeholder-content">
+                                    <div style="height: 300px; background-color: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-tachometer-alt" style="font-size: 48px; color: #dee2e6;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Timeline Section -->
+                            <div class="analytics-section" id="timeline-section">
+                                <h2 class="section-title">Progress Timeline</h2>
+                                <div class="placeholder-content">
+                                    <div style="height: 300px; background-color: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-stream" style="font-size: 48px; color: #dee2e6;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load custom focus card script -->
+    <script src="{{ url_for('static', filename='js/dashboard-focus-card.js') }}"></script>
+    
+    <script>
+        // Make initial data available to the React app
+        window.INITIAL_DATA = JSON.parse(document.getElementById('react-app-data').textContent);
+        window.REACT_PAGE = "{{ page }}";
+        
+        // Fix user avatar display
+        document.addEventListener('DOMContentLoaded', function() {
+            const userData = window.INITIAL_DATA.user;
+            if (userData && userData.name) {
+                document.querySelector('.user-avatar').textContent = userData.name[0].toUpperCase();
+                document.querySelector('.user-name').textContent = userData.name;
+            }
+            
+            // Tab switching functionality
+            const tabs = document.querySelectorAll('.dashboard-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from all tabs
+                    tabs.forEach(t => t.classList.remove('active'));
+                    // Add active class to clicked tab
+                    this.classList.add('active');
+                    
+                    // Show corresponding content
+                    const tabId = this.getAttribute('data-tab');
+                    document.querySelectorAll('.dashboard-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(`${tabId}-content`).classList.add('active');
+                });
+            });
+            
+            // Sidebar navigation functionality
+            const sidebarLinks = document.querySelectorAll('.sidebar-link');
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Remove active class from all links
+                    sidebarLinks.forEach(l => l.classList.remove('active'));
+                    // Add active class to clicked link
+                    this.classList.add('active');
+                    
+                    // Show corresponding section
+                    const sectionId = this.getAttribute('data-section');
+                    document.querySelectorAll('.analytics-section').forEach(section => {
+                        section.classList.remove('active');
+                    });
+                    document.getElementById(`${sectionId}-section`).classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

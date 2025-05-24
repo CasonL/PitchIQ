@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Simple Chat - Sales Training AI{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Sales Training Chat</h4>
+                </div>
+                <div class="card-body" style="height: 400px; overflow-y: auto;" id="chat-messages">
+                    <div class="message assistant">
+                        <div class="message-content">
+                            <p>Hello! I'm your AI sales training assistant. How can I help you today?</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <form id="chat-form" class="d-flex">
+                        <input type="text" id="message-input" class="form-control me-2" placeholder="Type your message here...">
+                        <button type="submit" class="btn btn-primary">Send</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        const chatMessages = document.getElementById('chat-messages');
+
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            // Add user message to chat
+            addMessage('user', message);
+            messageInput.value = '';
+            
+            // Simulate AI response
+            setTimeout(() => {
+                addMessage('assistant', 'Thanks for your message! This is a simplified demo chat interface. In the full application, I would provide real responses to help with your sales training.');
+            }, 1000);
+        });
+
+        function addMessage(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            const paragraph = document.createElement('p');
+            paragraph.textContent = content;
+            
+            messageContent.appendChild(paragraph);
+            messageDiv.appendChild(messageContent);
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    });
+</script>
+
+<style>
+    .message {
+        margin-bottom: 15px;
+        display: flex;
+    }
+    .message.user {
+        justify-content: flex-end;
+    }
+    .message-content {
+        max-width: 80%;
+        padding: 10px 15px;
+        border-radius: 10px;
+    }
+    .user .message-content {
+        background-color: #007bff;
+        color: white;
+    }
+    .assistant .message-content {
+        background-color: #f1f1f1;
+        color: #333;
+    }
+    .message-content p {
+        margin: 0;
+    }
+</style>
+{% endblock %} 

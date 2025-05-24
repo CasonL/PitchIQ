@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElevenLabs TTS Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .voice-selector {
+            margin-bottom: 15px;
+        }
+        .audio-controls {
+            margin-top: 20px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            display: none;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .log {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background-color: #f0f0f0;
+            padding: 10px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>ElevenLabs TTS Test Page</h1>
+    
+    <div class="voice-selector">
+        <label for="voice-select">Select Voice:</label>
+        <select id="voice-select">
+            <option value="9BWtsMINqrJLrRacOk9x">Aria (default)</option>
+            <option value="CwhRBWXzGAHq8TQ4Fs17">Roger</option>
+            <option value="EXAVITQu4vr4xnSDxMaL">Sarah</option>
+            <option value="TX3LPaxmHKxFdv7VOQHJ">Liam</option>
+            <option value="XB0fDUnXU5powFXDhCwa">Charlotte</option>
+            <option value="onwK4e9ZLuTAKqWW03F9">Daniel</option>
+            <option value="pFZP5JQG7iQjIQuC4Bku">Lily</option>
+        </select>
+    </div>
+    
+    <div>
+        <label for="text-input">Enter text to convert to speech:</label>
+        <textarea id="text-input" placeholder="Enter text here...">Hello, welcome to PitchIQ! This is a test of the ElevenLabs TTS integration.</textarea>
+    </div>
+    
+    <div>
+        <button id="tts-button">Convert to Speech</button>
+        <button id="debug-tts-button">Debug Mode</button>
+        <button id="browser-tts-button">Use Browser TTS</button>
+    </div>
+    
+    <div class="audio-controls" id="audio-container" style="display: none;">
+        <h3>Audio Result:</h3>
+        <audio id="audio-player" controls></audio>
+        <p>If audio doesn't play, you can <a id="download-link" href="#" download="tts_audio.mp3">download the audio file</a>.</p>
+    </div>
+    
+    <div class="result" id="result-container">
+        <h3>Response Details:</h3>
+        <div id="result-content"></div>
+    </div>
+    
+    <div class="log" id="log-container">
+        <h3>Debug Log:</h3>
+        <div id="log-content"></div>
+    </div>
+    
+    <script>
+        // Log function
+        function log(message) {
+            const logContent = document.getElementById('log-content');
+            const timestamp = new Date().toISOString().substring(11, 23);
+            logContent.innerHTML += `[${timestamp}] ${message}\n`;
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+        
+        // Convert text to speech using the backend TTS API
+        async function convertToSpeech(text, voiceId, isDebug = false) {
+            try {
+                // Clear previous results
+                document.getElementById('audio-container').style.display = 'none';
+                document.getElementById('result-container').style.display = 'none';
+                document.getElementById('result-content').innerHTML = '';
+                
+                // Validate input
+                if (!text || text.trim() === '') {
+                    log('Error: Text is empty');
+                    return;
+                }
+                
+                // Choose endpoint based on debug flag
+                const endpoint = isDebug ? '/voice/api/debug-tts' : '/voice/api/tts';
+                log(`Using endpoint: ${endpoint}`);
+                
+                // Make API request
+                log(`Sending request to ${endpoint} with voice ID: ${voiceId}`);
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        voice_id: voiceId
+                    })
+                });
+                
+                log(`Response status: ${response.status}`);
+                
+                // Log response headers
+                const headers = {};
+                response.headers.forEach((value, key) => {
+                    headers[key] = value;
+                });
+                log(`Response headers: ${JSON.stringify(headers, null, 2)}`);
+                
+                if (!response.ok) {
+                    // Handle error response
+                    const errorData = await response.json();
+                    log(`Error: ${JSON.stringify(errorData, null, 2)}`);
+                    
+                    // Show error details
+                    document.getElementById('result-container').style.display = 'block';
+                    document.getElementById('result-content').innerHTML = `
+                        <p class="error">Error: ${errorData.error || 'Unknown error'}</p>
+                        <pre>${JSON.stringify(errorData.details || {}, null, 2)}</pre>
+                    `;
+                    return;
+                }
+                
+                // Get response as blob
+                const contentType = response.headers.get('Content-Type') || 'audio/mpeg';
+                log(`Content Type: ${contentType}`);
+                
+                const blob = await response.blob();
+                log(`Received blob: size=${blob.size} bytes, type=${blob.type}`);
+                
+                if (blob.size === 0) {
+                    log('Error: Received empty blob');
+                    document.getElementById('result-container').style.display = 'block';
+                    document.getElementById('result-content').innerHTML = '<p class="error">Error: Received empty audio data</p>';
+                    return;
+                }
+                
+                // Create object URL for the blob
+                const audioUrl = URL.createObjectURL(blob);
+                
+                // Set the audio source
+                const audioPlayer = document.getElementById('audio-player');
+                audioPlayer.src = audioUrl;
+                
+                // Set download link
+                const downloadLink = document.getElementById('download-link');
+                downloadLink.href = audioUrl;
+                
+                // Show audio container
+                document.getElementById('audio-container').style.display = 'block';
+                
+                // Try to play
+                try {
+                    log('Attempting to play audio...');
+                    const playPromise = audioPlayer.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            log('Audio playback started successfully');
+                        }).catch(error => {
+                            log(`Audio play error: ${error}`);
+                        });
+                    }
+                } catch (error) {
+                    log(`Error playing audio: ${error}`);
+                }
+                
+            } catch (error) {
+                log(`Error: ${error.message}`);
+                document.getElementById('result-container').style.display = 'block';
+                document.getElementById('result-content').innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            }
+        }
+        
+        // Use browser's native TTS
+        function useBrowserTTS(text) {
+            try {
+                // Clear previous results
+                document.getElementById('audio-container').style.display = 'none';
+                document.getElementById('result-container').style.display = 'none';
+                
+                // Check if browser supports speech synthesis
+                if (!('speechSynthesis' in window)) {
+                    log('Browser does not support Speech Synthesis');
+                    return;
+                }
+                
+                // Create utterance
+                const utterance = new SpeechSynthesisUtterance(text);
+                
+                // Get available voices
+                const voices = window.speechSynthesis.getVoices();
+                log(`Available voices: ${voices.length}`);
+                
+                // Try to get a high-quality voice
+                let selectedVoice = voices.find(voice => voice.name.includes('Google') && voice.lang.includes('en')) ||
+                                  voices.find(voice => voice.name.includes('Microsoft') && voice.lang.includes('en')) ||
+                                  voices.find(voice => voice.lang.includes('en-US')) ||
+                                  voices.find(voice => voice.lang.includes('en')) ||
+                                  voices[0];
+                                  
+                if (selectedVoice) {
+                    log(`Using voice: ${selectedVoice.name}`);
+                    utterance.voice = selectedVoice;
+                }
+                
+                // Handle events
+                utterance.onstart = () => log('Browser TTS started');
+                utterance.onend = () => log('Browser TTS completed');
+                utterance.onerror = (e) => log(`Browser TTS error: ${e.error}`);
+                
+                // Speak
+                window.speechSynthesis.speak(utterance);
+                
+            } catch (error) {
+                log(`Browser TTS error: ${error.message}`);
+            }
+        }
+        
+        // Set up event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize voices if using browser TTS
+            if ('speechSynthesis' in window && window.speechSynthesis.onvoiceschanged !== undefined) {
+                window.speechSynthesis.onvoiceschanged = () => {
+                    const voices = window.speechSynthesis.getVoices();
+                    log(`Browser TTS: Loaded ${voices.length} voices`);
+                };
+            }
+            
+            // Regular TTS button
+            document.getElementById('tts-button').addEventListener('click', () => {
+                const text = document.getElementById('text-input').value;
+                const voiceId = document.getElementById('voice-select').value;
+                convertToSpeech(text, voiceId, false);
+            });
+            
+            // Debug TTS button
+            document.getElementById('debug-tts-button').addEventListener('click', () => {
+                const text = document.getElementById('text-input').value;
+                const voiceId = document.getElementById('voice-select').value;
+                convertToSpeech(text, voiceId, true);
+            });
+            
+            // Browser TTS button
+            document.getElementById('browser-tts-button').addEventListener('click', () => {
+                const text = document.getElementById('text-input').value;
+                useBrowserTTS(text);
+            });
+            
+            // Log initial state
+            log('TTS Test Page initialized');
+        });
+    </script>
+</body>
+</html> 

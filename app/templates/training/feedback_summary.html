@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Feedback Summary</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; background-color: #1a1a1a; color: #e0e0e0; }
+      .container { max-width: 800px; margin: 40px auto; background-color: #2c2c2c; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); }
+      h1 { color: #ffffff; text-align: center; margin-bottom: 30px; }
+      .feedback-details { background: #3a3a3a; padding: 25px; border-radius: 8px; margin-bottom: 30px; border: 1px solid #4a4a4a; }
+      .feedback-details p { margin-bottom: 15px; line-height: 1.6; }
+      .feedback-details strong { color: #d81b60; /* Accent Red */ display: block; margin-bottom: 5px; font-size: 1.1em; }
+      a { display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #d81b60; /* Accent Red */ color: white; text-decoration: none; border-radius: 5px; transition: background-color 0.3s; }
+      a:hover { background-color: #c2185b; }
+      .no-feedback { text-align: center; color: #aaaaaa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Feedback Summary</h1>
+        {% if feedback %}
+            <div class="feedback-details">
+                <p><strong>Overall Assessment:</strong> {{ feedback.overall_assessment or 'N/A' }}</p>
+                <p><strong>Strengths Demonstrated:</strong> {{ feedback.strengths_demonstrated or 'N/A' }}</p>
+                <p><strong>Areas for Improvement:</strong> {{ feedback.areas_for_improvement or 'N/A' }}</p>
+                <p><strong>Rapport Building Feedback:</strong> {{ feedback.rapport_feedback or 'N/A' }}</p>
+                <p><strong>Questioning Effectiveness:</strong> {{ feedback.questioning_effectiveness or 'N/A' }}</p>
+                <p><strong>Handling Objections:</strong> {{ feedback.handling_objections or 'N/A' }}</p>
+                <p><strong>Closing Effectiveness:</strong> {{ feedback.closing_effectiveness or 'N/A' }}</p>
+                <p><strong>Confidence Level:</strong> {{ feedback.confidence_level or 'N/A' }}</p>
+                <p><strong>Empathy Demonstrated:</strong> {{ feedback.empathy_demonstrated or 'N/A' }}</p>
+                <p><strong>Clarity of Communication:</strong> {{ feedback.clarity_of_communication or 'N/A' }}</p>
+                <p><strong>Active Listening Skills:</strong> {{ feedback.active_listening_skills or 'N/A' }}</p>
+                <p><strong>Use of Persuasion Techniques:</strong> {{ feedback.use_of_persuasion or 'N/A' }}</p>
+                <p><strong>Actionable Advice:</strong> {{ feedback.actionable_advice or 'N/A' }}</p>
+            </div>
+        {% else %}
+            <p class="no-feedback">No feedback analysis available for the latest completed session.</p>
+        {% endif %}
+        <a href="{{ url_for('training.show_dashboard') }}">Back to Dashboard</a>
+    </div>
+</body>
+</html> 

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+{% set safe_nonce = g.csp_nonce|default('') %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="csrf-token" content="{{ g.csrf_token }}">
+
+    <!-- Security headers -->
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+
+    <title>{% block title %}Sales Training AI{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ux-enhancements.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/voice-ui.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/PitchIQ Logo.png') }}">
+
+    <!-- Page-specific styles -->
+    {% block styles %}{% endblock %}
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Tippy.js - CSS only in head -->
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/themes/light.css">
+
+    <!-- React and ReactDOM for Voice-Test interface -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+
+    <!-- Backslash Removal Script -->
+    <!-- <script src="{{ url_for('static', filename='js/remove-backslashes.js') }}" nonce="{{ safe_nonce }}"></script> -->
+
+    {% block extra_css %}{% endblock %}
+
+</head>
+<body>
+    <!-- Global Sticky Header -->
+    <header class="global-header">
+        <div class="header-content-container">
+            <a class="header-logo" href="/">PitchIQ</a>
+            <nav class="header-nav-links">
+                {% if current_user.is_authenticated %}
+                    {# Update to use our simple dashboard route #}
+                    <a href="{{ url_for('dashboard') }}" class="header-nav-link">Dashboard</a> 
+                    {# Commenting out the link to the React app served by /dashboard #}
+                    {# <a href="{{ url_for('dashboard.view_dashboard') }}" class="header-nav-link">Dashboard</a> #}
+                    {# Keep the link to React Dashboard commented out #}
+                    {# <a href="{{ url_for('main.dashboard_react') }}" class="header-nav-link">React Dashboard</a> #}
+                    
+                    {# Comment out links to routes that don't exist in our simple app #}
+                    {# <a href="{{ url_for('auth.profile') }}" class="header-nav-link">Profile</a> #}
+                    {# <a href="{{ url_for('auth.settings') }}" class="header-nav-link">Settings</a> #}
+                    {# <form id="logoutForm" action="{{ url_for('auth.logout') }}" method="POST" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ g.csrf_token }}">
+                        <button type="submit" class="header-nav-link btn btn-link p-0">Logout</button>
+                    </form> #}
+                    
+                    {# Add simple links that don't depend on complex routes #}
+                    <a href="/" class="header-nav-link">Home</a>
+                {% else %}
+                    <a href="/" class="header-nav-link">Home</a>
+                    <a href="/#features" class="header-nav-link">Features</a> {# Assuming features section is on index #}
+                    <a href="{{ url_for('auth.login') }}" class="header-nav-link">Sign In</a> {# Use our simplified login route #}
+                    <a href="http://localhost:8080" class="btn btn-secondary ms-3">Try It Free</a> {# Redirect to React app #}
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="container pt-3"> {# Add container and padding for alerts #}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    {# Make footer overridable #}
+    {% block footer %}
+    <!-- Footer -->
+    <footer class="footer mt-auto py-3">
+        <div class="container text-center">
+            <span class="text-muted">© {{ now.year }} PitchIQ. All rights reserved.</span>
+        </div>
+    </footer>
+    {% endblock %}
+
+    {# Placeholder for elements to be added right before scripts (like FAB) #}
+    {% block body_end %}
+        <!-- Floating Action Button for Roleplay -->
+        {% if current_user.is_authenticated and request.path.startswith('/training/') %}
+        {# Wrap the FAB div in an anchor tag pointing to the React chat page instead of Flask #}
+        <a href="http://localhost:8080/chat" id="roleplayFabLink" style="text-decoration: none;">
+            <div id="roleplayFab" class="floating-action-btn">
+                <button id="roleplayFabBtn" class="btn btn-lg shadow-lg">
+                    <i id="roleplayFabIcon" class="fas fa-microphone-alt" aria-hidden="true"></i>
+                    <span id="roleplayFabText" class="fab-text">
+                        Voice Chat
+                    </span>
+                </button>
+            </div>
+        </a>
+        <!-- Debug info for URL pattern matching -->
+        <script nonce="{{ safe_nonce }}">
+            console.log("Current path: {{ request.path }}");
+            console.log("Is summary page: {{ '/roleplay/' in request.path and '/summary' in request.path }}");
+            {% if '/roleplay/' in request.path and '/summary' in request.path %}
+            console.log("This is a summary page, setting button to New Roleplay");
+            sessionStorage.setItem('viewing_inactive_conversation', 'true');
+            {% endif %}
+        </script>
+        {% endif %}
+    {% endblock %}
+
+    <!-- ======== JavaScript Dependencies (Moved Here) ======== -->
+
+    <!-- Bootstrap Bundle (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Popper.js (if needed separately, though usually included in Bootstrap bundle) -->
+    <script src="{{ url_for('static', filename='js/popper.min.js') }}"></script>
+
+    <!-- Tippy.js Bundle -->
+    <script src="{{ url_for('static', filename='js/tippy-bundle.umd.min.js') }}"></script>
+
+    <!-- Deepgram Browser SDK -->
+    <script src="{{ url_for('static', filename='js/deepgram-sdk.js') }}" defer></script>
+
+    <!-- UX Enhancements -->
+    <script src="{{ url_for('static', filename='js/ux-enhancements.js') }}"></script>
+
+    <!-- Base JS: Flash message dismissal -->
+    <script nonce="{{ safe_nonce }}">
+        document.addEventListener('DOMContentLoaded', function() {
+            var alertList = document.querySelectorAll('.alert.alert-dismissible'); // More specific selector
+            alertList.forEach(function (alert) {
+                // Ensure Bootstrap Alert component exists before trying to use it
+                if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
+                    const existingAlertInstance = bootstrap.Alert.getInstance(alert);
+                    if (!existingAlertInstance) { // Only create new instance if one doesn't exist
+                         new bootstrap.Alert(alert);
+                    }
+                    // Auto-dismiss after 5 seconds
+                    setTimeout(() => {
+                        const alertInstance = bootstrap.Alert.getInstance(alert);
+                        if (alertInstance) {
+                            alertInstance.close();
+                        }
+                    }, 5000);
+                } else {
+                    console.error("Bootstrap Alert component not found.");
+                }
+            });
+        });
+    </script>
+
+    <!-- Tippy Initialization Script (Moved Here) -->
+    <script nonce="{{ safe_nonce }}">
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOMContentLoaded fired from bottom. Checking for Tippy...');
+            // Initialize Tippy tooltips
+            if (typeof tippy === 'function') {
+                console.log('Tippy function is defined. Initializing specific tooltips...');
+
+                // Example: Initialize tooltips on elements with data-tippy-content
+                // Adjust selector as needed for your specific tooltips
+                const tooltips = document.querySelectorAll('[data-tippy-content]');
+                 if (tooltips.length > 0) {
+                     console.log(`Initializing ${tooltips.length} tooltips found with data-tippy-content.`);
+                     tippy(tooltips, {
+                         theme: 'light',
+                         animation: 'shift-away',
+                         placement: 'top', // Default placement
+                         allowHTML: true, // Allow HTML content if needed
+                         interactive: true, // Allow interaction with tooltip content
+                         appendTo: () => document.body // Append to body to avoid z-index issues
+                     });
+                      console.log('Generic Tippy instances initialized.');
+                 } else {
+                      console.log('No elements found with data-tippy-content for generic initialization.');
+                 }
+
+                 // You might still need specific initialization for complex cases like '.pitchedu-link'
+                 // Ensure the selector and options are correct for those cases.
+                 const pitchEduLink = document.querySelector('.pitchedu-link[data-tippy-content]');
+                 if (pitchEduLink) {
+                     console.log('Found .pitchedu-link, ensuring it has Tippy instance.');
+                     // Check if it already has an instance from the generic selector above
+                     if (!pitchEduLink._tippy) {
+                         console.log('Initializing PitchEDU tooltip specifically.');
+                         tippy(pitchEduLink, {
+                             placement: 'right',
+                             allowHTML: true,
+                             interactive: true,
+                             flip: false, // Maybe keep default flip behavior?
+                             theme: 'light',
+                             animation: 'shift-away',
+                             appendTo: () => document.body
+                         });
+                         console.log('PitchEDU Tippy initialized specifically.');
+                     } else {
+                         console.log('PitchEDU link already has a Tippy instance.');
+                     }
+                 }
+
+
+                console.log('Tippy initialization attempts finished.');
+
+            } else {
+                console.error('Tippy function is NOT defined. Check library loading and order.');
+            }
+        });
+    </script>
+
+    <!-- Page-specific scripts -->
+    {% block scripts %}{% endblock %}
+
+    <!-- Roleplay fixes for chat functionality -->
+    {% if '/training/roleplay' in request.path %}
+    <script src="{{ url_for('static', filename='js/roleplay-fixes.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/roleplay-direct-fix.js') }}"></script>
+    {% endif %}
+
+    <!-- Direct fix for backslash issue -->
+    <script nonce="{{ safe_nonce }}">
+        // Run after everything else has loaded
+        window.addEventListener('load', function() {
+            console.log('🔍 Backslash cleanup running...');
+            
+            // Direct targeting of main content and any text nodes within it
+            const mainContent = document.getElementById('main-content');
+            if (mainContent) {
+                // Get all text nodes, including nested ones
+                const textNodes = [];
+                const walk = document.createTreeWalker(
+                    mainContent,
+                    NodeFilter.SHOW_TEXT,
+                    null,
+                    false
+                );
+                
+                let node;
+                while (node = walk.nextNode()) {
+                    if (node.textContent.includes('\\')) {
+                        textNodes.push(node);
+                    }
+                }
+                
+                // Remove nodes containing backslashes
+                textNodes.forEach(node => {
+                    console.log('✂️ Removing node with backslashes:', node.textContent);
+                    if (node.parentNode) {
+                        node.parentNode.removeChild(node);
+                    }
+                });
+                
+                console.log('✅ Backslash cleanup completed');
+            }
+        });
+    </script>
+
+</body>
+</html>

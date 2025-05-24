@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PitchIQ AI Coach</title>
+    
+    <!-- Include our custom CSS fix -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/fix-header-overlap.css') }}">
+    
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Additional inline styles to fix header overlap */
+        .header-container {
+            padding: 20px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .reset-button {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            z-index: 2000;
+        }
+        
+        .main-content {
+            padding-top: 30px; /* Extra padding to avoid header overlap */
+        }
+    </style>
+</head>
+<body>
+
+<header class="header-container ai-coach-header">
+    <h1>AI Coach Dashboard</h1>
+    <button class="reset-button ai-coach-reset-button" onclick="resetCoach()">Reset Coach</button>
+</header>
+
+<div class="main-content ai-coach-content">
+    <div id="react-root">
+        <!-- This is where the React app will mount -->
+    </div>
+</div>
+
+<script>
+    // Function to reset the AI coach
+    function resetCoach() {
+        // Clear localStorage
+        const storageKeys = [
+            'ai_coach_card_state',
+            'ai_coach_messages',
+            'ai_coach_user_messages',
+            'ai_coach_show_action_buttons',
+            'ai_coach_onboarding_complete',
+            'ai_coach_onboarding_data',
+            'ai_coach_has_completed_roleplay'
+        ];
+        
+        // Log what we're clearing
+        console.log("Clearing localStorage:", storageKeys);
+        
+        // Clear each item
+        storageKeys.forEach(key => {
+            localStorage.removeItem(key);
+            console.log(`Cleared: ${key}`);
+        });
+        
+        // Reset any window variables
+        if (window.connectionErrorShown) {
+            window.connectionErrorShown = false;
+        }
+        
+        // Reload the page
+        console.log("Reloading page...");
+        window.location.reload();
+    }
+</script>
+
+<!-- Include React app -->
+<script src="{{ url_for('static', filename='react/dist/index.js') }}"></script>
+
+</body>
+</html> 

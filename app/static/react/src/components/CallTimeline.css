@@ -1,0 +1,181 @@
+.call-timeline {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+}
+
+.timeline-item {
+  display: flex;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.timeline-item::after {
+  content: '';
+  position: absolute;
+  top: 2.5rem;
+  left: 6.5rem;
+  bottom: -1.5rem;
+  width: 2px;
+  background-color: #e0e0e0;
+  z-index: 1;
+}
+
+.timeline-item:last-child::after {
+  display: none;
+}
+
+.timeline-date {
+  width: 6.5rem;
+  flex-shrink: 0;
+  padding-right: 1rem;
+  font-size: 0.85rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.timeline-content {
+  flex-grow: 1;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.timeline-content:hover {
+  background-color: #f0f3f5;
+  transform: translateY(-2px);
+}
+
+.session-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.session-header h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #343a40;
+}
+
+.session-tag {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 500;
+  color: white;
+}
+
+.discovery-call {
+  background-color: #4A6DF5;
+}
+
+.product-demo {
+  background-color: #28a745;
+}
+
+.negotiation {
+  background-color: #dc3545;
+}
+
+.objection-handling {
+  background-color: #fd7e14;
+}
+
+.follow-up-call {
+  background-color: #17a2b8;
+}
+
+.session-meta {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.session-progress {
+  margin-bottom: 1rem;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.progress {
+  height: 0.5rem;
+  background-color: #e9ecef;
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: #4A6DF5;
+  border-radius: 0.25rem;
+}
+
+.progress-indicator {
+  font-weight: 500;
+  color: #495057;
+}
+
+.session-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.timeline-more {
+  text-align: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.view-all-link {
+  color: #4A6DF5;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.view-all-link:hover {
+  text-decoration: underline;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.empty-state p {
+  color: #6c757d;
+  margin-bottom: 1rem;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .timeline-item {
+    flex-direction: column;
+  }
+  
+  .timeline-date {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+  
+  .timeline-item::after {
+    display: none;
+  }
+} 

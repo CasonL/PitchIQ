@@ -1,0 +1,331 @@
+[
+  {
+    "id": "9BWtsMINqrJLrRacOk9x",
+    "name": "Aria",
+    "description": null,
+    "gender": "female",
+    "accent": "american"
+  },
+  {
+    "id": "CwhRBWXzGAHq8TQ4Fs17",
+    "name": "Roger",
+    "description": null,
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "EXAVITQu4vr4xnSDxMaL",
+    "name": "Sarah",
+    "description": null,
+    "gender": "female",
+    "accent": "american"
+  },
+  {
+    "id": "FGY2WhTYpPnrIDTdsKH5",
+    "name": "Laura",
+    "description": null,
+    "gender": "female",
+    "accent": "american"
+  },
+  {
+    "id": "IKne3meq5aSn9XLyUdCD",
+    "name": "Charlie",
+    "description": null,
+    "gender": "male",
+    "accent": "australian"
+  },
+  {
+    "id": "JBFqnCBsd6RMkjVDRZzb",
+    "name": "George",
+    "description": null,
+    "gender": "male",
+    "accent": "british"
+  },
+  {
+    "id": "N2lVS1w4EtoT3dr4eOWO",
+    "name": "Callum",
+    "description": null,
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "SAz9YHcvj6GT2YYXdXww",
+    "name": "River",
+    "description": null,
+    "gender": "non-binary",
+    "accent": "american"
+  },
+  {
+    "id": "TX3LPaxmHKxFdv7VOQHJ",
+    "name": "Liam",
+    "description": null,
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "XB0fDUnXU5powFXDhCwa",
+    "name": "Charlotte",
+    "description": null,
+    "gender": "female",
+    "accent": "swedish"
+  },
+  {
+    "id": "Xb7hH8MSUJpSbSDYk0k2",
+    "name": "Alice",
+    "description": null,
+    "gender": "female",
+    "accent": "british"
+  },
+  {
+    "id": "XrExE9yKIg1WjnnlVkGX",
+    "name": "Matilda",
+    "description": null,
+    "gender": "female",
+    "accent": "american"
+  },
+  {
+    "id": "bIHbv24MWmeRgasZH58o",
+    "name": "Will",
+    "description": null,
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "cgSgspJ2msm6clMCkdW9",
+    "name": "Jessica",
+    "description": null,
+    "gender": "female",
+    "accent": "american"
+  },
+  {
+    "id": "cjVigY5qzO86Huf0OWal",
+    "name": "Eric",
+    "description": null,
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "iP95p4xoKVk53GoZ742B",
+    "name": "Chris",
+    "description": null,
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "nPczCjzI2devNBz1zQrb",
+    "name": "Brian",
+    "description": null,
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "onwK4e9ZLuTAKqWW03F9",
+    "name": "Daniel",
+    "description": null,
+    "gender": "male",
+    "accent": "british"
+  },
+  {
+    "id": "pFZP5JQG7iQjIQuC4Bku",
+    "name": "Lily",
+    "description": null,
+    "gender": "female",
+    "accent": "british"
+  },
+  {
+    "id": "pqHfZKP75CvOlQylNhV4",
+    "name": "Bill",
+    "description": null,
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "4O1sYUnmtThcBoSBrri7",
+    "name": "Maya J - Friendly and Cheerful Voice",
+    "description": "Maya is the pen name of a cheerful and energetic artist who has lived in many countries. Her experiences across these places bring a wide variety of emotions to her performances. She has an excellent voice suited for social media, AI chatbots, audiobooks, and more.",
+    "gender": "female",
+    "accent": "indian"
+  },
+  {
+    "id": "54YYBuRuAG6KJooiOhFI",
+    "name": "Alice ",
+    "description": "A young woman from Eastern Europe reading a story in English in a soothing calm voice",
+    "gender": "female",
+    "accent": "romanian"
+  },
+  {
+    "id": "9FuMHon7Kyk1AGgnR8C2",
+    "name": "Jenny \u2013 Cool and Casual",
+    "description": "Latin American voice, offering a cool, casual, and conversational tone that's perfect for podcasts, videos, and more.",
+    "gender": "female",
+    "accent": "american"
+  },
+  {
+    "id": "Ax1GP2W4XTyAyNHuch7v",
+    "name": "Kendall \u2013 Chic & Sarcastic",
+    "description": "Effortlessly chic with a perfectly timed eye-roll, Kendall\u2019s voice is Beverly Hills polish with a healthy dose of skepticism. She\u2019s smooth, stylish & always a step ahead\u2014like your most put-together friend who\u2019s heard every sales pitch, seen every trend and is still waiting to be impressed. Whether she\u2019s calling out life\u2019s little absurdities or making luxury sound almost too easy, Kendall\u2019s modern West Coast vibe keeps every line cool, effortless & just self-aware enough to question everything.",
+    "gender": "female",
+    "accent": "american"
+  },
+  {
+    "id": "ESNrF6xSj96uiykXXT1f",
+    "name": "Bryan ",
+    "description": "Middle-aged American man with a resounding, raspy, deep timbre. Great for Conversations.",
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "Kd8dIzBuJvT1diS5oAPR",
+    "name": "Christiania - Gentle African Female - Very Conversational ",
+    "description": "Soft, warm, and effortlessly engaging. This voice feels like a heartfelt conversation, perfect for storytelling, podcasts, audiobooks, and calming brand messages. Whether for soothing narrations, personal connections, or relaxed advertising, it invites listeners in with a natural, reassuring tone.",
+    "gender": "female",
+    "accent": "nigerian"
+  },
+  {
+    "id": "QLDNM6o3lDbtfJLUO890",
+    "name": "Jack",
+    "description": "Middle-aged male with South East Asian and American accent. Voice works well for conversations.",
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "UOsudtiwQVrIvIRyyCHn",
+    "name": "Latino Gentleman - Narrator",
+    "description": "Using my D.I.D as a newfound superpower I made this! A gentle yet flavorful voice to narrate or discuss sensitive yet concrete topics.",
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "UgBBYS2sOqTuMpoF3BR0",
+    "name": "Mark - Natural Conversations",
+    "description": "A casual, young-adult speaking in a natural manner. Perfect for Conversational AI.",
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "ZuvB6LuOVtnnHRsCEquq",
+    "name": "John Vincent Lee ",
+    "description": "An American male 30 years old voice with a calm tone. Works well for casual conversations.",
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "aEO01A4wXwd1O8GPgGlF",
+    "name": "Arabella",
+    "description": "A young engaging female voice, enchanting and compelling with every word. Perfect for audiobooks, storytelling, and narration.",
+    "gender": "female",
+    "accent": "australian"
+  },
+  {
+    "id": "aPHqQcm7Vm2Wgy37WaBW",
+    "name": "Kendall - Cheerful but Overburdened",
+    "description": "Effortlessly stylish with a schedule that\u2019s way too full, Kendall\u2019s voice is the perfect mix of polished West Coast charm and high-functioning chaos. She\u2019s smooth, engaging and just self-aware enough to know she\u2019s one task away from total burnout\u2014but hey, she\u2019s smiling through it. Whether she\u2019s delivering sharp narration, playful branding, or casually pretending everything\u2019s fine, Kendall\u2019s voice is perfect for relatable lifestyle content, witty ads, trendy podcast narration & conversations.",
+    "gender": "female",
+    "accent": "american"
+  },
+  {
+    "id": "biq55DmdsFYqfsQzmGQv",
+    "name": "Mattie - Conversational & podcast",
+    "description": "Middle-age male speaking honestly and openly with a warm and genuine voice.",
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "c8GqgOMlDjKmhWVDfhvI",
+    "name": "Kennedy - Narrator",
+    "description": "An adult American woman, expressive storyteller.",
+    "gender": "female",
+    "accent": "american"
+  },
+  {
+    "id": "c8MZcZcr0JnMAwkwnTIu",
+    "name": "Jay - Proper Mancunian",
+    "description": "Middle aged enthustiastic and down to Earth Mancunian male.",
+    "gender": "male",
+    "accent": "british"
+  },
+  {
+    "id": "dGZOPnBPB65AKnGqsIW8",
+    "name": "Astor",
+    "description": "Young woman, soft-spoken and throaty with nasal quality.",
+    "gender": "female",
+    "accent": "american"
+  },
+  {
+    "id": "f218e5pATi8cBqEEIGBU",
+    "name": "Christian Rivera",
+    "description": "Middle aged American male with a calm tone. Works well for conversations.",
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "gmv0PPPs8m6FEf03PImj",
+    "name": "Blondie - Gentle & Kind",
+    "description": "Warm and nurturing British young woman\u2019s voice, perfect for content that requires a gentle, kind, and heartfelt touch. Ideal for storytelling, emotional narratives, and reassuring messages.\r\n",
+    "gender": "female",
+    "accent": "british"
+  },
+  {
+    "id": "iLVmqjzCGGvqtMCk6vVQ",
+    "name": "Antonio - English with Subtle Italian Accent",
+    "description": "A young adult English voice with an Italian accent, slightly nasal, lively, and versatile. It works well for conversational styles and composed yet engaging content such as presentations and explanatory speeches.",
+    "gender": "male",
+    "accent": "italian"
+  },
+  {
+    "id": "lUTamkMw7gOzZbFIwmq4",
+    "name": "James - Professional British Male",
+    "description": "A young middle aged British professional male voice. Clear and paced, this is a great voice for any setting.",
+    "gender": "male",
+    "accent": "british"
+  },
+  {
+    "id": "loQD3CIxowi7eCEHd4m9",
+    "name": "Australian Steve",
+    "description": "An authentic Australian voice that blends professionalism with approachability. Confident, calm, and clear, with a natural warmth that makes every message engaging and relatable. Perfect for delivering insightful narration, business presentations, or conversational content with a polished yet down-to-earth tone. Whether guiding, informing, or storytelling, this voice commands attention while staying effortlessly natural.",
+    "gender": "male",
+    "accent": "australian"
+  },
+  {
+    "id": "q1Hhtkt94vkD6q7p50hW",
+    "name": "Alese Johnston Pro",
+    "description": "Professional southern female.  Soft. ",
+    "gender": "female",
+    "accent": "american"
+  },
+  {
+    "id": "qkskiKFtn5qTrNTRzb6M",
+    "name": "Frank Brown - American male",
+    "description": "Middle-aged American male. Great for conversations.",
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "qxjGnozOAtD4eqNuXms4",
+    "name": "John Shaw - Polite Customer Care Voice",
+    "description": "An empathetic, natural AI voice crafted for supportive, professional customer interactions. John Shaw\u2019s polite British accent sets a warm, trustworthy tone\u2014perfect for call centers, chatbots, and AI Agents. \r\n\r\nEnjoy a truly human-like, natural voice experience that eases communication and builds rapport with clients across any service platform.",
+    "gender": "male",
+    "accent": "british"
+  },
+  {
+    "id": "s0XGIcqmceN2l7kjsqoZ",
+    "name": "Lucas - Warm, Casual, Neutral American Voice",
+    "description": "Lucas provides a friendly, engaging tone to your audio projects. Recorded in a professional studio environment, his words are clear and crisp, yet full of unique tonalities and expressions. Lucas has a neutral midwestern-based accent, which can be easily understood by nearly all English speakers.",
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "wqS2JTzjt7fARO3ZxCVZ",
+    "name": "Ryan Opfer - Sales Webinar",
+    "description": "An Every-day energetic, middle aged, male voice that's friendly, relatable, inviting, instructional, and confident",
+    "gender": "male",
+    "accent": "american"
+  },
+  {
+    "id": "zZLmKvCp1i04X8E0FJ8B",
+    "name": "Vince - Engaging & Conversational",
+    "description": "A professional and approachable, casual yet conversational voice. Perfect for explainer videos or entertaining scripts to keep audiences engaged.",
+    "gender": "male",
+    "accent": "american"
+  }
+]

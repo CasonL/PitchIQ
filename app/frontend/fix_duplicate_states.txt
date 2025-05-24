@@ -1,0 +1,23 @@
+// Add state for tracking achievement scores
+const [achievementScores, setAchievementScores] = useState(initialAchievementScores);
+
+// Add state for guided conversation flow
+const [conversationState, setConversationState] = useState<OnboardingConversationState>('initial');
+const [identifiedIndustry, setIdentifiedIndustry] = useState<IndustryTemplate | null>(null);
+const [productDescription, setProductDescription] = useState('');
+const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+
+// Add state to track previous answers and conversation context
+const [conversationContext, setConversationContext] = useState<{
+  industry: string | null;
+  previousAnswers: {text: string; question: string}[];
+  currentStage: OnboardingStage;
+  currentQuestion: string;
+  frustrationDetected: boolean;
+}>({
+  industry: null,
+  previousAnswers: [],
+  currentStage: 'product',
+  currentQuestion: '',
+  frustrationDetected: false
+}); 

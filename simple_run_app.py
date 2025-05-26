@@ -166,5 +166,13 @@ if __name__ == '__main__':
     # logger.info("Conversation history should be passed from frontend.")
     # logger.info("============================================================\n")
     
+    # Attempt to create a default admin user if one doesn't exist
+    # create_default_admin_user(app) # Uncomment if you have this function
+
+    print(f"DEBUG: Loaded OPENAI_API_KEY: {app.config.get('OPENAI_API_KEY')}") # ADD THIS LINE FOR DEBUGGING
+
+    # Determine SSL context
+    ssl_context_type = app.config.get('SSL_CONTEXT', 'adhoc') # Default to 'adhoc' if not set
+
     # The host and port should be configured in create_app or its config
-    app.run(host='0.0.0.0', port=8080, debug=True, ssl_context='adhoc') # Use app instance from create_app 
+    app.run(host='0.0.0.0', port=8080, debug=True, ssl_context=ssl_context_type) # Use app instance from create_app 

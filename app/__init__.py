@@ -52,12 +52,8 @@ from app.routes.api.email_signup import email_signup_bp
 # Load environment variables
 load_dotenv()
 
-# --- Remove redundant initializations ---
-# csrf = CSRFProtect()
-# login_manager = LoginManager()
-# bootstrap = Bootstrap()
-# socketio = SocketIO()
-# --- End removal ---
+# Define FLASK_ROUTE_PREFIXES before create_app or ensure it's defined inside if only used there
+FLASK_ROUTE_PREFIXES = ('/auth', '/training', '/chat', '/voice', '/api', '/socket.io', '/dashboard', '/admin', '/static', '/instance') # Added /static, /admin, /instance
 
 logger = logging.getLogger(__name__) # Setup logger for the app module
 
@@ -111,43 +107,35 @@ def create_app(config_name='dev'):
     @app.before_request
     def exempt_api_csrf():
         # Check if the request path starts with /api/ or /training/api/ and mark it exempt
-        if request.path.startswith('/api/') or request.path.startswith('/training/api/'):
-            # --- NEW LOGGING ---
-            if request.path == '/training/api/chat/create_test_persona':
-                app.logger.info(f"[CSRF Exemption] Attempting to exempt: {request.path}")
-            # --- END NEW LOGGING ---
-            if hasattr(request, '_csrf_processed'):
-                 app.logger.warning(f"CSRF exemption for {request.path} running AFTER CSRF check?")
-            setattr(request, '_csrf_exempt', True)
-            # --- NEW LOGGING ---
-            if request.path == '/training/api/chat/create_test_persona':
-                app.logger.info(f"[CSRF Exemption] Successfully set _csrf_exempt for: {request.path}")
-            # --- END NEW LOGGING ---
-            # logger.debug(f"CSRF exemption set for path: {request.path}") 
-            
-        # Explicitly exempt the paraphrase endpoint
-        if request.path == '/api/paraphrase':
-            app.logger.info(f"Explicitly exempting {request.path} from CSRF protection")
+        if request.path.startswith(('/api/', '/training/api/')): # Simplified condition
             setattr(request, '_csrf_exempt', True)
     # --- End EARLY CSRF Exemption ---
     
     # Configure CORS to allow frontend to make requests
     CORS(app, resources={
-        r"/api/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
-                               "http://localhost:5173", "http://127.0.0.1:5173",
-                               "https://dreamy-figolla-e05819.netlify.app"]},
-        r"/auth/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
-                                "http://localhost:5173", "http://127.0.0.1:5173",
-                                "https://dreamy-figolla-e05819.netlify.app"]},
+        r"/api/*": {"origins": "*"}, # Allow all origins for /api/*
+        r"/auth/*": {"origins": "*"}, # Allow all origins for /auth/*
         r"/chat/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
                                "http://localhost:5173", "http://127.0.0.1:5173",
-                               "https://dreamy-figolla-e05819.netlify.app"]},
+                               "https://dreamy-figolla-e05819.netlify.app",
+                               "https://startling-druid-93b184.netlify.app",
+                               r"https://*.ngrok-free.app",
+                               "https://7add-2001-56a-fa6d-4c00-58dd-1cc1-2a33-948c.ngrok-free.app"
+                               ]},
         r"/voice/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
                                 "http://localhost:5173", "http://127.0.0.1:5173",
-                                "https://dreamy-figolla-e05819.netlify.app"]},
+                                "https://dreamy-figolla-e05819.netlify.app",
+                                "https://startling-druid-93b184.netlify.app",
+                                r"https://*.ngrok-free.app",
+                                "https://7add-2001-56a-fa6d-4c00-58dd-1cc1-2a33-948c.ngrok-free.app"
+                                ]},
         r"/training/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
                                     "http://localhost:5173", "http://127.0.0.1:5173",
-                                    "https://dreamy-figolla-e05819.netlify.app"]},
+                                    "https://dreamy-figolla-e05819.netlify.app",
+                                    "https://startling-druid-93b184.netlify.app",
+                                    r"https://*.ngrok-free.app",
+                                    "https://7add-2001-56a-fa6d-4c00-58dd-1cc1-2a33-948c.ngrok-free.app"
+                                    ]},
         r"/dashboard": {"origins": "*"},  # Allow access to dashboard from anywhere
         r"/dashboard-react": {"origins": "*"}  # Allow access to the dashboard route from any origin
     }, supports_credentials=True)  # Must support credentials for sessions
@@ -260,100 +248,77 @@ def create_app(config_name='dev'):
     register_error_handlers(app)
 
     # --- Define React frontend build directory ---
-    react_build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'static', 'react', 'dist'))
-    landing_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'static', 'landing'))
+    # This should point to your main React app's build output
+    react_frontend_dist_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'frontend', 'dist'))
+    
+    # This was for a secondary, simpler landing page or other static assets, might not be needed for main React app
+    # landing_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'static', 'landing'))
     
     # +++ Add a direct test route for POST +++
     @app.route('/api/test_post', methods=['GET', 'POST'])
     def api_test_post():
-        logger.info(f"Entered /api/test_post with method: {request.method}")
         if request.method == 'POST':
-            try:
-                data = request.json
-                logger.info(f"Received POST data: {data}")
-                return jsonify({"status": "ok", "method": "POST", "received_data": data}), 200
-            except Exception as e:
-                logger.error(f"Error processing POST data: {e}")
-                return jsonify({"error": "Failed to parse JSON"}), 400
-        else: # GET
-            return jsonify({"status": "ok", "method": "GET", "message": "Test POST endpoint is working."}), 200
-    # +++ End test route +++
-    
-    # List of known Flask route prefixes to ignore in the catch-all
-    FLASK_ROUTE_PREFIXES = ('/auth', '/training', '/chat', '/voice', '/api', '/socket.io', '/dashboard', '/simplified-dashboard')
-    
-    # Add a route to serve landing page static assets
-    @app.route('/assets/<path:filename>')
-    def serve_landing_assets(filename):
-        """Serve the static assets for the landing page."""
-        react_assets_dir = os.path.join(os.path.dirname(__file__), 'static', 'react', 'dist', 'assets')
-        return send_from_directory(react_assets_dir, filename)
-    
-    # Add a route to serve the vite.svg file
+            # Handle POST request
+            data = request.json
+            return jsonify({'message': 'POST request successful', 'data': data}), 200
+        else:
+            # Handle GET request
+            return jsonify({'message': 'GET request successful. Use POST to send data.'}), 200
+
+    #
+    # The following route is commented out because it conflicts with serving
+    # static assets for the main React application (from app/frontend/dist/assets).
+    # The generic /<path:path> (serve_react_app) route should now handle these.
+    #
+    # @app.route('/assets/<path:filename>')
+    # def serve_landing_assets(filename):
+    #     app.logger.debug(f"Legacy /assets/ route was called for {filename} - THIS ROUTE IS COMMENTED OUT.")
+    #     return send_from_directory(os.path.join(current_app.static_folder, 'landing', 'assets'), filename)
+
     @app.route('/vite.svg')
     def serve_vite_svg():
-        """Serve the vite.svg file for the landing page."""
-        react_dist_dir = os.path.join(os.path.dirname(__file__), 'static', 'react', 'dist')
-        return send_from_directory(react_dist_dir, 'vite.svg')
+        # Serves vite.svg from the root of your React app's dist folder
+        return send_from_directory(react_frontend_dist_dir, 'vite.svg')
     
     # Add a route to serve the demo.mp3 file
+    # Ensure demo.mp3 is in react_frontend_dist_dir if served this way
     @app.route('/demo.mp3')
     def serve_demo_mp3():
-        """Serve the demo.mp3 file for the landing page."""
-        react_dist_dir = os.path.join(os.path.dirname(__file__), 'static', 'react', 'dist')
-        return send_from_directory(react_dist_dir, 'demo.mp3')
+        return send_from_directory(react_frontend_dist_dir, 'demo.mp3')
     
     # Add a route to serve the notification.mp3 file
+    # Ensure notification.mp3 is in react_frontend_dist_dir if served this way
     @app.route('/notification.mp3')
     def serve_notification_mp3():
-        """Serve the notification.mp3 file for the landing page."""
-        react_dist_dir = os.path.join(os.path.dirname(__file__), 'static', 'react', 'dist')
-        return send_from_directory(react_dist_dir, 'notification.mp3')
+        return send_from_directory(react_frontend_dist_dir, 'notification.mp3')
     
-    # Move the catch-all route to the end, AFTER all other routes are registered
+    # This is the main catch-all for serving React app assets and enabling client-side routing.
+    # It MUST be registered AFTER specific file routes like /vite.svg, /demo.mp3 etc.
+    # AND AFTER all blueprints (especially /api, /auth etc.)
     @app.route('/<path:path>')
-    def serve_react_app(path):
-        """Serve the React app or static files, ignoring known Flask routes."""
-        
-        # Check if the path starts with a known Flask prefix
-        full_path = f'/{path}' # Ensure path starts with a slash for comparison
-        
-        # Debug logging
-        app.logger.info(f"Catch-all route called for path: '{path}' (full_path: '{full_path}')")
-        
-        # IMPORTANT: Do NOT intercept API routes - let them 404 naturally if not found
-        if full_path.startswith('/api/'):
-            app.logger.info(f"API path '{full_path}' not found, returning 404 from catch-all.")
-            abort(404)
-        
-        if full_path.startswith(FLASK_ROUTE_PREFIXES):
-            # If it's a known Flask/API path, let other routes handle it or 404
-            app.logger.info(f"Path '{full_path}' matches a Flask prefix, aborting catch-all with 404.")
-            abort(404)
-        
-        # First check landing directory
-        static_landing_path = os.path.join(landing_dir, path)
-        if path and os.path.exists(static_landing_path) and os.path.isfile(static_landing_path):
-            app.logger.debug(f"Serving static file from landing: {path}")
-            return send_from_directory(landing_dir, path)
-            
-        # Then check React build directory for dashboard assets
-        static_file_path = os.path.join(react_build_dir, path)
-        if path and os.path.exists(static_file_path) and os.path.isfile(static_file_path):
-            app.logger.debug(f"Serving static file from React build: {path}")
-            return send_from_directory(react_build_dir, path)
-            
-        # --- Fallback: Serve React App's index.html for dashboard routes --- 
-        # For any other dashboard-related path not matched above, serve the main index.html of the React app.
-        index_html_path = os.path.join(react_build_dir, 'index.html')
-        if path.startswith('dashboard') and os.path.exists(index_html_path):
-             app.logger.debug(f"Path '{full_path}' not found or not a file, serving React index.html")
-             return send_from_directory(react_build_dir, 'index.html')
+    def serve_react_static_files_or_index(path):
+        # Construct the full path to the potential static file in app/frontend/dist
+        requested_file_path = os.path.join(react_frontend_dist_dir, path)
+
+        # Check if the requested path points to an existing file
+        if os.path.exists(requested_file_path) and os.path.isfile(requested_file_path):
+            app.logger.debug(f"Catch-all: Serving static file: {path} from {react_frontend_dist_dir}")
+            return send_from_directory(react_frontend_dist_dir, path)
         else:
-             # Return 404 for all other routes
-             app.logger.info(f"No match found for path '{path}', returning 404")
-             abort(404) # Use abort for consistency
+            # If the path doesn't correspond to a static file,
+            # assume it's a client-side route and serve the main index.html.
+            # React Router will then handle the routing on the client side.
+            # This check prevents serving index.html for API routes if they somehow miss earlier checks.
+            if not path.startswith(tuple(FLASK_ROUTE_PREFIXES)): # Use the globally defined FLASK_ROUTE_PREFIXES
+                app.logger.debug(f"Catch-all: Path '{path}' not a static file, serving index.html for client-side routing.")
+                return send_from_directory(react_frontend_dist_dir, 'index.html')
+            else:
+                app.logger.warning(f"Catch-all: Path '{path}' matched a Flask prefix but wasn't handled by a blueprint. Aborting with 404.")
+                abort(404) # Path matched a prefix but no specific route, so 404.
     
+    # The main route ('/') is handled by the main_bp in app/routes/main.py,
+    # which should also serve send_from_directory(react_frontend_dist_dir, 'index.html')
+
     # Add a separate teardown function to ensure database connections are properly closed
     @app.teardown_appcontext
     def close_db_connection(exception=None):

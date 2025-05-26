@@ -111,13 +111,36 @@ class ConfigManager:
     
     def _load_email_config(self):
         """Load email/SMTP configuration settings"""
-        # SMTP settings
-        self.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER')
-        self.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', '587'))
-        self.config['SMTP_USERNAME'] = os.environ.get('SMTP_USERNAME')
-        self.config['SMTP_PASSWORD'] = os.environ.get('SMTP_PASSWORD')
-        self.config['FROM_EMAIL'] = os.environ.get('FROM_EMAIL')
+        # SMTP settings from .env
+        smtp_server = os.environ.get('SMTP_SERVER')
+        smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+        smtp_username = os.environ.get('SMTP_USERNAME')
+        smtp_password = os.environ.get('SMTP_PASSWORD')
+        from_email = os.environ.get('FROM_EMAIL')
+        smtp_use_tls = os.environ.get('SMTP_USE_TLS', 'True').lower() in ('true', '1', 'yes')
+        mail_default_sender = os.environ.get('MAIL_DEFAULT_SENDER', from_email) # Use FROM_EMAIL as fallback
+
+        # Set both SMTP_ and MAIL_ prefixed versions for compatibility
+        self.config['SMTP_SERVER'] = smtp_server
+        self.config['MAIL_SERVER'] = smtp_server
+
+        self.config['SMTP_PORT'] = smtp_port
+        self.config['MAIL_PORT'] = smtp_port
+
+        self.config['SMTP_USERNAME'] = smtp_username
+        self.config['MAIL_USERNAME'] = smtp_username
+
+        self.config['SMTP_PASSWORD'] = smtp_password
+        self.config['MAIL_PASSWORD'] = smtp_password
+
+        self.config['FROM_EMAIL'] = from_email # Kept for other potential uses
+        self.config['MAIL_DEFAULT_SENDER'] = mail_default_sender
         
+        self.config['SMTP_USE_TLS'] = smtp_use_tls # Kept for other potential uses
+        self.config['MAIL_USE_TLS'] = smtp_use_tls
+
+        self.config['MAIL_USE_SSL'] = os.environ.get('SMTP_USE_SSL', 'False').lower() in ('true', '1', 'yes')
+
         # Email feature flags
         self.config['EMAIL_ENABLED'] = os.environ.get('EMAIL_ENABLED', 'False').lower() in ('true', '1', 'yes')
     

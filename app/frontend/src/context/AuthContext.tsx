@@ -36,7 +36,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/status`);
+        const response = await fetch(`${API_BASE_URL}/api/auth/status`, {
+          headers: {
+            'ngrok-skip-browser-warning': 'true'
+          }
+        });
         if (!response.ok) {
           // Handle non-2xx responses (e.g., 401 Unauthorized)
           if (response.status === 401) {

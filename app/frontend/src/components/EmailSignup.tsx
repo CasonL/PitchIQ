@@ -39,7 +39,11 @@ const EmailSignup = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/email-signup/count`);
+        const response = await fetch(`${API_BASE_URL}/api/email-signup/count`, {
+          headers: {
+            'ngrok-skip-browser-warning': 'true'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           setRemainingCount(data.remaining_early_access);
@@ -92,6 +96,7 @@ const EmailSignup = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
         },
         body: JSON.stringify({
           email,

@@ -53,3 +53,7 @@ Future enhancements could include:
 - Smarter sentence/paragraph chunking in the streaming response
 - Adding typing indicators during generation
 - Voice streaming synchronized with text streaming 
+
+## OpenAI Voice Agent Architecture Resources
+
+- [OpenAI Voice Agent Architecture Guide](https://platform.openai.com/docs/guides/voice-agents?voice-agent-architecture=speech-to-speech) 

@@ -76,9 +76,15 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: str
         # Send email with detailed logging
         logger.info(f"Connecting to SMTP server: {smtp_server}:{smtp_port}")
         with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.set_debuglevel(1) # Print SMTP conversation to stdout/stderr
             logger.debug("Starting TLS encryption")
             server.starttls()
             
+            # Enhanced DEBUG logging for password
+            password_to_log = smtp_password if smtp_password else ""
+            masked_password = password_to_log[:2] + '*' * (len(password_to_log) - 4) + password_to_log[-2:] if len(password_to_log) > 4 else "[short_or_no_password]"
+            logger.info(f"DEBUG EMAIL_SERVICE: Attempting SMTP login. Username: '{smtp_username}', Password (masked): '{masked_password}', Password Length: {len(password_to_log)}")
+
             logger.debug("Logging in to SMTP server")
             server.login(smtp_username, smtp_password)
             

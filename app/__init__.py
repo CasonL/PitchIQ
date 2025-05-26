@@ -46,6 +46,8 @@ from app.routes.api.generate_contextual_question import generate_contextual_ques
 from app.routes.api.embeddings import embeddings_blueprint
 # Import the dashboard coach blueprint
 from app.routes.api.dashboard_coach import dashboard_coach_blueprint
+# Import the email signup blueprint
+from app.routes.api.email_signup import email_signup_bp
 
 # Load environment variables
 load_dotenv()
@@ -131,16 +133,21 @@ def create_app(config_name='dev'):
     
     # Configure CORS to allow frontend to make requests
     CORS(app, resources={
-        r"/api/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080", 
-                               "http://localhost:5173", "http://127.0.0.1:5173"]},
-        r"/auth/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080", 
-                                "http://localhost:5173", "http://127.0.0.1:5173"]},
-        r"/chat/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080", 
-                               "http://localhost:5173", "http://127.0.0.1:5173"]},
-        r"/voice/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080", 
-                                "http://localhost:5173", "http://127.0.0.1:5173"]},
-        r"/training/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080", 
-                                    "http://localhost:5173", "http://127.0.0.1:5173"]},
+        r"/api/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
+                               "http://localhost:5173", "http://127.0.0.1:5173",
+                               "https://dreamy-figolla-e05819.netlify.app"]},
+        r"/auth/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
+                                "http://localhost:5173", "http://127.0.0.1:5173",
+                                "https://dreamy-figolla-e05819.netlify.app"]},
+        r"/chat/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
+                               "http://localhost:5173", "http://127.0.0.1:5173",
+                               "https://dreamy-figolla-e05819.netlify.app"]},
+        r"/voice/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
+                                "http://localhost:5173", "http://127.0.0.1:5173",
+                                "https://dreamy-figolla-e05819.netlify.app"]},
+        r"/training/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
+                                    "http://localhost:5173", "http://127.0.0.1:5173",
+                                    "https://dreamy-figolla-e05819.netlify.app"]},
         r"/dashboard": {"origins": "*"},  # Allow access to dashboard from anywhere
         r"/dashboard-react": {"origins": "*"}  # Allow access to the dashboard route from any origin
     }, supports_credentials=True)  # Must support credentials for sessions
@@ -235,8 +242,6 @@ def create_app(config_name='dev'):
     app.register_blueprint(chat, url_prefix='/chat')
     app.register_blueprint(voice, url_prefix='/voice')
     app.register_blueprint(training, url_prefix='/training')
-    print("DEBUG: Current app.url_map after training registration:")
-    print(app.url_map)
     app.register_blueprint(dashboard, url_prefix='/dashboard')
     app.register_blueprint(assets)
     app.register_blueprint(demo, url_prefix='/demo')  # Register demo blueprint
@@ -245,6 +250,11 @@ def create_app(config_name='dev'):
     app.register_blueprint(generate_contextual_question_blueprint, url_prefix='/api/generate_contextual_question')
     app.register_blueprint(embeddings_blueprint, url_prefix='/api/embeddings')
     app.register_blueprint(dashboard_coach_blueprint, url_prefix='/api/dashboard_coach')
+    app.register_blueprint(email_signup_bp)
+    
+    # Register contact form blueprint
+    from app.routes.api.contact import contact_bp
+    app.register_blueprint(contact_bp, url_prefix='/api')
     
     # Register centralized error handlers
     register_error_handlers(app)
@@ -307,9 +317,18 @@ def create_app(config_name='dev'):
         
         # Check if the path starts with a known Flask prefix
         full_path = f'/{path}' # Ensure path starts with a slash for comparison
+        
+        # Debug logging
+        app.logger.info(f"Catch-all route called for path: '{path}' (full_path: '{full_path}')")
+        
+        # IMPORTANT: Do NOT intercept API routes - let them 404 naturally if not found
+        if full_path.startswith('/api/'):
+            app.logger.info(f"API path '{full_path}' not found, returning 404 from catch-all.")
+            abort(404)
+        
         if full_path.startswith(FLASK_ROUTE_PREFIXES):
             # If it's a known Flask/API path, let other routes handle it or 404
-            app.logger.debug(f"Path '{full_path}' matches a Flask prefix, aborting catch-all.")
+            app.logger.info(f"Path '{full_path}' matches a Flask prefix, aborting catch-all with 404.")
             abort(404)
         
         # First check landing directory
@@ -332,6 +351,7 @@ def create_app(config_name='dev'):
              return send_from_directory(react_build_dir, 'index.html')
         else:
              # Return 404 for all other routes
+             app.logger.info(f"No match found for path '{path}', returning 404")
              abort(404) # Use abort for consistency
     
     # Add a separate teardown function to ensure database connections are properly closed

@@ -30,6 +30,12 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: str
         smtp_username = config.get('SMTP_USERNAME')
         smtp_password = config.get('SMTP_PASSWORD')
         from_email = config.get('FROM_EMAIL')
+        email_enabled = config.get('EMAIL_ENABLED', False)
+        
+        # Check if email is enabled
+        if not email_enabled:
+            logger.warning("Email is disabled in configuration (EMAIL_ENABLED=false)")
+            return False
         
         # Validate configuration
         missing = []
@@ -41,6 +47,13 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: str
         if missing:
             error_msg = f"Email configuration missing: {', '.join(missing)}"
             logger.error(error_msg)
+            logger.error("To fix this, create a .env file with the following settings:")
+            logger.error("EMAIL_ENABLED=true")
+            logger.error("SMTP_SERVER=smtp.gmail.com")
+            logger.error("SMTP_PORT=587")
+            logger.error("SMTP_USERNAME=your_email@gmail.com")
+            logger.error("SMTP_PASSWORD=your_app_password")
+            logger.error("FROM_EMAIL=your_email@gmail.com")
             return False
         
         # Create message
@@ -75,6 +88,16 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: str
         
         return True
         
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(f"SMTP Authentication failed: {str(e)}")
+        logger.error("This usually means:")
+        logger.error("1. Wrong username/password")
+        logger.error("2. For Gmail: You need an 'App Password', not your regular password")
+        logger.error("3. Go to: Google Account > Security > 2-Step Verification > App passwords")
+        return False
+    except smtplib.SMTPException as e:
+        logger.error(f"SMTP error: {str(e)}")
+        return False
     except Exception as e:
         logger.error(f"Unexpected error sending email: {str(e)}", exc_info=True)
         return False

@@ -1,0 +1,42 @@
+/* Animation classes */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    opacity: 0;
+    transform: translateX(-150%) skewX(-15deg);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(-75%) skewX(-15deg);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(0%) skewX(-15deg);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(75%) skewX(-15deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(150%) skewX(-15deg);
+  }
+} 

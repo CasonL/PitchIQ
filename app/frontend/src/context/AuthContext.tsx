@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
+import { পার্থক্য } from "@mui/material";
 
 interface User {
   id: number;
@@ -23,6 +24,8 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: false,
@@ -33,8 +36,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Use relative path for API call
-        const response = await fetch('/api/auth/status'); 
+        const response = await fetch(`${API_BASE_URL}/api/auth/status`);
         if (!response.ok) {
           // Handle non-2xx responses (e.g., 401 Unauthorized)
           if (response.status === 401) {

@@ -167,4 +167,4 @@ if __name__ == '__main__':
     # logger.info("============================================================\n")
     
     # The host and port should be configured in create_app or its config
-    app.run(host='0.0.0.0', port=8080, debug=True) # Use app instance from create_app 
+    app.run(host='0.0.0.0', port=8080, debug=True, ssl_context='adhoc') # Use app instance from create_app 

@@ -1,974 +1,589 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from "@/components/ui/progress";
-import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, Users, Target, BrainCircuit, CheckCircle, AlertTriangle, Trophy, X, Loader2 } from 'lucide-react';
-import { FaMousePointer } from 'react-icons/fa';
+import React, { useEffect, useState, useRef } from "react";
+import { Search, Eye, Lightbulb, Users, Target, Brain, Bot, Zap, TrendingUp, AlertTriangle } from "lucide-react";
 
-const featureVisuals = [
-  {
-    id: 'adapt',
-    triggerHeading: "Adapts to Your World",
-    icon: <Target size={48} className="text-blue-600 transition-colors duration-500" />,
-    accentColor: 'bg-blue-500',
-    textColor: 'text-blue-800',
-    detailIcons: [
-        <Target key="t" size={20} className="text-gray-500" />,
-        <Zap key="z" size={20} className="text-gray-500" />
-    ],
-    label: "Personalized Setup"
-  },
-  {
-    id: 'personas',
-    triggerHeading: "Faces Realistic AI Buyers",
-    icon: <Users size={48} className="text-green-600 transition-colors duration-500" />,
-    accentColor: 'bg-green-500',
-    textColor: 'text-green-800',
-    detailIcons: [],
-    label: "Dynamic Personalities"
-  },
-  {
-    id: 'feedback',
-    triggerHeading: "Gets Actionable Feedback",
-    icon: <BrainCircuit size={48} className="text-purple-600 transition-colors duration-500" />,
-    accentColor: 'bg-purple-500',
-    textColor: 'text-purple-800',
-    detailIcons: [
-        <CheckCircle key="c" size={20} className="text-gray-500" />,
-        <AlertTriangle key="a" size={20} className="text-gray-500" />,
-        <Trophy key="t" size={20} className="text-gray-500" />
-    ],
-    label: "Insightful Analysis"
-  },
-];
-
-const AnimatedVisual = ({ featureId }: { featureId: string }) => {
-    const activeFeature = featureVisuals.find(f => f.id === featureId) || featureVisuals[0];
-    const accentColor = activeFeature.accentColor || 'bg-gray-300';
-    const textColor = activeFeature.textColor || 'text-gray-800';
-
-    return (
-        <div className={`shadow-xl transition-all duration-500 ease-in-out p-6 flex flex-col items-center justify-center text-center min-h-[300px] aspect-square relative rounded-lg bg-white border border-gray-200`}>
-            <div className={`absolute top-2 right-2 px-2 py-0.5 text-xs font-medium text-white rounded-full ${accentColor}`}> 
-                 {activeFeature.label}
-             </div>
-
-            <div className="mb-4">
-                 {activeFeature.icon}
-             </div>
-             
-             <div className="flex gap-4 mt-4 h-6 items-center">
-                {featureVisuals.map(f => (
-                     <div 
-                         key={`${f.id}-details`} 
-                         className={`flex gap-3 transition-opacity duration-500 ${activeFeature.id === f.id ? 'opacity-100' : 'opacity-0 absolute'}`}
-                     >
-                         {f.detailIcons.map((icon, idx) => 
-                             <span key={idx} className="transition-transform duration-500 ease-out transform hover:scale-110">{icon}</span>
-                         )}
-                     </div>
-                 ))}
-             </div>
-            
-            <p className={`mt-4 text-sm font-semibold ${textColor}`}>
-                {activeFeature.triggerHeading}
-            </p>
-        </div>
-    );
-};
-
-// Revised static content data with new copy
-const staticContentData = [
-  {
-    id: 'guru',
-    heading: "Tailored<br /> Scenarios",
-    text: "Adapts to your <strong>industry</strong> and <strong>ideal customer</strong>.<br />Answer a few questions to generate personas<br /><strong>tailored</strong> to your <strong>unique needs</strong>."
-  },
-  {
-    id: 'match',
-    heading: "Life-like<br /> AI Personas",
-    text: "AI simulates <strong>complex B2B & B2C personas</strong><br />with personalities, objections, and pain points.<br /><strong>Problem solve</strong> through challenging scenarios."
-  },
-  {
-    id: 'results',
-    heading: "Performance<br /> Analysis",
-    text: "<strong>Analyze key moments</strong>, emotional intelligence,<br />and sales strategies, instantly providing<br /><strong>actionable insights</strong> and <strong>tailored recommendations</strong>."
-  },
-  {
-    id: 'edge',
-    heading: "Master<br /> Objections",
-    text: "Handle your calls with <strong>confidence</strong>.<br />Effectively deal with <strong>competitor mentions</strong> and<br /><strong>industry objections</strong>."
-  },
-  {
-    id: 'practice',
-    heading: "Differentiate<br /> Your Offer",
-    text: "<strong>Test your industry knowledge</strong>, practice refining<br />your responses, and <strong>differentiate your offer</strong><br />through tailored recommendations."
-  },
-];
-
-// Add new view state
-type DemoView = 'initial' | 'loading' | 'loadingComplete' | 'feedback' | 'dashboard' | 'tailoring' | 'finalCheckmark' | 'pitchiqText';
-
-// --- Animation Variants ---
-const viewVariants = {
-  initial: { 
-    exit: { opacity: 0, transition: { duration: 0.15 } },
-    enter: { opacity: 1, scale: 1, transition: { duration: 0.2 }}
-  },
-  loading: {
-    enter: { opacity: 1, scale: [0.9, 1.05, 1], y: [-15, 0], transition: { duration: 0.3, ease: "easeOut" } },
-    exit: { opacity: 0, y: 15, scale: 0.95, transition: { duration: 0.2, ease: "easeIn" } },
-    initial: { opacity: 0, y: -15 }
-  },
-  loadingComplete: {
-    enter: { opacity: 1, transition: { duration: 0.1 } },
-    exit: { opacity: 0, transition: { duration: 0.1 } },
-    initial: { opacity: 0 }
-  },
-  feedback: { 
-    enter: { opacity: 1, transition: { duration: 0.3, delay: 0.1 } },
-    exit: { opacity: 0, transition: { duration: 0.2 } }, 
-    initial: { opacity: 0 }
-  },
-  dashboard: { enter: { opacity: 1, transition: { duration: 0.5, delay: 0.1 } }, exit: { opacity: 0, transition: { duration: 0.2 } }, initial: { opacity: 0 } },
-  poppy: {
-    initial: { opacity: 0, scale: 0.8 },
-    enter: {
-      opacity: 1,
-      scale: [0.8, 1.25, 1],
-      transition: { stiffness: 500, damping: 20, duration: 0.7, ease: "easeInOut" } 
+// AnimatedBrain with text wheel
+const AnimatedBrain = ({ isActive }: { isActive: boolean }) => {
+  // Shake animation for Zap icon
+  const [isShaking, setIsShaking] = useState(false);
+  useEffect(() => {
+    if (!isActive) {
+      setIsShaking(false);
+      return;
     }
+    const shake = () => {
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 500);
+    };
+    const shakeInterval = setInterval(shake, 5000);
+    shake();
+    return () => clearInterval(shakeInterval);
+  }, [isActive]);
+
+  // Text wheel animation
+  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
+  const [animationState, setAnimationState] = useState<'visible' | 'animatingOut' | 'hiddenForIn' | 'animatingIn'>('visible');
+
+  const phrases = [
+    "Detailing Prospects Morning",
+    "Exploring Buyer Nuances",
+    "defining Favorite Hobby",
+    "Crafting Core Motivations",
+    "Uncovering Critical Needs",
+  ];
+
+  const animationDuration = 600; // ms for fade/move - INCREASED
+  const phraseDisplayTime = 2500; // ms text is fully visible
+
+  useEffect(() => {
+    if (!isActive) {
+      setCurrentPhraseIndex(0);
+      setAnimationState('visible');
+      return;
+    }
+
+    let timeoutId: NodeJS.Timeout | undefined;
+    let frameId: number | undefined;
+
+    if (animationState === 'visible') {
+      timeoutId = setTimeout(() => {
+        setAnimationState('animatingOut');
+      }, phraseDisplayTime);
+    } else if (animationState === 'animatingOut') {
+      timeoutId = setTimeout(() => {
+        setCurrentPhraseIndex((prevIndex) => (prevIndex + 1) % phrases.length);
+        setAnimationState('hiddenForIn');
+      }, animationDuration);
+    } else if (animationState === 'hiddenForIn') {
+      // Use rAF to ensure 'hiddenForIn' styles are applied before 'animatingIn' starts its transition
+      frameId = requestAnimationFrame(() => {
+        setAnimationState('animatingIn');
+      });
+    } else if (animationState === 'animatingIn') {
+      timeoutId = setTimeout(() => {
+        setAnimationState('visible');
+      }, animationDuration);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      if (frameId) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [isActive, animationState, phrases.length, phraseDisplayTime, animationDuration]);
+
+  let textClasses = "text-xs md:text-sm font-medium text-gray-600 whitespace-nowrap";
+  switch (animationState) {
+    case 'visible':
+      // Ends in this state, ease-out for smooth stop
+      textClasses += ` opacity-100 translate-y-0 scale-100 rotate-0 transform transition-all duration-${animationDuration} ease-out`;
+      break;
+    case 'animatingOut':
+      // Moves down, scales down, rotates, and fades out
+      textClasses += ` opacity-0 translate-y-5 scale-90 rotate-3 transform transition-all duration-${animationDuration} ease-in`;
+      break;
+    case 'hiddenForIn':
+      // Starts above, scaled down, rotated, invisible. No transition for this immediate state change.
+      textClasses += " opacity-0 -translate-y-5 scale-90 -rotate-3 transform";
+      break;
+    case 'animatingIn':
+      // Moves down to center, scales up, straightens, and fades in
+      textClasses += ` opacity-100 translate-y-0 scale-100 rotate-0 transform transition-all duration-${animationDuration} ease-out`;
+      break;
   }
-};
-
-// Variant for the checkmark icon itself
-const checkmarkVariant = {
-    hidden: { scale: 0, opacity: 0 },
-    visible: {
-        scale: [0, 1.3, 1], 
-        opacity: 1,
-        transition: { duration: 0.4, ease: "backOut" } // Slightly faster checkmark pop
-    }
-};
-
-const mouseVariants = {
-    initial: { 
-        opacity: 0, scale: 0.8, 
-        top: '65%', left: '40%', // Calculated position for lower-left of initial card
-        x: '-50%', y: '-50%' // Center the element at this point
-    },
-    animate: { 
-        opacity: 1, scale: 1, 
-        top: '65%', left: '50%', 
-        x: '-50%', y: '-50%',
-        transition: { duration: 0.8, ease: 'easeInOut' } 
-    },
-    click: { 
-        scale: [1, 0.85, 1], 
-        top: '65%', left: '50%', 
-        x: '-50%', y: '-50%',
-        transition: { duration: 0.25 } 
-    },
-    clickedAndWaiting: { 
-      opacity: 0,
-      scale: 1,
-      top: '65%', left: '50%', 
-      x: '-50%', y: '-50%',
-      transition: { duration: 0.2, delay: 0.1 }
-    },
-    moveToX: { 
-        opacity: 1, scale: 1, 
-        top: '4%', right: '3%',
-        bottom: 'auto', left: 'auto', x: '0%', y: '0%', 
-        transition: { duration: 0.6, ease: 'easeInOut' } 
-    },
-    clickX: { 
-        scale: [1, 0.85, 1], 
-        top: '4%', right: '3%',
-        bottom: 'auto', left: 'auto', x: '0%', y: '0%',
-        transition: { duration: 0.25 }
-    },
-    hide: { 
-        opacity: 0,
-        top: '4%', right: '3%',
-        bottom: 'auto', left: 'auto', x: '0%', y: '0%',
-        transition: { duration: 0.05 }
-    }
-};
-
-// Add variants for the X button pop
-const xButtonVariants = {
-    idle: { scale: 1 },
-    popping: {
-        scale: [1, 1.3, 1], // Pop effect
-        transition: { duration: 0.25, ease: 'easeOut' }
-    }
-};
-
-// Add variants for the initial button press
-const initialButtonVariants = {
-    idle: { scale: 1 },
-    pressed: {
-        scale: [1, 0.9, 1], // Press effect
-        transition: { duration: 0.2, ease: 'easeOut' }
-    }
-};
-
-// Variants for the animating container
-const containerVariants = {
-    initialVisible: { opacity: 1, width: '280px', height: '280px', scale: 1, top: '50%', left: '50%', x: '-50%', y: '-50%', borderRadius: '12px', rotateY: 0, transition: { duration: 0.8, ease: 'easeInOut' } },
-    shrinking: { 
-        scale: 0.95, 
-        width: '280px', height: '280px', 
-        top: '50%', left: '50%', x: '-50%', y: '-50%', borderRadius: '12px',
-        rotateY: 0,
-        transition: { duration: 0.15, ease: 'easeInOut' } 
-    },
-    expanding: { opacity: 1, scale: 1, width: '100%', height: '100%', top: '50%', left: '50%', x: '-50%', y: '-50%', borderRadius: '8px', rotateY: 0, transition: { duration: 0.3, ease: 'circOut' } },
-    popping: {
-        scale: 1.05,
-        rotateY: 0,
-        transition: { duration: 0.15, ease: 'easeOut' }
-    },
-    flipping: {
-        rotateY: -180,
-        transition: { duration: 0.8, ease: 'easeInOut' }
-    }
-}
-// -----------------------
-
-// Restore flipping state, remove fullFlip
-type ContainerAnimState = 'initialVisible' | 'shrinking' | 'expanding' | 'popping' | 'flipping';
-
-// Add new mouse states
-type MouseState = 'initial' | 'animate' | 'click' | 'clickedAndWaiting' | 'moveToX' | 'clickX' | 'hide';
-
-// Loading phrases (shortened)
-const LOADING_PHRASES = [
-    "Analysing Performance...", 
-    "Assessing Rapport...",
-    "Preparing Next Steps..."
-];
-const LOADING_INTERVAL_MS = 1500; // Faster interval
-const TOTAL_LOADING_DURATION_MS = LOADING_PHRASES.length * LOADING_INTERVAL_MS; // Faster total (4500ms)
-const CHECKMARK_ANIMATION_DURATION_MS = 500; // Faster checkmark appearance
-
-const FeatureShowcase = () => {
-  const [view, setView] = useState<DemoView>('initial');
-  const [mouseState, setMouseState] = useState<MouseState>('initial');
-  const [containerAnimState, setContainerAnimState] = useState<ContainerAnimState>('initialVisible');
-  const [loadingTextIndex, setLoadingTextIndex] = useState(0);
-  const [isXClicked, setIsXClicked] = useState(false);
-  const [isInitialButtonClicked, setIsInitialButtonClicked] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // --- Timer Refs ---
-  // Effect 1
-  const startTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Effect 2b
-  const shrinkDelayTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Effect 3
-  const popOutTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Effect 4
-  const textIntervalRef = useRef<NodeJS.Timeout | null>(null); // Note: setInterval returns NodeJS.Timeout too
-  const loadingCompleteTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Effect 5
-  const expansionTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Effect 6
-  const viewTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Effect 7
-  const moveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const postMovePauseTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const clickAndButtonTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const containerPopDelayTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const hideMouseTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Effect 8
-  const shrinkTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // New timer refs for revised Effect 7
-  const clickStartTimerRef = useRef<NodeJS.Timeout | null>(null); 
-  const hideAndPopTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Effect 8b
-  const tailoringTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Effect 9
-  const pitchIQTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Effect 10
-  const restartTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Effect 11
-  const failsafeTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // ------------------
-
-  // --- Animation Completion Handler ---
-  const handleContainerAnimationComplete = (definition: string) => {
-    // Check if the animation that just completed was the 'flipping' state
-    if (definition === 'flipping') {
-      console.log("180 flip animation complete. Resetting states.");
-      // Now reset the view and other states
-      setView('initial'); 
-      setMouseState('initial');
-      setContainerAnimState('initialVisible');
-      setLoadingTextIndex(0);
-      setIsXClicked(false); 
-      setIsInitialButtonClicked(false);
-    }
-  };
-  // ---------------------------------
-
-  // Helper function to clear all timers
-  const clearAllAnimationTimeouts = useCallback(() => {
-    console.log("Clearing all animation timers...");
-    if (startTimerRef.current) clearTimeout(startTimerRef.current);
-    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
-    if (shrinkDelayTimerRef.current) clearTimeout(shrinkDelayTimerRef.current);
-    if (popOutTimerRef.current) clearTimeout(popOutTimerRef.current);
-    if (textIntervalRef.current) clearInterval(textIntervalRef.current); // Use clearInterval
-    if (loadingCompleteTimerRef.current) clearTimeout(loadingCompleteTimerRef.current);
-    if (expansionTimerRef.current) clearTimeout(expansionTimerRef.current);
-    if (viewTimerRef.current) clearTimeout(viewTimerRef.current);
-    if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
-    if (postMovePauseTimerRef.current) clearTimeout(postMovePauseTimerRef.current);
-    if (clickAndButtonTimerRef.current) clearTimeout(clickAndButtonTimerRef.current);
-    if (containerPopDelayTimerRef.current) clearTimeout(containerPopDelayTimerRef.current);
-    if (hideMouseTimerRef.current) clearTimeout(hideMouseTimerRef.current);
-    if (shrinkTimerRef.current) clearTimeout(shrinkTimerRef.current);
-    if (tailoringTimerRef.current) clearTimeout(tailoringTimerRef.current);
-    if (pitchIQTimerRef.current) clearTimeout(pitchIQTimerRef.current);
-    if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-    if (failsafeTimerRef.current) clearTimeout(failsafeTimerRef.current);
-
-    // Reset refs to null
-    startTimerRef.current = null;
-    clickTimerRef.current = null;
-    shrinkDelayTimerRef.current = null;
-    popOutTimerRef.current = null;
-    textIntervalRef.current = null;
-    loadingCompleteTimerRef.current = null;
-    expansionTimerRef.current = null;
-    viewTimerRef.current = null;
-    moveTimerRef.current = null;
-    postMovePauseTimerRef.current = null;
-    clickAndButtonTimerRef.current = null;
-    containerPopDelayTimerRef.current = null;
-    hideMouseTimerRef.current = null;
-    shrinkTimerRef.current = null;
-    tailoringTimerRef.current = null;
-    pitchIQTimerRef.current = null;
-    restartTimerRef.current = null;
-    failsafeTimerRef.current = null;
-  }, []); // Empty dependency array as refs don't change
-
-  // Effect 1: Mouse animation (Use Refs - Revised Logic)
-  useEffect(() => {
-    // Store timers locally within this effect run's scope
-    let localStartTimerId: NodeJS.Timeout | null = null;
-    let localClickTimerId: NodeJS.Timeout | null = null;
-
-    if (view === 'initial') {
-      console.log("View is initial, starting mouse animation sequence...");
-      // Clear any existing timers managed by this effect instance via refs
-      if (startTimerRef.current) clearTimeout(startTimerRef.current);
-      if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
-
-      localStartTimerId = setTimeout(() => {
-        setMouseState('animate');
-        // Now set the second timer
-        localClickTimerId = setTimeout(() => {
-            setMouseState('click');
-          // Clear the second timer ref *after* it fires
-          if (clickTimerRef.current === localClickTimerId) { // Ensure it's the same timer
-             clickTimerRef.current = null;
-          }
-        }, 800); // Click delay
-        // Store the second timer ID in the ref
-        clickTimerRef.current = localClickTimerId;
-        // Clear the first timer ref *after* it fires
-        if (startTimerRef.current === localStartTimerId) { // Ensure it's the same timer
-             startTimerRef.current = null;
-        }
-      }, 1000); // Start delay
-      // Store the first timer ID in the ref
-      startTimerRef.current = localStartTimerId;
-    }
-
-    // Cleanup function uses refs to clear potentially active timers
-    return () => {
-      console.log("Cleaning up Effect 1 timers");
-      if (startTimerRef.current) {
-        clearTimeout(startTimerRef.current);
-        startTimerRef.current = null;
-      }
-      if (clickTimerRef.current) {
-        clearTimeout(clickTimerRef.current);
-        clickTimerRef.current = null;
-      }
-      // Optional: Also clear local vars, though refs handled by cleanup should suffice
-      // if (localStartTimerId) clearTimeout(localStartTimerId);
-      // if (localClickTimerId) clearTimeout(localClickTimerId);
-    };
-  }, [view]); // Re-run when view changes
-
-  // Effect 2: Trigger ONLY button press on mouse click (No timers here)
-  useEffect(() => {
-    if (mouseState === 'click') {
-        console.log("Mouse click detected, triggering initial button press.");
-        setIsInitialButtonClicked(true);
-        setMouseState('clickedAndWaiting'); 
-    }
-  }, [mouseState]);
-
-  // Effect 2b: Trigger container shrink after initial button press animation + delay (Use Ref)
-  useEffect(() => {
-      if (isInitialButtonClicked) {
-          if (shrinkDelayTimerRef.current) clearTimeout(shrinkDelayTimerRef.current); // Clear previous if exists
-          shrinkDelayTimerRef.current = setTimeout(() => {
-              console.log("Initial button press finished + delay, triggering container shrink.");
-              setContainerAnimState('shrinking');
-              setIsInitialButtonClicked(false);
-              shrinkDelayTimerRef.current = null; // Clear ref after firing
-          }, 300);
-      }
-      return () => {
-          if (shrinkDelayTimerRef.current) {
-            clearTimeout(shrinkDelayTimerRef.current);
-            shrinkDelayTimerRef.current = null;
-          }
-      };
-  }, [isInitialButtonClicked]);
-
-  // Effect 3: Pop container back out & set view to loading (Use Ref)
-  useEffect(() => {
-    if (containerAnimState === 'shrinking') {
-      if (popOutTimerRef.current) clearTimeout(popOutTimerRef.current); // Clear previous if exists
-      popOutTimerRef.current = setTimeout(() => {
-        console.log("Shrink finished, setting container to initialVisible & view to loading");
-        setContainerAnimState('initialVisible'); 
-        setView('loading');
-        popOutTimerRef.current = null; // Clear ref after firing
-      }, 150);
-    }
-    return () => { 
-        if (popOutTimerRef.current) {
-          clearTimeout(popOutTimerRef.current);
-          popOutTimerRef.current = null;
-        }
-     };
-  }, [containerAnimState]);
-
-  // Effect 4: Handle loading text cycle & transition to loadingComplete (Use Refs)
-  useEffect(() => {
-    if (view === 'loading') {
-      setLoadingTextIndex(0);
-      // Clear previous interval/timeout if they exist
-      if (textIntervalRef.current) clearInterval(textIntervalRef.current);
-      if (loadingCompleteTimerRef.current) clearTimeout(loadingCompleteTimerRef.current);
-
-      textIntervalRef.current = setInterval(() => {
-        setLoadingTextIndex(prevIndex => (prevIndex + 1) % LOADING_PHRASES.length);
-      }, LOADING_INTERVAL_MS);
-      loadingCompleteTimerRef.current = setTimeout(() => {
-          console.log("Loading text finished, setting view to loadingComplete");
-          setView('loadingComplete');
-          if (textIntervalRef.current) clearInterval(textIntervalRef.current); // Stop interval when loading finishes
-          textIntervalRef.current = null;
-          loadingCompleteTimerRef.current = null; // Clear ref after firing
-      }, TOTAL_LOADING_DURATION_MS);
-    }
-    // Cleanup clears timers if view changes *during* loading
-    return () => {
-      if (textIntervalRef.current) {
-        clearInterval(textIntervalRef.current);
-        textIntervalRef.current = null;
-      }
-      if (loadingCompleteTimerRef.current) {
-        clearTimeout(loadingCompleteTimerRef.current);
-        loadingCompleteTimerRef.current = null;
-      }
-    };
-  }, [view]);
-
-  // Effect 5: Handle checkmark animation and trigger container expansion (Use Ref)
-  useEffect(() => {
-      if (view === 'loadingComplete') {
-          if (expansionTimerRef.current) clearTimeout(expansionTimerRef.current); // Clear previous
-          expansionTimerRef.current = setTimeout(() => {
-              console.log("First Checkmark finished, setting container to expanding");
-              setContainerAnimState('expanding');
-              expansionTimerRef.current = null; // Clear ref after firing
-          }, CHECKMARK_ANIMATION_DURATION_MS);
-      }
-      return () => {
-          if (expansionTimerRef.current) {
-            clearTimeout(expansionTimerRef.current);
-            expansionTimerRef.current = null;
-          }
-      };
-  }, [view]);
-
-  // Effect 6: Transition view to feedback AFTER container starts expanding (Use Ref)
-  useEffect(() => {
-      if (containerAnimState === 'expanding' && view !== 'initial') { 
-          if (viewTimerRef.current) clearTimeout(viewTimerRef.current); // Clear previous
-          viewTimerRef.current = setTimeout(() => {
-              console.log("Container expanding, setting view to feedback");
-              setView('feedback');
-              viewTimerRef.current = null; // Clear ref after firing
-          }, 50);
-      }
-      return () => {
-         if (viewTimerRef.current) {
-           clearTimeout(viewTimerRef.current);
-           viewTimerRef.current = null;
-         }
-      };
-  }, [containerAnimState, view]);
-
-  // Effect 7: Simplified Mouse Animation for Feedback Card
-  useEffect(() => {
-    if (view === 'feedback') {
-      // Clear previous timers for this effect
-      if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
-      if (clickStartTimerRef.current) clearTimeout(clickStartTimerRef.current); 
-      if (hideAndPopTimerRef.current) clearTimeout(hideAndPopTimerRef.current);
-
-      console.log("Feedback view: Starting 2s initial delay...");
-      moveTimerRef.current = setTimeout(() => {
-        console.log("Feedback view: Initial delay done. Moving mouse to X...");
-        setMouseState('moveToX');
-        moveTimerRef.current = null;
-
-        // Wait for move animation (0.6s) then start click
-        clickStartTimerRef.current = setTimeout(() => {
-          console.log("Feedback view: Move done. Clicking X...");
-          setMouseState('clickX');
-          setIsXClicked(true); // For button visual pop
-          clickStartTimerRef.current = null;
-
-          // Wait 500ms from START of click
-          // Then hide mouse and trigger card pop
-          hideAndPopTimerRef.current = setTimeout(() => {
-             console.log("Feedback view: 0.5s post-click elapsed. Hiding mouse and popping card...");
-             setMouseState('hide');
-             setIsXClicked(false); // Reset button visual
-             setContainerAnimState('popping'); // Trigger card pop NOW
-             hideAndPopTimerRef.current = null;
-          }, 500); // Total 500ms from START of click
-
-        }, 600); // 600ms move duration
-
-      }, 2000); // 2s initial delay
-    }
-
-    // Cleanup clears all potentially active timers for this effect
-    return () => {
-      // Check if view is changing away from feedback before logging
-      // (This might be too noisy otherwise)
-      // console.log(`Cleaning up Effect 7 timers (View changing from feedback?)`);
-      if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
-      if (clickStartTimerRef.current) clearTimeout(clickStartTimerRef.current);
-      if (hideAndPopTimerRef.current) clearTimeout(hideAndPopTimerRef.current);
-      moveTimerRef.current = null;
-      clickStartTimerRef.current = null;
-      hideAndPopTimerRef.current = null;
-      // Optionally reset isXClicked if needed on cleanup, though Effect 8 does it too
-      // setIsXClicked(false);
-    };
-  }, [view]);
-
-  // Effect 8: Handle post-pop logic (Use Ref)
-  useEffect(() => {
-    if (containerAnimState === 'popping') {
-        setIsXClicked(false);
-        if (shrinkTimerRef.current) clearTimeout(shrinkTimerRef.current); // Clear previous
-        shrinkTimerRef.current = setTimeout(() => {
-            console.log("Pop finished, setting view to tailoring & container to initialVisible");
-            setView('tailoring');
-            setContainerAnimState('initialVisible');
-            shrinkTimerRef.current = null; // Clear ref
-        }, 150);
-    }
-    return () => {
-        if (shrinkTimerRef.current) {
-          clearTimeout(shrinkTimerRef.current);
-          shrinkTimerRef.current = null;
-        }
-    };
-  }, [containerAnimState]);
-
-  // Effect 8b: Wait during tailoring (Use Ref)
-  useEffect(() => {
-    if (view === 'tailoring') {
-      if (tailoringTimerRef.current) clearTimeout(tailoringTimerRef.current);
-      tailoringTimerRef.current = setTimeout(() => {
-        console.log("Tailoring finished, setting view to finalCheckmark");
-        setView('finalCheckmark'); 
-        tailoringTimerRef.current = null; // Clear ref
-      }, 2500);
-    }
-    return () => { 
-        if (tailoringTimerRef.current) {
-          clearTimeout(tailoringTimerRef.current);
-          tailoringTimerRef.current = null;
-        }
-     };
-  }, [view]);
-
-  // Effect 9: Wait on FINAL checkmark (Use Ref)
-  useEffect(() => {
-    if (view === 'finalCheckmark') { 
-      if (pitchIQTimerRef.current) clearTimeout(pitchIQTimerRef.current);
-      pitchIQTimerRef.current = setTimeout(() => {
-        setView('pitchiqText'); 
-        pitchIQTimerRef.current = null; // Clear ref
-      }, 2000);
-    }
-    return () => { 
-        if (pitchIQTimerRef.current) {
-          clearTimeout(pitchIQTimerRef.current);
-          pitchIQTimerRef.current = null;
-        }
-    };
-  }, [view]); 
-
-  // Effect 10: Wait on PitchIQ text, then trigger flip (Use Ref & onAnimationComplete)
-  useEffect(() => {
-    if (view === 'pitchiqText') {
-      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-      console.log("PitchIQ text shown, starting 4s display timer before triggering flip...");
-      restartTimerRef.current = setTimeout(() => {
-        console.log("4s timer expired. Triggering flip.");
-        setContainerAnimState('flipping');
-        // State resets (setView, setMouseState, etc.) are now handled by onAnimationComplete
-        restartTimerRef.current = null; // Clear ref
-      }, 4000); // 4 seconds display time
-    }
-    return () => {
-        if (restartTimerRef.current) {
-          clearTimeout(restartTimerRef.current);
-          restartTimerRef.current = null;
-        }
-    };
-  }, [view]);
-
-  // Effect 11: Failsafe timeout (Use Ref)
-  useEffect(() => {
-    if (view !== 'initial') {
-      if (failsafeTimerRef.current) clearTimeout(failsafeTimerRef.current); // Clear previous
-      console.log(`Setting failsafe timer (${view} state)`);
-      failsafeTimerRef.current = setTimeout(() => {
-        console.warn("Animation stuck, forcing reset via failsafe timer.");
-        // Call the central clearing function before resetting state
-        clearAllAnimationTimeouts(); 
-        setView('initial');
-        setMouseState('initial');
-        setContainerAnimState('initialVisible');
-        setLoadingTextIndex(0);
-        setIsXClicked(false);
-        setIsInitialButtonClicked(false);
-        // No need to clear failsafeTimerRef.current here, it's done by clearAll
-      }, 30000);
-    }
-    return () => {
-      if (failsafeTimerRef.current) {
-        clearTimeout(failsafeTimerRef.current);
-        failsafeTimerRef.current = null;
-      }
-    };
-  }, [view, clearAllAnimationTimeouts]); // Added clearAllAnimationTimeouts dependency
-
-  // Effect 12: Restart animation on tab visibility change (calls clearAllAnimationTimeouts)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log("Tab became visible...");
-        // Only reset if the view is not already 'initial' to prevent interference on initial load
-        if (view !== 'initial') {
-          console.log("...and view is not initial. Clearing timers and restarting animation.");
-          clearAllAnimationTimeouts(); // Clear timers first
-          setView('initial');
-          setMouseState('initial');
-          setContainerAnimState('initialVisible');
-          setLoadingTextIndex(0);
-          setIsXClicked(false);
-          setIsInitialButtonClicked(false);
-        } else {
-          console.log("...but view is already initial. Letting Effect 1 handle startup.");
-        }
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearAllAnimationTimeouts(); // Also clear on unmount
-    };
-  }, [clearAllAnimationTimeouts]); // Add clear function to dependency
 
   return (
-    <section className="py-32 md:py-48 bg-gray-50">
-       <div className="max-w-7xl mx-auto px-6 md:px-10 lg:px-20">
-         {/* Removed the h2 element below 
-         <h2 className="text-3xl md:text-4xl font-bold text-center mb-20 md:mb-24">
-           How PitchIQ Elevates Your Sales Game
-         </h2>
-         */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12 relative">
-          {/* Left Column - Updated Styling */}
-          <div className="md:col-span-2 space-y-48 sm:space-y-64 md:space-y-96 pt-10">
-             {staticContentData.map((item) => (
-              <div key={item.id}>
-                <h3 
-                  className="font-outfit text-3xl md:text-4xl font-bold text-gray-800 mb-5 tracking-wider"
-                  dangerouslySetInnerHTML={{ __html: item.heading }}
-                />
-                <div className="font-outfit relative pl-4 ml-[-1rem]"> 
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-pitchiq-red" aria-hidden="true"></div>
-                  <p 
-                    className="text-lg md:text-xl text-foreground/80 leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: item.text }}
+    <div className="relative flex flex-col items-center">
+      {/* Lightning Bolt Icon */}
+      <div className="relative mb-1 md:mb-2">
+        <Zap 
+          className={`h-8 w-8 md:h-12 lg:h-16 md:w-12 lg:w-16 text-yellow-400 transition-all duration-100 ${
+            isShaking ? 'animate-pulse transform translate-x-1 -translate-y-1' : ''
+          }`}
+          style={{
+            filter: 'drop-shadow(0 0 8px #fbbf24)',
+            transform: isShaking ? 'rotate(15deg) scale(1.1)' : 'rotate(15deg)'
+          }}
+        />
+      </div>
+      {/* Text Wheel */}
+      <div className="h-4 md:h-6 text-center overflow-hidden"> {/* Fixed height and overflow for wheel effect */}
+        <p className={textClasses}>
+          {phrases[currentPhraseIndex]}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// Rebuilding ZigZagSearch from scratch
+const ZigZagSearch = ({ isActive }: { isActive: boolean }) => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [showExclamation, setShowExclamation] = useState(false);
+  const [animateExclamationIn, setAnimateExclamationIn] = useState(false);
+  const [exclamationPosition, setExclamationPosition] = useState({ x: 0, y: 0 });
+
+  const stepRef = useRef(0);
+  const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Pattern: Triangle properly positioned inside w-32 h-32 card (128x128px)
+  // Card center is (0,0), so coordinates range from -64 to +64 with margins
+  const pattern = [
+    { x: 24, y: 48 },    // Bottom-right area - well inside card (was 32, 80)
+    { x: 32, y: -32 },   // Top-right - inside card boundaries  
+    { x: -32, y: -32 },  // Top-left - inside card boundaries
+  ];
+  const DISCOVERY_STEP_INDEX = 0; // The first point (index 0) is discovery
+  const SEARCH_ICON_SIZE = 48; // Scaled down for mobile (was 96)
+  const EXCLAMATION_ICON_SIZE = 24; // Scaled down for mobile (was 48)
+
+  const TRAVEL_DURATION = 1500; // 1.5 seconds for the pan/slide
+  const STOP_DURATION_REGULAR = 1000;   // 1 second stop normally
+  const STOP_DURATION_DISCOVERY = 2500; // Glass stops for 2.5 seconds at discovery
+  const EXCLAMATION_FADE_DURATION = 200; // ! Fades in/out over 0.2 seconds
+  const EXCLAMATION_OPAQUE_DURATION = 2600; // ! Stays fully visible for 2.1 seconds to fit new stop time
+
+  useEffect(() => {
+    const clearCurrentTimeout = () => {
+      if (timeoutIdRef.current) {
+        clearTimeout(timeoutIdRef.current);
+        timeoutIdRef.current = null;
+      }
+    };
+
+    if (!isActive) {
+      clearCurrentTimeout();
+      stepRef.current = 0;
+      setPosition(pattern[0]); // Reset to initial position
+      setShowExclamation(false);
+      setAnimateExclamationIn(false);
+      return;
+    }
+
+    const animateStep = () => {
+      stepRef.current = (stepRef.current + 1) % pattern.length;
+      const nextPosition = pattern[stepRef.current];
+      setPosition(nextPosition);
+
+      let currentStopDuration = STOP_DURATION_REGULAR;
+      if (stepRef.current === DISCOVERY_STEP_INDEX) {
+        currentStopDuration = STOP_DURATION_DISCOVERY;
+
+        // Delay appearance of exclamation until travel to discovery point is much closer to completion
+        setTimeout(() => {
+          if (!isActive || stepRef.current !== DISCOVERY_STEP_INDEX) return; 
+
+          const currentPosition = pattern[DISCOVERY_STEP_INDEX]; 
+          const exclamX = currentPosition.x + (SEARCH_ICON_SIZE - EXCLAMATION_ICON_SIZE) / 2 - 13; // Center horizontally, then move left more
+          const exclamY = currentPosition.y + (SEARCH_ICON_SIZE - EXCLAMATION_ICON_SIZE) / 2 - 14; // Center vertically, then move up more
+          setExclamationPosition({ x: exclamX, y: exclamY });
+          
+          setShowExclamation(true);
+          setAnimateExclamationIn(false); 
+          requestAnimationFrame(() => {
+            if (!isActive || stepRef.current !== DISCOVERY_STEP_INDEX) return; 
+            setAnimateExclamationIn(true); // This starts the EXCLAMATION_FADE_DURATION fade-in
+
+            // Schedule the start of the fade-out
+            setTimeout(() => {
+              if (!isActive || stepRef.current !== DISCOVERY_STEP_INDEX) return;
+              setAnimateExclamationIn(false); // This starts the EXCLAMATION_FADE_DURATION fade-out
+              // Remove from DOM after fade-out
+              setTimeout(() => {
+                   if (!isActive || stepRef.current !== DISCOVERY_STEP_INDEX) return;
+                   setShowExclamation(false);
+              }, EXCLAMATION_FADE_DURATION); 
+            }, EXCLAMATION_OPAQUE_DURATION); // Start fade-out after it has been opaque for this duration
+          });
+        }, TRAVEL_DURATION - 400); // Trigger ! logic 1100ms into travel to discovery point
+      }
+
+      timeoutIdRef.current = setTimeout(() => {
+        animateStep(); 
+      }, TRAVEL_DURATION + currentStopDuration);
+    };
+
+    // Initial setup
+    setPosition(pattern[stepRef.current]); 
+    timeoutIdRef.current = setTimeout(() => {
+      animateStep();
+    }, STOP_DURATION_REGULAR); // Initial stop before first move
+
+    return () => {
+      clearCurrentTimeout();
+    };
+  }, [isActive]);
+
+  return (
+    <div className="relative w-full h-full flex items-center justify-center">
+      <div
+        className="absolute transition-transform ease-in-out"
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          transitionDuration: `${TRAVEL_DURATION}ms`,
+          zIndex: 10,
+          filter: 'drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25))'
+        }}
+      >
+        <Search className="h-8 w-8 md:h-12 lg:h-24 md:w-12 lg:w-24 text-green-500" />
+      </div>
+      {showExclamation && (
+        <div
+          className={`absolute transition-all ease-out ${
+            animateExclamationIn ? 'opacity-100 scale-100 animate-pulse-red-aura' : 'opacity-0 scale-75'
+          }`}
+          style={{
+            transform: `translate(${exclamationPosition.x}px, ${exclamationPosition.y}px)`,
+            zIndex: 5,
+            transitionDuration: `${EXCLAMATION_FADE_DURATION}ms` // Apply fade duration here
+          }}
+        >
+          <AlertTriangle className="h-4 w-4 md:h-6 lg:h-12 md:w-6 lg:w-12 text-red-500" />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Robot that only bounces during speech bubbles with 4 variants every 9 seconds
+const BouncingRobot = ({ isActive }: { isActive: boolean }) => {
+  const [showBubble, setShowBubble] = useState(false);
+  const [messageIndex, setMessageIndex] = useState(0);
+  const [typedText, setTypedText] = useState('');
+
+  const messages = [
+    "You've identified a major pain point!",
+    "Harry is hinting at a deeper pain point here. Ask him about it!",
+    "Great discovery! This pain point could be costing them thousands.",
+    "Push deeper - there's more pain hiding beneath the surface."
+  ];
+
+  useEffect(() => {
+    if (!isActive) {
+      setShowBubble(false);
+      setTypedText('');
+      setMessageIndex(0);
+      return;
+    }
+
+    let timeoutId: NodeJS.Timeout;
+
+    const startCycle = () => {
+      // Show bubble and start typing
+      setShowBubble(true);
+      setTypedText('');
+      
+      const message = messages[messageIndex];
+      let charIndex = 0;
+      
+      const typeInterval = setInterval(() => {
+        if (charIndex < message.length) {
+          setTypedText(message.substring(0, charIndex + 1));
+          charIndex++;
+        } else {
+          clearInterval(typeInterval);
+        }
+      }, 50);
+
+      // Hide bubble after 6 seconds
+      timeoutId = setTimeout(() => {
+        setShowBubble(false);
+        setMessageIndex((prev) => (prev + 1) % messages.length);
+        
+        // Wait 3 seconds, then start next cycle
+        timeoutId = setTimeout(startCycle, 3000);
+      }, 6000);
+    };
+
+    // Start first cycle after brief delay
+    timeoutId = setTimeout(startCycle, 500);
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isActive, messageIndex]);
+
+  return (
+    <div className="relative">
+      <div
+        className={`transition-transform duration-300 ${
+          showBubble ? 'transform translate-y-[-8px]' : 'transform translate-y-0'
+        }`}
+      >
+        <Bot className="h-8 w-8 md:h-12 lg:h-16 md:w-12 lg:w-16 text-purple-500" />
+      </div>
+      
+      {/* Speech Bubble */}
+      {showBubble && (
+        <div className="absolute -top-16 md:-top-20 -left-16 md:-left-20 bg-white p-2 md:p-3 rounded-lg shadow-lg border-2 border-purple-200 w-48 md:w-64 animate-fade-in">
+          <div className="flex items-start gap-1 md:gap-2">
+            <Lightbulb className="h-3 w-3 md:h-4 md:w-4 text-yellow-500 mt-1 flex-shrink-0" />
+            <p className="text-xs md:text-sm text-gray-800 font-medium leading-tight">{typedText}</p>
+          </div>
+          <div className="absolute bottom-[-8px] left-6 md:left-8 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-purple-200"></div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// START NEW COMPONENT: PulsingTargetAnimation
+const PulsingTargetAnimation = ({ isActive }: { isActive: boolean }) => {
+  return (
+    <div className="relative flex items-center justify-center w-8 h-8 md:w-24 lg:w-32 md:h-24 lg:h-32">
+      <Target 
+        className={`h-8 w-8 md:h-12 lg:h-16 md:w-12 lg:w-16 text-pitchiq-red transition-all duration-300 ease-in-out ${
+          isActive ? 'animate-pulse-target' : ''
+        }`}
+      />
+      {/* Inline styles for the pulsing animation - MOVED TO GLOBAL CSS */}
+      {/* <style jsx>{`
+        @keyframes pulse-target-animation {
+          0%, 100% {
+            transform: scale(1);
+            filter: drop-shadow(0 0 4px #ef4444); // Slightly less intense shadow
+          }
+          50% {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 10px #ef4444); // More intense shadow at peak
+          }
+        }
+        .animate-pulse-target {
+          animation: pulse-target-animation 2s infinite ease-in-out;
+        }
+      `}</style> */}
+    </div>
+  );
+};
+// END NEW COMPONENT: PulsingTargetAnimation
+
+// Morphing Eye Detective
+const MorphingEye = ({ isActive }: { isActive: boolean }) => {
+  const [morphState, setMorphState] = useState(0); // 0: eye, 1: magnifying, 2: scanning
+
+  useEffect(() => {
+    if (!isActive) return;
+
+    const cycle = () => {
+      setMorphState(1); // magnifying
+      setTimeout(() => setMorphState(2), 1000); // scanning
+      setTimeout(() => setMorphState(0), 2000); // back to eye
+    };
+
+    const interval = setInterval(cycle, 4000);
+    return () => clearInterval(interval);
+  }, [isActive]);
+
+  return (
+    <div className="relative">
+      <div
+        className={`transition-all duration-700 ease-in-out ${
+          morphState === 1 ? 'scale-125 rotate-12' : morphState === 2 ? 'scale-110 -rotate-6' : 'scale-100 rotate-0'
+        }`}
+      >
+        <Eye className="h-8 w-8 md:h-12 lg:h-16 md:w-12 lg:w-16 text-indigo-500" />
+      </div>
+      
+      {/* Scanning beam effect */}
+      {morphState === 2 && (
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+          <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-indigo-400 to-transparent animate-pulse" 
+               style={{ top: '30%', position: 'absolute' }} />
+          <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-indigo-400 to-transparent animate-pulse" 
+               style={{ top: '50%', position: 'absolute', animationDelay: '0.3s' }} />
+          <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-indigo-400 to-transparent animate-pulse" 
+               style={{ top: '70%', position: 'absolute', animationDelay: '0.6s' }} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+const FeatureShowcase = () => {
+  const [activeSection, setActiveSection] = useState(0);
+  const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      const viewportHeight = window.innerHeight;
+      const viewportMiddle = scrollTop + (viewportHeight / 2);
+      
+      let newActiveSection = 0; // Default to first section
+      
+      // Calculate transition points at the middle of gaps between sections
+      for (let i = 0; i < sectionRefs.current.length - 1; i++) {
+        const currentSection = sectionRefs.current[i];
+        const nextSection = sectionRefs.current[i + 1];
+        
+        if (currentSection && nextSection) {
+          const currentRect = currentSection.getBoundingClientRect();
+          const nextRect = nextSection.getBoundingClientRect();
+          
+          const currentBottom = currentRect.bottom + window.scrollY;
+          const nextTop = nextRect.top + window.scrollY;
+          const gapMiddle = (currentBottom + nextTop) / 2;
+          
+          // If we've passed the middle of this gap, move to next animation
+          if (viewportMiddle >= gapMiddle) {
+            newActiveSection = i + 1;
+          }
+        }
+      }
+      
+      // Only update if we have a different section
+      if (newActiveSection !== activeSection) {
+        setActiveSection(newActiveSection);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Check initial position
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [activeSection]);
+
+  // Updated content emphasizing pain point discovery, coaching, and realistic scenarios
+  const staticContentData = [
+    {
+      id: 'scenarios',
+      heading: "Hyper&#8209;Personalized<br /> Buyer&nbsp;Personas",
+      text: "Our AI analyzes your <strong>5-step onboarding responses</strong> to create buyer personas that mirror your actual prospects. Each persona has <strong>industry-specific pain points, authentic objections,</strong> and decision-making styles that match your real sales environment.",
+      AnimatedIcon: AnimatedBrain
+    },
+    {
+      id: 'pain-discovery',
+      heading: "Uncover Hidden<br /> Pain Points",
+      text: "<strong>Navigate red herrings</strong> and surface objections to find the<br />real pain. Learn to distinguish between <strong>surface complaints</strong><br />and deeper business challenges that <strong>truly motivate</strong> purchase decisions.",
+      AnimatedIcon: ZigZagSearch
+    },
+    {
+      id: 'coaching',
+      heading: "Live AI<br /> Coaching",
+      text: "<strong>Get real-time guidance</strong> during conversations. AI coach whispers strategic hints, suggests <strong>follow-up questions,</strong> and helps you <strong>amplify discovered pain points</strong> for maximum impact.",
+      AnimatedIcon: BouncingRobot
+    },
+    {
+      id: 'amplification',
+      heading: "Make Pain<br /> Points Hurt",
+      text: "Master the art of <strong>ethical pain amplification.</strong><br />Learn to help prospects visualize the <strong>true cost of inaction</strong><br />and position your solution as the <strong>urgent remedy</strong> they need.",
+      AnimatedIcon: PulsingTargetAnimation
+    },
+  ];
+
+  return (
+    <section id="features" className="py-12 md:py-16 lg:py-24 bg-gradient-to-b from-white to-gray-50">
+       <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-10 xl:px-20">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 relative">
+          {/* Left Column - 4 Scrollable Text Sections */}
+          <div className="lg:col-span-2 space-y-48 md:space-y-64 lg:space-y-96 xl:space-y-[30rem]">
+            {staticContentData.map((item, index) => (
+              <div 
+                key={item.id}
+                ref={(el) => (sectionRefs.current[index] = el)}
+                className="min-h-[250px] md:min-h-[300px] flex flex-col justify-center"
+              >
+                {/* Mobile/Tablet Layout - Animation beside text */}
+                <div className="lg:hidden">
+                  {/* Title with animation on the right */}
+                  <div className="flex items-center mb-3 md:mb-4 overflow-hidden pb-2">
+                    <h3 
+                      className="font-outfit text-2xl md:text-3xl font-bold text-gray-800 tracking-wider flex-shrink min-w-0"
+                      dangerouslySetInnerHTML={{ __html: item.heading }}
+                    />
+                    <div className="ml-4 md:ml-8 flex-shrink-0">
+                      {/* Custom card sizes for each animation */}
+                      {item.id === 'scenarios' && (
+                        <div className="w-40 h-24 md:w-48 md:h-32 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
+                          <item.AnimatedIcon isActive={true} />
+                        </div>
+                      )}
+                      {item.id === 'pain-discovery' && (
+                        <div className="w-40 h-32 md:w-48 md:h-40 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
+                          <item.AnimatedIcon isActive={true} />
+                        </div>
+                      )}
+                      {item.id === 'coaching' && (
+                        <div className="w-32 h-32 md:w-40 md:h-40 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center overflow-visible relative">
+                          <div className="pt-8">
+                            <item.AnimatedIcon isActive={true} />
+                          </div>
+                        </div>
+                      )}
+                      {item.id === 'amplification' && (
+                        <div className="w-32 h-24 md:w-40 md:h-32 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
+                          <item.AnimatedIcon isActive={true} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Description text below */}
+                  <div className="font-outfit relative pl-3 md:pl-4 ml-[-0.75rem] md:ml-[-1rem]"> 
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-pitchiq-red" aria-hidden="true"></div>
+                    <p 
+                      className="text-base md:text-lg text-foreground/80 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: item.text }}
+                    />
+                  </div>
+                </div>
+
+                {/* Desktop Layout - Text only (animation in sticky sidebar) */}
+                <div className="hidden lg:block">
+                  <h3 
+                    className="font-outfit text-4xl font-bold text-gray-800 mb-5 tracking-wider"
+                    dangerouslySetInnerHTML={{ __html: item.heading }}
                   />
+                  <div className="font-outfit relative pl-4 ml-[-1rem]"> 
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-pitchiq-red" aria-hidden="true"></div>
+                    <p 
+                      className="text-xl text-foreground/80 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: item.text }}
+                    />
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Right Column */}
-          <div className="md:col-span-1 relative px-4">
-            {/* Responsive sticky top position */}
-            <div className="sticky top-16 md:top-28">
-              {/* Outer container for positioning - Removed items-center - ADDED perspective and transformStyle */}
-              <div ref={containerRef} className="relative h-[560px] flex justify-center overflow-hidden" style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}>
-                
-                {/* --- Animated Mouse Pointer --- */}
-                <motion.div
-                    variants={mouseVariants}
-                    initial="initial"
-                    animate={mouseState} 
-                    className="absolute z-30 text-black"
-                 >
-                    <FaMousePointer size={17} /> 
-                 </motion.div>
-
-                {/* --- The Animating Container --- */}
-                <motion.div
-                    variants={containerVariants}
-                    initial="initialVisible"
-                    animate={containerAnimState}
-                    onAnimationComplete={handleContainerAnimationComplete}
-                    className="absolute bg-white border border-gray-200 shadow-lg overflow-hidden"
-                    style={{ backfaceVisibility: 'hidden' }}
-                >
-                    {/* --- Two Sided Container --- */}
-                    <div className="relative w-full h-full" style={{ transformStyle: 'preserve-3d' }}>
-                        {/* Front Side (Shows current view) */}
-                        <motion.div 
-                            className="absolute inset-0 w-full h-full bg-white rounded-[inherit] overflow-hidden"
-                            style={{ backfaceVisibility: 'hidden' }}
-                        >
-                    <AnimatePresence>
-                                {/* Render content based on the current view state */} 
-                       {view === 'initial' && (
-                           <motion.div
-                                key="initialContent"
-                                variants={viewVariants.initial} 
-                                       initial={{ opacity: 1, scale: 1 }} // Start visible
-                                exit="exit" 
-                                className="text-center p-6 flex flex-col items-center justify-center h-full w-full"
-                            >
-                                {/* Centering initial content */} 
-                                <div>
-                                    <Trophy className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
-                                    <h3 className="text-xl font-semibold mb-4">Roleplay Complete!</h3>
-                                           <motion.div
-                                               variants={initialButtonVariants}
-                                               animate={isInitialButtonClicked ? 'pressed' : 'idle'}
-                                           >
-                                    <Button size="lg" className={`bg-pitchiq-red text-white pointer-events-none`}>
-                                        Generate Feedback
-                                    </Button>
-                                           </motion.div>
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {/* Loading View CONTENT */} 
-                        {view === 'loading' && (
-                            <motion.div
-                                key={`loading-${loadingTextIndex}`}
-                                variants={viewVariants.loading}
-                                initial="initial"
-                                animate="enter"
-                                exit="exit"
-                                className="flex items-center justify-center h-full w-full p-4"
-                            >
-                                <p className="text-sm text-gray-600 text-center">{LOADING_PHRASES[loadingTextIndex]}</p>
-                            </motion.div>
-                        )}
-
-                                {/* Loading Complete View (FIRST Checkmark) */}
-                        {view === 'loadingComplete' && (
-                            <motion.div
-                                key="loadingCompleteContent"
-                                variants={viewVariants.loadingComplete}
-                                initial="initial"
-                                animate="enter"
-                                exit="exit"
-                                className="flex items-center justify-center h-full w-full"
-                            >
-                                <motion.div
-                                    variants={checkmarkVariant}
-                                    initial="hidden"
-                                    animate="visible"
-                                >
-                                    <CheckCircle className="h-16 w-16 text-green-500" />
-                                </motion.div>
-                            </motion.div>
-                        )}
-
-                        {/* Feedback View CONTENT */} 
-                        {view === 'feedback' && (
-                            <motion.div
-                                        key="feedback-content"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
-                                        className="relative w-full h-full flex flex-col items-center pt-4 px-4 pb-8 min-h-[530px]"
-                                    >
-                                        {/* X button */}
-                                        <motion.button
-                                            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 z-10"
-                                            variants={xButtonVariants}
-                                            animate={isXClicked ? 'popping' : 'idle'}
-                                        >
-                                            <X size={20} />
-                                        </motion.button>
-
-                                        <div className="w-11/12 mx-auto mt-4">
-                                    {/* Responsive heading size */}
-                                    <h3 className="text-lg sm:text-xl md:text-2xl font-semibold mb-4 md:mb-6 text-center">Feedback Report</h3>
-                                    <div className="flex flex-col gap-3 md:gap-4 text-left">
-                                        {/* Responsive padding */}
-                                        <div className="bg-green-50 p-2 sm:p-3 md:p-4 rounded-lg border border-green-200"> 
-                                            <h4 className="font-semibold text-green-800 mb-2 flex items-center gap-2 text-sm md:text-base"><CheckCircle className="h-4 w-4 md:h-5 md:w-5 flex-shrink-0"/> What you did well</h4>
-                                            {/* Responsive text size */}
-                                            <ul className="list-disc list-inside text-xs sm:text-sm text-green-700 space-y-1">
-                                                <li>Clear value prop</li>
-                                                <li>Good pacing</li>
-                                                {/* Hide last item on screens smaller than sm */}
-                                                <li className="hidden sm:list-item">Confident tone</li>
-                                            </ul>
-                                        </div>
-                                        {/* Responsive padding */}
-                                        <div className="bg-yellow-50 p-2 sm:p-3 md:p-4 rounded-lg border border-yellow-200"> 
-                                            <h4 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2 text-sm md:text-base"><AlertTriangle className="h-4 w-4 md:h-5 md:w-5 flex-shrink-0"/> What you could improve</h4>
-                                            {/* Responsive text size */}
-                                            <ul className="list-disc list-inside text-xs sm:text-sm text-yellow-700 space-y-1">
-                                                <li>Handle price objection earlier</li>
-                                                <li>Ask more questions</li>
-                                                {/* Hide last item on screens smaller than sm */}
-                                                <li className="hidden sm:list-item">Weak closing</li>
-                                            </ul>
-                                        </div>
-                                        {/* Responsive padding */}
-                                        <div className="bg-blue-50 p-2 sm:p-3 md:p-4 rounded-lg border border-blue-200"> 
-                                            <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2 text-sm md:text-base"><Target className="h-4 w-4 md:h-5 md:w-5 flex-shrink-0"/> Action steps</h4>
-                                            {/* Responsive text size */}
-                                            <ul className="list-disc list-inside text-xs sm:text-sm text-blue-700 space-y-1">
-                                                <li>Practice framework</li>
-                                                <li>Review listening module</li>
-                                                {/* Hide last item on screens smaller than sm */}
-                                                <li className="hidden sm:list-item">Try assumptive close</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-
-                                {/* Tailoring View CONTENT */} 
-                                {view === 'tailoring' && (
-                                    <motion.div
-                                        key="tailoring-content"
-                                        variants={viewVariants.loading} 
-                                        initial="initial"
-                                        animate="enter"
-                                        exit="exit"
-                                        className="flex flex-col items-center justify-center h-full w-full p-4"
-                                    >
-                                        <Loader2 className="h-8 w-8 text-pitchiq-red animate-spin mb-4" />
-                                        <p className="text-sm text-gray-600 text-center">Tailoring next roleplay...</p>
-                                    </motion.div>
-                                )}
-
-                                {/* Final Checkmark View (Before PitchIQ Text) */}
-                                {view === 'finalCheckmark' && (
-                                    <motion.div
-                                        key="finalCheckmarkContent"
-                                        variants={viewVariants.loadingComplete} 
-                                        initial="initial"
-                                        animate="enter"
-                                        exit="exit"
-                                        className="flex items-center justify-center h-full w-full"
-                                    >
-                                        <motion.div
-                                            variants={checkmarkVariant}
-                                            initial="hidden"
-                                            animate="visible"
-                                        >
-                                            <CheckCircle className="h-16 w-16 text-green-500" />
-                                        </motion.div>
-                                    </motion.div>
-                                )}
-
-                                {/* PitchIQ Text View (Before Restart) */}
-                                {view === 'pitchiqText' && (
-                                    <motion.div
-                                        key="pitchiqTextContent"
-                                        variants={viewVariants.poppy}
-                                        initial="initial"
-                                        animate="enter"
-                                        exit="exit"
-                                        className="flex items-center justify-center h-full w-full p-4"
-                                    >
-                                        <h3 className="text-4xl md:text-6xl font-bold text-pitchiq-red">PitchIQ</h3>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                        </motion.div>
-
-                        {/* Back Side (Now renders actual initial view) */}
-                        <motion.div
-                             className="absolute inset-0 w-full h-full bg-white rounded-[inherit] overflow-hidden"
-                             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-                         >
-                            {/* Conditionally render initial view content here */}
-                            {/* Using the same structure as the front side when view is initial */}
-                            <AnimatePresence>
-                                {view === 'initial' && (
-                                    <motion.div
-                                        key="initialContent-back"
-                                        variants={viewVariants.initial} // Use same variant
-                                        initial={{ opacity: 1, scale: 1 }} // Should be visible immediately when flipped
-                                        className="text-center p-6 flex flex-col items-center justify-center h-full w-full"
-                                    >
-                                        <div>
-                                            <Trophy className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
-                                            <h3 className="text-xl font-semibold mb-4">Roleplay Complete!</h3>
-                                            <motion.div
-                                                // No need for button animation state here, it's handled by main state
-                                            >
-                                                <Button size="lg" className={`bg-pitchiq-red text-white pointer-events-none`}>
-                                                    Generate Feedback
-                                                </Button>
-                                            </motion.div>
-                                        </div>
-                                    </motion.div>
-                                )}
-                           </AnimatePresence>
-                         </motion.div>
+          {/* Right Column - Sticky Animated Feature (Desktop Only) */}
+          <div className="hidden lg:block lg:col-span-1 relative px-2 md:px-4 -mt-8 md:-mt-16 lg:-mt-24">
+            <div className="sticky top-8 md:top-16 lg:top-28">
+              <div className="relative h-[300px] md:h-[350px] lg:h-[400px] flex items-center justify-center">
+                {staticContentData.map((section, index) => {
+                  const AnimatedIcon = section.AnimatedIcon;
+                  const isActive = index === activeSection;
+                  
+                  return (
+                    <div
+                      key={index}
+                      className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-700 ease-out ${
+                        isActive 
+                          ? 'opacity-100 translate-y-0 scale-100' 
+                          : 'opacity-0 translate-y-8 scale-95'
+                      }`}
+                    >
+                      <div className="w-8 h-8 md:w-16 lg:w-24 xl:w-32 md:h-16 lg:h-24 xl:h-32 flex items-center justify-center">
+                        <AnimatedIcon isActive={isActive} />
+                      </div>
                     </div>
-                     {/* --- End Two Sided Container --- */}
-                </motion.div>
-                 {/* ------------------------------------------- */}
+                  );
+                })}
+              </div>
+              
+              {/* Progress indicators */}
+              <div className="flex justify-center gap-1.5 md:gap-2 mt-6 md:mt-8">
+                {staticContentData.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`w-8 md:w-10 lg:w-12 h-1 rounded-full transition-all duration-500 ${
+                      index === activeSection 
+                        ? 'bg-pitchiq-red' 
+                        : 'bg-gray-300'
+                    }`}
+                  />
+                ))}
               </div>
             </div>
           </div>

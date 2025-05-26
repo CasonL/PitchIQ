@@ -9,6 +9,8 @@ import ApiTest from "./pages/ApiTest";
 import Dashboard from "./pages/Dashboard";
 import Index from "./pages/Index";
 import ChatTestPage from './pages/ChatTestPage';
+import HowItWorksPage from './pages/HowItWorksPage';
+import PreReleaseLandingPage from './pages/PreReleaseLandingPage';
 
 const queryClient = new QueryClient();
 
@@ -23,6 +25,8 @@ const App = () => (
         <Route path="/api-test" element={<ApiTest />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/chat-test" element={<ChatTestPage />} />
+        <Route path="/how-it-works" element={<HowItWorksPage />} />
+        <Route path="/pre-release" element={<PreReleaseLandingPage />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

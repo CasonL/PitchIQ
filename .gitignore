@@ -1,0 +1,80 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+app_log.txt
+email_debug.log
+voice_diagnostic.log
+security.log
+
+# Node / React
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Instance folder (Flask)
+# If you have a Flask instance folder and don't want to commit it
+# instance/
+
+# Build artifacts (Python)
+build/
+# dist/ # Already covered by Node section
+*.egg-info/
+
+# SQLite database
+*.db
+*.sqlite3
+
+# Secrets / Environment variables
+# IMPORTANT: Never commit your .env file!
+.env
+.env.*
+!.env.example 
+# Add !.env.production.example if you have one, etc.
+
+# OS generated files
+Thumbs.db
+# .DS_Store # Already covered
+
+# Test output
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Deployment artifacts / Temporary
+*.zip
+deploy.zip 
+# temp_extract/ # If you have such a folder for temporary extractions
+
+# Specific to your project structure that might be temporary or local
+# landing-deploy/ # If this is a local deployment staging folder
+
+# Add any other files or folders you want to ignore 

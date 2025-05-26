@@ -101,10 +101,25 @@ class ConfigManager:
         # Base URL
         self.config['BASE_URL'] = os.environ.get('BASE_URL', 'http://127.0.0.1:5000')
         
+        # Email configuration
+        self._load_email_config()
+        
         # Application-specific settings can be added here
         self.config['DEFAULT_LANGUAGE'] = os.environ.get('DEFAULT_LANGUAGE', 'en')
         self.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', 'uploads')
         self.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH', '16777216'))  # 16MB default
+    
+    def _load_email_config(self):
+        """Load email/SMTP configuration settings"""
+        # SMTP settings
+        self.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER')
+        self.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', '587'))
+        self.config['SMTP_USERNAME'] = os.environ.get('SMTP_USERNAME')
+        self.config['SMTP_PASSWORD'] = os.environ.get('SMTP_PASSWORD')
+        self.config['FROM_EMAIL'] = os.environ.get('FROM_EMAIL')
+        
+        # Email feature flags
+        self.config['EMAIL_ENABLED'] = os.environ.get('EMAIL_ENABLED', 'False').lower() in ('true', '1', 'yes')
     
     def get(self, key, default=None):
         """Get config value with fallback"""

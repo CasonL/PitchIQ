@@ -166,3 +166,32 @@
     @apply inline-block w-2 h-2 bg-current rounded-full mx-0.5;
   }
 }
+
+/* Custom Animations */
+@keyframes pulse-red-aura {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(239, 68, 68, 1.0));
+  }
+}
+
+.animate-pulse-red-aura {
+  animation: pulse-red-aura 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-target-animation {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #ef4444); 
+  }
+  50% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 10px #ef4444); 
+  }
+}
+
+.animate-pulse-target {
+  animation: pulse-target-animation 2s infinite ease-in-out;
+}

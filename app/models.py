@@ -900,3 +900,35 @@ class NameUsageTracker(db.Model):
     
     def __repr__(self):
         return f'<NameUsageTracker {self.full_name} for user {self.user_profile_id}>'
+
+
+class EmailSignup(db.Model):
+    """Model for storing email signups with preferences and computer tracking."""
+    __tablename__ = 'email_signups'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), nullable=False, unique=True)
+    early_access = db.Column(db.Boolean, default=False)
+    get_updates = db.Column(db.Boolean, default=False)
+    computer_fingerprint = db.Column(db.String(255), nullable=True)  # To track unique computers
+    ip_address = db.Column(db.String(45), nullable=True)  # Store IP for additional tracking
+    user_agent = db.Column(db.Text, nullable=True)  # Store user agent string
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<EmailSignup {self.email} - Early Access: {self.early_access}, Updates: {self.get_updates}>'
+    
+    def to_dict(self):
+        """Convert to dictionary for JSON serialization."""
+        return {
+            'id': self.id,
+            'email': self.email,
+            'early_access': self.early_access,
+            'get_updates': self.get_updates,
+            'computer_fingerprint': self.computer_fingerprint,
+            'ip_address': self.ip_address,
+            'user_agent': self.user_agent,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }

@@ -4,12 +4,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Mail, Send, CheckCircle, AlertCircle } from "lucide-react";
 
+// API_BASE_URL is no longer needed for Netlify Forms submission for this component
+// const API_BASE_URL = import.meta.env.VITE_API_BASE_URL; 
+
 interface ContactModalProps {
   isOpen: boolean;
   onClose: () => void;
   hasEarlyAccess?: boolean; // User already signed up for early access
   hasUpdates?: boolean; // User already signed up for updates
 }
+
+const FORM_NAME = "contact"; // Define your form name for Netlify
 
 const ContactModal = ({ isOpen, onClose, hasEarlyAccess = false, hasUpdates = false }: ContactModalProps) => {
   const [formData, setFormData] = useState({
@@ -36,24 +41,28 @@ const ContactModal = ({ isOpen, onClose, hasEarlyAccess = false, hasUpdates = fa
   // Check if we should show the email signup section
   const showEmailSignup = !hasEarlyAccess || !hasUpdates;
 
+  const encode = (data: {[key: string]: any}) => {
+    return Object.keys(data)
+      .map(key => encodeURIComponent(key) + "=" + encodeURIComponent(data[key]))
+      .join("&");
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError("");
 
     try {
-      // Contact form endpoint pointing to Flask backend
-      const response = await fetch(`${API_BASE_URL}/api/contact`, {
+      const response = await fetch("/", { // POST to your site's path (e.g., root)
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+        headers: { 
+          'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: JSON.stringify(formData),
+        body: encode({ "form-name": FORM_NAME, ...formData }), // Netlify needs form-name
       });
 
       if (response.ok) {
         setIsSubmitted(true);
-        // Reset form after 3 seconds
         setTimeout(() => {
           setIsSubmitted(false);
           setFormData({
@@ -61,15 +70,18 @@ const ContactModal = ({ isOpen, onClose, hasEarlyAccess = false, hasUpdates = fa
             email: "",
             subject: "",
             message: "",
-            earlyAccess: hasEarlyAccess, // Maintain already selected options
-            getUpdates: hasUpdates // Maintain already selected options
+            earlyAccess: hasEarlyAccess, 
+            getUpdates: hasUpdates 
           });
           onClose();
         }, 3000);
       } else {
+        const errorData = await response.text(); // Get more info on error
+        console.error("Netlify Forms submission error response:", errorData);
         setError('Failed to send message. Please try again.');
       }
     } catch (error) {
+      console.error("Network error submitting to Netlify Forms:", error);
       setError('Network error. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -112,7 +124,20 @@ const ContactModal = ({ isOpen, onClose, hasEarlyAccess = false, hasUpdates = fa
               <p className="text-gray-600 text-lg lg:text-xl">Thanks for reaching out. We'll get back to you soon!</p>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-6 lg:space-y-8">
+            <form 
+              name={FORM_NAME} 
+              method="POST" 
+              data-netlify="true" 
+              data-netlify-honeypot="bot-field" // Optional: for basic spam protection
+              action="/thank-you.html"
+              onSubmit={handleSubmit} 
+              className="space-y-6 lg:space-y-8"
+            >
+              {/* Hidden field for Netlify spam protection (optional) */}
+              <input type="hidden" name="bot-field" />
+              {/* Hidden field for Netlify to identify the form */}
+              <input type="hidden" name="form-name" value={FORM_NAME} />
+
               {/* Desktop Two-Column Layout */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12">
                 

@@ -33,5 +33,16 @@
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Netlify hidden form -->
+    <form name="contact" netlify netlify-honeypot="bot-field" hidden action="/thank-you.html">
+      <input type="text" name="name" />
+      <input type="email" name="email" />
+      <input type="text" name="subject" />
+      <textarea name="message"></textarea>
+      <input type="checkbox" name="earlyAccess" />
+      <input type="checkbox" name="getUpdates" />
+    </form>
+    <!-- End Netlify hidden form -->
   </body>
 </html>

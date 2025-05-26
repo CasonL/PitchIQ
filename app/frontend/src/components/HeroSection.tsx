@@ -85,7 +85,7 @@ const HeroSection = () => {
       
       // Use a fixed offset that works well for both mobile and desktop
       const isMobile = window.innerWidth < 768;
-      const offset = isMobile ? 80 : 100;
+      const offset = isMobile ? 60 : 80;
       const targetScrollY = elementTop - offset;
       
       // Ensure we don't scroll past the top of the page
@@ -109,7 +109,7 @@ const HeroSection = () => {
       <div className="max-w-7xl mx-auto w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10 items-center">
           <div className="order-2 lg:order-1">
-            <h1 className="text-6xl md:text-6xl lg:text-6xl xl:text-6xl font-bold leading-tight mb-4 md:mb-6">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold leading-tight mb-4 md:mb-6">
             Stop Guessing,<br /> <span className="text-pitchiq-red">Start Closing.</span>
             </h1>
             

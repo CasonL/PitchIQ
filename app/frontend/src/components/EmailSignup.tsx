@@ -165,15 +165,15 @@ const EmailSignup = () => {
           </p>
           
           {/* 3-point layout */}
-          <div className="flex items-center justify-center gap-4 text-xs text-gray-500 w-full">
-            <div className="flex items-center gap-2">
-              <Mail className="h-3 w-3" />
-              <span>No spam, ever</span>
+          <div className="flex flex-wrap items-center justify-center gap-x-2 sm:gap-x-3 gap-y-1 text-xs text-gray-500 w-full px-1">
+            <div className="flex items-center gap-1">
+              <Mail className="h-3 w-3 flex-shrink-0" />
+              <span className="whitespace-nowrap">No spam, ever</span>
             </div>
-            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-            <span>Unsubscribe anytime</span>
-            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-            <span>Launch updates only</span>
+            <div className="w-1 h-1 bg-gray-400 rounded-full hidden sm:block"></div>
+            <span className="whitespace-nowrap">Unsubscribe anytime</span>
+            <div className="w-1 h-1 bg-gray-400 rounded-full hidden sm:block"></div>
+            <span className="whitespace-nowrap">Launch updates only</span>
           </div>
         </div>
       </div>

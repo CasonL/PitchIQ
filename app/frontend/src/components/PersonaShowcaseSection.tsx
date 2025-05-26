@@ -431,7 +431,7 @@ const PersonaShowcaseSection = () => {
             <p className="text-sm md:text-base text-foreground/70 mb-6 max-w-2xl mx-auto">
               These are just examples. When you complete our 5-step onboarding, the AI creates personas specifically tailored to your product, industry, and target market—with this level of detail and more.
             </p>
-            <Button size="lg" className="bg-pitchiq-red hover:bg-pitchiq-red/90 w-full sm:w-auto" onClick={scrollToEmailSignup}>
+            <Button size="lg" className="bg-pitchiq-red hover:bg-pitchiq-red/90 w-full px-4 sm:px-8 sm:w-auto" onClick={scrollToEmailSignup}>
               Reserve My Spot
             </Button>
           </div>

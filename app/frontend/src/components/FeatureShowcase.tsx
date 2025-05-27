@@ -493,28 +493,28 @@ const FeatureShowcase = () => {
                       className="font-outfit text-2xl md:text-3xl font-bold text-gray-800 tracking-wider flex-shrink min-w-0"
                       dangerouslySetInnerHTML={{ __html: item.heading }}
                     />
-                    <div className="ml-6 md:ml-10 flex-shrink-0">
+                    <div className="ml-4 md:ml-8 flex-shrink-0">
                       {/* Custom card sizes for each animation */}
                       {item.id === 'scenarios' && (
-                        <div className="w-32 h-24 md:w-40 md:h-32 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
-                          <item.AnimatedIcon isActive={true} />
+                        <div className="w-40 h-24 md:w-48 md:h-32 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
+                          <item.AnimatedIcon isActive={index === activeSection} />
                         </div>
                       )}
                       {item.id === 'pain-discovery' && (
                         <div className="w-40 h-32 md:w-48 md:h-40 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
-                          <item.AnimatedIcon isActive={true} />
+                          <item.AnimatedIcon isActive={index === activeSection} />
                         </div>
                       )}
                       {item.id === 'coaching' && (
                         <div className="w-32 h-32 md:w-40 md:h-40 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center overflow-visible relative">
-                          <div className="pt-4">
-                            <item.AnimatedIcon isActive={true} />
+                          <div className="pt-8">
+                            <item.AnimatedIcon isActive={index === activeSection} />
                           </div>
                         </div>
                       )}
                       {item.id === 'amplification' && (
                         <div className="w-32 h-24 md:w-40 md:h-32 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
-                          <item.AnimatedIcon isActive={true} />
+                          <item.AnimatedIcon isActive={index === activeSection} />
                         </div>
                       )}
                     </div>
@@ -533,7 +533,7 @@ const FeatureShowcase = () => {
                 {/* Desktop Layout - Text only (animation in sticky sidebar) */}
                 <div className="hidden lg:block">
                   <div className="absolute -top-8 md:-top-10 left-1/2 -translate-x-1/2">
-                    <item.AnimatedIcon size={80} />
+                    <item.AnimatedIcon isActive={index === activeSection} />
                   </div>
                   <h3
                     className="text-xl md:text-2xl font-bold mt-16 md:mt-20 mb-3 md:mb-4"

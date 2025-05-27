@@ -10,9 +10,14 @@ class Config:
     
     # --- Database Configuration ---
     # Default SQLite path (can be overridden by environment variable)
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    instance_path = os.path.join(basedir, 'instance')
-    default_db_path = os.path.join(instance_path, 'sales_training.db') # Use .db extension
+    # basedir = os.path.abspath(os.path.dirname(__file__))
+    # instance_path = os.path.join(basedir, 'instance')
+    # default_db_path = os.path.join(instance_path, 'sales_training.db') # Use .db extension
+    
+    # New temporary path outside OneDrive
+    temp_db_dir = r"C:\temp_db" # Raw string for Windows paths
+    default_db_path = os.path.join(temp_db_dir, 'sales_training_temp.db')
+    
     default_db_uri = f'sqlite:///{default_db_path.replace(os.sep, "/")}'
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or default_db_uri
     # --- End Database Configuration ---

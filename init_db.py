@@ -21,14 +21,16 @@ def init_db():
     """Initialize the database with required tables."""
     # Create a minimal Flask app for this script
     app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/salestrainer.db'
+    # Ensure this matches the database name in config.py (temporary test path)
+    temp_db_uri = 'sqlite:///C:/temp_db/sales_training_temp.db' # Use forward slashes for URI
+    app.config['SQLALCHEMY_DATABASE_URI'] = temp_db_uri
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Initialize SQLAlchemy with this app
     db.init_app(app)
     
-    # Ensure the instance folder exists
-    os.makedirs('instance', exist_ok=True)
+    # Ensure the temporary folder exists (though we created it with mkdir)
+    os.makedirs(r'C:\temp_db', exist_ok=True)
     
     with app.app_context():
         logger.info("Creating database tables...")

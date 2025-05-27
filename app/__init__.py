@@ -113,8 +113,23 @@ def create_app(config_name='dev'):
     
     # Configure CORS to allow frontend to make requests
     CORS(app, resources={
-        r"/api/*": {"origins": "*"}, # Allow all origins for /api/*
-        r"/auth/*": {"origins": "*"}, # Allow all origins for /auth/*
+        r"/api/*": {
+            "origins": [
+                "*", # Keep existing wildcard for broader compatibility if needed
+                "http://localhost:5173", 
+                "http://127.0.0.1:5173",
+                "https://euphonious-treacle-b2b989.netlify.app", # Your specific Netlify frontend
+                r"https://*.ngrok-free.app" # Keep allowing ngrok generally
+            ],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": [
+                "Content-Type", 
+                "Authorization", 
+                "X-Requested-With",
+                "ngrok-skip-browser-warning" # Add the ngrok header here
+            ]
+        },
+        r"/auth/*": {"origins": "*"},
         r"/chat/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
                                "http://localhost:5173", "http://127.0.0.1:5173",
                                "https://dreamy-figolla-e05819.netlify.app",
@@ -136,9 +151,9 @@ def create_app(config_name='dev'):
                                     r"https://*.ngrok-free.app",
                                     "https://7add-2001-56a-fa6d-4c00-58dd-1cc1-2a33-948c.ngrok-free.app"
                                     ]},
-        r"/dashboard": {"origins": "*"},  # Allow access to dashboard from anywhere
-        r"/dashboard-react": {"origins": "*"}  # Allow access to the dashboard route from any origin
-    }, supports_credentials=True)  # Must support credentials for sessions
+        r"/dashboard": {"origins": "*"},
+        r"/dashboard-react": {"origins": "*"}
+    }, supports_credentials=True)
     
     # Use ProxyFix to handle proxy headers correctly
     # Temporarily disable x_host and x_port to diagnose URL generation issue

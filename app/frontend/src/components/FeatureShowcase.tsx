@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Search, Eye, Lightbulb, Users, Target, Brain, Bot, Zap, TrendingUp, AlertTriangle } from "lucide-react";
+import { motion } from "framer-motion";
 
 // AnimatedBrain with text wheel
 const AnimatedBrain = ({ isActive }: { isActive: boolean }) => {
@@ -531,8 +532,11 @@ const FeatureShowcase = () => {
 
                 {/* Desktop Layout - Text only (animation in sticky sidebar) */}
                 <div className="hidden lg:block">
-                  <h3 
-                    className="font-outfit text-4xl font-bold text-gray-800 mb-5 tracking-wider"
+                  <div className="absolute -top-8 md:-top-10 left-1/2 -translate-x-1/2">
+                    <item.AnimatedIcon size={isMobile ? 60 : 80} />
+                  </div>
+                  <h3
+                    className="text-xl md:text-2xl font-bold mt-16 md:mt-20 mb-3 md:mb-4"
                     dangerouslySetInnerHTML={{ __html: item.heading }}
                   />
                   <div className="font-outfit relative pl-4 ml-[-1rem]"> 

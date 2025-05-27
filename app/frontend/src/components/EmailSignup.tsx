@@ -106,7 +106,7 @@ const EmailSignup = () => {
       if (response.ok) {
         setIsSubmitted(true);
         setRemainingCount(prevCount => Math.max(0, prevCount - 1));
-        localStorage.setItem('email_signup_submitted', 'true');
+        localStorage.setItem(`email_submitted_${generateFingerprint()}`, 'true');
         
         const selectedOptions = {
           earlyAccess: earlyAccess,
@@ -247,53 +247,77 @@ const EmailSignup = () => {
           <div className="flex flex-col items-center w-full text-center mb-4">
             <CheckCircle className="h-8 w-8 text-green-600 mb-3" />
             <p className="text-green-600 font-medium mb-2">You're on the list! We'll be in touch soon.</p>
-            {(earlyAccess && remainingCount > 0) && ( // Only show spots if they opted into early access AND spots remain
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Users className="h-4 w-4" />
-                <span>{`${remainingCount} early access spots remaining`}</span>
-              </div>
-            )}
-            {earlyAccess && remainingCount === 0 && (
-                 <p className="text-sm text-gray-500">You got the last early access spot!</p>
-            )}
+            {/* {(earlyAccess && remainingCount > 0) && ( // Only show spots if they opted into early access AND spots remain
+              <p className="text-xs text-gray-500">
+                (You secured 1 of {remainingCount + 1} early access spots!) 
+              </p>
+            )} */}
+          </div>
+        ) : isSubmitted && isSoldOut ? ( // Submitted but now sold out
+          <div className="flex flex-col items-center w-full text-center mb-4">
+            <CheckCircle className="h-8 w-8 text-green-600 mb-3" />
+            <p className="text-green-600 font-medium mb-2">You're on the list!</p>
+            {/* <p className="text-xs text-gray-500">Early access spots are currently full, but we'll notify you of future openings.</p> */}
           </div>
         ) : (
-          <form 
-            onSubmit={handleEmailSubmit} 
-            className="w-full space-y-5"
-            aria-busy={isSubmitting}
-          >
-            <div className="space-y-2">
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  type="email"
-                  placeholder="yourbest@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className={`pl-10 text-base py-2.5 ${isSoldOut && !earlyAccess ? 'border-gray-300' : ''}`}
-                  aria-label="Email for waitlist"
-                  disabled={isSubmitting}
-                />
+          <>
+            {/* {isSoldOut ? (
+              <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-md text-center">
+                <AlertCircle className="h-5 w-5 text-rose-500 inline-block mr-2" />
+                <p className="text-sm text-rose-600 font-medium">
+                  Early access spots are currently full!
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Join the waitlist to be notified of future openings and product updates.
+                </p>
               </div>
-              {error && <p className="text-red-600 text-sm flex items-center gap-1.5"><AlertCircle className="h-4 w-4" />{error}</p>}
-            </div>
+            ) : (
+              <div className="mb-4 p-3 bg-sky-50 border border-sky-200 rounded-md text-left">
+                <Clock className="h-4 w-4 text-sky-600 inline-block mr-1.5 align-text-bottom" />
+                <span className="text-xs text-sky-700 font-medium">
+                  Only <span className="font-bold">{remainingCount}</span> early access spots left!
+                </span>
+                <div className="w-full bg-sky-100 rounded-full h-1.5 mt-1.5">
+                  <div 
+                    className="bg-sky-500 h-1.5 rounded-full transition-all duration-500 ease-out" 
+                    style={{ width: `${(remainingCount / 2) * 100}%` }} // Assuming initialSpots was 2 for percentage
+                  ></div>
+                </div>
+              </div>
+            )} */}
 
-            <div className="space-y-3">
-              <label htmlFor="earlyAccess" className={`flex items-center gap-2.5 text-sm cursor-pointer transition-colors ${isSoldOut ? 'text-gray-400 cursor-not-allowed' : 'text-gray-600 hover:text-gray-800'}`}>
-                <input 
-                  type="checkbox" 
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <Input
+                    type="email"
+                    placeholder="yourbest@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className={`pl-10 text-base py-2.5 ${isSoldOut && !earlyAccess ? 'border-gray-300' : ''}`}
+                    aria-label="Email for waitlist"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                {error && <p className="text-red-600 text-sm flex items-center gap-1.5"><AlertCircle className="h-4 w-4" />{error}</p>}
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
                   id="earlyAccess"
                   checked={earlyAccess}
                   onChange={(e) => setEarlyAccess(e.target.checked)}
-                  className={`h-4 w-4 rounded focus:ring-pitchiq-red/50 border-gray-300 ${isSoldOut ? 'text-gray-400 cursor-not-allowed' : 'text-pitchiq-red'}`}
-                  disabled={isSubmitting || isSoldOut}
+                  className="form-checkbox h-4 w-4 text-pitchiq-red border-gray-300 rounded focus:ring-pitchiq-red/50"
+                  disabled={isSubmitting /* || isSoldOut */}
                 />
-                <span>
-                  {isSoldOut ? "Early Access Spots Full" : "Secure an Early Access Spot (Limited spots available!) LATER FIX THIS TEXT"}
-                </span>
-              </label>
+                <label htmlFor="earlyAccess" className="text-sm font-medium text-gray-700">
+                  Get Early Access
+                </label>
+                <span className="text-xs text-gray-500 ml-1">(First come, first served. Early access not guaranteed.)</span>
+              </div>
               <label htmlFor="getUpdates" className="flex items-center gap-2.5 text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors">
                 <input 
                   type="checkbox" 

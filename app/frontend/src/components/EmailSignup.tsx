@@ -236,29 +236,25 @@ const EmailSignup = () => {
   }
 
   return (
-    <div id="email-signup" className={`bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200 shadow-md relative transition-all duration-700 ${isHighlighted ? 'border-pitchiq-red shadow-lg shadow-pitchiq-red/30 ring-2 ring-pitchiq-red/20' : ''} ${isSoldOut ? 'bg-gray-200' : ''}`}>
-      {isHighlighted && !isSoldOut && (
+    <div id="email-signup" className={`bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200 shadow-md relative transition-all duration-700 ${isHighlighted ? 'border-pitchiq-red shadow-lg shadow-pitchiq-red/30 ring-2 ring-pitchiq-red/20' : ''} ${isSoldOut ? 'bg-gray-100' : ''}`}>
+      {isHighlighted && (
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-pitchiq-red/5 via-pitchiq-red/3 to-transparent pointer-events-none animate-pulse"></div>
       )}
       <div className="flex flex-col items-start relative z-10">
-        <h3 className={`text-lg font-semibold mb-5 ${isSoldOut ? 'text-gray-500' : 'text-gray-700'}`}>Join the Early Access List</h3>
+        <h3 className={`text-lg font-semibold mb-5 ${isSoldOut ? 'text-gray-600' : 'text-gray-700'}`}>Join the Waitlist</h3>
         
-        {isSoldOut ? (
-          <div className="flex flex-col items-center w-full text-center mb-4">
-            <Users className="h-8 w-8 text-gray-500 mb-3" />
-            <p className="text-gray-600 font-medium mb-2">All early access spots have been filled!</p>
-            <p className="text-sm text-gray-500">Thank you for your interest. Sign up for product updates to hear about future opportunities.</p>
-            {/* Optionally, still show a simplified product updates checkbox here if desired */}
-          </div>
-        ) : isSubmitted ? (
+        {isSubmitted && !isSoldOut ? ( // Show thank you only if not sold out and submitted
           <div className="flex flex-col items-center w-full text-center mb-4">
             <CheckCircle className="h-8 w-8 text-green-600 mb-3" />
             <p className="text-green-600 font-medium mb-2">You're on the list! We'll be in touch soon.</p>
-            {earlyAccess && ( // Only show spots if they opted into early access
+            {(earlyAccess && remainingCount > 0) && ( // Only show spots if they opted into early access AND spots remain
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Users className="h-4 w-4" />
-                <span>{remainingCount > 0 ? `${remainingCount} early access spots remaining` : "Processing..."}</span>
+                <span>{`${remainingCount} early access spots remaining`}</span>
               </div>
+            )}
+            {earlyAccess && remainingCount === 0 && (
+                 <p className="text-sm text-gray-500">You got the last early access spot!</p>
             )}
           </div>
         ) : (
@@ -276,25 +272,27 @@ const EmailSignup = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="pl-10 text-base py-2.5"
-                  aria-label="Email for early access"
-                  disabled={isSubmitting || isSoldOut}
+                  className={`pl-10 text-base py-2.5 ${isSoldOut && !earlyAccess ? 'border-gray-300' : ''}`}
+                  aria-label="Email for waitlist"
+                  disabled={isSubmitting}
                 />
               </div>
               {error && <p className="text-red-600 text-sm flex items-center gap-1.5"><AlertCircle className="h-4 w-4" />{error}</p>}
             </div>
 
             <div className="space-y-3">
-              <label htmlFor="earlyAccess" className="flex items-center gap-2.5 text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors">
+              <label htmlFor="earlyAccess" className={`flex items-center gap-2.5 text-sm cursor-pointer transition-colors ${isSoldOut ? 'text-gray-400 cursor-not-allowed' : 'text-gray-600 hover:text-gray-800'}`}>
                 <input 
                   type="checkbox" 
                   id="earlyAccess"
                   checked={earlyAccess}
                   onChange={(e) => setEarlyAccess(e.target.checked)}
-                  className="h-4 w-4 rounded text-pitchiq-red focus:ring-pitchiq-red/50 border-gray-300 disabled:opacity-50"
+                  className={`h-4 w-4 rounded focus:ring-pitchiq-red/50 border-gray-300 ${isSoldOut ? 'text-gray-400 cursor-not-allowed' : 'text-pitchiq-red'}`}
                   disabled={isSubmitting || isSoldOut}
                 />
-                <span>Secure an Early Access Spot (Limited spots available!)</span>
+                <span>
+                  {isSoldOut ? "Early Access Spots Full" : "Secure an Early Access Spot (Limited spots available!) LATER FIX THIS TEXT"}
+                </span>
               </label>
               <label htmlFor="getUpdates" className="flex items-center gap-2.5 text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors">
                 <input 
@@ -303,7 +301,7 @@ const EmailSignup = () => {
                   checked={getUpdates}
                   onChange={(e) => setGetUpdates(e.target.checked)}
                   className="h-4 w-4 rounded text-pitchiq-red focus:ring-pitchiq-red/50 border-gray-300 disabled:opacity-50"
-                  disabled={isSubmitting || isSoldOut}
+                  disabled={isSubmitting}
                 />
                 <span>Get Product Updates & Feature Sneak Peeks</span>
               </label>
@@ -311,8 +309,8 @@ const EmailSignup = () => {
             
             <Button 
               type="submit" 
-              className={`w-full text-base py-2.5 ${isSoldOut ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' : 'bg-pitchiq-red hover:bg-pitchiq-red/90'}`}
-              disabled={isSubmitting || !email || isSoldOut}
+              className={`w-full text-base py-2.5 ${isSubmitting ? 'bg-pitchiq-red/70' : 'bg-pitchiq-red hover:bg-pitchiq-red/90'}`}
+              disabled={isSubmitting || !email}
               aria-live="polite"
             >
               {isSubmitting ? (
@@ -320,25 +318,25 @@ const EmailSignup = () => {
               ) : (
                 <CheckCircle className="h-5 w-5 mr-2" />
               )}
-              {isSubmitting ? "Submitting..." : isSoldOut ? "All Spots Filled" : "Join the Waitlist"}
+              {isSubmitting ? "Submitting..." : "Join the Waitlist"}
             </Button>
             
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500 pt-1">
               <Clock className="h-4 w-4" />
               <span>
                 {isSoldOut 
-                  ? "Early access spots are full." 
+                  ? "Early access spots are full. Sign up for updates!" 
                   : earlyAccess 
-                    ? remainingCount > 0 ? `${remainingCount} spots remaining - Sign up now!` : "No spots left for early access."
+                    ? remainingCount > 0 ? `${remainingCount} spots remaining - Sign up now!` : "Early access spots are full. Sign up for updates!"
                     : "Opt-in for early access consideration."}
               </span>
             </div>
           </form>
         )}
         
-        {/* 3-point layout - shown if not sold out OR if sold out and they haven't just submitted */}
-        {(!isSoldOut || (isSoldOut && !isSubmitted)) && (
-          <div className={`flex flex-wrap items-center justify-center gap-x-2 sm:gap-x-3 gap-y-1 text-xs mt-6 w-full px-1 ${isSoldOut ? 'text-gray-400' : 'text-gray-500'}`}>
+        {/* 3-point layout - always shown unless it's an immediate post-submission state AND not sold out */}
+        { !(isSubmitted && !isSoldOut) && (
+          <div className={`flex flex-wrap items-center justify-center gap-x-2 sm:gap-x-3 gap-y-1 text-xs mt-6 w-full px-1 ${isSoldOut ? 'text-gray-500' : 'text-gray-500'}`}>
             <div className="flex items-center gap-1">
               <Mail className="h-3 w-3 flex-shrink-0" />
               <span className="whitespace-nowrap">No spam, ever</span>

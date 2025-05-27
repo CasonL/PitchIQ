@@ -119,7 +119,7 @@ const TestimonialsSection = () => {
               }
             }}
           >
-            Join Early Access & Shape Our Success Stories
+            Join Early Access
           </Button>
         </div>
 

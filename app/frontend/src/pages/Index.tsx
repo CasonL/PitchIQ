@@ -12,7 +12,7 @@ import Footer from "@/components/Footer";
 const Index = () => {
   return (
     <div className="min-h-screen bg-gray-100">
-      <Navbar />
+      <Navbar preRelease={true} />
       <HeroSection />
       <FeatureShowcase />
       <AboutUsSection />

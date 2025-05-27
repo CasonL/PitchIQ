@@ -564,8 +564,8 @@ const FeatureShowcase = () => {
                       key={index}
                       className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-700 ease-out ${
                         isActive 
-                          ? 'opacity-100 translate-y-0 scale-100' 
-                          : 'opacity-0 translate-y-8 scale-95'
+                          ? 'opacity-100 translate-y-0 scale-100 visible' 
+                          : 'opacity-0 translate-y-8 scale-95 invisible pointer-events-none'
                       }`}
                     >
                       <div className="w-8 h-8 md:w-16 lg:w-24 xl:w-32 md:h-16 lg:h-24 xl:h-32 flex items-center justify-center">

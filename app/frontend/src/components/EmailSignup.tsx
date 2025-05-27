@@ -12,7 +12,7 @@ const EmailSignup = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [remainingCount, setRemainingCount] = useState(30);
+  const [remainingCount, setRemainingCount] = useState(2);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [isSoldOut, setIsSoldOut] = useState(false);

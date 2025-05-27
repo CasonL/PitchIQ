@@ -25,11 +25,11 @@ const AnimatedBrain = ({ isActive }: { isActive: boolean }) => {
   const [animationState, setAnimationState] = useState<'visible' | 'animatingOut' | 'hiddenForIn' | 'animatingIn'>('visible');
 
   const phrases = [
-    "Detailing Prospects Morning",
-    "Exploring Buyer Nuances",
-    "defining Favorite Hobby",
-    "Crafting Core Motivations",
-    "Uncovering Critical Needs",
+    "Detailing<br />Prospects Morning",
+    "Exploring<br />Buyer Nuances",
+    "defining<br />Favorite Hobby",
+    "Crafting<br />Core Motivations",
+    "Uncovering<br />Critical Needs",
   ];
 
   const animationDuration = 600; // ms for fade/move - INCREASED
@@ -75,7 +75,7 @@ const AnimatedBrain = ({ isActive }: { isActive: boolean }) => {
     };
   }, [isActive, animationState, phrases.length, phraseDisplayTime, animationDuration]);
 
-  let textClasses = "text-xs md:text-sm font-medium text-gray-600 whitespace-nowrap";
+  let textClasses = "text-xs md:text-sm font-medium text-gray-600";
   switch (animationState) {
     case 'visible':
       // Ends in this state, ease-out for smooth stop
@@ -110,10 +110,11 @@ const AnimatedBrain = ({ isActive }: { isActive: boolean }) => {
         />
       </div>
       {/* Text Wheel */}
-      <div className="h-4 md:h-6 text-center overflow-hidden"> {/* Fixed height and overflow for wheel effect */}
-        <p className={textClasses}>
-          {phrases[currentPhraseIndex]}
-        </p>
+      <div className="h-8 md:h-10 text-center overflow-hidden"> {/* Increased height for two lines */}
+        <p 
+          className={textClasses}
+          dangerouslySetInnerHTML={{ __html: phrases[currentPhraseIndex] }}
+        />
       </div>
     </div>
   );

@@ -533,7 +533,7 @@ const FeatureShowcase = () => {
                 {/* Desktop Layout - Text only (animation in sticky sidebar) */}
                 <div className="hidden lg:block">
                   <div className="absolute -top-8 md:-top-10 left-1/2 -translate-x-1/2">
-                    <item.AnimatedIcon size={isMobile ? 60 : 80} />
+                    <item.AnimatedIcon size={80} />
                   </div>
                   <h3
                     className="text-xl md:text-2xl font-bold mt-16 md:mt-20 mb-3 md:mb-4"

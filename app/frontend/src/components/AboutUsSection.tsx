@@ -6,7 +6,9 @@ const AboutUsSection = () => {
     <section id="about-us" className="py-16 md:py-20">
       <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-10 xl:px-20">
         <div className="text-center mb-12 md:mb-16">
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4">About PitchIQ</h2>
+          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4">
+            About <span className="font-outfit">Pitch</span><span className="font-saira font-medium text-pitchiq-red">IQ</span>
+          </h2>
           <p className="text-lg md:text-xl text-foreground/70 max-w-3xl mx-auto px-4">
             Built by a solo founder who experienced the pain of ineffective sales training firsthand, 
             then taught himself to code and created the solution he wished existed.

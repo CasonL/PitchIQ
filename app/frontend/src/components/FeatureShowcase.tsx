@@ -457,7 +457,7 @@ const FeatureShowcase = () => {
     {
       id: 'pain-discovery',
       heading: "Uncover Hidden<br /> Pain Points",
-      text: "<strong>Navigate red herrings</strong> and surface objections to find the<br />real pain. Learn to distinguish between <strong>surface complaints</strong><br />and deeper business challenges that <strong>truly motivate</strong> purchase decisions.",
+      text: "<strong>Navigate red herrings</strong> and surface objections to find the real pain. Learn to distinguish between <strong>surface complaints</strong> and deeper business challenges that <strong>truly motivate</strong> purchase decisions.",
       AnimatedIcon: ZigZagSearch
     },
     {
@@ -469,7 +469,7 @@ const FeatureShowcase = () => {
     {
       id: 'amplification',
       heading: "Make Pain<br /> Points Hurt",
-      text: "Master the art of <strong>ethical pain amplification.</strong><br />Learn to help prospects visualize the <strong>true cost of inaction</strong><br />and position your solution as the <strong>urgent remedy</strong> they need.",
+      text: "Master the art of <strong>ethical pain amplification.</strong> Learn to help prospects visualize the <strong>true cost of inaction</strong> and position your solution as the <strong>urgent remedy</strong> they need.",
       AnimatedIcon: PulsingTargetAnimation
     },
   ];
@@ -525,7 +525,7 @@ const FeatureShowcase = () => {
                   <div className="font-outfit relative pl-3 md:pl-4 ml-[-0.75rem] md:ml-[-1rem]"> 
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-pitchiq-red" aria-hidden="true"></div>
                     <p 
-                      className="text-base md:text-lg text-foreground/80 leading-relaxed"
+                      className="text-[13px] sm:text-sm md:text-base text-gray-600 leading-normal sm:leading-relaxed"
                       dangerouslySetInnerHTML={{ __html: item.text }}
                     />
                   </div>
@@ -537,13 +537,13 @@ const FeatureShowcase = () => {
                     <item.AnimatedIcon size={80} />
                   </div> */}
                   <h3
-                    className="text-xl md:text-2xl font-bold mt-16 md:mt-20 mb-3 md:mb-4"
+                    className="text-xl md:text-2xl font-bold text-gray-800 mb-2 md:mb-3"
                     dangerouslySetInnerHTML={{ __html: item.heading }}
                   />
                   <div className="font-outfit relative pl-4 ml-[-1rem]"> 
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-pitchiq-red" aria-hidden="true"></div>
                     <p 
-                      className="text-xl text-foreground/80 leading-relaxed"
+                      className="text-xs sm:text-sm md:text-base text-gray-600 leading-normal sm:leading-relaxed"
                       dangerouslySetInnerHTML={{ __html: item.text }}
                     />
                   </div>

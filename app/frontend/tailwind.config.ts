@@ -7,6 +7,7 @@ export default {
 		"./components/**/*.{ts,tsx}",
 		"./app/**/*.{ts,tsx}",
 		"./src/**/*.{ts,tsx}",
+		"./index.html",
 	],
 	prefix: "",
 	theme: {
@@ -131,6 +132,7 @@ export default {
 			fontFamily: {
 				'outfit': ['Outfit', 'sans-serif'],
 				caveat: ['"Caveat"', 'cursive'],
+				saira: ['"Saira"', 'sans-serif'],
 			}
 		}
 	},

@@ -42,9 +42,9 @@ const Navbar = ({ preRelease }: NavbarProps) => {
       <div className="max-w-7xl mx-auto px-6 md:px-10 lg:px-20">
         <div className="flex items-center justify-between h-20">
           <Link to={preRelease ? "/pre-release" : "/"} className="flex items-center space-x-2">
-            <span className="font-bold text-2xl">
-              <span className="text-gray-800">Pitch</span>
-              <span className="text-pitchiq-red">IQ</span>
+            <span className="text-2xl">
+              <span className="font-outfit font-bold text-gray-800">Pitch</span>
+              <span className="font-saira font-medium text-pitchiq-red">IQ</span>
             </span>
           </Link>
 

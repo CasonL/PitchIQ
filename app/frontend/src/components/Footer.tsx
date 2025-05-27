@@ -105,7 +105,9 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           <div>
-            <div className="text-2xl font-bold mb-6 text-pitchiq-red">PitchIQ</div>
+            <div className="text-2xl mb-6">
+              <span className="font-outfit font-bold text-white">Pitch</span><span className="font-saira font-medium text-pitchiq-red">IQ</span>
+            </div>
             <p className="text-white/70 mb-6">
               AI-powered sales training that helps professionals practice, improve, and close more deals.
             </p>
@@ -156,7 +158,7 @@ const Footer = () => {
         <div className="border-t border-white/20 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <div className="text-center md:text-left mb-4 md:mb-0">
             <p className="text-white/70 text-sm mb-1">
-              &copy; 2025 PitchIQ. All rights reserved.
+              &copy; 2025 <span className="font-outfit">Pitch</span><span className="font-saira font-medium text-pitchiq-red">IQ</span>. All rights reserved.
             </p>
             <p className="text-white/50 text-xs">
               App and landing page built by Cason Lamothe
@@ -173,6 +175,7 @@ const Footer = () => {
             </div>
           </div>
         </div>
+      </div>
       </footer>
 
       {/* Admin Modal */}

@@ -15,6 +15,7 @@ const EmailSignup = () => {
   const [remainingCount, setRemainingCount] = useState(30);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [isHighlighted, setIsHighlighted] = useState(false);
+  const [isSoldOut, setIsSoldOut] = useState(false);
 
   // Generate a simple computer fingerprint
   const generateFingerprint = () => {
@@ -37,22 +38,6 @@ const EmailSignup = () => {
 
   // Load initial data on component mount
   useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/email-signup/count`, {
-          headers: {
-            'ngrok-skip-browser-warning': 'true'
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setRemainingCount(data.remaining_early_access);
-        }
-      } catch (error) {
-        console.error('Error loading initial data:', error);
-      }
-    };
-
     const checkSubmissionStatus = () => {
       const fingerprint = generateFingerprint();
       const submitted = localStorage.getItem(`email_submitted_${fingerprint}`);
@@ -73,7 +58,6 @@ const EmailSignup = () => {
     // Add event listener for custom highlight event
     window.addEventListener('highlightEmailSignup', handleHighlight);
 
-    loadInitialData();
     checkSubmissionStatus();
 
     // Cleanup event listener
@@ -81,6 +65,13 @@ const EmailSignup = () => {
       window.removeEventListener('highlightEmailSignup', handleHighlight);
     };
   }, []);
+
+  // Effect to check if spots are sold out
+  useEffect(() => {
+    if (remainingCount === 0) {
+      setIsSoldOut(true);
+    }
+  }, [remainingCount]);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,8 +97,7 @@ const EmailSignup = () => {
 
       if (response.ok) {
         setIsSubmitted(true);
-        // RemainingCount won't be updated from Netlify forms directly in this simple setup
-        // setRemainingCount(data.remaining_early_access); 
+        setRemainingCount(prevCount => Math.max(0, prevCount - 1));
         localStorage.setItem('email_signup_submitted', 'true');
         
         const selectedOptions = {
@@ -238,112 +228,119 @@ const EmailSignup = () => {
   }
 
   return (
-    <div id="email-signup" className={`bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200 shadow-md relative transition-all duration-700 ${isHighlighted ? 'border-pitchiq-red shadow-lg shadow-pitchiq-red/30 ring-2 ring-pitchiq-red/20' : ''}`}>
-      {isHighlighted && (
+    <div id="email-signup" className={`bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200 shadow-md relative transition-all duration-700 ${isHighlighted ? 'border-pitchiq-red shadow-lg shadow-pitchiq-red/30 ring-2 ring-pitchiq-red/20' : ''} ${isSoldOut ? 'bg-gray-200' : ''}`}>
+      {isHighlighted && !isSoldOut && (
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-pitchiq-red/5 via-pitchiq-red/3 to-transparent pointer-events-none animate-pulse"></div>
       )}
       <div className="flex flex-col items-start relative z-10">
-        <h3 className="text-lg font-semibold mb-5 text-gray-700">Join the Early Access List</h3>
+        <h3 className={`text-lg font-semibold mb-5 ${isSoldOut ? 'text-gray-500' : 'text-gray-700'}`}>Join the Early Access List</h3>
         
-        {isSubmitted ? (
+        {isSoldOut ? (
+          <div className="flex flex-col items-center w-full text-center mb-4">
+            <Users className="h-8 w-8 text-gray-500 mb-3" />
+            <p className="text-gray-600 font-medium mb-2">All early access spots have been filled!</p>
+            <p className="text-sm text-gray-500">Thank you for your interest. Sign up for product updates to hear about future opportunities.</p>
+            {/* Optionally, still show a simplified product updates checkbox here if desired */}
+          </div>
+        ) : isSubmitted ? (
           <div className="flex flex-col items-center w-full text-center mb-4">
             <CheckCircle className="h-8 w-8 text-green-600 mb-3" />
             <p className="text-green-600 font-medium mb-2">You're on the list! We'll be in touch soon.</p>
-            {earlyAccess && (
+            {earlyAccess && ( // Only show spots if they opted into early access
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Users className="h-4 w-4" />
-                <span>{remainingCount} early access spots remaining</span>
+                <span>{remainingCount > 0 ? `${remainingCount} early access spots remaining` : "Processing..."}</span>
               </div>
             )}
           </div>
         ) : (
           <form 
             onSubmit={handleEmailSubmit} 
-            className="w-full max-w-sm mb-4"
-            // data-netlify="true" // Not strictly needed here if JS submits correctly
-            // data-netlify-honeypot="bot-field" // Already on hidden HTML form
+            className="w-full space-y-5"
+            aria-busy={isSubmitting}
           >
-            <input type="hidden" name="form-name" value="early-access-signup" /> 
-            {/* This line is crucial */}
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-2">
-                <Mail className="h-5 w-5 text-gray-500" />
-                <span className="text-sm text-gray-600">Be the first to experience PitchIQ</span>
-              </div>
-
-              {/* Email Input */}
-              <div className="flex gap-2">
+            <div className="space-y-2">
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="yourbest@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="flex-grow"
-                  disabled={isSubmitting}
+                  className="pl-10 text-base py-2.5"
+                  aria-label="Email for early access"
+                  disabled={isSubmitting || isSoldOut}
                 />
-                <Button 
-                  type="submit" 
-                  className="bg-pitchiq-red hover:bg-pitchiq-red/90"
-                  disabled={isSubmitting || !email}
-                >
-                  {isSubmitting ? "..." : "Join"}
-                </Button>
               </div>
+              {error && <p className="text-red-600 text-sm flex items-center gap-1.5"><AlertCircle className="h-4 w-4" />{error}</p>}
+            </div>
 
-              {/* Checkboxes */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={earlyAccess}
-                    onChange={(e) => setEarlyAccess(e.target.checked)}
-                    className="w-4 h-4 text-pitchiq-red bg-gray-100 border-gray-300 rounded focus:ring-pitchiq-red focus:ring-2"
-                    disabled={isSubmitting}
-                  />
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700">Get Early Access</span>
-                    <div className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-full">
-                      <Clock className="h-3 w-3" />
-                      <span>{remainingCount} spots left</span>
-                    </div>
-                  </div>
-                </label>
-
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={getUpdates}
-                    onChange={(e) => setGetUpdates(e.target.checked)}
-                    className="w-4 h-4 text-pitchiq-red bg-gray-100 border-gray-300 rounded focus:ring-pitchiq-red focus:ring-2"
-                    disabled={isSubmitting}
-                  />
-                  <span className="text-sm text-gray-700">Get Updates</span>
-                </label>
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="flex items-center gap-2 text-red-600 text-sm">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{error}</span>
-                </div>
+            <div className="space-y-3">
+              <label htmlFor="earlyAccess" className="flex items-center gap-2.5 text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors">
+                <input 
+                  type="checkbox" 
+                  id="earlyAccess"
+                  checked={earlyAccess}
+                  onChange={(e) => setEarlyAccess(e.target.checked)}
+                  className="h-4 w-4 rounded text-pitchiq-red focus:ring-pitchiq-red/50 border-gray-300 disabled:opacity-50"
+                  disabled={isSubmitting || isSoldOut}
+                />
+                <span>Secure an Early Access Spot (Limited spots available!)</span>
+              </label>
+              <label htmlFor="getUpdates" className="flex items-center gap-2.5 text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors">
+                <input 
+                  type="checkbox" 
+                  id="getUpdates"
+                  checked={getUpdates}
+                  onChange={(e) => setGetUpdates(e.target.checked)}
+                  className="h-4 w-4 rounded text-pitchiq-red focus:ring-pitchiq-red/50 border-gray-300 disabled:opacity-50"
+                  disabled={isSubmitting || isSoldOut}
+                />
+                <span>Get Product Updates & Feature Sneak Peeks</span>
+              </label>
+            </div>
+            
+            <Button 
+              type="submit" 
+              className={`w-full text-base py-2.5 ${isSoldOut ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' : 'bg-pitchiq-red hover:bg-pitchiq-red/90'}`}
+              disabled={isSubmitting || !email || isSoldOut}
+              aria-live="polite"
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              ) : (
+                <CheckCircle className="h-5 w-5 mr-2" />
               )}
+              {isSubmitting ? "Submitting..." : isSoldOut ? "All Spots Filled" : "Join the Waitlist"}
+            </Button>
+            
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 pt-1">
+              <Clock className="h-4 w-4" />
+              <span>
+                {isSoldOut 
+                  ? "Early access spots are full." 
+                  : earlyAccess 
+                    ? remainingCount > 0 ? `${remainingCount} spots remaining - Sign up now!` : "No spots left for early access."
+                    : "Opt-in for early access consideration."}
+              </span>
             </div>
           </form>
         )}
-
-        {/* 3-point layout */}
-        <div className="flex items-center justify-center gap-4 text-xs text-gray-500 w-full">
-          <div className="flex items-center gap-2">
-            <Mail className="h-3 w-3" />
-            <span>No spam, ever</span>
+        
+        {/* 3-point layout - shown if not sold out OR if sold out and they haven't just submitted */}
+        {(!isSoldOut || (isSoldOut && !isSubmitted)) && (
+          <div className={`flex flex-wrap items-center justify-center gap-x-2 sm:gap-x-3 gap-y-1 text-xs mt-6 w-full px-1 ${isSoldOut ? 'text-gray-400' : 'text-gray-500'}`}>
+            <div className="flex items-center gap-1">
+              <Mail className="h-3 w-3 flex-shrink-0" />
+              <span className="whitespace-nowrap">No spam, ever</span>
+            </div>
+            <div className="w-1 h-1 bg-gray-400 rounded-full hidden sm:block"></div>
+            <span className="whitespace-nowrap">Unsubscribe anytime</span>
+            <div className="w-1 h-1 bg-gray-400 rounded-full hidden sm:block"></div>
+            <span className="whitespace-nowrap">Launch updates only</span>
           </div>
-          <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-          <span>Unsubscribe anytime</span>
-          <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-          <span>Launch updates only</span>
-        </div>
+        )}
       </div>
     </div>
   );

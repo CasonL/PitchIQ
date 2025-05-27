@@ -89,6 +89,62 @@ const EmailSignup = () => {
     setIsSubmitting(true);
     setError("");
 
+    // --- Netlify Form Submission Logic ---
+    const formData = new URLSearchParams();
+    formData.append('form-name', 'early-access-signup'); // Matches hidden form in index.html
+    formData.append('email', email);
+    formData.append('early_access_opt_in', String(earlyAccess));
+    formData.append('product_updates_opt_in', String(getUpdates));
+    formData.append('computer_fingerprint_field', generateFingerprint()); // Match hidden form field
+
+    try {
+      const response = await fetch('/', { // POST to the same page path for Netlify
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString(),
+      });
+
+      if (response.ok) {
+        setIsSubmitted(true);
+        // RemainingCount won't be updated from Netlify forms directly in this simple setup
+        // setRemainingCount(data.remaining_early_access); 
+        localStorage.setItem('email_signup_submitted', 'true');
+        
+        const selectedOptions = {
+          earlyAccess: earlyAccess,
+          getUpdates: getUpdates
+        };
+        localStorage.setItem('email_signup_options', JSON.stringify(selectedOptions));
+        
+        const signupEvent = new CustomEvent('emailSignupComplete', {
+          detail: selectedOptions
+        });
+        window.dispatchEvent(signupEvent);
+        
+        // Reset form after 5 seconds (or redirect to a thank you page)
+        // For Netlify, often a redirect is configured in Netlify UI or via a hidden action input
+        setTimeout(() => {
+          setIsSubmitted(false);
+          setEmail("");
+          setEarlyAccess(false);
+          setGetUpdates(false);
+          setIsSubmitting(false);
+        }, 5000);
+      } else {
+        // Netlify might not return detailed JSON errors for simple form submissions this way
+        // It might just be not response.ok if something went wrong with Netlify's processing
+        setError('Submission failed. Please try again.');
+        setIsSubmitting(false);
+      }
+    } catch (error) {
+      console.error('Error submitting to Netlify Forms:', error);
+      setError('Network error or issue submitting form. Please try again.');
+      setIsSubmitting(false);
+    }
+    // --- End Netlify Form Submission Logic ---
+
+    /* 
+    // --- OLD Backend Submission Logic ---
     try {
       const fingerprint = generateFingerprint();
       
@@ -149,6 +205,7 @@ const EmailSignup = () => {
       setError('Network error. Please check your connection and try again.');
       setIsSubmitting(false);
     }
+    */
   };
 
   if (alreadySubmitted) {
@@ -200,7 +257,14 @@ const EmailSignup = () => {
             )}
           </div>
         ) : (
-          <form onSubmit={handleEmailSubmit} className="w-full max-w-sm mb-4">
+          <form 
+            onSubmit={handleEmailSubmit} 
+            className="w-full max-w-sm mb-4"
+            // data-netlify="true" // Not strictly needed here if JS submits correctly
+            // data-netlify-honeypot="bot-field" // Already on hidden HTML form
+          >
+            <input type="hidden" name="form-name" value="early-access-signup" /> 
+            {/* This line is crucial */}
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-2">
                 <Mail className="h-5 w-5 text-gray-500" />

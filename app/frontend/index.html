@@ -34,14 +34,18 @@
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- Netlify hidden form -->
-    <form name="contact" netlify netlify-honeypot="bot-field" hidden action="/thank-you.html">
-      <input type="text" name="name" />
+    <!-- Netlify hidden form for early access -->
+    <form 
+      name="early-access-signup" 
+      netlify 
+      netlify-honeypot="bot-field" 
+      hidden 
+      action="/thank-you.html"
+    >
       <input type="email" name="email" />
-      <input type="text" name="subject" />
-      <textarea name="message"></textarea>
-      <input type="checkbox" name="earlyAccess" />
-      <input type="checkbox" name="getUpdates" />
+      <input type="text" name="early_access_opt_in" />
+      <input type="text" name="product_updates_opt_in" />
+      <input type="text" name="computer_fingerprint_field" />
     </form>
     <!-- End Netlify hidden form -->
   </body>

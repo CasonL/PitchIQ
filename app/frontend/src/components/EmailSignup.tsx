@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Mail, CheckCircle, Clock, Users, AlertCircle, Loader2 } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const EARLY_ACCESS_SPOTS_KEY = 'pitchiq_early_access_spots';
 
 const EmailSignup = () => {
   const [email, setEmail] = useState("");
@@ -12,10 +13,16 @@ const EmailSignup = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [remainingCount, setRemainingCount] = useState(2);
+  
+  // Initialize remainingCount from localStorage or default to 2
+  const [remainingCount, setRemainingCount] = useState(() => {
+    const storedCount = localStorage.getItem(EARLY_ACCESS_SPOTS_KEY);
+    return storedCount !== null ? parseInt(storedCount, 10) : 2;
+  });
+
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [isHighlighted, setIsHighlighted] = useState(false);
-  const [isSoldOut, setIsSoldOut] = useState(false);
+  const [isSoldOut, setIsSoldOut] = useState(remainingCount === 0);
 
   // Generate a simple computer fingerprint
   const generateFingerprint = () => {
@@ -66,8 +73,9 @@ const EmailSignup = () => {
     };
   }, []);
 
-  // Effect to check if spots are sold out
+  // Effect to check if spots are sold out and update localStorage
   useEffect(() => {
+    localStorage.setItem(EARLY_ACCESS_SPOTS_KEY, String(remainingCount));
     if (remainingCount === 0) {
       setIsSoldOut(true);
     }

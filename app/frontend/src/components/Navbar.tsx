@@ -25,7 +25,7 @@ const Navbar = ({ preRelease }: NavbarProps) => {
     const element = document.getElementById(id.substring(2)); // Remove '/#'
     if (element) {
       const yOffset = -80; // Navbar height offset
-      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset + 1; // Added +1 to potentially fix inching scroll
       window.scrollTo({top: y, behavior: 'smooth'});
     }
     setIsMobileMenuOpen(false); // Close mobile menu on click

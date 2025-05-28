@@ -24,9 +24,13 @@ const Navbar = ({ preRelease }: NavbarProps) => {
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id.substring(2)); // Remove '/#'
     if (element) {
-      const yOffset = -80; // Navbar height offset
-      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset + 1; // Added +1 to potentially fix inching scroll
-      window.scrollTo({top: y, behavior: 'smooth'});
+      requestAnimationFrame(() => { // Wrap in rAF
+        const yOffset = -80; // Navbar height offset
+        const rect = element.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const y = rect.top + scrollTop + yOffset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      });
     }
     setIsMobileMenuOpen(false); // Close mobile menu on click
   };

@@ -502,7 +502,7 @@ const FeatureShowcase = () => {
                         </div>
                       )}
                       {item.id === 'pain-discovery' && (
-                        <div className="w-40 h-32 md:w-48 md:h-40 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
+                        <div className="w-32 h-28 md:w-48 md:h-40 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
                           <item.AnimatedIcon isActive={true} />
                         </div>
                       )}

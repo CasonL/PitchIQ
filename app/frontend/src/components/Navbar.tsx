@@ -32,6 +32,7 @@ function debounce<T extends (...args: any[]) => void>(func: T, delay: number): (
 }
 
 const Navbar = ({ preRelease }: NavbarProps) => {
+  console.log("[Navbar] Component rendering. PreRelease:", preRelease);
   // const { isAuthenticated, isLoading, logout } = useAuthContext(); // For auth state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -83,26 +84,28 @@ const Navbar = ({ preRelease }: NavbarProps) => {
     const sectionId = idWithHash.substring(2); // Remove '/#'
     const storedPosition = sectionPositionsRef.current[sectionId];
     
-    // Dynamically get navbar height
-    const navHeight = navbarRef.current ? navbarRef.current.offsetHeight : 80; // Default to 80 if ref not ready
+    const navHeight = navbarRef.current ? navbarRef.current.offsetHeight : 80; 
     const yOffset = -navHeight;
 
-    // console.log(`Scrolling to ${sectionId}, stored: ${storedPosition}, navHeight: ${navHeight}`);
+    console.log(`[ScrollTo] Attempting scroll to: ${sectionId}`);
+    console.log(`[ScrollTo] Stored position for ${sectionId}: ${storedPosition}`);
+    console.log(`[ScrollTo] Navbar height (navHeight): ${navHeight}`);
+    console.log(`[ScrollTo] Calculated yOffset: ${yOffset}`);
 
     if (typeof storedPosition === 'number') {
-      const y = storedPosition + yOffset;
+      const y = Math.round(storedPosition + yOffset); // Use Math.round()
+      console.log(`[ScrollTo] Final calculated y (using stored, rounded): ${y}`);
       window.scrollTo({ top: y, behavior: 'smooth' });
     } else {
-      // Fallback if position not found (e.g., element not rendered yet or ID mismatch)
-      // This could re-attempt calculation or use the old method as a last resort
-      // console.warn(`Position for section ${sectionId} not found, trying direct DOM calculation.`);
+      console.warn(`[ScrollTo] Fallback for ${sectionId} - position not stored or invalid. Stored:`, storedPosition);
       const element = document.getElementById(sectionId);
       if (element) {
         requestAnimationFrame(() => {
           const rect = element.getBoundingClientRect();
           const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-          const y = rect.top + scrollTop + yOffset;
-          window.scrollTo({ top: y, behavior: 'smooth' });
+          const fallbackY = Math.round(rect.top + scrollTop + yOffset); // Also round here
+          console.log(`[ScrollTo] Final calculated y (using fallback, rounded): ${fallbackY}`);
+          window.scrollTo({ top: fallbackY, behavior: 'smooth' });
         });
       }
     }

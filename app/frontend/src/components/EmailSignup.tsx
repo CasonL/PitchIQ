@@ -329,7 +329,6 @@ const EmailSignup = () => {
                 />
                 <span>Get Product Updates & Feature Sneak Peeks</span>
               </label>
-            </div>
             
             <Button 
               type="submit" 
@@ -356,6 +355,7 @@ const EmailSignup = () => {
               </span>
             </div>
           </form>
+          </>
         )}
         
         {/* 3-point layout - always shown unless it's an immediate post-submission state AND not sold out */}

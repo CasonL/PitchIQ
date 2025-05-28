@@ -67,18 +67,6 @@ const Navbar = ({ preRelease }: NavbarProps) => {
                 {link.name}
               </button>
             ))}
-            <Button asChild className="bg-pitchiq-red hover:bg-pitchiq-red/90">
-              <Link to={preRelease ? "/#email-signup" : "/dashboard"} onClick={(e) => {
-                if (preRelease && location.pathname === '/pre-release' && "/#email-signup".includes('#')) {
-                    e.preventDefault();
-                    scrollToSection("/#email-signup");
-                } else if (preRelease && "/#email-signup".includes('#')) {
-                    // allow navigation to /pre-release first, then scroll in a useEffect or similar
-                }
-              }}>
-                {preRelease ? 'Join Waitlist' : 'Go to Dashboard'} <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -111,21 +99,6 @@ const Navbar = ({ preRelease }: NavbarProps) => {
             </button>
           ))}
           <div className="px-4 py-3">
-            <Button asChild className="w-full bg-pitchiq-red hover:bg-pitchiq-red/90">
-              <Link to={preRelease ? "/#email-signup" : "/dashboard"} onClick={(e) => {
-                if (preRelease && location.pathname === '/pre-release' && "/#email-signup".includes('#')) {
-                    e.preventDefault();
-                    scrollToSection("/#email-signup");
-                } else if (preRelease && "/#email-signup".includes('#')) {
-                    // allow navigation to /pre-release first, then scroll in a useEffect or similar
-                    setIsMobileMenuOpen(false);
-                } else {
-                    setIsMobileMenuOpen(false);
-                }
-              }}>
-                 {preRelease ? 'Join Waitlist' : 'Go to Dashboard'} <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
           </div>
         </div>
       )}

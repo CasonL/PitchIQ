@@ -168,184 +168,182 @@ const Footer = () => {
               <button
                 onClick={() => setShowAdminModal(true)}
                 className="text-white/30 hover:text-white/50 transition-colors"
-                title="Admin"
-              >
+                title="Admin">
                 <Settings className="h-4 w-4" />
               </button>
             </div>
           </div>
         </div>
-      </div>
-      </footer>
+    </footer>
 
-      {/* Admin Modal */}
-      {showAdminModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-semibold">Email Signup Admin</h2>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
+    {/* Admin Modal */}
+    {showAdminModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+          <div className="flex items-center justify-between p-6 border-b">
+            <h2 className="text-xl font-semibold">Email Signup Admin</h2>
+            <button
+              onClick={closeModal}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
 
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              {!isAuthenticated ? (
-                <form onSubmit={handleAdminLogin} className="max-w-md mx-auto">
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Admin Password
-                    </label>
-                    <div className="relative">
-                      <Input
-                        type={showPassword ? "text" : "password"}
-                        value={adminPassword}
-                        onChange={(e) => setAdminPassword(e.target.value)}
-                        placeholder="Enter admin password"
-                        required
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
+          <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            {!isAuthenticated ? (
+              <form onSubmit={handleAdminLogin} className="max-w-md mx-auto">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Admin Password
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      placeholder="Enter admin password"
+                      required
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
-                  {error && (
-                    <div className="mb-4 text-red-600 text-sm">{error}</div>
-                  )}
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-pitchiq-red hover:bg-pitchiq-red/90"
-                  >
-                    {loading ? "Authenticating..." : "Login"}
-                  </Button>
-                </form>
-              ) : (
-                <div>
-                  {/* Stats Cards */}
-                  {adminData && (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <Users className="h-5 w-5 text-blue-600" />
-                          <span className="text-sm font-medium text-blue-600">Total Signups</span>
-                        </div>
-                        <div className="text-2xl font-bold text-blue-900">{adminData.total_signups}</div>
-                      </div>
-                      <div className="bg-orange-50 p-4 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-5 w-5 text-orange-600" />
-                          <span className="text-sm font-medium text-orange-600">Early Access</span>
-                        </div>
-                        <div className="text-2xl font-bold text-orange-900">{adminData.early_access_count}</div>
-                      </div>
-                      <div className="bg-green-50 p-4 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-5 w-5 text-green-600" />
-                          <span className="text-sm font-medium text-green-600">Updates</span>
-                        </div>
-                        <div className="text-2xl font-bold text-green-900">{adminData.updates_count}</div>
-                      </div>
-                      <div className="bg-purple-50 p-4 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-5 w-5 text-purple-600" />
-                          <span className="text-sm font-medium text-purple-600">Remaining</span>
-                        </div>
-                        <div className="text-2xl font-bold text-purple-900">{adminData.remaining_early_access}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Email Signups</h3>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={exportData}
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        Export CSV
-                      </Button>
-                      <Button
-                        onClick={handleLogout}
-                        variant="outline"
-                        size="sm"
-                      >
-                        Logout
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Data Table */}
-                  {adminData?.signups && (
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse border border-gray-300">
-                        <thead>
-                          <tr className="bg-gray-50">
-                            <th className="border border-gray-300 px-4 py-2 text-left">Email</th>
-                            <th className="border border-gray-300 px-4 py-2 text-left">Early Access</th>
-                            <th className="border border-gray-300 px-4 py-2 text-left">Updates</th>
-                            <th className="border border-gray-300 px-4 py-2 text-left">Created At</th>
-                            <th className="border border-gray-300 px-4 py-2 text-left">IP Address</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {adminData.signups.map((signup: any) => (
-                            <tr key={signup.id} className="hover:bg-gray-50">
-                              <td className="border border-gray-300 px-4 py-2">{signup.email}</td>
-                              <td className="border border-gray-300 px-4 py-2">
-                                <span className={`px-2 py-1 rounded-full text-xs ${
-                                  signup.early_access 
-                                    ? 'bg-orange-100 text-orange-800' 
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {signup.early_access ? 'Yes' : 'No'}
-                                </span>
-                              </td>
-                              <td className="border border-gray-300 px-4 py-2">
-                                <span className={`px-2 py-1 rounded-full text-xs ${
-                                  signup.get_updates 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {signup.get_updates ? 'Yes' : 'No'}
-                                </span>
-                              </td>
-                              <td className="border border-gray-300 px-4 py-2">
-                                {new Date(signup.created_at).toLocaleString()}
-                              </td>
-                              <td className="border border-gray-300 px-4 py-2">
-                                {signup.ip_address || 'N/A'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
                 </div>
-              )}
+                {error && (
+                  <div className="mb-4 text-red-600 text-sm">{error}</div>
+                )}
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-pitchiq-red hover:bg-pitchiq-red/90"
+                >
+                  {loading ? "Authenticating..." : "Login"}
+                </Button>
+              </form>
+            ) : (
+              <div>
+                {/* Stats Cards */}
+                {adminData && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-5 w-5 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-600">Total Signups</span>
+                      </div>
+                      <div className="text-2xl font-bold text-blue-900">{adminData.total_signups}</div>
+                    </div>
+                    <div className="bg-orange-50 p-4 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-orange-600" />
+                        <span className="text-sm font-medium text-orange-600">Early Access</span>
+                      </div>
+                      <div className="text-2xl font-bold text-orange-900">{adminData.early_access_count}</div>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-5 w-5 text-green-600" />
+                        <span className="text-sm font-medium text-green-600">Updates</span>
+                      </div>
+                      <div className="text-2xl font-bold text-green-900">{adminData.updates_count}</div>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-purple-600" />
+                        <span className="text-sm font-medium text-purple-600">Remaining</span>
+                      </div>
+                      <div className="text-2xl font-bold text-purple-900">{adminData.remaining_early_access}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Email Signups</h3>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={exportData}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      Export CSV
+                    </Button>
+                    <Button
+                      onClick={handleLogout}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Logout
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Data Table */}
+                {adminData?.signups && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-300">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="border border-gray-300 px-4 py-2 text-left">Email</th>
+                          <th className="border border-gray-300 px-4 py-2 text-left">Early Access</th>
+                          <th className="border border-gray-300 px-4 py-2 text-left">Updates</th>
+                          <th className="border border-gray-300 px-4 py-2 text-left">Created At</th>
+                          <th className="border border-gray-300 px-4 py-2 text-left">IP Address</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {adminData.signups.map((signup: any) => (
+                          <tr key={signup.id} className="hover:bg-gray-50">
+                            <td className="border border-gray-300 px-4 py-2">{signup.email}</td>
+                            <td className="border border-gray-300 px-4 py-2">
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                signup.early_access 
+                                  ? 'bg-orange-100 text-orange-800' 
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {signup.early_access ? 'Yes' : 'No'}
+                              </span>
+                            </td>
+                            <td className="border border-gray-300 px-4 py-2">
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                signup.get_updates 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {signup.get_updates ? 'Yes' : 'No'}
+                              </span>
+                            </td>
+                            <td className="border border-gray-300 px-4 py-2">
+                              {new Date(signup.created_at).toLocaleString()}
+                            </td>
+                            <td className="border border-gray-300 px-4 py-2">
+                              {signup.ip_address || 'N/A'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
-      )}
+    )}
       
-      {/* Contact Modal */}
-      <ContactModal 
-        isOpen={showContactModal} 
-        onClose={() => setShowContactModal(false)} 
-      />
+    {/* Contact Modal */}
+    <ContactModal 
+      isOpen={showContactModal} 
+      onClose={() => setShowContactModal(false)} 
+    />
     </>
   );
 };

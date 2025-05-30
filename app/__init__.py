@@ -48,6 +48,8 @@ from app.routes.api.embeddings import embeddings_blueprint
 from app.routes.api.dashboard_coach import dashboard_coach_blueprint
 # Import the email signup blueprint
 from app.routes.api.email_signup import email_signup_bp
+# Import the API auth blueprint
+from app.routes.api.auth import api_auth_bp
 
 # Load environment variables
 load_dotenv()
@@ -112,48 +114,43 @@ def create_app(config_name='dev'):
     # --- End EARLY CSRF Exemption ---
     
     # Configure CORS to allow frontend to make requests
+    allowed_origins = [
+        "http://localhost:8080", "http://127.0.0.1:8080",
+        "http://localhost:5173", "http://127.0.0.1:5173",
+        "https://dreamy-figolla-e05819.netlify.app",
+        "https://startling-druid-93b184.netlify.app",
+        r"https://*.ngrok-free.app", # Regex for ngrok
+        # Add your specific ngrok URL if the regex doesn't work as expected initially,
+        # though r"https://*.ngrok-free.app" should cover it.
+        # e.g., "https://95be-2605-b100-71a-58ea-4cb3-632-5827-1c71.ngrok-free.app"
+    ]
+
     CORS(app, resources={
         r"/api/*": {
-            "origins": [
-                "*", # Keep existing wildcard for broader compatibility if needed
-                "http://localhost:5173", 
-                "http://127.0.0.1:5173",
-                "https://euphonious-treacle-b2b989.netlify.app", # Your specific Netlify frontend
-                r"https://*.ngrok-free.app" # Keep allowing ngrok generally
-            ],
+            "origins": allowed_origins, # Use the defined list
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": [
                 "Content-Type", 
                 "Authorization", 
                 "X-Requested-With",
-                "ngrok-skip-browser-warning" # Add the ngrok header here
-            ]
+                "ngrok-skip-browser-warning" # Keep this if your ngrok setup requires it
+            ],
+            "supports_credentials": True # Crucial for auth
         },
-        r"/auth/*": {"origins": "*"},
-        r"/chat/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
-                               "http://localhost:5173", "http://127.0.0.1:5173",
-                               "https://dreamy-figolla-e05819.netlify.app",
-                               "https://startling-druid-93b184.netlify.app",
-                               r"https://*.ngrok-free.app",
-                               "https://7add-2001-56a-fa6d-4c00-58dd-1cc1-2a33-948c.ngrok-free.app"
-                               ]},
-        r"/voice/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
-                                "http://localhost:5173", "http://127.0.0.1:5173",
-                                "https://dreamy-figolla-e05819.netlify.app",
-                                "https://startling-druid-93b184.netlify.app",
-                                r"https://*.ngrok-free.app",
-                                "https://7add-2001-56a-fa6d-4c00-58dd-1cc1-2a33-948c.ngrok-free.app"
-                                ]},
-        r"/training/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080",
-                                    "http://localhost:5173", "http://127.0.0.1:5173",
-                                    "https://dreamy-figolla-e05819.netlify.app",
-                                    "https://startling-druid-93b184.netlify.app",
-                                    r"https://*.ngrok-free.app",
-                                    "https://7add-2001-56a-fa6d-4c00-58dd-1cc1-2a33-948c.ngrok-free.app"
-                                    ]},
-        r"/dashboard": {"origins": "*"},
-        r"/dashboard-react": {"origins": "*"}
-    }, supports_credentials=True)
+        r"/auth/*": {
+            "origins": allowed_origins, # Use the defined list
+            "methods": ["GET", "POST", "OPTIONS"], # Common methods for auth
+            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
+            "supports_credentials": True # Crucial for auth
+        },
+        # Keep other specific resource paths if they have different needs,
+        # otherwise, consider a default policy.
+        r"/chat/*": {"origins": allowed_origins, "supports_credentials": True},
+        r"/voice/*": {"origins": allowed_origins, "supports_credentials": True},
+        r"/training/*": {"origins": allowed_origins, "supports_credentials": True},
+        r"/dashboard": {"origins": allowed_origins, "supports_credentials": True}, # Assuming dashboard might need credentials
+        r"/dashboard-react": {"origins": allowed_origins, "supports_credentials": True} # Same for react dashboard
+    }, supports_credentials=True) # Global supports_credentials, can be overridden per resource
     
     # Use ProxyFix to handle proxy headers correctly
     # Temporarily disable x_host and x_port to diagnose URL generation issue
@@ -258,6 +255,9 @@ def create_app(config_name='dev'):
     # Register contact form blueprint
     from app.routes.api.contact import contact_bp
     app.register_blueprint(contact_bp, url_prefix='/api')
+    
+    # Register API auth blueprint
+    app.register_blueprint(api_auth_bp) # This blueprint already has /api/auth prefix
     
     # Register centralized error handlers
     register_error_handlers(app)

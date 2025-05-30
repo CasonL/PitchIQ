@@ -133,13 +133,13 @@ const ZigZagSearch = ({ isActive }: { isActive: boolean }) => {
   // Pattern: Triangle properly positioned inside w-32 h-32 card (128x128px)
   // Card center is (0,0), so coordinates range from -64 to +64 with margins
   const pattern = [
-    { x: 24, y: 48 },    // Bottom-right area - well inside card (was 32, 80)
-    { x: 32, y: -32 },   // Top-right - inside card boundaries  
-    { x: -32, y: -32 },  // Top-left - inside card boundaries
+    { x: 18, y: 24 },    // Adjusted: Bottom-right area - well inside card
+    { x: 24, y: -24 },   // Adjusted: Top-right - inside card boundaries
+    { x: -24, y: -24 },  // Adjusted: Top-left - inside card boundaries
   ];
   const DISCOVERY_STEP_INDEX = 0; // The first point (index 0) is discovery
-  const SEARCH_ICON_SIZE = 48; // Scaled down for mobile (was 96)
-  const EXCLAMATION_ICON_SIZE = 24; // Scaled down for mobile (was 48)
+  const SEARCH_ICON_SIZE = 86; // Adjusted: Scaled by 1.8x (was 48)
+  const EXCLAMATION_ICON_SIZE = 43; // Adjusted: Scaled by 1.8x (was 24)
 
   const TRAVEL_DURATION = 1500; // 1.5 seconds for the pan/slide
   const STOP_DURATION_REGULAR = 1000;   // 1 second stop normally
@@ -178,8 +178,9 @@ const ZigZagSearch = ({ isActive }: { isActive: boolean }) => {
           if (!isActive || stepRef.current !== DISCOVERY_STEP_INDEX) return; 
 
           const currentPosition = pattern[DISCOVERY_STEP_INDEX]; 
-          const exclamX = currentPosition.x + (SEARCH_ICON_SIZE - EXCLAMATION_ICON_SIZE) / 2 - 13; // Center horizontally, then move left more
-          const exclamY = currentPosition.y + (SEARCH_ICON_SIZE - EXCLAMATION_ICON_SIZE) / 2 - 14; // Center vertically, then move up more
+          const exclamX = currentPosition.x + (SEARCH_ICON_SIZE - EXCLAMATION_ICON_SIZE) / 2 - 22; // Center horizontally, then move left more
+          const exclamY = currentPosition.y + (SEARCH_ICON_SIZE - EXCLAMATION_ICON_SIZE) / 2 - 23
+          ; // Center vertically, then move up more
           setExclamationPosition({ x: exclamX, y: exclamY });
           
           setShowExclamation(true);
@@ -498,24 +499,24 @@ const FeatureShowcase = () => {
                       {/* Custom card sizes for each animation */}
                       {item.id === 'scenarios' && (
                         <div className="w-32 h-24 md:w-40 md:h-32 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
-                          <item.AnimatedIcon isActive={true} />
+                          <item.AnimatedIcon isActive={index === activeSection} />
                         </div>
                       )}
                       {item.id === 'pain-discovery' && (
                         <div className="w-32 h-28 md:w-48 md:h-40 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
-                          <item.AnimatedIcon isActive={true} />
+                          <item.AnimatedIcon isActive={index === activeSection} />
                         </div>
                       )}
                       {item.id === 'coaching' && (
                         <div className="w-32 h-32 md:w-40 md:h-40 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center overflow-visible relative ml-2 md:ml-4">
                           <div className="pt-8">
-                            <item.AnimatedIcon isActive={true} />
+                            <item.AnimatedIcon isActive={index === activeSection} />
                           </div>
                         </div>
                       )}
                       {item.id === 'amplification' && (
                         <div className="w-32 h-24 md:w-40 md:h-32 bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center ml-2 md:ml-4">
-                          <item.AnimatedIcon isActive={true} />
+                          <item.AnimatedIcon isActive={index === activeSection} />
                         </div>
                       )}
                     </div>

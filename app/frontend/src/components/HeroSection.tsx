@@ -1,13 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useRef, RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { Mail } from "lucide-react";
 // import { useAuthContext } from "@/context/AuthContext"; // Commented out for pre-launch
-import EmailSignup from "./EmailSignup";
+import EmailSignup from "./EmailSignup"; // Restored import
 import ContactModal from "./ContactModal";
+import { scrollToElement } from "@/lib/utils"; // Import the new utility
+// useNavbarHeight is no longer needed directly in HeroSection for scrolling
+// import { useNavbarHeight } from "@/context/NavbarHeightContext"; 
 
-const HeroSection = () => {
+// Define props for HeroSection (no longer needs emailSignupAnchorRef)
+interface HeroSectionProps {
+  // emailSignupAnchorRef: RefObject<HTMLDivElement>; // This ref is for the SCROLL ANCHOR POINT - REMOVED
+}
+
+// Component no longer accepts emailSignupAnchorRef prop
+const HeroSection = (/* { emailSignupAnchorRef }: HeroSectionProps */) => { // Removed prop
+  // console.log('[HeroSection] Props received:', { emailSignupAnchorRef }); // Log incoming prop - REMOVED
+
   // const { isAuthenticated, isLoading } = useAuthContext(); // Commented out for pre-launch
+  // const emailSignupAnchorRef = useRef<HTMLDivElement>(null); // REMOVE: Ref is now passed in
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  // console.log('[HeroSection] Received navbarRef:', navbarRef && navbarRef.current ? 'Ref with current' : 'Ref is null or no current'); // REMOVED
   const [hasSignedUp, setHasSignedUp] = useState(false);
   const [signupOptions, setSignupOptions] = useState({
     earlyAccess: false,
@@ -51,66 +64,25 @@ const HeroSection = () => {
     };
   }, []);
 
-  const scrollToEmailSignup = () => {
-    // Find all elements with email-signup ID
-    const elements = document.querySelectorAll('#email-signup');
-    let targetElement = null;
-    
-    // Find the one in the hero section (not the bottom section)
-    elements.forEach((element) => {
-      const styles = window.getComputedStyle(element);
-      const parentSection = element.closest('section');
-      
-      // Check if it's visible and in the hero section (has min-h-screen class)
-      if (styles.display !== 'none' && parentSection?.classList.contains('min-h-screen')) {
-        targetElement = element;
-      }
-    });
-    
-    // If no hero section email found, fall back to any visible one
-    if (!targetElement) {
-      elements.forEach((element) => {
-        const styles = window.getComputedStyle(element);
-        if (styles.display !== 'none') {
-          targetElement = element;
-        }
-      });
-    }
-    
-    if (targetElement) {
-      // Get current scroll position to avoid cumulative errors
-      const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
-      const elementRect = targetElement.getBoundingClientRect();
-      const elementTop = elementRect.top + currentScrollY;
-      
-      // Use a fixed offset that works well for both mobile and desktop
-      const isMobile = window.innerWidth < 768;
-      const offset = isMobile ? 60 : 80;
-      const targetScrollY = elementTop - offset;
-      
-      // Ensure we don't scroll past the top of the page
-      const finalScrollY = Math.max(0, targetScrollY);
-      
-      window.scrollTo({
-        top: finalScrollY,
-        behavior: 'smooth'
-      });
+  const handleScrollToEmailSignup = () => {
+    console.log('[HeroSection] handleScrollToEmailSignup function CALLED - targeting internal hero email signup');
+    scrollToElement('hero-email-signup'); 
 
-      // Trigger highlight effect after scroll completes
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('highlightEmailSignup'));
-      }, 800); // Delay to allow scroll to complete
-    }
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('highlightEmailSignup', { detail: { targetId: 'hero-email-signup' } }));
+    }, 800); 
   };
 
   return (
     <>
+    {/* Removed the local scroll anchor div */}
+    {/* <div ref={emailSignupAnchorRef} style={{ position: 'relative', top: '-80px', height: '1px' }} data-purpose="email-signup-scroll-anchor" /> */}
     <section className="min-h-screen flex flex-col justify-center pt-32 md:pt-48 lg:pt-64 pb-24 md:pb-32 lg:pb-48 px-4 md:px-6 lg:px-10 xl:px-20">
       <div className="max-w-7xl mx-auto w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10 items-center">
           <div className="order-2 lg:order-1">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold leading-tight mb-4 md:mb-6">
-            Stop Guessing,<br /> <span className="text-pitchiq-red">Start Closing.</span>
+            AI Sales Training <span className="block sm:inline">for <span className="text-pitchiq-red">Elite Teams.</span></span>
             </h1>
             
             <p className="text-base md:text-lg lg:text-xl text-foreground/80 mb-6 md:mb-8 max-w-xl">
@@ -121,7 +93,7 @@ const HeroSection = () => {
               <Button 
                 size="lg" 
                 className="bg-pitchiq-red hover:bg-pitchiq-red/90 text-white text-base md:text-lg px-6 md:px-8 w-full sm:w-auto"
-                onClick={scrollToEmailSignup}
+                onClick={handleScrollToEmailSignup}
               >
                 Join the Waitlist
               </Button>
@@ -150,9 +122,9 @@ const HeroSection = () => {
               </div>
             </div>
 
-            {/* Mobile: Email capture below social proof */}
+            {/* Mobile: Email capture below social proof - RESTORED */}
             <div className="lg:hidden">
-              <EmailSignup />
+              <EmailSignup id="hero-email-signup" />
             </div>
             
             {/* Desktop: Social proof below buttons */}
@@ -170,9 +142,9 @@ const HeroSection = () => {
             </div>
           </div>
           
-          {/* Desktop: Email capture on the right */}
+          {/* Desktop: Email capture on the right - RESTORED */}
           <div className="hidden lg:block order-1 lg:order-2 relative">
-            <EmailSignup />
+            <EmailSignup id="hero-email-signup" />
           </div>
         </div>
       </div>
@@ -183,7 +155,6 @@ const HeroSection = () => {
       isOpen={isContactModalOpen} 
       onClose={() => setIsContactModalOpen(false)}
       hasEarlyAccess={hasSignedUp && signupOptions.earlyAccess}
-      hasUpdates={hasSignedUp && signupOptions.getUpdates}
     />
     </>
   );

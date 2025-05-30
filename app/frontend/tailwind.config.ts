@@ -133,6 +133,10 @@ export default {
 				'outfit': ['Outfit', 'sans-serif'],
 				caveat: ['"Caveat"', 'cursive'],
 				saira: ['"Saira"', 'sans-serif'],
+			},
+			boxShadow: {
+				'glow-red': '0 0 15px 5px rgba(230, 57, 70, 0.4)',
+				'glow-red-light': '0 0 20px 8px rgba(230, 57, 70, 0.3)',
 			}
 		}
 	},

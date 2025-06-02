@@ -116,50 +116,16 @@ def create_app(config_name='dev'):
     # Configure CORS to allow frontend to make requests
     logging.getLogger('flask_cors').level = logging.DEBUG
 
-    development_origins = [
-        "http://localhost:8080", "http://127.0.0.1:8080",
-        "http://localhost:5173", "http://127.0.0.1:5173"
+    allowed_origins = [
+        "https://euphonious-treacle-b2b989.netlify.app",  # Your Netlify frontend
+        r"https://.*\.ngrok-free\.app",  # Regex for any ngrok-free.app subdomain
+        "http://localhost:8080", # Local dev
+        "http://127.0.0.1:8080", # Local dev
+        "http://localhost:5173", # Local dev (vite)
+        "http://127.0.0.1:5173"  # Local dev (vite)
     ]
-    production_origins = [
-        "https://dreamy-figolla-e05819.netlify.app",
-        "https://startling-druid-93b184.netlify.app",
-        # Add your actual production domain here later
-    ]
-    # For ngrok, it's often easier to allow any ngrok origin or a specific one if known.
-    # Using a regex directly in the list of origins for multiple resources can be tricky.
-    # For now, let's ensure the list contains only strings for broad compatibility in this structure.
-    # You can add your specific ngrok URL if needed, or handle ngrok with a separate rule if regex is essential.
-    
-    all_known_string_origins = list(set(development_origins + production_origins))
-    # If you have a current specific ngrok URL, add it here as a string:
-    # e.g., all_known_string_origins.append("https://your-specific-subdomain.ngrok-free.app")
 
-    CORS(app, resources={
-        r"/api/*": {
-            "origins": ["*"],  # Corrected: Should be a list
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], # Ensure OPTIONS is here
-            "allow_headers": [
-                "Content-Type",
-                "Authorization",
-                "X-Requested-With",
-                "ngrok-skip-browser-warning" # Keep this for ngrok
-            ],
-            "expose_headers": ["Content-Length"], # Keep it simple for now
-            "supports_credentials": True,
-            "max_age": 86400 # Cache preflight for 1 day
-        },
-        r"/auth/*": { # This might be redundant if /api/auth/* is used
-            "origins": all_known_string_origins, 
-            "methods": ["GET", "POST", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
-            "supports_credentials": True
-        },
-        r"/chat/*": {"origins": all_known_string_origins, "supports_credentials": True},
-        r"/voice/*": {"origins": all_known_string_origins, "supports_credentials": True},
-        r"/training/*": {"origins": all_known_string_origins, "supports_credentials": True},
-        r"/dashboard": {"origins": all_known_string_origins, "supports_credentials": True},
-        r"/dashboard-react": {"origins": all_known_string_origins, "supports_credentials": True}
-    }, supports_credentials=True)
+    CORS(app, origins=allowed_origins, supports_credentials=True, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers=["Content-Type", "Authorization", "X-Requested-With", "ngrok-skip-browser-warning"], expose_headers=["Content-Length"], max_age=86400)
     
     # Use ProxyFix to handle proxy headers correctly
     # Temporarily disable x_host and x_port to diagnose URL generation issue

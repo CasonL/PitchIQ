@@ -20,15 +20,13 @@ const EmailSignup = forwardRef<HTMLDivElement, EmailSignupProps>((props, ref) =>
     setIsSubmitting(true);
     setError("");
 
-    const formDataForNetlify = new URLSearchParams();
-    formDataForNetlify.append('form-name', 'mvp-waitlist-signup');
-    formDataForNetlify.append('email', email);
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
     try {
-      const response = await fetch('/', {
+      const response = await fetch(`${API_BASE_URL}/api/email-signup`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formDataForNetlify.toString(),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
       });
 
       if (response.ok) {

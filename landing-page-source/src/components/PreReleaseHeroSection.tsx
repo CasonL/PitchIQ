@@ -3,21 +3,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, CheckCircle } from "lucide-react";
 
+const encode = (data: { [key: string]: string }) => {
+  return Object.keys(data)
+    .map((key) => encodeURIComponent(key) + "=" + encodeURIComponent(data[key]))
+    .join("&");
+};
+
 const PreReleaseHeroSection = () => {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
+  const handleEmailSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (email) {
-      // Here you would typically send the email to your backend
-      console.log("Email submitted:", email);
-      setIsSubmitted(true);
-      // Reset after 3 seconds
-      setTimeout(() => {
-        setIsSubmitted(false);
-        setEmail("");
-      }, 3000);
+      fetch("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: encode({ "form-name": "early-access-form", email }),
+      })
+        .then(() => {
+          console.log("Form successfully submitted to Netlify");
+          setIsSubmitted(true);
+          setTimeout(() => {
+            setIsSubmitted(false);
+            setEmail("");
+          }, 3000);
+        })
+        .catch((error) => {
+          console.error("Form submission error:", error);
+          alert("There was an error submitting the form. Please try again.");
+        });
     }
   };
 
@@ -41,7 +56,8 @@ const PreReleaseHeroSection = () => {
               </div>
               
               {!isSubmitted ? (
-                <form onSubmit={handleEmailSubmit} className="space-y-4">
+                <form onSubmit={handleEmailSubmit} className="space-y-4" data-netlify="true" name="early-access-form">
+                  <input type="hidden" name="form-name" value="early-access-form" />
                   <Input
                     type="email"
                     placeholder="Enter your email address"
@@ -49,6 +65,7 @@ const PreReleaseHeroSection = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     className="w-full"
+                    name="email"
                   />
                   <Button 
                     type="submit"

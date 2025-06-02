@@ -24,6 +24,11 @@
 
   <body>
     <div id="root"></div>
+    <!-- Netlify hidden form -->
+    <form name="early-access-form" netlify netlify-honeypot="bot-field" hidden>
+      <input type="email" name="email" />
+      <input type="hidden" name="form-name" value="early-access-form" />
+    </form>
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <!-- <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script> -->
     <script type="module" src="/src/main.tsx"></script>

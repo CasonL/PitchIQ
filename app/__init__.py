@@ -117,12 +117,13 @@ def create_app(config_name='dev'):
     logging.getLogger('flask_cors').level = logging.DEBUG
 
     allowed_origins = [
-        "https://euphonious-treacle-b2b989.netlify.app",  # Your Netlify frontend
-        r"https://.*\.ngrok-free\.app",  # Regex for any ngrok-free.app subdomain
-        "http://localhost:8080", # Local dev
-        "http://127.0.0.1:8080", # Local dev
-        "http://localhost:5173", # Local dev (vite)
-        "http://127.0.0.1:5173"  # Local dev (vite)
+        "https://euphonious-treacle-b2b989.netlify.app",      # Main Netlify frontend
+        r"https://.*--euphonious-treacle-b2b989\.netlify\.app", # Regex for Netlify deploy previews for this site
+        r"https://.*\.ngrok-free\.app",                      # Regex for any ngrok-free.app domains
+        "http://localhost:8080",                             # Local dev
+        "http://127.0.0.1:8080",                             # Local dev
+        "http://localhost:5173",                             # Local dev (vite)
+        "http://127.0.0.1:5173"                              # Local dev (vite)
     ]
 
     CORS(app, origins=allowed_origins, supports_credentials=True, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers=["Content-Type", "Authorization", "X-Requested-With", "ngrok-skip-browser-warning"], expose_headers=["Content-Length"], max_age=86400)

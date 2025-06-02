@@ -1,21 +1,40 @@
-import React, { useState, useRef, RefObject } from "react";
+import React, { useState, useEffect, useRef, RefObject } from "react";
 import { Button } from "@/components/ui/button";
-import { Mail } from "lucide-react";
+import { Mail, Check, ArrowRight } from "lucide-react";
 // import { useAuthContext } from "@/context/AuthContext"; // Commented out for pre-launch
-import EmailSignup from "./EmailSignup"; // Restored import
+// import EmailSignup from "./EmailSignup"; // No longer directly embedded in hero
 import ContactModal from "./ContactModal";
-import { scrollToElement } from "@/lib/utils"; // Import the new utility
+// import { scrollToElement } from "@/lib/utils"; // No longer needed if not scrolling
 // useNavbarHeight is no longer needed directly in HeroSection for scrolling
 // import { useNavbarHeight } from "@/context/NavbarHeightContext"; 
+import { motion } from "framer-motion";
+// Remove Lottie from 'lottie-react' as we are using the web component
+// import Lottie from 'lottie-react'; 
 
-// Define props for HeroSection (no longer needs emailSignupAnchorRef)
 interface HeroSectionProps {
-  // emailSignupAnchorRef: RefObject<HTMLDivElement>; // This ref is for the SCROLL ANCHOR POINT - REMOVED
+  onOpenEmailModal?: () => void; // Prop to open email modal
 }
 
-// Component no longer accepts emailSignupAnchorRef prop
-const HeroSection = (/* { emailSignupAnchorRef }: HeroSectionProps */) => { // Removed prop
-  // console.log('[HeroSection] Props received:', { emailSignupAnchorRef }); // Log incoming prop - REMOVED
+// Define the type for the dotlottie-player custom element if TypeScript complains
+// This is a basic way to inform TypeScript about the custom element
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'dotlottie-player': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
+        src?: string;
+        background?: string;
+        speed?: string;
+        loop?: boolean;
+        autoplay?: boolean;
+        // Add other props if needed
+      }, HTMLElement>;
+    }
+  }
+}
+
+const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
+  // Remove lottieData state and useEffect for fetching, as the component handles it
+  // const [lottieData, setLottieData] = useState<object | null>(null); 
 
   // const { isAuthenticated, isLoading } = useAuthContext(); // Commented out for pre-launch
   // const emailSignupAnchorRef = useRef<HTMLDivElement>(null); // REMOVE: Ref is now passed in
@@ -64,88 +83,119 @@ const HeroSection = (/* { emailSignupAnchorRef }: HeroSectionProps */) => { // R
     };
   }, []);
 
-  const handleScrollToEmailSignup = () => {
-    console.log('[HeroSection] handleScrollToEmailSignup function CALLED - targeting internal hero email signup');
-    scrollToElement('hero-email-signup'); 
+  // handleScrollToEmailSignup function removed as it's no longer used by the primary CTA
 
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('highlightEmailSignup', { detail: { targetId: 'hero-email-signup' } }));
-    }, 800); 
+  const textVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: (i:number) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay: i * 0.2,
+        duration: 0.5,
+        ease: "easeOut"
+      }
+    })
   };
 
   return (
     <>
     {/* Removed the local scroll anchor div */}
     {/* <div ref={emailSignupAnchorRef} style={{ position: 'relative', top: '-80px', height: '1px' }} data-purpose="email-signup-scroll-anchor" /> */}
-    <section className="min-h-screen flex flex-col justify-center pt-32 md:pt-48 lg:pt-64 pb-24 md:pb-32 lg:pb-48 px-4 md:px-6 lg:px-10 xl:px-20">
+    <section className="min-h-screen flex flex-col justify-center items-center pt-32 md:pt-40 lg:pt-48 pb-20 md:pb-24 lg:pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
       <div className="max-w-7xl mx-auto w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10 items-center">
-          <div className="order-2 lg:order-1">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold leading-tight mb-4 md:mb-6">
-            AI Sales Training <span className="block sm:inline">for <span className="text-pitchiq-red">Elite Teams.</span></span>
-            </h1>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+          {/* Left Column: Text Content */}
+          <div className="order-2 lg:order-1 text-center lg:text-left">
+            <motion.h1 
+              className="font-outfit font-bold text-gray-900 leading-tight mb-6"
+              variants={textVariants}
+              initial="hidden"
+              animate="visible"
+              custom={0} // Stagger delay index
+            >
+              <span className="block text-xl sm:text-2xl md:text-3xl font-medium text-pitchiq-red mb-1 md:mb-2 tracking-wider uppercase">AI Sales Coach</span>
+              <span className="block text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-outfit font-bold text-gray-900">
+                Go From <span className="text-pitchiq-red">Unsure</span> to <span className="text-pitchiq-red">Unstoppable.</span>
+              </span>
+            </motion.h1>
             
-            <p className="text-base md:text-lg lg:text-xl text-foreground/80 mb-6 md:mb-8 max-w-xl">
-              Practice with AI buyers tailored to your industry. Build confidence, master objections, and win more deals.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 mb-6 lg:mb-0">
-              {/* Pre-launch: Focus on early access */}
+            <motion.p 
+              className="text-lg md:text-xl lg:text-2xl text-gray-700 mb-8 max-w-2xl mx-auto lg:mx-0"
+              variants={textVariants}
+              initial="hidden"
+              animate="visible"
+              custom={1} // Stagger delay index
+            >
+              Practice with hyper-realistic AI buyers tailored to <em>your</em> world. Get instant feedback, perfect your pitch, multiply your wins.
+            </motion.p>
+            
+            <motion.div 
+              className="text-md md:text-lg text-gray-600 mb-10 max-w-xl mx-auto lg:mx-0 space-y-2"
+              variants={textVariants}
+              initial="hidden"
+              animate="visible"
+              custom={2} // Stagger delay index
+            >
+              <div className="flex items-start">
+                <Check className="flex-shrink-0 h-5 w-5 sm:h-6 sm:w-6 text-green-500 mr-2 sm:mr-3 mt-0.5 sm:mt-1" />
+                <span>Endless unique scenarios that adapt to you, 24/7.</span>
+              </div>
+              <div className="flex items-start">
+                <Check className="flex-shrink-0 h-5 w-5 sm:h-6 sm:w-6 text-green-500 mr-2 sm:mr-3 mt-0.5 sm:mt-1" />
+                <span>Feedback That Makes You a Closer.</span>
+              </div>
+              <div className="flex items-start">
+                <Check className="flex-shrink-0 h-5 w-5 sm:h-6 sm:w-6 text-green-500 mr-2 sm:mr-3 mt-0.5 sm:mt-1" />
+                <span>Confidence That Wins Any Room.</span>
+              </div>
+            </motion.div>
+            
+            <motion.div
+              variants={textVariants} // Can use the same or a new variant for button
+              initial="hidden"
+              animate="visible"
+              custom={3} // Stagger delay index
+              className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8"
+            >
               <Button 
                 size="lg" 
-                className="bg-pitchiq-red hover:bg-pitchiq-red/90 text-white text-base md:text-lg px-6 md:px-8 w-full sm:w-auto"
-                onClick={handleScrollToEmailSignup}
+                className="bg-pitchiq-red hover:bg-pitchiq-red/90 text-white text-lg md:text-xl px-8 py-3 md:px-10 md:py-4 w-full sm:w-auto shadow-lg hover:shadow-xl transition-shadow duration-300 group"
+                onClick={onOpenEmailModal}
               >
-                Join the Waitlist
+                Get Early Access
+                <ArrowRight className="ml-2 -mr-1 h-5 w-5 transform transition-transform duration-150 group-hover:translate-x-1" />
               </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="text-base md:text-lg px-6 md:px-8 w-full sm:w-auto flex items-center gap-2"
-                onClick={() => setIsContactModalOpen(true)}
-              >
-                <Mail className="h-4 w-4" />
-                Contact Us
-              </Button>
-            </div>
+            </motion.div>
 
-            {/* Mobile: Social proof below buttons, above email */}
-            <div className="lg:hidden mb-6">
-              <div className="flex items-center gap-3 justify-center sm:justify-start">
-                <div className="flex -space-x-2">
-                  <div className="w-4 h-4 rounded-full bg-gray-300 border-2 border-white"></div>
-                  <div className="w-4 h-4 rounded-full bg-pitchiq-red border-2 border-white"></div>
-                  <div className="w-4 h-4 rounded-full bg-pitchiq-navy border-2 border-white"></div>
-                </div>
-                <p className="text-xs text-foreground/70">
-                  Be among the first to revolutionize your pitch.
-                </p>
-              </div>
-            </div>
-
-            {/* Mobile: Email capture below social proof - RESTORED */}
-            <div className="lg:hidden">
-              <EmailSignup id="hero-email-signup" />
-            </div>
-            
-            {/* Desktop: Social proof below buttons */}
-            <div className="hidden lg:block mt-8 md:mt-10">
-              <div className="flex items-center gap-4">
-                <div className="flex -space-x-2">
-                  <div className="w-5 h-5 rounded-full bg-gray-300 border-2 border-white"></div>
-                  <div className="w-5 h-5 rounded-full bg-pitchiq-red border-2 border-white"></div>
-                  <div className="w-5 h-5 rounded-full bg-pitchiq-navy border-2 border-white"></div>
-                </div>
-                <p className="text-sm text-foreground/70">
-                  Be among the first to revolutionize your pitch.
-                </p>
-              </div>
-            </div>
+            {/* Social proof - simplified and centered for mobile, start for lg */}
+            <motion.div 
+              className="flex items-center justify-center lg:justify-start pt-2"
+              variants={textVariants}
+              initial="hidden"
+              animate="visible"
+              custom={4} // Stagger delay index
+            >
+              <p className="text-sm text-gray-600">
+                Be an Early Bird. <span className="font-semibold text-pitchiq-red">Get Exclusive Access.</span>
+              </p>
+            </motion.div>
           </div>
           
-          {/* Desktop: Email capture on the right - RESTORED */}
-          <div className="hidden lg:block order-1 lg:order-2 relative">
-            <EmailSignup id="hero-email-signup" />
-          </div>
+          {/* Right Column: AI Visualization Placeholder */}
+          <motion.div
+            className="order-1 lg:order-2 hidden lg:flex items-center justify-center min-h-[300px] lg:min-h-[400px] w-full h-full"
+          >
+            {/* Replace the Lottie component with dotlottie-player */}
+            <dotlottie-player
+              src="https://lottie.host/a603dda0-3101-4f88-ba7e-4d5abfb437af/rhSVnjdByJ.lottie"
+              background="transparent"
+              speed="1"
+              style={{ width: '100%', height: '100%', maxWidth: '500px', maxHeight: '500px' }} // Adjusted style for React and responsiveness
+              loop
+              autoplay
+            ></dotlottie-player>
+          </motion.div>
         </div>
       </div>
     </section>

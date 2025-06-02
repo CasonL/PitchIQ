@@ -6,6 +6,7 @@ import { useNavbarHeight } from '@/context/NavbarHeightContext';
 
 interface NavbarProps {
   preRelease?: boolean;
+  onOpenEmailModal: () => void;
 }
 
 // Helper function to get absolute top position of an element
@@ -32,7 +33,7 @@ function debounce<T extends (...args: any[]) => void>(func: T, delay: number): (
 }
 
 // NavbarComponent no longer needs forwardRef
-const NavbarComponent = ({ preRelease }: NavbarProps) => {
+const NavbarComponent = ({ preRelease, onOpenEmailModal }: NavbarProps) => {
   const { setNavbarHeight } = useNavbarHeight();
   const localNavRef = useRef<HTMLElement>(null);
   const navigate = useNavigate();
@@ -60,11 +61,9 @@ const NavbarComponent = ({ preRelease }: NavbarProps) => {
   const sectionPositionsRef = useRef<Record<string, number>>({});
 
   const navLinks = [
-    { name: 'Invest', href: '/investment-opportunity' },
     { name: 'Features', href: '/#features' },
-    { name: 'About Us', href: '/#about-us' },
+    { name: 'Our Story', href: '/about-us' },
     { name: 'How It Works', href: '/#how-it-works' },
-    { name: 'Testimonials', href: '/#testimonials' },
   ];
 
   const calculateAndStorePositions = () => {
@@ -90,7 +89,7 @@ const NavbarComponent = ({ preRelease }: NavbarProps) => {
       window.removeEventListener('resize', debouncedRecalculate);
       clearTimeout(timeoutId);
     };
-  }, [navLinks, location.pathname]);
+  }, [location.pathname]);
 
   const scrollToSection = (idWithHash: string) => {
     const sectionId = idWithHash.substring(2);
@@ -144,6 +143,11 @@ const NavbarComponent = ({ preRelease }: NavbarProps) => {
     }
   };
 
+  const handleJoinWaitlistClick = () => {
+    onOpenEmailModal();
+    setIsMobileMenuOpen(false);
+  };
+
   const isDashboard = location.pathname.startsWith('/dashboard');
 
   if (isDashboard) {
@@ -160,16 +164,26 @@ const NavbarComponent = ({ preRelease }: NavbarProps) => {
               <span className="font-saira font-medium text-pitchiq-red">IQ</span>
             </span>
           </Link>
-          <div className="hidden md:flex items-center space-x-2">
+          <div className="hidden md:flex items-center space-x-1">
             {navLinks.map((link) => (
               <button
                 key={link.name}
                 onClick={(e) => handleNavClick(e, link.href)}
-                className="text-gray-600 hover:text-pitchiq-red px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                className={`text-gray-600 hover:text-pitchiq-red px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  location.pathname === link.href ? 'text-pitchiq-red font-semibold' : ''
+                }`}
               >
                 {link.name}
               </button>
             ))}
+            <Button 
+              variant="default"
+              size="sm" 
+              onClick={handleJoinWaitlistClick}
+              className="ml-2 bg-pitchiq-red hover:bg-pitchiq-red/90 text-white"
+            >
+              Join Waitlist
+            </Button>
           </div>
           <div className="md:hidden">
             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-gray-600 hover:text-pitchiq-red focus:outline-none">
@@ -184,12 +198,23 @@ const NavbarComponent = ({ preRelease }: NavbarProps) => {
             <button
               key={link.name}
               onClick={(e) => handleNavClick(e, link.href)}
-              className="w-full text-left block text-gray-600 hover:text-pitchiq-red hover:bg-gray-50 px-4 py-3 text-base font-medium transition-colors"
+              className={`w-full text-left block text-gray-600 hover:text-pitchiq-red hover:bg-gray-50 px-4 py-3 text-base font-medium transition-colors ${
+                location.pathname === link.href ? 'text-pitchiq-red bg-pitchiq-red/5 font-semibold' : ''
+              }`}
             >
               {link.name}
             </button>
           ))}
-          <div className="px-4 py-3"></div>
+          <div className="px-4 py-3 border-t border-gray-100">
+            <Button 
+              variant="default"
+              size="lg"
+              onClick={handleJoinWaitlistClick}
+              className="w-full bg-pitchiq-red hover:bg-pitchiq-red/90 text-white"
+            >
+              Join Waitlist
+            </Button>
+          </div>
         </div>
       )}
     </nav>

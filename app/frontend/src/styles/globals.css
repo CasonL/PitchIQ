@@ -39,4 +39,6 @@
     opacity: 0;
     transform: translateX(150%) skewX(-15deg);
   }
-} 
+}
+
+/* The fadeInUp keyframes and animate-fade-in-up class previously here have been removed as they are now in tailwind.config.ts */ 

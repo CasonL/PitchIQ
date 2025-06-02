@@ -7,7 +7,7 @@ from flask_login import current_user
 # Create blueprint
 api_auth_bp = Blueprint('api_auth', __name__, url_prefix='/api/auth')
 
-@api_auth_bp.route('/status', methods=['GET'])
+@api_auth_bp.route('/status', methods=['GET', 'OPTIONS'])
 def check_auth_status():
     """
     Check the current user's authentication status.

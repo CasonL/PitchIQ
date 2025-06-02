@@ -41,7 +41,7 @@ const EmailSignupModal: React.FC<EmailSignupModalProps> = ({ isOpen, onClose }) 
       onClick={onClose} // Close modal if backdrop is clicked
     >
       <div 
-        className="bg-white rounded-xl shadow-2xl w-full max-w-md relative transform transition-all duration-300 ease-out scale-95 group-[.open]:scale-100"
+        className="bg-white rounded-xl shadow-2xl w-full max-w-md relative"
         onClick={(e) => e.stopPropagation()} // Prevent click inside modal from closing it
       >
         <button 

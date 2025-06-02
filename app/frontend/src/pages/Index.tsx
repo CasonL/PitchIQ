@@ -24,7 +24,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen w-full overflow-x-hidden bg-gray-100">
       <Navbar preRelease={true} onOpenEmailModal={handleOpenEmailModal} />
       <HeroSection onOpenEmailModal={handleOpenEmailModal} />
       <HowItWorksSection onOpenEmailModal={handleOpenEmailModal} />

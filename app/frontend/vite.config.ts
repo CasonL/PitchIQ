@@ -40,7 +40,7 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     rollupOptions: {
-      external: ['marked', 'react-custom-scrollbars-2']
+      external: ['react-custom-scrollbars-2']
     }
   }
 }));

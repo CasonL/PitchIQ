@@ -78,7 +78,7 @@ class ProductionConfig(Config):
     """Production configuration."""
     DEBUG = False
     # Ensure Redis is used for rate limiting in production
-    RATELIMIT_STORAGE_URI = os.environ.get('REDIS_URL', "redis://localhost:6379/0") 
+    RATELIMIT_STORAGE_URI = os.environ.get('REDIS_URL') or "memory://"
 
 # Configuration dictionary
 config_by_name = dict(

@@ -19,7 +19,13 @@ class Config:
     default_db_path = os.path.join(temp_db_dir, 'sales_training_temp.db')
     
     default_db_uri = f'sqlite:///{default_db_path.replace(os.sep, "/")}'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or default_db_uri
+    
+    # Ensure DATABASE_URL uses postgresql:// scheme for SQLAlchemy compatibility
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url and database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    
+    SQLALCHEMY_DATABASE_URI = database_url or default_db_uri
     # --- End Database Configuration ---
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False

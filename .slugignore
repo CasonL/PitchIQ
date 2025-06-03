@@ -1,0 +1,53 @@
+# Python specific
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+
+# IDE and OS specific
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Tests & Caches
+tests/
+.pytest_cache/
+.mypy_cache/
+
+# Logs
+*.log
+app_log.txt
+email_debug.log
+email_diagnostic_log.txt
+voice_diagnostic.log
+security.log
+
+# Instance folder (if not needed in slug)
+instance/
+
+# Large directories or files (add specific project ones if any)
+# e.g., large_dataset_directory/
+# e.g., *.mp4
+# external_backups/ (This seems quite large from your project structure)
+external_backups/
+legacy_backups/
+debug_audio/
+temp/
+temp_extract/
+docs/
+landing-deploy/
+landing-page-source/
+
+# Specific large files (if known)
+deploy.zip 

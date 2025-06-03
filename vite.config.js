@@ -6,6 +6,11 @@ export default defineConfig({
   // optimizeDeps: { // Temporarily comment out optimizeDeps for lottie-react
   //   include: [], // Ensure it's an empty array if section is kept
   // },
+  build: {
+    rollupOptions: {
+      external: ['marked']
+    }
+  },
   resolve: {
     dedupe: ['react', 'react-dom'],
   },

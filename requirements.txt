@@ -30,6 +30,7 @@ dnspython==2.4.2
 # Database and ORM
 SQLAlchemy>=2.0.40
 alembic==1.10.3
+psycopg2-binary
 
 # Auth and Security
 Authlib==1.2.0

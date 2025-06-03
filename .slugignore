@@ -50,4 +50,11 @@ landing-deploy/
 landing-page-source/
 
 # Specific large files (if known)
-deploy.zip 
+deploy.zip
+
+# Environment file (secrets should be in Heroku Config Vars)
+.env
+
+# AWS Elastic Beanstalk specific (if not used on Heroku)
+.ebextensions/
+.elasticbeanstalk/ 

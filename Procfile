@@ -1,3 +1,2 @@
-# Main web process for gunicorn
-# Ensuring a new comment for Heroku Procfile re-evaluation - attempt 3
+# Manual edit to force Heroku Procfile refresh - attempt 4
 web: gunicorn wsgi:app

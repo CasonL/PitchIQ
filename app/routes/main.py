@@ -12,6 +12,17 @@ def index():
     # Construct the path to the 'dist' directory within the 'app/frontend' directory
     # current_app.root_path is the path to the 'app' directory (where __init__.py is)
     frontend_dist_path = os.path.join(current_app.root_path, 'frontend', 'dist')
+    
+    # Log the path and check if index.html exists
+    index_html_path = os.path.join(frontend_dist_path, 'index.html')
+    current_app.logger.info(f"Attempting to serve index.html from: {index_html_path}")
+    if not os.path.exists(index_html_path):
+        current_app.logger.error(f"index.html NOT FOUND at: {index_html_path}")
+        # Optionally, you could return a more specific error or a custom 404 page here
+        # For now, let send_from_directory handle the 404 if the file is missing.
+    else:
+        current_app.logger.info(f"index.html FOUND at: {index_html_path}")
+        
     return send_from_directory(frontend_dist_path, 'index.html')
 
 @main.route('/home')

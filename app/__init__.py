@@ -116,17 +116,19 @@ def create_app(config_name='dev'):
     # Configure CORS to allow frontend to make requests
     logging.getLogger('flask_cors').level = logging.DEBUG
 
+    # Restore the full list of allowed origins, ensuring it's used as a list
     allowed_origins = [
+        "https://683dfb0aeaa20f0008871d1a--euphonious-treacle-b2b989.netlify.app", # Explicit deploy preview
         "https://euphonious-treacle-b2b989.netlify.app",      # Main Netlify frontend
         r"https://.*--euphonious-treacle-b2b989\.netlify\.app", # Regex for Netlify deploy previews for this site
         r"https://.*\.ngrok-free\.app",                      # Regex for any ngrok-free.app domains
-        "http://localhost:8080",                             # Local dev
-        "http://127.0.0.1:8080",                             # Local dev
-        "http://localhost:5173",                             # Local dev (vite)
-        "http://127.0.0.1:5173"                              # Local dev (vite)
+        "http://localhost:8080",                             # Local dev (Flask server port)
+        "http://127.0.0.1:8080",                             # Local dev (Flask server port)
+        "http://localhost:5173",                             # Local dev (vite default)
+        "http://127.0.0.1:5173"                              # Local dev (vite default)
     ]
 
-    CORS(app, origins=allowed_origins, supports_credentials=True, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers=["Content-Type", "Authorization", "X-Requested-With", "ngrok-skip-browser-warning"], expose_headers=["Content-Length"], max_age=86400)
+    CORS(app, origins=allowed_origins, supports_credentials=True, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers="*", expose_headers=["Content-Length"], max_age=86400)
     
     # Use ProxyFix to handle proxy headers correctly
     # Temporarily disable x_host and x_port to diagnose URL generation issue
@@ -151,6 +153,8 @@ def create_app(config_name='dev'):
     # --- Setup CSRF Token in g (for forms, should run after exemption check) --- 
     @app.before_request
     def before_request():
+        # NOTE: Diagnostic prints for origin comparison have been removed.
+
         from app.auth.security import generate_csrf_token # Import locally
         # Only generate form tokens if NOT an exempt API request
         if not getattr(request, '_csrf_exempt', False):

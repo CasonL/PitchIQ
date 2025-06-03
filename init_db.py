@@ -21,53 +21,23 @@ def init_db():
     """Initialize the database with required tables."""
     # Create a minimal Flask app for this script
     app = Flask(__name__)
-    # Ensure this matches the database name in config.py (temporary test path)
-    temp_db_uri = 'sqlite:///C:/temp_db/sales_training_temp.db' # Use forward slashes for URI
-    app.config['SQLALCHEMY_DATABASE_URI'] = temp_db_uri
+    # Ensure this matches the database name in config.py
+    app_db_uri = 'sqlite:///app.db' # Use the local app.db
+    app.config['SQLALCHEMY_DATABASE_URI'] = app_db_uri
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Initialize SQLAlchemy with this app
     db.init_app(app)
     
-    # Ensure the temporary folder exists (though we created it with mkdir)
-    os.makedirs(r'C:\temp_db', exist_ok=True)
+    # os.makedirs(r'C:\temp_db', exist_ok=True) # Removed this line
     
     with app.app_context():
-        logger.info("Creating database tables...")
-        db.create_all()
-        
-        # Check if we need to create an admin user
-        admin_email = os.environ.get('ADMIN_EMAIL')
-        admin_password = os.environ.get('ADMIN_PASSWORD')
-        
-        if admin_email and admin_password:
-            existing_admin = User.query.filter_by(email=admin_email).first()
-            
-            if not existing_admin:
-                logger.info(f"Creating admin user: {admin_email}")
-                admin = User(
-                    name="Administrator",
-                    email=admin_email,
-                    role="admin"
-                )
-                admin.set_password(admin_password)
-                
-                # Initialize default skills
-                admin.skills_dict = {
-                    "rapport_building": 80,
-                    "needs_discovery": 85,
-                    "objection_handling": 90,
-                    "closing": 85,
-                    "product_knowledge": 95
-                }
-                
-                db.session.add(admin)
-                db.session.commit()
-                logger.info("Admin user created successfully")
-            else:
-                logger.info("Admin user already exists")
-        
-        logger.info("Database initialization completed successfully")
+        # Create an instance of the DatabaseManager and initialize the database
+        # db_manager = DatabaseManager(app) # Not needed if directly using db.create_all()
+        logger.info("Creating database tables in app.db...") # Updated log message
+        # db.drop_all()  # Ensure this is commented out or removed
+        db.create_all() # Ensure this is active
+        logger.info("Database initialization completed successfully for app.db.") # Updated log message
 
 if __name__ == "__main__":
     init_db()

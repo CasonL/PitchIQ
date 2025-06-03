@@ -32,11 +32,20 @@ const EmailSignup = forwardRef<HTMLDivElement, EmailSignupProps>((props, ref) =>
       if (response.ok) {
         setIsSubmitted(true);
       } else {
-        setError('Submission failed. Please try again.');
+        if (response.status === 409) {
+          setError('This email or computer has already been registered.');
+        } else {
+          try {
+            const errorData = await response.json();
+            setError(errorData.message || 'Submission failed. Please try again.');
+          } catch (e) {
+            setError('Submission failed. Please try again.');
+          }
+        }
         setIsSubmitting(false);
       }
     } catch (error) {
-      console.error('Error submitting to Netlify Forms:', error);
+      console.error('Error submitting email:', error);
       setError('Network error. Please try again.');
       setIsSubmitting(false);
     }

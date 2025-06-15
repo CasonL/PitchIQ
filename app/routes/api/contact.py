@@ -8,7 +8,7 @@ from app.extensions import csrf
 from app.services.email_service import send_email
 
 # Create blueprint
-contact_bp = Blueprint('contact', __name__)
+contact_bp = Blueprint('contact_api', __name__)
 
 # Set up logging
 logger = logging.getLogger(__name__)

@@ -54,39 +54,6 @@
 
 </head>
 <body>
-    <!-- Global Sticky Header -->
-    <header class="global-header">
-        <div class="header-content-container">
-            <a class="header-logo" href="/">PitchIQ</a>
-            <nav class="header-nav-links">
-                {% if current_user.is_authenticated %}
-                    {# Update to use our simple dashboard route #}
-                    <a href="{{ url_for('dashboard') }}" class="header-nav-link">Dashboard</a> 
-                    {# Commenting out the link to the React app served by /dashboard #}
-                    {# <a href="{{ url_for('dashboard.view_dashboard') }}" class="header-nav-link">Dashboard</a> #}
-                    {# Keep the link to React Dashboard commented out #}
-                    {# <a href="{{ url_for('main.dashboard_react') }}" class="header-nav-link">React Dashboard</a> #}
-                    
-                    {# Comment out links to routes that don't exist in our simple app #}
-                    {# <a href="{{ url_for('auth.profile') }}" class="header-nav-link">Profile</a> #}
-                    {# <a href="{{ url_for('auth.settings') }}" class="header-nav-link">Settings</a> #}
-                    {# <form id="logoutForm" action="{{ url_for('auth.logout') }}" method="POST" style="display: inline;">
-                        <input type="hidden" name="csrf_token" value="{{ g.csrf_token }}">
-                        <button type="submit" class="header-nav-link btn btn-link p-0">Logout</button>
-                    </form> #}
-                    
-                    {# Add simple links that don't depend on complex routes #}
-                    <a href="/" class="header-nav-link">Home</a>
-                {% else %}
-                    <a href="/" class="header-nav-link">Home</a>
-                    <a href="/#features" class="header-nav-link">Features</a> {# Assuming features section is on index #}
-                    <a href="{{ url_for('auth.login') }}" class="header-nav-link">Sign In</a> {# Use our simplified login route #}
-                    <a href="http://localhost:8080" class="btn btn-secondary ms-3">Try It Free</a> {# Redirect to React app #}
-                {% endif %}
-            </nav>
-        </div>
-    </header>
-
     <!-- Main Content -->
     <main id="main-content">
         {% with messages = get_flashed_messages(with_categories=true) %}

@@ -1,31 +1,62 @@
 import os
 from dotenv import load_dotenv
+# import logging # <-- Comment out or remove logging import if only using print
+import sys # <-- Import sys for stderr
 
-# Load environment variables
-load_dotenv()
+# Configure basic logging
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s') # <-- Remove basicConfig
+
+# Explicitly load .env file from the instance path if it exists
+# This is crucial for environments where the app is not run from the root
+project_root = os.path.dirname(os.path.abspath(__file__))
+instance_path = os.path.join(project_root, 'instance')
+dotenv_path = os.path.join(instance_path, '.env')
+if os.path.exists(dotenv_path):
+    print(f"CONFIG.PY: Loading .env file from: {dotenv_path}")
+    load_dotenv(dotenv_path=dotenv_path)
+else:
+    print(f"CONFIG.PY: No .env file found at: {dotenv_path}")
 
 class Config:
     """Base configuration class."""
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'a-very-secret-key'
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    if not SECRET_KEY:
+        raise ValueError("No SECRET_KEY set for Flask application. Please set it in your .env file.")
+
+    SECURITY_PASSWORD_SALT = os.environ.get('SECURITY_PASSWORD_SALT', 'default_salt')
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'True').lower() in ('true', '1', 't')
     
     # --- Database Configuration ---
-    # Default SQLite path (can be overridden by environment variable)
-    # basedir = os.path.abspath(os.path.dirname(__file__))
-    # instance_path = os.path.join(basedir, 'instance')
-    # default_db_path = os.path.join(instance_path, 'sales_training.db') # Use .db extension
+    # Get the absolute path of the directory where config.py is located
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    # Define the instance path relative to the basedir (project root)
+    instance_path = os.path.join(basedir, 'instance')
+    print(f"CONFIG.PY: Instance path calculated: {instance_path}", file=sys.stderr) # <-- Print to stderr
     
-    # New temporary path outside OneDrive
-    temp_db_dir = r"C:\temp_db" # Raw string for Windows paths
-    default_db_path = os.path.join(temp_db_dir, 'sales_training_temp.db')
+    # Ensure the instance directory exists - moved this to be done by the setup script primarily
+    os.makedirs(instance_path, exist_ok=True) 
     
-    default_db_uri = f'sqlite:///{default_db_path.replace(os.sep, "/")}'
+    # Define the default database path within the instance folder
+    default_db_path = os.path.join(instance_path, 'app.db') # Changed name to app.db for convention
+    default_db_path = os.path.abspath(default_db_path) # Make absolutely sure it's an absolute path
+    print(f"CONFIG.PY: Default DB path calculated: {default_db_path}", file=sys.stderr) # <-- Print to stderr
     
-    # Ensure DATABASE_URL uses postgresql:// scheme for SQLAlchemy compatibility
-    database_url = os.environ.get('DATABASE_URL')
-    if database_url and database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    # Construct the SQLite URI. os.path.join ensures correct slashes.
+    # The /// creates an absolute path for SQLite.
+    default_db_uri = f'sqlite:///{default_db_path}'
+    print(f"CONFIG.PY: Default DB URI constructed: {default_db_uri}", file=sys.stderr) # <-- Print to stderr
     
-    SQLALCHEMY_DATABASE_URI = database_url or default_db_uri
+    # Ensure DATABASE_URL uses postgresql:// scheme for SQLAlchemy compatibility (if using Postgres externally)
+    database_url_from_env = os.environ.get('DATABASE_URL')
+    print(f"CONFIG.PY: DATABASE_URL from environment: {database_url_from_env}", file=sys.stderr) # <-- Print to stderr
+    
+    database_url_to_use = database_url_from_env
+    if database_url_to_use and database_url_to_use.startswith('postgres://'):
+        database_url_to_use = database_url_to_use.replace('postgres://', 'postgresql://', 1)
+        print(f"CONFIG.PY: DATABASE_URL (env) modified for postgresql scheme: {database_url_to_use}", file=sys.stderr) # <-- Print to stderr
+    
+    SQLALCHEMY_DATABASE_URI = database_url_to_use or default_db_uri
+    print(f"CONFIG.PY: Final SQLALCHEMY_DATABASE_URI: {SQLALCHEMY_DATABASE_URI}", file=sys.stderr) # <-- Print to stderr
     # --- End Database Configuration ---
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -33,10 +64,23 @@ class Config:
     # --- API Keys --- 
     ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+    OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4.1-mini')
+    OPENAI_FEEDBACK_MODEL = os.environ.get('OPENAI_FEEDBACK_MODEL', 'gpt-4.1-mini')
     # Try multiple variable names for Eleven Labs API key
     ELEVEN_LABS_API_KEY = os.environ.get('ELEVEN_LABS_API_KEY') or os.environ.get('ELEVENLABS_API_KEY')
     DEEPGRAM_API_KEY = os.environ.get('DEEPGRAM_API_KEY')
     # --- End API Keys ---
+
+    # --- Email/SMTP Configuration ---
+    MAIL_SERVER = os.environ.get('SMTP_SERVER')
+    MAIL_PORT = int(os.environ.get('SMTP_PORT', 587))
+    MAIL_USE_TLS = os.environ.get('SMTP_USE_TLS', 'True').lower() in ('true', '1', 't')
+    MAIL_USE_SSL = os.environ.get('SMTP_USE_SSL', 'False').lower() in ('true', '1', 't')
+    MAIL_USERNAME = os.environ.get('SMTP_USERNAME')
+    MAIL_PASSWORD = os.environ.get('SMTP_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or os.environ.get('FROM_EMAIL')
+    ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
+    # --- End Email Configuration ---
 
     # Flask-Limiter settings
     RATELIMIT_STORAGE_URI = os.environ.get('REDIS_URL') or "memory://"
@@ -53,10 +97,9 @@ class Config:
     PASSWORD_MIN_LENGTH = 8
     
     # Session security
-    SESSION_COOKIE_SECURE = False  # Changed to False since we're not using HTTPS in development
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
-    PERMANENT_SESSION_LIFETIME = 3600  # 1 hour session timeout
+    PERMANENT_SESSION_LIFETIME = 86400  # 24 hours session timeout
     
     # Google OAuth
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", None)
@@ -68,8 +111,10 @@ class Config:
 class DevelopmentConfig(Config):
     """Development configuration."""
     DEBUG = True
+    RATELIMIT_ENABLED = False # Temporarily disable Flask-Limiter
     # SQLALCHEMY_ECHO = True # Uncomment to log SQL queries
-    SESSION_COOKIE_SECURE = False  # Allow cookies without HTTPS in development
+    SESSION_COOKIE_SECURE = False # Should be False for HTTP local development
+    SESSION_COOKIE_SAMESITE = 'Lax' # Use 'Lax' for local dev with different ports
 
 class TestingConfig(Config):
     """Testing configuration."""
@@ -83,6 +128,8 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     """Production configuration."""
     DEBUG = False
+    SESSION_COOKIE_SECURE = True # Enforce HTTPS for session cookies in production
+    SESSION_COOKIE_SAMESITE = 'None' # Allow cross-domain authentication
     # Ensure Redis is used for rate limiting in production
     RATELIMIT_STORAGE_URI = os.environ.get('REDIS_URL') or "memory://"
 

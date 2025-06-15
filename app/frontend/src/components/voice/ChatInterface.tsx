@@ -214,8 +214,9 @@ const ChatInterface: React.FC = () => {
       if (!response.ok) {
         // Check if we're getting redirected to login
         if (response.status === 302 || response.status === 401) {
-          window.location.href = '/auth/login';
-          throw new Error('Authentication required. Redirecting to login...');
+          console.error("Authentication error: ", error);
+          alert("Your session has expired. Please log in again.");
+          window.location.href = '/login'; // Corrected Path
         }
         throw new Error(`Server responded with status: ${response.status}`);
       }

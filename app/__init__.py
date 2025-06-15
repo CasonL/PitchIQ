@@ -22,15 +22,27 @@ from flask_wtf import CSRFProtect
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail
 from flask_bootstrap import Bootstrap
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+
+# Attempt to import Flask-Limiter and its utilities, fallback if it fails
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    import logging
+    logging.getLogger(__name__).info("Successfully imported Flask-Limiter and get_remote_address at global scope.")
+except Exception as e:
+    import logging
+    logging.getLogger(__name__).error(
+        f"Failed to import Flask-Limiter or get_remote_address at global scope in app/__init__.py: {e}. "
+        f"Using fallback versions. RATE LIMITING WILL BE INACTIVE or use fallback behavior."
+    )
+    from app.limiter_fallback import FallbackLimiter as Limiter
+    from app.limiter_fallback import get_remote_address_fallback as get_remote_address
 
 # Import extensions and the init function from the app package
 from app.extensions import db, login_manager, mail, limiter, oauth, init_extensions, socketio, migrate, csrf
 
 # Import config classes and managers
-from config import config_by_name, Config
-from app.config_manager import config_manager
+from config import config_by_name
 from app.database_manager import db_manager
 from app.services.api_manager import api_manager
 
@@ -39,17 +51,6 @@ from app.system_health import register_health_routes
 from app.error_handler import register_error_handlers
 
 from sqlalchemy.exc import OperationalError
-
-# Import the contextual question blueprint
-from app.routes.api.generate_contextual_question import generate_contextual_question_blueprint
-# Import the embeddings blueprint
-from app.routes.api.embeddings import embeddings_blueprint
-# Import the dashboard coach blueprint
-from app.routes.api.dashboard_coach import dashboard_coach_blueprint
-# Import the email signup blueprint
-from app.routes.api.email_signup import email_signup_bp
-# Import the API auth blueprint
-from app.routes.api.auth import api_auth_bp
 
 # Load environment variables
 load_dotenv()
@@ -60,9 +61,23 @@ FLASK_ROUTE_PREFIXES = ('/auth', '/training', '/chat', '/voice', '/api', '/socke
 logger = logging.getLogger(__name__) # Setup logger for the app module
 
 def create_app(config_name='dev'):
+    print("DEBUG: app/__init__.py - create_app() CALLED", flush=True)
     """Create and configure Flask application."""
+    
+    # --- Ensure instance folder exists FIRST ---
+    # This needs to happen before the Flask app object is even created,
+    # because configurations might depend on files within the instance folder (e.g., .env).
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    instance_path = os.path.join(project_root, 'instance')
+    try:
+        os.makedirs(instance_path, exist_ok=True)
+        print(f"INIT: Instance path '{instance_path}' checked/created.", flush=True)
+    except OSError as e:
+        print(f"CRITICAL: Could not create instance path '{instance_path}'. Error: {e}", flush=True)
+        # Depending on the desired behavior, you might want to exit or raise the exception
+        raise e
+
     # Explicitly set template folder path
-    import os
     template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
     static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'static'))
     
@@ -72,45 +87,26 @@ def create_app(config_name='dev'):
     # Print static directory path for debugging
     print(f"Static directory path: {static_dir}")
     
-    app = Flask(__name__, 
+    flask_instance = Flask(__name__, 
                 instance_relative_config=True)
 
     # Configure logging
     logging.basicConfig(level=logging.INFO)
     
-    # Ensure instance folder exists
-    try:
-        os.makedirs(app.instance_path)
-    except OSError:
-        pass
-        
-    # Load configuration using the Config Manager first
-    app.config.from_mapping(config_manager.to_flask_config())
-    
-    # Convert string config_name to the appropriate environment name
-    if config_name not in config_by_name:
-        if config_name.lower() in config_by_name:
-            config_name = config_name.lower()
-        else:
-            config_name = 'default'
-            logger.warning(f"Unknown config name '{config_name}', using default configuration")
-    
-    # Apply config from environment-specific class
-    app.config.from_object(config_by_name[config_name])
-    logger.info(f"Loaded configuration for environment: {config_name}")
-    
-    # Apply instance config overrides if instance/config.py exists
-    app.config.from_pyfile('config.py', silent=True) 
+    # Load configuration using the standard Flask method
+    flask_instance.config.from_object(config_by_name[config_name])
     
     # Initialize CSRF Protection Extension Instance (but don't init_app yet)
     from app.extensions import csrf
 
     # --- Define and Register Request-Level CSRF Exemption EARLY --- 
-    @app.before_request
-    def exempt_api_csrf():
-        # Check if the request path starts with /api/ or /training/api/ and mark it exempt
-        if request.path.startswith(('/api/', '/training/api/')): # Simplified condition
-            setattr(request, '_csrf_exempt', True)
+    # This was causing issues and is not the standard way to exempt blueprints.
+    # We will exempt blueprints directly on the CSRF object instead.
+    # @flask_instance.before_request
+    # def exempt_api_csrf():
+    #     # Check if the request path starts with /api/ or /training/api/ and mark it exempt
+    #     if request.path.startswith(('/api/', '/training/api/')): # Simplified condition
+    #         setattr(request, '_csrf_exempt', True)
     # --- End EARLY CSRF Exemption ---
     
     # Configure CORS to allow frontend to make requests
@@ -125,56 +121,85 @@ def create_app(config_name='dev'):
         "http://localhost:8080",                             # Local dev (Flask server port)
         "http://127.0.0.1:8080",                             # Local dev (Flask server port)
         "http://localhost:5173",                             # Local dev (vite default)
-        "http://127.0.0.1:5173"                              # Local dev (vite default)
+        "http://127.0.0.1:5173",                              # Local dev (vite default)
+        "http://10.0.0.150:5173"
     ]
 
-    CORS(app, origins=allowed_origins, supports_credentials=True, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers="*", expose_headers=["Content-Length"], max_age=86400)
+    CORS(flask_instance, origins=allowed_origins, supports_credentials=True, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers="*", expose_headers=["Content-Length"], max_age=86400)
     
     # Use ProxyFix to handle proxy headers correctly
     # Temporarily disable x_host and x_port to diagnose URL generation issue
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+    flask_instance.wsgi_app = ProxyFix(flask_instance.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
     
     # Initialize database manager
-    db_manager.init_app(app)
+    db_manager.init_app(flask_instance)
     
     # Initialize API manager
-    api_manager.init_app(app)
+    api_manager.init_app(flask_instance)
     
     # Register health check routes
-    register_health_routes(app)
+    register_health_routes(flask_instance)
+    
+    # Import and register API routes before CSRF exemption
+    from app.routes.api import api_bp as api_main_bp
+    from app.routes.api.auth import auth_api_bp
+    from app.routes.api.email_signup import email_signup_bp
+    from app.routes.api.contact import contact_bp
+    from app.routes.api.dashboard import dashboard_api_bp
+    from app.routes.api.chat import chat_api_bp
+    from app.routes.api.personalization import personalization_bp
+    from app.routes.api.roleplay import roleplay_bp
+    from app.routes.api.generate_contextual_question import generate_contextual_question_bp
+    from app.routes.api.embeddings import embeddings_bp
+    from app.routes.api.dashboard_coach import dashboard_coach_bp
+
+    # Register API blueprints
+    flask_instance.register_blueprint(api_main_bp, url_prefix='/api')
+    flask_instance.register_blueprint(auth_api_bp, url_prefix='/api/auth')
+    flask_instance.register_blueprint(email_signup_bp, url_prefix='/api/email-signup')
+    flask_instance.register_blueprint(contact_bp, url_prefix='/api/contact')
+    flask_instance.register_blueprint(dashboard_api_bp, url_prefix='/api/dashboard')
+    flask_instance.register_blueprint(chat_api_bp, url_prefix='/api/chat')
+    flask_instance.register_blueprint(personalization_bp, url_prefix='/api/personalization')
+    flask_instance.register_blueprint(roleplay_bp, url_prefix='/api/roleplay')
+    flask_instance.register_blueprint(generate_contextual_question_bp, url_prefix='/api/generate-contextual-question')
+    flask_instance.register_blueprint(embeddings_bp, url_prefix='/api/embeddings')
+    flask_instance.register_blueprint(dashboard_coach_bp, url_prefix='/api/dashboard-coach')
+    
+    # Exempt specific blueprints from CSRF protection after they are created
+    # but before the app runs. This is the correct place to do this.
+    csrf.exempt(api_main_bp)
+    # csrf.exempt(auth_api_bp)
+    csrf.exempt(email_signup_bp)
+    csrf.exempt(contact_bp)
+    csrf.exempt(dashboard_api_bp)
+    csrf.exempt(chat_api_bp)
+    csrf.exempt(personalization_bp)
+    csrf.exempt(roleplay_bp)
+    csrf.exempt(generate_contextual_question_bp)
+    csrf.exempt(embeddings_bp)
+    csrf.exempt(dashboard_coach_bp)
     
     # Initialize other extensions (this will call csrf.init_app)
-    with app.app_context():
+    with flask_instance.app_context():
         try:
-            init_extensions(app)
+            init_extensions(flask_instance)
         except Exception as e:
-            app.logger.error(f"Error initializing extensions: {e}")
+            flask_instance.logger.error(f"Error initializing extensions: {e}")
     
-    # --- Setup CSRF Token in g (for forms, should run after exemption check) --- 
-    @app.before_request
-    def before_request():
-        # NOTE: Diagnostic prints for origin comparison have been removed.
+    # --- Custom Error Handler for CSRF ---
+    from flask_wtf.csrf import CSRFError
+    @flask_instance.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        flask_instance.logger.warning(f'CSRF validation failed: {e.description}. Request path: {request.path}, Headers: {request.headers}')
+        return jsonify(error="CSRF validation failed. Please try refreshing the page or ensure cookies are enabled.", reason=str(e.description)), 400
 
-        from app.auth.security import generate_csrf_token # Import locally
-        # Only generate form tokens if NOT an exempt API request
-        if not getattr(request, '_csrf_exempt', False):
-            g.csrf_token = generate_csrf_token()
-        else:
-            g.csrf_token = None # No token needed for exempt API requests
-        # Also generate CSP nonce if needed elsewhere
-        g.csp_nonce = secrets.token_hex(16) 
-        # Start timing request for performance metrics
-        g.start_time = time.time()
-        
-        # FIXING RECURSION ISSUE:
-        # Rather than trying to update the user's last_seen on every request, 
-        # we'll do this less frequently or in a different way to avoid the recursion
-        # Disabled the code that was causing the infinite recursion
-        pass
-    # --- End CSRF setup --- 
+    # The old `before_request` function that was setting a global CSRF token
+    # has been removed. It was based on the obsolete custom CSRF system and
+    # is no longer necessary with the standardized Flask-WTF implementation.
     
     # --- Add security headers to responses ---
-    @app.after_request
+    @flask_instance.after_request
     def add_security_headers(response):
         # For development: Only apply minimal security headers
         # and skip CSP which is breaking the UI
@@ -187,12 +212,12 @@ def create_app(config_name='dev'):
         return response
     # --- End security headers ---
     
-    @app.context_processor
+    @flask_instance.context_processor
     def inject_now():
         return {'now': datetime.utcnow()}
 
     # Add CSRF token FUNCTION to template context
-    @app.context_processor
+    @flask_instance.context_processor
     def inject_csrf_token():
         # Import the function safely
         try:
@@ -201,46 +226,60 @@ def create_app(config_name='dev'):
             return dict(csrf_token=generate_csrf)
         except ImportError:
             # Handle case where flask_wtf is not installed or setup correctly
-            app.logger.warning("Flask-WTF not found, CSRF token unavailable in templates.")
+            flask_instance.logger.warning("Flask-WTF not found, CSRF token unavailable in templates.")
             # Return a dummy function to avoid UndefinedError, but CSRF won't work
             return dict(csrf_token=lambda: "CSRF_ERROR_WTF_MISSING") 
 
     # Register custom Jinja2 filters
-    @app.template_filter('datetime')
+    @flask_instance.template_filter('datetime')
     def format_datetime(value, format='%B %d, %Y at %I:%M %p'):
         """Format a datetime object to string."""
         if value is None:
             return ""
         return value.strftime(format)
     
+    # --- Force re-import of app.auth.routes by deleting from sys.modules ---
+    # if 'app.routes' in sys.modules:
+    #     del sys.modules['app.routes']
+
+    # if 'app.auth.routes' in sys.modules:
+    #     del sys.modules['app.auth.routes']
+
     # Import and register blueprints
-    from app.routes import main, auth, api, chat, voice, training, dashboard, assets
-    from app.routes import demo  # Add import for demo blueprint
-    app.register_blueprint(main)
-    app.register_blueprint(auth, url_prefix='/auth')
-    app.register_blueprint(api, url_prefix='/api')
-    app.register_blueprint(chat, url_prefix='/chat')
-    app.register_blueprint(voice, url_prefix='/voice')
-    app.register_blueprint(training, url_prefix='/training')
-    app.register_blueprint(dashboard, url_prefix='/dashboard')
-    app.register_blueprint(assets)
-    app.register_blueprint(demo, url_prefix='/demo')  # Register demo blueprint
+    from app.auth import auth_bp
+    from app.main import main as main_blueprint
+    from app.chat import chat as chat_blueprint
+    from app.voice import voice as voice_blueprint
+    from app.training import training as training_blueprint
+    from app.dashboard import dashboard as dashboard_blueprint
+    from app.demo import demo as demo_blueprint
+    flask_instance.register_blueprint(auth_bp) # Register auth routes first
+    flask_instance.register_blueprint(main_blueprint)
+    flask_instance.register_blueprint(chat_blueprint, url_prefix='/chat')
+    flask_instance.register_blueprint(voice_blueprint, url_prefix='/voice')
+    flask_instance.register_blueprint(training_blueprint, url_prefix='/training')
+    flask_instance.register_blueprint(dashboard_blueprint, url_prefix='/dashboard')
+    flask_instance.register_blueprint(demo_blueprint, url_prefix='/demo')
     
     # Register the API routes
-    app.register_blueprint(generate_contextual_question_blueprint, url_prefix='/api/generate_contextual_question')
-    app.register_blueprint(embeddings_blueprint, url_prefix='/api/embeddings')
-    app.register_blueprint(dashboard_coach_blueprint, url_prefix='/api/dashboard_coach')
-    app.register_blueprint(email_signup_bp)
-    
+    # flask_instance.register_blueprint(generate_contextual_question_blueprint, url_prefix='/api/generate_contextual_question')
+    # flask_instance.register_blueprint(embeddings_blueprint, url_prefix='/api/embeddings')
+    # flask_instance.register_blueprint(dashboard_coach_blueprint, url_prefix='/api/dashboard_coach')
+    # flask_instance.register_blueprint(personalization_bp, url_prefix='/api')
+
+    # Register the email signup and api auth blueprints
+    # flask_instance.register_blueprint(email_signup_bp)
+    # flask_instance.register_blueprint(api_auth_bp)
+
     # Register contact form blueprint
-    from app.routes.api.contact import contact_bp
-    app.register_blueprint(contact_bp, url_prefix='/api')
+    # from app.routes.api.contact import contact_bp
+    # flask_instance.register_blueprint(contact_bp, url_prefix='/api')
     
-    # Register API auth blueprint
-    app.register_blueprint(api_auth_bp) # This blueprint already has /api/auth prefix
-    
+    # Register admin blueprint
+    from app.admin import admin_bp
+
     # Register centralized error handlers
-    register_error_handlers(app)
+    register_error_handlers(flask_instance)
 
     # --- Define React frontend build directory ---
     # This should point to your main React app's build output
@@ -250,7 +289,7 @@ def create_app(config_name='dev'):
     # landing_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'static', 'landing'))
     
     # +++ Add a direct test route for POST +++
-    @app.route('/api/test_post', methods=['GET', 'POST'])
+    @flask_instance.route('/api/test_post', methods=['GET', 'POST'])
     def api_test_post():
         if request.method == 'POST':
             # Handle POST request
@@ -265,39 +304,39 @@ def create_app(config_name='dev'):
     # static assets for the main React application (from app/frontend/dist/assets).
     # The generic /<path:path> (serve_react_app) route should now handle these.
     #
-    # @app.route('/assets/<path:filename>')
+    # @flask_instance.route('/assets/<path:filename>')
     # def serve_landing_assets(filename):
-    #     app.logger.debug(f"Legacy /assets/ route was called for {filename} - THIS ROUTE IS COMMENTED OUT.")
+    #     flask_instance.logger.debug(f"Legacy /assets/ route was called for {filename} - THIS ROUTE IS COMMENTED OUT.")
     #     return send_from_directory(os.path.join(current_app.static_folder, 'landing', 'assets'), filename)
 
-    @app.route('/vite.svg')
+    @flask_instance.route('/vite.svg')
     def serve_vite_svg():
         # Serves vite.svg from the root of your React app's dist folder
         return send_from_directory(react_frontend_dist_dir, 'vite.svg')
     
     # Add a route to serve the demo.mp3 file
     # Ensure demo.mp3 is in react_frontend_dist_dir if served this way
-    @app.route('/demo.mp3')
+    @flask_instance.route('/demo.mp3')
     def serve_demo_mp3():
         return send_from_directory(react_frontend_dist_dir, 'demo.mp3')
     
     # Add a route to serve the notification.mp3 file
     # Ensure notification.mp3 is in react_frontend_dist_dir if served this way
-    @app.route('/notification.mp3')
+    @flask_instance.route('/notification.mp3')
     def serve_notification_mp3():
         return send_from_directory(react_frontend_dist_dir, 'notification.mp3')
     
     # This is the main catch-all for serving React app assets and enabling client-side routing.
     # It MUST be registered AFTER specific file routes like /vite.svg, /demo.mp3 etc.
     # AND AFTER all blueprints (especially /api, /auth etc.)
-    @app.route('/<path:path>')
+    @flask_instance.route('/<path:path>')
     def serve_react_static_files_or_index(path):
         # Construct the full path to the potential static file in app/frontend/dist
         requested_file_path = os.path.join(react_frontend_dist_dir, path)
 
         # Check if the requested path points to an existing file
         if os.path.exists(requested_file_path) and os.path.isfile(requested_file_path):
-            app.logger.debug(f"Catch-all: Serving static file: {path} from {react_frontend_dist_dir}")
+            flask_instance.logger.debug(f"Catch-all: Serving static file: {path} from {react_frontend_dist_dir}")
             return send_from_directory(react_frontend_dist_dir, path)
         else:
             # If the path doesn't correspond to a static file,
@@ -305,24 +344,28 @@ def create_app(config_name='dev'):
             # React Router will then handle the routing on the client side.
             # This check prevents serving index.html for API routes if they somehow miss earlier checks.
             if not path.startswith(tuple(FLASK_ROUTE_PREFIXES)): # Use the globally defined FLASK_ROUTE_PREFIXES
-                app.logger.debug(f"Catch-all: Path '{path}' not a static file, serving index.html for client-side routing.")
+                flask_instance.logger.debug(f"Catch-all: Path '{path}' not a static file, serving index.html for client-side routing.")
                 return send_from_directory(react_frontend_dist_dir, 'index.html')
             else:
-                app.logger.warning(f"Catch-all: Path '{path}' matched a Flask prefix but wasn't handled by a blueprint. Aborting with 404.")
+                flask_instance.logger.warning(f"Catch-all: Path '{path}' matched a Flask prefix but wasn't handled by a blueprint. Aborting with 404.")
                 abort(404) # Path matched a prefix but no specific route, so 404.
     
     # The main route ('/') is handled by the main_bp in app/routes/main.py,
     # which should also serve send_from_directory(react_frontend_dist_dir, 'index.html')
 
     # Add a separate teardown function to ensure database connections are properly closed
-    @app.teardown_appcontext
+    @flask_instance.teardown_appcontext
     def close_db_connection(exception=None):
         """Close the database connection on teardown."""
         from app.extensions import db
         db.session.close()
         db.engine.dispose()
 
-    return app
+    print(f"DEBUG: app/__init__.py - In create_app, variable 'flask_instance' type BEFORE return: {type(flask_instance)}", flush=True)
+    print(f"DEBUG: app/__init__.py - In create_app, variable 'flask_instance' object BEFORE return: {flask_instance}", flush=True)
+    
+    print("DEBUG: app/__init__.py - About to return app from create_app()", flush=True)
+    return flask_instance
 
 # Restore cleanup function (ensure DB error is fixed)
 def cleanup_old_conversations(app):
@@ -357,3 +400,9 @@ def cleanup_old_conversations(app):
                 except Exception as rb_e: logging.error(f"Auto-cleanup: Error rolling back session: {rb_e}")
 
         time.sleep(3600) # Sleep for 1 hour
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Load user by ID for Flask-Login."""
+    from app.models import User
+    return User.query.get(int(user_id))

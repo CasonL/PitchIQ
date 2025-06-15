@@ -46,6 +46,11 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
     getUpdates: false
   });
 
+  // Animation state
+  const [animationPhase, setAnimationPhase] = useState<'orb' | 'examples' | 'tagline' | 'gap'>('orb'); // Start immediately in orb phase
+  const [visibleExamples, setVisibleExamples] = useState(0); // Start with no examples visible
+  const [orbKey, setOrbKey] = useState(0); // Key to force orb refresh
+
   // Check if user has already signed up on component mount
   React.useEffect(() => {
     const checkSignupStatus = () => {
@@ -83,6 +88,92 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
     };
   }, []);
 
+  // Animation sequence orchestration
+  React.useEffect(() => {
+    let timeoutIds: NodeJS.Timeout[] = [];
+    let isActive = true; // Flag to prevent state updates after cleanup
+
+    const startAnimationCycle = () => {
+      if (!isActive) return; // Don't start if component is unmounting
+
+      // Force complete reset and refresh orb
+      setAnimationPhase('orb');
+      setVisibleExamples(0);
+      setOrbKey(prev => prev + 1); // Force orb to completely refresh
+
+      // Phase 1: Orb animation (9.75 seconds)
+      const timer1 = setTimeout(() => {
+        if (!isActive) return;
+        setAnimationPhase('examples');
+      }, 9750);
+      timeoutIds.push(timer1);
+
+      // Phase 2: Text sequence (8 seconds total)
+      const timer2 = setTimeout(() => {
+        if (!isActive) return;
+        setVisibleExamples(1); // "Financial services" appears
+      }, 9750);
+      timeoutIds.push(timer2);
+
+      const timer3 = setTimeout(() => {
+        if (!isActive) return;
+        setVisibleExamples(2); // "AI SaaS" appears
+      }, 11750);
+      timeoutIds.push(timer3);
+
+      const timer4 = setTimeout(() => {
+        if (!isActive) return;
+        setVisibleExamples(3); // "You name it." appears
+      }, 13750);
+      timeoutIds.push(timer4);
+
+      const timer5 = setTimeout(() => {
+        if (!isActive) return;
+        setAnimationPhase('tagline'); // "Your business, your world." appears
+      }, 15750);
+      timeoutIds.push(timer5);
+
+      // Phase 3: Clear everything for white screen gap
+      const timer6 = setTimeout(() => {
+        if (!isActive) return;
+        setAnimationPhase('gap'); // White screen phase - nothing visible
+        setVisibleExamples(0);
+      }, 17750);
+      timeoutIds.push(timer6);
+
+      // Phase 4: Start next orb cycle after gap (total 19.5s cycle)
+      const timer7 = setTimeout(() => {
+        if (!isActive) return;
+        startAnimationCycle(); // Restart with fresh orb
+      }, 19500); // 9.75s orb + 8s text + 1.75s gap = 19.5s total cycle
+      timeoutIds.push(timer7);
+    };
+
+    // Force fresh start
+    setAnimationPhase('orb');
+    setVisibleExamples(0);
+    setOrbKey(0);
+
+    // Small delay to ensure clean mount
+    const initTimer = setTimeout(() => {
+      if (isActive) {
+        startAnimationCycle();
+      }
+    }, 100);
+
+    // Comprehensive cleanup function for page navigation
+    return () => {
+      isActive = false; // Prevent any pending state updates
+      clearTimeout(initTimer);
+      timeoutIds.forEach(clearTimeout);
+      
+      // Force reset all state immediately on unmount
+      setAnimationPhase('orb');
+      setVisibleExamples(0);
+      setOrbKey(0);
+    };
+  }, []); // Run only once on mount
+
   // handleScrollToEmailSignup function removed as it's no longer used by the primary CTA
 
   const textVariants = {
@@ -97,6 +188,57 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
       }
     })
   };
+
+  // Animation variants - zoom out effect (text comes from far away)
+  const slamVariants = {
+    hidden: { 
+      opacity: 0,
+      scale: 1.8, // Start large (far away)
+    },
+    visible: { 
+      opacity: 1,
+      scale: 1, // Scale down to normal (zoom out effect)
+      transition: { 
+        duration: 0.3, // Faster animation
+        ease: [0.25, 0.8, 0.25, 1], // Custom easing for punch effect
+      }
+    },
+    exit: {
+      opacity: 0,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  const taglineVariants = {
+    hidden: { 
+      opacity: 0, 
+      y: 20 
+    },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: "easeOut"
+      }
+    },
+    exit: {
+      opacity: 0,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  const examples = [
+    "Compliance ready",
+    "Measurable ROI", 
+    "Enterprise grade"
+  ];
 
   return (
     <>
@@ -114,40 +256,32 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
               animate="visible"
               custom={0} // Stagger delay index
             >
-              <span className="block text-xl sm:text-2xl md:text-3xl font-medium text-pitchiq-red mb-1 md:mb-2 tracking-wider uppercase">AI Sales Coach</span>
-              <span className="block text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-outfit font-bold text-gray-900">
-                Go From <span className="text-pitchiq-red">Unsure</span> to <span className="text-pitchiq-red">Unstoppable.</span>
+              <span className="block text-sm sm:text-base md:text-lg font-medium text-pitchiq-red mb-1 md:mb-2 tracking-wider uppercase">Enterprise Sales Training</span>
+              <span className="block text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-outfit font-bold text-gray-900">
+                Scale Sales Performance <span className="text-pitchiq-red">Across Your Organization</span>
               </span>
             </motion.h1>
             
             <motion.p 
-              className="text-lg md:text-xl lg:text-2xl text-gray-700 mb-8 max-w-2xl mx-auto lg:mx-0"
+              className="text-base md:text-lg text-gray-700 mb-6 max-w-2xl mx-auto lg:mx-0"
               variants={textVariants}
               initial="hidden"
               animate="visible"
               custom={1} // Stagger delay index
             >
-              Practice with hyper-realistic AI buyers tailored to <em>your</em> world. Get instant feedback, perfect your pitch, multiply your wins.
+              AI-powered sales training with compliance tracking and measurable ROI.
             </motion.p>
             
             <motion.div 
-              className="text-md md:text-lg text-gray-600 mb-10 max-w-xl mx-auto lg:mx-0 space-y-2"
+              className="text-sm text-gray-600 mb-8 max-w-xl mx-auto lg:mx-0 space-y-2"
               variants={textVariants}
               initial="hidden"
               animate="visible"
               custom={2} // Stagger delay index
             >
               <div className="flex items-start">
-                <Check className="flex-shrink-0 h-5 w-5 sm:h-6 sm:w-6 text-green-500 mr-2 sm:mr-3 mt-0.5 sm:mt-1" />
-                <span>Endless unique scenarios that adapt to you, 24/7.</span>
-              </div>
-              <div className="flex items-start">
-                <Check className="flex-shrink-0 h-5 w-5 sm:h-6 sm:w-6 text-green-500 mr-2 sm:mr-3 mt-0.5 sm:mt-1" />
-                <span>Feedback That Makes You a Closer.</span>
-              </div>
-              <div className="flex items-start">
-                <Check className="flex-shrink-0 h-5 w-5 sm:h-6 sm:w-6 text-green-500 mr-2 sm:mr-3 mt-0.5 sm:mt-1" />
-                <span>Confidence That Wins Any Room.</span>
+                <Check className="flex-shrink-0 h-3 w-3 text-green-500 mr-2 mt-0.5" />
+                <span className="text-sm">Reduce sales ramp time by 40% with standardized training</span>
               </div>
             </motion.div>
             
@@ -159,12 +293,12 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
               className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8"
             >
               <Button 
-                size="lg" 
-                className="bg-pitchiq-red hover:bg-pitchiq-red/90 text-white text-lg md:text-xl px-8 py-3 md:px-10 md:py-4 w-full sm:w-auto shadow-lg hover:shadow-xl transition-shadow duration-300 group"
+                size="default" 
+                className="bg-pitchiq-red hover:bg-pitchiq-red/90 text-white text-base px-6 py-2 w-full sm:w-auto shadow-lg hover:shadow-xl transition-shadow duration-300 group"
                 onClick={onOpenEmailModal}
               >
                 Get Early Access
-                <ArrowRight className="ml-2 -mr-1 h-5 w-5 transform transition-transform duration-150 group-hover:translate-x-1" />
+                <ArrowRight className="ml-2 -mr-1 h-4 w-4 transform transition-transform duration-150 group-hover:translate-x-1" />
               </Button>
             </motion.div>
 
@@ -182,19 +316,74 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
             </motion.div>
           </div>
           
-          {/* Right Column: AI Visualization Placeholder */}
+          {/* Right Column: Dynamic Animation */}
           <motion.div
-            className="order-1 lg:order-2 hidden lg:flex items-center justify-center min-h-[300px] lg:min-h-[400px] w-full h-full"
+            className="order-1 lg:order-2 hidden lg:flex items-center justify-center min-h-[300px] lg:min-h-[400px] w-full h-full relative"
           >
-            {/* Replace the Lottie component with dotlottie-player */}
-            <dotlottie-player
-              src="https://lottie.host/a603dda0-3101-4f88-ba7e-4d5abfb437af/rhSVnjdByJ.lottie"
-              background="transparent"
-              speed="1"
-              style={{ width: '100%', height: '100%', maxWidth: '500px', maxHeight: '500px' }} // Adjusted style for React and responsiveness
-              loop
-              autoplay
-            ></dotlottie-player>
+            {/* Lottie Player - shows ONLY during 'orb' phase */}
+            <motion.div
+              initial={{ opacity: 1 }}
+              animate={{ 
+                opacity: animationPhase === 'orb' ? 1 : 0,
+                scale: animationPhase === 'orb' ? 1 : 0.8
+              }}
+              transition={{ duration: 1.0 }} // Slower fade for smoother transition
+              className="absolute inset-0 flex items-center justify-center"
+            >
+              <dotlottie-player
+                src="https://lottie.host/a603dda0-3101-4f88-ba7e-4d5abfb437af/rhSVnjdByJ.lottie"
+                background="transparent"
+                speed="1"
+                style={{ width: '100%', height: '100%', maxWidth: '500px', maxHeight: '500px' }}
+                loop
+                autoplay
+                key={orbKey}
+              ></dotlottie-player>
+            </motion.div>
+
+            {/* Industry Examples - shows during 'examples' phase */}
+            <motion.div
+              className="absolute inset-0 flex flex-col items-center justify-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: animationPhase === 'examples' || animationPhase === 'tagline' ? 1 : 0 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+            >
+              <div className="space-y-3 mb-8">
+                {examples.map((example, index) => (
+                  <motion.div
+                    key={index}
+                    variants={animationPhase === 'gap' ? {} : slamVariants}
+                    initial={animationPhase === 'gap' ? false : "hidden"}
+                    animate={animationPhase === 'gap' ? false : (visibleExamples > index ? "visible" : "hidden")}
+                    style={{
+                      opacity: animationPhase === 'gap' ? 0 : (visibleExamples > index ? 1 : 0)
+                    }}
+                    transition={animationPhase === 'gap' ? { duration: 0.5, ease: "easeOut" } : undefined}
+                    className="text-center"
+                  >
+                    <div className="text-lg md:text-xl font-medium text-gray-900">
+                      {example}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Tagline - appears below examples */}
+              <motion.div
+                variants={animationPhase === 'gap' ? {} : taglineVariants}
+                initial={animationPhase === 'gap' ? false : "hidden"}
+                animate={animationPhase === 'gap' ? false : (animationPhase === 'tagline' ? "visible" : "hidden")}
+                style={{
+                  opacity: animationPhase === 'gap' ? 0 : (animationPhase === 'tagline' ? 1 : 0)
+                }}
+                transition={animationPhase === 'gap' ? { duration: 0.5, ease: "easeOut" } : undefined}
+                className="text-center"
+              >
+                <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-pitchiq-red">
+                  Where compliance meets results.
+                </h3>
+              </motion.div>
+            </motion.div>
           </motion.div>
         </div>
       </div>

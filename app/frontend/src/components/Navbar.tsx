@@ -62,7 +62,6 @@ const NavbarComponent = ({ preRelease, onOpenEmailModal }: NavbarProps) => {
 
   const navLinks = [
     { name: 'Features', href: '/#features' },
-    { name: 'Our Story', href: '/about-us' },
     { name: 'How It Works', href: '/#how-it-works' },
   ];
 

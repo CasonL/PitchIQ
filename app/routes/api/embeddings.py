@@ -5,18 +5,16 @@ import openai
 from app.utils.auth import require_auth
 from app.utils.logger import get_logger
 
+embeddings_bp = Blueprint('embeddings', __name__)
+
 # Get logger
 logger = get_logger(__name__)
-
-# Initialize blueprint
-embeddings_blueprint = Blueprint('embeddings', __name__)
 
 # Environment setup
 openai.api_key = os.environ.get('OPENAI_API_KEY')
 
-@embeddings_blueprint.route('/api/get-embedding', methods=['POST'])
-@require_auth
-def get_embedding():
+@embeddings_bp.route('/create', methods=['POST'])
+def create_embedding_route():
     """
     API endpoint to generate text embeddings for semantic understanding
     """

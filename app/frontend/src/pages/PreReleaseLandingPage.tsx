@@ -1,40 +1,42 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
-// import AboutUsSection from "@/components/AboutUsSection";
+import AboutUsSection from "@/components/AboutUsSection";
 // import FundingSection from "@/components/FundingSection";
-// import FeatureShowcase from "@/components/FeatureShowcase";
+import FeatureShowcase from "@/components/FeatureShowcase";
 // import PersonaShowcaseSection from "@/components/PersonaShowcaseSection";
-// import HowItWorksSection from "@/components/HowItWorksSection";
+import HowItWorksSection from "@/components/HowItWorksSection";
 // import TestimonialsSection from "@/components/TestimonialsSection";
 import Footer from "@/components/Footer";
 // import TestimonialTicker from "@/components/TestimonialTicker";
-// import EmailSignupModal from "@/components/EmailSignupModal";
-import ScrollToTopButton from "@/components/ScrollToTopButton";
+import EmailSignupModal from "@/components/EmailSignupModal";
+
+import InteractiveDemoSection from "@/components/landing/InteractiveDemoSection";
 
 // Minimal EmailSignup for PreRelease to capture emails directly
 import EmailSignup from "@/components/EmailSignup";
 
 const PreReleaseLandingPage = () => {
-  // const [isEmailModalOpen, setIsEmailModalOpen] = useState(false); // Removed
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+
+  const openEmailSignupModal = () => setIsEmailModalOpen(true);
 
   useEffect(() => {
     // alert("PreReleaseLandingPage --- REALLY REALLY LATEST ---");
     // console.log("PreReleaseLandingPage mounted");
   }, []);
 
-  // const openEmailSignupModal = () => setIsEmailModalOpen(true); // Removed
-
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      <Navbar preRelease={true} />
+      <Navbar preRelease={true} onOpenEmailModal={openEmailSignupModal} />
       <main className="flex-grow">
-        <HeroSection />
-        {/* <FeatureShowcase /> */}
-        {/* <AboutUsSection /> */}
+        <HeroSection onOpenEmailModal={openEmailSignupModal} />
+        <InteractiveDemoSection onSignupClick={openEmailSignupModal} />
+        <HowItWorksSection onOpenEmailModal={openEmailSignupModal} />
+        <FeatureShowcase />
+        <AboutUsSection onOpenEmailModal={openEmailSignupModal} />
         {/* <FundingSection /> */}
         {/* <PersonaShowcaseSection onOpenEmailModal={openEmailSignupModal} /> */}
-        {/* <HowItWorksSection /> */}
         {/* <TestimonialsSection onOpenEmailModal={openEmailSignupModal} /> */}
         {/* <TestimonialTicker /> */}
         
@@ -52,11 +54,10 @@ const PreReleaseLandingPage = () => {
         </section>
       </main>
       <Footer />
-      <ScrollToTopButton />
-      {/* <EmailSignupModal 
+      <EmailSignupModal 
         isOpen={isEmailModalOpen} 
         onClose={() => setIsEmailModalOpen(false)} 
-      /> */}
+      />
     </div>
   );
 };

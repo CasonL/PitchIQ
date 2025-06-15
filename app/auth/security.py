@@ -11,7 +11,7 @@ import secrets
 import re
 from typing import Dict, Tuple, Optional, Any
 from functools import wraps
-from flask import request, session, g, redirect, url_for, flash, abort
+from flask import request, session, g, redirect, url_for, flash, abort, current_app
 from datetime import datetime, timedelta
 
 # Configure logging
@@ -21,9 +21,6 @@ logging.basicConfig(
     handlers=[logging.FileHandler("security.log"), logging.StreamHandler()]
 )
 logger = logging.getLogger("AuthSecurity")
-
-# Import config manager
-from app.config_manager import config
 
 # Rate limiting storage (in-memory, replace with Redis in production)
 _rate_limit_data = {}
@@ -41,7 +38,7 @@ def validate_password(password: str) -> Tuple[bool, str]:
     Returns:
         Tuple containing (is_valid, error_message)
     """
-    min_length = config.get('PASSWORD_MIN_LENGTH', 8)
+    min_length = current_app.config.get('PASSWORD_MIN_LENGTH', 8)
     
     if len(password) < min_length:
         return False, f"Password must be at least {min_length} characters long"
@@ -75,10 +72,10 @@ def check_rate_limit(key: str, limit: int = None, window: int = None) -> Tuple[b
     global _rate_limit_data
     
     if limit is None:
-        limit = config.get('RATE_LIMIT', 10)
+        limit = current_app.config.get('RATE_LIMIT', 10)
         
     if window is None:
-        window = config.get('RATE_LIMIT_WINDOW', 60)
+        window = current_app.config.get('RATE_LIMIT_WINDOW', 60)
     
     current_time = time.time()
     
@@ -157,8 +154,8 @@ def record_failed_login(ip_address: str):
     user_data['last_attempt'] = now
     
     # Check if should be locked out
-    max_attempts = config.get('MAX_LOGIN_ATTEMPTS', 5)
-    lockout_time = config.get('LOCKOUT_TIME', 300)  # 5 minutes
+    max_attempts = current_app.config.get('MAX_LOGIN_ATTEMPTS', 5)
+    lockout_time = current_app.config.get('LOCKOUT_TIME', 300)  # 5 minutes
     if user_data['attempts'] >= max_attempts:
         user_data['lockout_until'] = now + lockout_time
         logger.warning(f"Account locked due to too many failed attempts: {ip_address}")
@@ -178,38 +175,10 @@ def record_successful_login(ip_address: str):
     if ip_address in _login_attempts:
         del _login_attempts[ip_address]
 
-def generate_csrf_token():
-    """Generate a CSRF token and store it in the session."""
-    if '_csrf_token' not in session:
-        session['_csrf_token'] = secrets.token_hex(16)
-    return session['_csrf_token']
-
-# CSRF protection decorator
-def csrf_required(f):
-    """Decorator to require valid CSRF token for a route."""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # For GET requests, just generate a new token
-        if request.method == 'GET':
-            generate_csrf_token()
-            return f(*args, **kwargs)
-        
-        # For other methods like POST, validate token
-        token = request.form.get('csrf_token')
-        
-        # For JSON requests, check header
-        if request.is_json and not token:
-            token = request.headers.get('X-CSRFToken')
-        
-        if not token or token != session.get('_csrf_token'):
-            logger.warning(f"CSRF validation failed for {request.path}")
-            if request.is_json:
-                abort(403)
-            flash('For security reasons, your form submission could not be processed. Please try again.', 'error')
-            return redirect(url_for('index'))
-        
-        return f(*args, **kwargs)
-    return decorated_function
+# The custom CSRF implementation has been removed in favor of the
+# standard Flask-WTF extension, which is more robust and integrated.
+# The `generate_csrf()` and `@csrf.exempt` or `@csrf.protect` decorators
+# from Flask-WTF should be used directly in the routes.
 
 # Rate limiting decorator
 def rate_limit(limit=None, window=None):

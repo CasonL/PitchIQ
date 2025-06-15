@@ -91,6 +91,13 @@ body {
   background-color: #e0f2fe;
   margin-left: auto;
   border-top-right-radius: 0;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.user-message:hover {
+  transform: translateX(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .ai-message {
@@ -625,5 +632,97 @@ input[type="checkbox"]:checked + .toggle-slider::after {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+*/
+
+/* REMOVED: Edit Message Functionality CSS - no longer needed since we removed edit functionality
+/* Edit Message Functionality */
+.edit-message-btn {
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.edit-message-btn:hover {
+  opacity: 1 !important;
+  transform: scale(1.05);
+}
+
+.edit-container {
+  animation: slideDown 0.3s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.edit-warning {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Warning message for one-time edit limit */
+.one-time-edit-warning {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 12px 20px;
+  z-index: 10000;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideDownBounce 0.5s ease-out;
+}
+
+@keyframes slideDownBounce {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.edit-feedback {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 */ 

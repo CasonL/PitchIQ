@@ -10,9 +10,8 @@ from datetime import datetime
 import hashlib
 import logging
 
+email_signup_bp = Blueprint('email_signup_api', __name__)
 logger = logging.getLogger(__name__)
-
-email_signup_bp = Blueprint('email_signup', __name__)
 
 # Starting count for early access (will decrement with each signup)
 EARLY_ACCESS_STARTING_COUNT = 30
@@ -27,9 +26,9 @@ def get_computer_fingerprint(request):
     fingerprint_data = f"{user_agent}|{ip_address}|{accept_language}"
     return hashlib.sha256(fingerprint_data.encode()).hexdigest()
 
-@email_signup_bp.route('/api/email-signup', methods=['POST'])
+@email_signup_bp.route('/signup', methods=['POST'])
 @csrf.exempt
-def submit_email_signup():
+def handle_email_signup():
     """Submit email signup with preferences."""
     try:
         logger.info(f"EMAIL SIGNUP: Received POST request")
@@ -114,7 +113,7 @@ def submit_email_signup():
         db.session.rollback()
         return jsonify({'error': 'Internal server error'}), 500
 
-@email_signup_bp.route('/api/email-signup/count', methods=['GET'])
+@email_signup_bp.route('/count', methods=['GET'])
 @csrf.exempt
 def get_early_access_count():
     """Get the current early access count."""
@@ -136,7 +135,7 @@ def get_early_access_count():
         logger.error(f"EMAIL SIGNUP: Error getting count: {e}")
         return jsonify({'error': 'Failed to get count'}), 500
 
-@email_signup_bp.route('/api/admin/email-signups', methods=['POST'])
+@email_signup_bp.route('/admin/email-signups', methods=['POST'])
 @csrf.exempt
 def admin_login():
     """Admin login endpoint."""
@@ -154,7 +153,7 @@ def admin_login():
         logger.error(f"Error in admin login: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
-@email_signup_bp.route('/api/admin/email-signups', methods=['GET'])
+@email_signup_bp.route('/admin/email-signups', methods=['GET'])
 @csrf.exempt
 def get_admin_data():
     """Get all email signup data for admin."""
@@ -179,7 +178,7 @@ def get_admin_data():
         logger.error(f"Error getting admin data: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
-@email_signup_bp.route('/api/admin/logout', methods=['POST'])
+@email_signup_bp.route('/admin/logout', methods=['POST'])
 @csrf.exempt
 def admin_logout():
     """Admin logout endpoint."""

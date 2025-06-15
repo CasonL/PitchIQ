@@ -38,7 +38,10 @@ class APIManager:
         self._init_elevenlabs(app)
         self._init_deepgram(app)
         
-        # Register the manager on the app
+        # Register the manager on the app itself and in the extensions dictionary
+        if not hasattr(app, 'extensions'):
+            app.extensions = {}
+        app.extensions['api_manager'] = self
         app.api_manager = self
         
         # Register health check route

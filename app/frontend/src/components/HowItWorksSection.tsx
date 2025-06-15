@@ -2,38 +2,37 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { 
-  Sparkles, // Step 1 Pill & Step 2 Icon (Mentorship)
+  Sparkles, // Icons for features
   Clock,    // Time Estimate
   Brain,    // For AI Tailors Box (simplified)
-  Repeat,   // Step 2 Pill
   TrendingUp, // Step 2 Icon (Motivation)
   ArrowRight, // CTA Button & Connecting Arrows
-  // Users, // Removed from icon montage
-  // Package, // Removed from icon montage
-  // ListChecks, // Removed from icon montage
   Play,      // Decorative icon
   ArrowDown, // Mobile connecting arrow
-  // Dna, // Removed from icon montage
   BotMessageSquare, // Step 2 Icon (Practice)
-  Check // For checkmarks
+  Check, // For checkmarks
+  Upload,
+  Users,
+  BarChart3,
+  Target
 } from 'lucide-react';
 
 // Simplified steps for Part 2: The PitchIQ Improvement Loop
 const simplifiedImprovementSteps = [
   {
     icon: BotMessageSquare,
-    title: "Practice That Molds to You",
-    description: "Engage with adaptive AI buyers in scenarios molded to your unique sales world.",
+    title: "AI Learns Your Sales Methodology",
+    description: "Configure once, scale infinitely. Our AI absorbs your unique sales process and delivers personalized coaching that follows your exact methodology.",
   },
   {
-    icon: Sparkles, // Re-using Sparkles for targeted feedback/mentorship
-    title: "Feedback That Pinpoints & Progresses",
-    description: "Receive instant, targeted feedback & AI-suggested micro-lessons to elevate your skills.",
+    icon: Sparkles,
+    title: "Adapts to Every Rep, Maintains Standards",
+    description: "Each rep gets personalized feedback while meeting enterprise compliance requirements. Individual growth with organizational consistency.",
   },
   {
     icon: TrendingUp,
-    title: "Motivation That Fuels Your Ascent",
-    description: "Witness your skills flourish as PitchIQ refines your path to peak performance.",
+    title: "Scales From 10 to 10,000 Reps",
+    description: "Whether you're training a team or an entire sales organization, PitchIQ delivers the same quality coaching to everyone, simultaneously.",
   },
 ];
 
@@ -42,117 +41,150 @@ interface HowItWorksProps {
 }
 
 const HowItWorksSection: React.FC<HowItWorksProps> = ({ onOpenEmailModal }) => {
+  const sectionVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.3,
+        delayChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: 'easeOut',
+      },
+    },
+  };
+
   return (
-    <section id="how-it-works" className="bg-gradient-to-b from-gray-50 to-white py-16 md:py-24 lg:py-32 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center md:text-left mb-12 md:mb-16">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-3 font-outfit">
-            Unlock Your Sales Potential: The <span className="font-outfit font-bold text-gray-800">Pitch</span><span className="font-saira font-medium text-pitchiq-red">IQ</span> Method
+    <motion.section 
+      id="how-it-works" 
+      className="py-16 md:py-24 bg-white"
+      variants={sectionVariants}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, amount: 0.1 }}
+    >
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <motion.div className="text-center mb-12 md:mb-16" variants={itemVariants}>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 font-outfit">
+            The <span className="font-outfit font-bold text-gray-800">Pitch</span><span className="font-saira font-medium text-pitchiq-red">IQ</span> Advantage: <span className="text-pitchiq-red">AI That Scales With You</span>
           </h2>
-          <p className="text-lg md:text-xl text-foreground/80 max-w-3xl">
-            Rapidly master sales with AI accuracy and an adaptive coaching loop designed for growth.
-          </p>
-        </div>
-
-        {/* --- PART 1: Personalize Your Training Ground --- */}
-        <div className="mb-16 md:mb-24">
-          <div className="md:grid md:grid-cols-2 md:gap-12 lg:gap-16 md:items-center">
-            <div className="text-center md:text-left mb-12 md:mb-0">
-              <div className="inline-flex items-center gap-2 bg-gray-200 text-gray-900 px-4 py-2 rounded-full text-sm font-medium mb-6 flex-shrink-0 shadow-sm">
-                <Sparkles className="h-4 w-4 text-pitchiq-red font-semibold" />
-                Step 1: Your AI <span className='text-pitchiq-red font-semibold'>Launchpad</span>
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-bold mb-3 text-gray-800 font-outfit">
-                Your Sales DNA,<br />Instantly Mirrored.
-              </h3>
-              <p className="text-base md:text-lg text-foreground/70 max-w-xl mx-auto md:mx-0 mb-4">
-                Answer a few quick prompts. PitchIQ's AI instantly builds your hyper-personalized training arena.
-              </p>
-              <div className="flex items-center justify-center md:justify-start gap-2 mt-1">
-                <Clock className="h-4 w-4 text-pitchiq-red" />
-                <span className="text-pitchiq-red font-medium text-sm">Approx. 5-8 minutes</span>
-              </div>
-            </div>
-
-            {/* Simplified Visual Icon Card */}
-            <div className="relative flex flex-col text-center p-6 bg-gradient-to-br from-purple-100 via-pink-50 to-red-100 rounded-2xl shadow-xl min-h-[300px] md:min-h-[320px] items-center justify-center">
-              <div className="mb-4">
-                <h3 className="text-xl md:text-2xl font-bold text-gray-800 font-outfit mb-1">Your Custom Sales Arena</h3>
-                <p className="text-sm text-foreground/70 px-2">Tailored to how you sell.</p>
-              </div>
-              
-              <div className="my-6">
-                <Brain className="text-purple-600 h-20 w-20 md:h-24 md:w-24 opacity-90 mx-auto filter drop-shadow-lg" />
-              </div>
-
-              <div className="flex flex-col sm:flex-row justify-around items-center mt-auto pt-4 w-full gap-2 sm:gap-3">
-                <div className="flex items-center text-left bg-white/50 px-3 py-1.5 rounded-md shadow-sm">
-                  <Check size={18} className="mr-1.5 text-pitchiq-red flex-shrink-0"/> 
-                  <span className="text-sm font-semibold text-gray-800">Your Offer</span>
-                </div>
-                <div className="flex items-center text-left bg-white/50 px-3 py-1.5 rounded-md shadow-sm">
-                  <Check size={18} className="mr-1.5 text-pitchiq-red flex-shrink-0"/> 
-                  <span className="text-sm font-semibold text-gray-800">Ideal Client</span>
-                </div>
-                <div className="flex items-center text-left bg-white/50 px-3 py-1.5 rounded-md shadow-sm">
-                  <Check size={18} className="mr-1.5 text-pitchiq-red flex-shrink-0"/> 
-                  <span className="text-sm font-semibold text-gray-800">Sales Approach</span>
-                </div>
-              </div>
-            </div>
+          <div className="flex justify-center">
+            <p className="text-lg md:text-xl text-foreground/80 max-w-3xl">
+              Unlike static training programs, PitchIQ adapts to each rep while maintaining enterprise standards. Deploy personalized AI coaching that learns your methodology and delivers consistent results across thousands of reps.
+            </p>
           </div>
+        </motion.div>
+
+        {/* --- PART 1: Enterprise Configuration --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-16 items-center">
+          {/* Left Column: Stepper */}
+          <motion.div className="space-y-8" variants={itemVariants}>
+            <div className="p-6 rounded-lg">
+              <div className="flex items-center mb-6">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 text-gray-600 mr-4 flex-shrink-0">
+                  <span className="font-bold text-sm">1</span>
+                </div>
+                <h3 className="text-xl font-outfit font-bold text-gray-800">Enterprise Configuration</h3>
+              </div>
+              <h4 className="text-lg font-bold text-gray-800 mb-3">Your Sales DNA, Amplified by AI</h4>
+              <p className="text-base text-gray-600 mb-4">
+                Upload your sales methodology, objection handling frameworks, and compliance requirements. Our AI learns your approach and scales it across your entire organization.
+              </p>
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-pitchiq-red" />
+                <span className="text-pitchiq-red font-medium text-sm">One-time setup</span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Right Column: Enterprise Configuration Visual */}
+          <motion.div 
+            className="bg-pitchiq-red p-8 rounded-2xl shadow-lg border border-black/10 min-h-[400px] flex flex-col"
+            variants={itemVariants}
+          >
+            <div className="text-center mb-6">
+              <h4 className="text-lg font-bold text-white mb-2">Enterprise Sales Methodology</h4>
+              <p className="text-base text-white/90">Configure once, deploy everywhere</p>
+            </div>
+            
+            {/* Configuration Flow */}
+            <div className="flex-1 flex flex-col justify-between">
+              {/* Input Section */}
+              <div className="bg-white/90 rounded-lg p-4 mb-4 shadow-sm border border-black/10">
+                <div className="flex items-center mb-3">
+                  <Upload className="h-5 w-5 text-pitchiq-red mr-2" />
+                  <span className="text-sm font-semibold text-gray-800">Upload Your Framework</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-gray-50 px-2 py-1 rounded text-gray-700 border border-black/5">Sales Scripts</div>
+                  <div className="bg-gray-50 px-2 py-1 rounded text-gray-700 border border-black/5">Objections</div>
+                  <div className="bg-gray-50 px-2 py-1 rounded text-gray-700 border border-black/5">Compliance</div>
+                  <div className="bg-gray-50 px-2 py-1 rounded text-gray-700 border border-black/5">KPIs</div>
+                </div>
+              </div>
+
+              {/* Arrow */}
+              <div className="flex justify-center mb-4">
+                <ArrowDown className="h-6 w-6 text-white" />
+              </div>
+
+              {/* Output Section */}
+              <div className="bg-black rounded-lg p-4 shadow-sm border border-white/20">
+                <div className="flex items-center mb-3">
+                  <Target className="h-5 w-5 text-white mr-2" />
+                  <span className="text-sm font-semibold text-white">Scaled Results</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-white">40%</div>
+                    <div className="text-xs text-white/70">Faster Ramp</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-white">85%</div>
+                    <div className="text-xs text-white/70">Compliance</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-white">10K+</div>
+                    <div className="text-xs text-white/70">Reps Trained</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
         {/* --- PART 2: The PitchIQ Improvement Loop --- */}
-        <div className="mb-16 md:mb-24">
-          <div className="text-center md:text-left mb-10 md:mb-12">
-             <div className="inline-flex items-center gap-2 bg-gray-200 text-gray-900 px-4 py-2 rounded-full text-sm font-medium mb-4 shadow-sm">
-              <Repeat className="h-4 w-4 text-pitchiq-red font-semibold" />
-              Step 2: AI That <span className='text-pitchiq-red font-semibold'>Evolves You</span>
+        <motion.div className="mt-16 md:mt-24" variants={itemVariants}>
+          <div className="flex items-center mb-6">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 text-gray-600 mr-4 flex-shrink-0">
+              <span className="font-bold text-sm">2</span>
             </div>
-            <h3 className="text-2xl sm:text-3xl font-bold mb-2 text-gray-800 font-outfit">
-              AI That Molds, Mentors, & Motivates.
-            </h3>
+            <h3 className="text-xl font-outfit font-bold text-gray-800">Continuous Performance Optimization</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10 relative">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
             {simplifiedImprovementSteps.map((step, index) => (
-              <motion.div
-                key={index} 
-                className="group bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col items-center text-center relative z-10 pb-10 md:pb-6"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: false, amount: 0.3 }}
-                transition={{ duration: 0.7, delay: (index * 0.25) + 0.2 }}
-              >
-                {index === 0 && (
-                  <Play className="absolute -top-4 -left-4 md:-top-6 md:-left-6 h-20 w-20 md:h-28 md:w-28 text-red-300 opacity-20 transform rotate-[-15deg] pointer-events-none z-0" /> 
-                )}
-                
-                <div className="flex-shrink-0 mb-5">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
-                    <step.icon size={40} className="text-white" />
-                  </div>
+              <div key={step.title} className="bg-white p-6 rounded-xl shadow-lg border border-gray-100/80 hover:shadow-xl transition-shadow duration-300">
+                <div className="inline-flex items-center justify-center p-3 rounded-full bg-blue-100 mb-4">
+                  <step.icon size={40} className="text-pitchiq-red" />
                 </div>
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2 font-outfit">{step.title}</h4>
-                  <p className="text-sm text-foreground/70 leading-relaxed">{step.description}</p>
-                </div>
-
-                {index < simplifiedImprovementSteps.length - 1 && (
-                  <div className="absolute 
-                                  bottom-0 left-1/2 -translate-x-1/2 translate-y-[calc(50%+8px)]
-                                  md:top-1/2 md:left-auto md:right-0 md:translate-x-[calc(50%+8px)] md:-translate-y-1/2 md:bottom-auto
-                                  p-1.5 bg-white rounded-full shadow-md z-20">
-                    <ArrowDown className="h-5 w-5 text-gray-500 group-hover:text-pitchiq-red transition-colors md:hidden" />
-                    <ArrowRight className="h-5 w-5 text-gray-500 group-hover:text-pitchiq-red transition-colors hidden md:inline-block" />
-                  </div>
-                )}
-              </motion.div>
+                <h4 className="text-lg font-bold text-gray-800 mb-3">{step.title}</h4>
+                <p className="text-base text-gray-600">{step.description}</p>
+              </div>
             ))}
           </div>
-        </div>
-        
+        </motion.div>
+
         <div className="text-center mt-12 md:mt-16">
           <Button 
             variant="default"
@@ -160,13 +192,12 @@ const HowItWorksSection: React.FC<HowItWorksProps> = ({ onOpenEmailModal }) => {
             onClick={onOpenEmailModal}
             className="bg-pitchiq-red hover:bg-pitchiq-red/90 text-white font-semibold py-3 px-8 text-lg rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 group"
           >
-            Get Early Access & Start Mastering Sales <ArrowRight className="w-5 h-5 ml-2 inline-block transform transition-transform duration-150 group-hover:translate-x-1" />
+            Schedule Enterprise Demo <ArrowRight className="w-5 h-5 ml-2 inline-block transform transition-transform duration-150 group-hover:translate-x-1" />
           </Button>
-          <p className="text-xs text-foreground/60 mt-3">Be first to experience the future of sales coaching.</p>
+          <p className="text-sm text-foreground/60 mt-3">See how PitchIQ transforms enterprise sales training.</p>
         </div>
-
       </div>
-    </section>
+    </motion.section>
   );
 };
 

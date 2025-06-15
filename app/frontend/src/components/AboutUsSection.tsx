@@ -1,5 +1,4 @@
 import React from "react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Users } from "lucide-react";
 
@@ -8,46 +7,51 @@ interface AboutUsSectionProps {
 }
 
 const AboutUsSection: React.FC<AboutUsSectionProps> = ({ onOpenEmailModal }) => {
-  const founderName = "Cason";
-
   return (
-    <section id="about-us" className="py-16 md:py-24 bg-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <section className="py-20 sm:py-28 bg-gray-50">
+      <div className="container mx-auto px-6 lg:px-8 text-center">
         
-        <div className="mb-10 md:mb-12">
-          <div className="inline-flex items-center justify-center p-3 rounded-full bg-pitchiq-red/10 mb-4">
-            <Users className="h-8 w-8 text-pitchiq-red" />
+        {/* Founder Story */}
+        <div className="max-w-3xl mx-auto">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-6">
+            <Users className="w-8 h-8 text-red-600" />
           </div>
-          <h2 className="text-3xl sm:text-4xl font-outfit font-bold text-gray-900 leading-tight mb-4">
-            From Frustration to <span className="text-pitchiq-red">Founder</span>
+          <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900">
+            Enterprise-Grade <span className="text-red-600">Sales Training</span>
           </h2>
-          <p className="text-lg md:text-xl text-gray-700 leading-relaxed max-w-2xl mx-auto mb-6">
-            PitchIQ was born from a real sales grind and a $10k lesson in what traditional coaching often lacks. Discover the story behind the AI sales coach built to give you the edge I never had.
+          <p className="mt-6 text-lg text-gray-600">
+            Built for organizations that need to scale sales performance while maintaining compliance standards. Our platform delivers measurable training ROI with enterprise security and comprehensive analytics.
           </p>
-          <Link to="/about-us">
-            <Button variant="outline" className="text-pitchiq-red border-pitchiq-red hover:bg-pitchiq-red/5 hover:text-pitchiq-red group">
-              Meet the Founder & Learn Our Story
-              <ArrowRight className="ml-2 h-4 w-4 transform transition-transform duration-150 group-hover:translate-x-1" />
+          <div className="mt-8">
+            <Button 
+              variant="outline" 
+              className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={onOpenEmailModal}
+            >
+              Contact Our Enterprise Team <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-          </Link>
+          </div>
         </div>
 
-        <div className="pt-8 border-t border-gray-200">
-          <h3 className="text-xl md:text-2xl font-outfit font-semibold text-gray-800 mb-3">
-            Ready to Skip the Struggle?
+        {/* Divider */}
+        <div className="w-24 h-px bg-gray-300 mx-auto my-16"></div>
+
+        {/* Final CTA */}
+        <div className="max-w-3xl mx-auto">
+          <h3 className="text-3xl font-bold text-gray-900">
+            Ready to Transform Your Sales Organization?
           </h3>
-          <p className="text-md text-gray-600 max-w-lg mx-auto mb-6">
-            Get early access to the sales coach designed to accelerate your success.
+          <p className="mt-4 text-lg text-gray-600">
+            Schedule a demo to see how PitchIQ delivers measurable training ROI for enterprise sales teams.
           </p>
-          <Button
-            onClick={onOpenEmailModal}
-            variant="default"
-            size="lg"
-            className="bg-pitchiq-red hover:bg-pitchiq-red/90 text-white group"
-          >
-            Join the Waitlist
-            <ArrowRight className="ml-2 h-4 w-4 transform transition-transform duration-150 group-hover:translate-x-1" />
-          </Button>
+          <div className="mt-8">
+            <Button 
+              onClick={onOpenEmailModal}
+              className="bg-red-600 hover:bg-red-700 text-white rounded-md px-8 py-4 text-lg font-semibold"
+            >
+              Schedule Enterprise Demo <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </div>
         </div>
 
       </div>

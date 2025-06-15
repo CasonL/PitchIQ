@@ -1,66 +1,94 @@
-import React from "react";
-import { Users, MessageSquare, Zap, Sparkles } from "lucide-react";
-import { motion } from "framer-motion";
-import StaticFeatureCard from "./StaticFeatureCard";
+import React from 'react';
+import { Zap, Sparkles, MessageSquare, Users } from 'lucide-react';
+import { motion } from 'framer-motion';
 
-// Data for the static feature cards - Transformation Pathway
-// Reordered based on user feedback for impact
-const featureData = [
+const features = [
   {
-    id: 'rapid-skill-mastery',
-    Icon: Zap,
-    iconColor: 'text-green-500',
-    title: "Master Sales Skills at AI Speed",
-    text: "Become a top performer in weeks, not years. Our 24/7 AI coach pinpoints weaknesses and delivers hyper-focused training. Outlearn. Outperform."
+    icon: Zap,
+    iconBg: 'bg-green-100',
+    iconColor: 'text-green-600',
+    title: 'Accelerate Team Onboarding',
+    description: 'Reduce new hire ramp time from 6 months to 6 weeks. Our AI delivers consistent, standardized training that scales across your entire organization.'
   },
   {
-    id: 'compelling-value',
-    Icon: Sparkles,
-    iconColor: 'text-red-500',
-    title: "Make Your Value Undeniable",
-    text: "Stop just pitching—start compelling. Articulate your solution so powerfully it becomes the only logical choice for your buyer."
+    icon: Sparkles,
+    iconBg: 'bg-red-100',
+    iconColor: 'text-red-600',
+    title: 'Ensure Regulatory Compliance',
+    description: 'Meet industry compliance requirements with documented training protocols, audit trails, and standardized conversation frameworks tailored to financial services.'
   },
   {
-    id: 'conversation-command',
-    Icon: MessageSquare,
-    iconColor: 'text-yellow-500',
-    title: "Command Every Sales Conversation",
-    text: "Master deep questioning, overcome objections with finesse, and confidently guide buyers to 'yes'. PitchIQ puts you in full command."
+    icon: MessageSquare,
+    iconBg: 'bg-yellow-100',
+    iconColor: 'text-yellow-600',
+    title: 'Standardize Sales Excellence',
+          description: 'Deploy best practices consistently across teams. AI coaching ensures every rep follows proven methodologies and maintains quality standards.'
   },
   {
-    id: 'buyer-clarity',
-    Icon: Users,
-    iconColor: 'text-blue-500',
-    title: "Gain Unshakeable Buyer Clarity",
-    text: "PitchIQ's AI mirrors your ideal clients, revealing their world so you anticipate moves, forge connections, and convert. Pure, actionable insight."
+    icon: Users,
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-600',
+    title: 'Measure Performance Impact',
+    description: 'Track improvement metrics, conversion rates, and ROI with comprehensive analytics. Get the data you need to justify training investments and demonstrate results.'
   }
 ];
 
-const FeatureShowcase = () => {
+const FeatureShowcase: React.FC = () => {
+  const containerVariants = {
+    hidden: {},
+    visible: {
+      transition: {
+        staggerChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut",
+      },
+    },
+  };
+
   return (
-    <section id="features" className="py-16 md:py-20 lg:py-24 bg-gradient-to-b from-white to-gray-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12 md:mb-16">
-          <h2 className="text-3xl sm:text-4xl font-outfit font-bold text-gray-800">
-            Your Ascent to Sales Mastery
+    <section className="py-20 sm:py-28 bg-white">
+      <div className="container mx-auto px-6 lg:px-8">
+        <div className="text-center">
+          <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900">
+            Enterprise Sales Training That Delivers Results
           </h2>
-          <p className="mt-3 text-lg md:text-xl text-gray-600 font-outfit max-w-2xl mx-auto">
-            PitchIQ doesn't just teach skills; it transforms your entire sales approach. Here's how you'll evolve:
+          <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+                          Purpose-built for organizations that need to scale sales performance, ensure compliance, and drive measurable ROI from their training investments.
           </p>
         </div>
-        <div className="flex flex-col space-y-10 md:space-y-12 items-center">
-          {featureData.map((feature, index) => (
-            <StaticFeatureCard
-              key={feature.id}
-              icon={feature.Icon}
-              iconColor={feature.iconColor}
-              title={feature.title}
-              text={feature.text}
-              // Potentially add an index prop if you want to vary animations or styles
-              // index={index} 
-            />
+        <motion.div 
+          className="mt-16 max-w-4xl mx-auto space-y-8"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+        >
+          {features.map((feature, index) => (
+            <motion.div 
+              key={index} 
+              className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100 flex items-start space-x-6"
+              variants={itemVariants}
+            >
+              <div className={`flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center ${feature.iconBg}`}>
+                <feature.icon className={`w-8 h-8 ${feature.iconColor}`} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">{feature.title}</h3>
+                <p className="mt-2 text-gray-600">{feature.description}</p>
+              </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

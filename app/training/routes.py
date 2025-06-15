@@ -23,7 +23,6 @@ import logging
 import traceback
 from app.training import services as training_services
 from sqlalchemy.orm import joinedload
-from app.auth.security import generate_csrf_token
 from app.services.gpt4o_service import get_gpt4o_service
 from app.extensions import csrf
 
@@ -372,7 +371,9 @@ def send_roleplay_message(session_id):
             return jsonify({"error": "Failed to record user message"}), 500
 
         # Generate AI response
-        ai_response_text, updated_session = training_services.generate_ai_response(user_message, session) # Pass session object
+        # ``generate_ai_response`` now expects the ``TrainingSession`` instance
+        # first followed by the user message.
+        ai_response_text, updated_session = training_services.generate_ai_response(session, user_message)
         
         if not ai_response_text:
             logger.error(f"AI response generation failed for session {session_id}") # DEBUG
@@ -706,36 +707,63 @@ def dashboard_voice_chat():
 # - /api/reset-onboarding (replaced with simpler version)
         
 # NEW SIMPLIFIED RESET ONBOARDING ENDPOINT
+@training_bp.route('/api/test-route', methods=['POST', 'GET'])
+@csrf.exempt
+def test_route():
+    """Test route to verify blueprint is working."""
+    return jsonify({'message': 'Training blueprint test route works!', 'method': request.method})
+
 @training_bp.route('/api/reset-onboarding', methods=['POST'])
 @login_required
-@csrf.exempt
 def reset_onboarding():
     """Reset the onboarding status to force a user to go through onboarding again."""
     try:
+        logger.info(f"reset_onboarding called by user {current_user.id}")
+        
         # Get the user's profile
         profile = UserProfile.query.filter_by(user_id=current_user.id).first()
+        logger.info(f"Found profile for user {current_user.id}: {profile is not None}")
         
         if not profile:
+            logger.warning(f"No profile found for user {current_user.id}")
             return jsonify({
                 'status': 'error',
                 'message': 'No profile found to reset'
             }), 404
         
-        # Reset onboarding status - now just a simple flag since React handles the details
+        logger.info(f"Starting reset for profile {profile.id}")
+        
+        # **COMPREHENSIVE RESET: Clear all coach and personalization data**
         profile.onboarding_complete = False
+        profile.initial_setup_complete = False
+        
+        # Clear all coach persona and personalization data
+        profile.coach_persona = None
+        profile.p_product = None
+        profile.p_value_prop = None
+        profile.p_audience = None
+        profile.p_sales_context = None
+        profile.p_sales_methodology = None
+        profile.p_improvement_goal = None
+        
+        # Reset onboarding step
+        profile.onboarding_step = 'product'
+        profile.onboarding_step_new = 0
+        
+        logger.info(f"Profile fields reset, committing changes...")
         
         # Commit the changes
         db.session.commit()
         
-        logger.info(f"User {current_user.id} reset their onboarding status")
+        logger.info(f"User {current_user.id} reset their onboarding status and coach persona successfully")
         
         return jsonify({
             'status': 'success',
-            'message': 'Onboarding reset successfully'
+            'message': 'Onboarding and coach persona reset successfully'
         })
         
     except Exception as e:
-        logger.error(f"Error resetting onboarding: {str(e)}")
+        logger.error(f"Error resetting onboarding for user {getattr(current_user, 'id', 'unknown')}: {str(e)}", exc_info=True)
         db.session.rollback()
         return jsonify({
             'status': 'error',

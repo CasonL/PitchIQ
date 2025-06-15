@@ -141,6 +141,10 @@ The `name_usage_tracker` table has the following structure:
 - `full_name`: Complete full name
 - `used_at`: Timestamp when the name was used
 
+### Email Signup Database
+
+The database schema for email signups, used for collecting data for user profiles and a planned ambitious project, is managed using DBeaver. This ensures a clear and organized structure for this critical data.
+
 ### Running Migration
 
 #### In Windows PowerShell:

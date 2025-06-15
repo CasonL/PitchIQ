@@ -5,6 +5,7 @@ import { BrainCircuit, MessageSquareText, Mic, ChevronDown, ArrowRight, Building
 import { Button } from "@/components/ui/button";
 import { marked } from 'marked';
 import { Scrollbars } from 'react-custom-scrollbars-2';
+import api from '@/lib/axios'; // Import the configured axios instance
 
 // Add styles to fix numbered list display
 const CHAT_MESSAGE_STYLES = `
@@ -1144,62 +1145,37 @@ const AISummaryCard: React.FC<AISummaryCardProps> = ({ onOnboardingComplete }) =
   };
 
   // NEW FUNCTION: Handle Undo
-  const handleUndo = () => {
-    if (messages.length < 2 || onboardingData.stage === 'welcome' || onboardingData.stage === 'complete') {
-      console.log("Undo: Not enough messages or at start/end of onboarding.");
+  const handleUndo = async () => {
+    if (!confirm('Are you sure you want to completely reset your onboarding progress? This action cannot be undone.')) {
       return;
     }
 
-    // The current onboardingData.stage is the stage for which the AI just asked a question.
-    // So, the user had just answered the *previous* stage in the sequence.
-    const currentAiQuestionStageIndex = STAGE_SEQUENCE.indexOf(onboardingData.stage);
+    console.log("Attempting to reset onboarding via API...");
 
-    // If AI is asking Q2 (index 2), user answered Q1 (index 1)
-    // If AI is asking Q1 (index 1), user might have answered 'welcome' conceptually, but we might not have a message for that.
-    // Let's prevent undo if we are at the very first actual question stage (core_q1_product_value)
-    if (currentAiQuestionStageIndex <= STAGE_SEQUENCE.indexOf('core_q1_product_value')) { 
-      console.log("Undo: Cannot undo from the first question stage ('core_q1_product_value').");
-      return;
-    }
+    try {
+      const response = await api.post('/reset-onboarding');
+      
+      if (response.status === 200) {
+        console.log("Onboarding reset successful via API. Clearing local state and reloading.");
 
-    const stageUserAnswered = STAGE_SEQUENCE[currentAiQuestionStageIndex - 1];
-    const stageToDisplayQuestionFor = stageUserAnswered; // We want to show the question for the stage the user will now re-answer
+        // Clear all relevant local storage keys
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith(STORAGE_KEY_PREFIX)) {
+            localStorage.removeItem(key);
+          }
+        });
 
-    // Retrieve the user's answer for the stage they are undoing
-    let previousUserInput = '';
-    if (stageUserAnswered === 'core_q1_product_value') previousUserInput = onboardingData.answer_q1_product_value;
-    else if (stageUserAnswered === 'core_q2_audience') previousUserInput = onboardingData.answer_q2_audience || '';
-    else if (stageUserAnswered === 'core_q4_style') previousUserInput = onboardingData.answer_q4_style || '';
-    else if (stageUserAnswered === 'core_q4_methodology') previousUserInput = onboardingData.answer_q4_methodology || ''; 
-    // Note: If 'welcome' had an input, it would need to be handled here.
+        // Force a full page reload to restart the onboarding process from a clean slate
+        window.location.reload();
 
-    const newMessages = messages.slice(0, -2); // Remove last AI question and last user answer
-    
-    let newOnboardingData = { ...onboardingData };
-    newOnboardingData = clearAnswerForStage(newOnboardingData, stageUserAnswered);
-    newOnboardingData.stage = stageToDisplayQuestionFor;
-
-    setUserInput(previousUserInput); // Pre-fill input with the undone answer
-    setMessages(newMessages);
-    setOnboardingData(newOnboardingData);
-
-    // Update lastAIQuestionText to the new last AI message (question for stageToDisplayQuestionFor)
-    const newLastAiMsg = newMessages.filter(m => !m.isUser).pop();
-    setLastAIQuestionText(newLastAiMsg ? newLastAiMsg.content : null);
-
-    // Auto-resize textarea to fit the restored content
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-        textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+      } else {
+        console.error("Failed to reset onboarding. Server returned status:", response.status);
+        alert("There was an issue resetting your onboarding. Please try again.");
       }
-    }, 0);
-
-    // Save to localStorage
-    localStorage.setItem(STORAGE_KEYS.messages, JSON.stringify(newMessages));
-    localStorage.setItem(STORAGE_KEYS.onboardingData, JSON.stringify(newOnboardingData));
-
-    console.log(`Undo: Reverted to stage: ${stageToDisplayQuestionFor}. User input set to: '${previousUserInput}'.`);
+    } catch (error) {
+      console.error("An error occurred while resetting onboarding:", error);
+      alert("An error occurred while trying to reset your onboarding. Please check the console for details.");
+    }
   };
 
   // Modify the useEffect that adds the initial AI question to be robust
@@ -1315,25 +1291,31 @@ const AISummaryCard: React.FC<AISummaryCardProps> = ({ onOnboardingComplete }) =
                 className="flex-grow overflow-y-auto p-4 space-y-4 bg-gray-50" 
               >
                 <AnimatePresence initial={false}>
-                  {messages.map((message) => (
-                    <motion.div
-                      key={message.id}
-                      className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                      transition={{ duration: 0.3, ease: "easeOut" }}
-                    >
-                      <div 
-                        className={cn(
-                          "max-w-[75%] px-3 py-2 rounded-lg shadow-md text-base markdown-content whitespace-pre-wrap",
-                          message.isUser ? 'bg-red-100 text-gray-900 rounded-br-none' : 'bg-green-100 text-black rounded-bl-none ai-chat-message',
-                          "break-words"
-                        )}
-                        dangerouslySetInnerHTML={{ __html: marked.parse(message.content, { breaks: true }) }} 
-                      />
-                    </motion.div>
-                  ))}
+                  {messages.map((message, index) => {
+                    return (
+                      <motion.div
+                        key={message.id}
+                        className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                      >
+                        <div className={`max-w-[75%] ${message.isUser ? 'text-right' : 'text-left'}`}>
+                          <div className="relative group">
+                            <div 
+                              className={cn(
+                                "px-3 py-2 rounded-lg shadow-md text-base markdown-content whitespace-pre-wrap",
+                                message.isUser ? 'bg-red-100 text-gray-900 rounded-br-none' : 'bg-green-100 text-black rounded-bl-none ai-chat-message',
+                                "break-words"
+                              )}
+                              dangerouslySetInnerHTML={{ __html: marked.parse(message.content, { breaks: true }) }} 
+                            />
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </AnimatePresence>
               </div>
 

@@ -4,18 +4,17 @@ import openai
 from app.utils.auth import require_auth
 from app.utils.logger import get_logger
 
+dashboard_coach_bp = Blueprint('dashboard_coach', __name__)
+
 # Get logger
 logger = get_logger(__name__)
-
-# Initialize blueprint
-dashboard_coach_blueprint = Blueprint('dashboard_coach', __name__)
 
 # Environment setup
 openai.api_key = os.environ.get('OPENAI_API_KEY')
 
-@dashboard_coach_blueprint.route('/api/dashboard/coach', methods=['POST'])
+@dashboard_coach_bp.route('/prompt', methods=['POST'])
 @require_auth
-def dashboard_coach():
+def dashboard_coach_prompt_route():
     """
     API endpoint to generate AI coach responses
     """

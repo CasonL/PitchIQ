@@ -34,62 +34,6 @@ def chat():
     """Redirect to the React chat app."""
     return redirect("/chat")
 
-@voice.route('/socket-chat')
-@login_required
-def voice_socket_chat():
-    """Render the voice chat interface with a simple orb UI."""
-    try:
-        # Get default values for the persona
-        persona_name = "Sarah Johnson"
-        persona_title = "Marketing Director at NexTech Solutions"
-        conversation_id = None
-        
-        # Logic to get an active session if one exists
-        active_session = TrainingSession.query.filter_by(
-            user_profile_id=current_user.profile.id, 
-            status='active'
-        ).order_by(TrainingSession.start_time.desc()).first()
-        
-        if active_session and active_session.buyer_persona:
-            persona = active_session.buyer_persona
-            persona_name = persona.name
-            persona_title = f"{persona.title} at {persona.company}" if persona.title and persona.company else persona_title
-            conversation_id = active_session.id
-        
-        # Render our new simple voice template
-        return render_template(
-            'simple_voice.html',
-            persona_name=persona_name,
-            persona_title=persona_title,
-            conversation_id=conversation_id
-        )
-    except Exception as e:
-        current_app.logger.error(f"Error displaying voice chat: {str(e)}")
-        flash("An error occurred while loading the voice chat. Please try again.", "error")
-        return redirect(url_for('training.show_dashboard'))
-
-@voice.route('/demo')
-@login_required
-def voice_demo():
-    """Render the new modular voice interface demo."""
-    try:
-        return render_template('voice/demo.html')
-    except Exception as e:
-        current_app.logger.error(f"Error displaying voice demo: {str(e)}")
-        flash("An error occurred while loading the voice demo. Please try again.", "error")
-        return redirect(url_for('training.show_dashboard'))
-
-@voice.route('/test-tts')
-@login_required
-def test_tts_page():
-    """Render the TTS testing page."""
-    try:
-        return render_template('voice/test_tts.html')
-    except Exception as e:
-        current_app.logger.error(f"Error displaying TTS test page: {str(e)}")
-        flash("An error occurred while loading the TTS test page. Please try again.", "error")
-        return redirect(url_for('training.show_dashboard'))
-
 @voice.route('/api/conversation', methods=['POST'])
 @login_required
 def voice_conversation():

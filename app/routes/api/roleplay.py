@@ -11,15 +11,14 @@ from flask import Blueprint, request, jsonify, current_app, session
 from app.services.gpt4o_service import GPT4oService
 from flask_login import login_required
 
+roleplay_bp = Blueprint('roleplay', __name__)
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Create blueprint
-roleplay_bp = Blueprint('roleplay_api', __name__)
-
 @roleplay_bp.route('/start', methods=['POST'])
 @login_required
-def start_roleplay():
+def start_roleplay_route():
     """Start a new roleplay session with a customer persona."""
     try:
         data = request.json

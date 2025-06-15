@@ -514,8 +514,16 @@ def get_training_session(session_id: int, user_profile_id: int) -> Optional[Trai
     
     return session
 
-def generate_ai_response(message, session_object, conversation_metadata=None):
-    """Generate an AI response from the buyer persona for the provided user message."""
+def generate_ai_response(session_object, message, conversation_metadata=None):
+    """Generate an AI response from the buyer persona for the provided user message.
+
+    The original implementation expected the user ``message`` as the first
+    argument which made calling the function error prone. Tests in the
+    repository and some helper scripts pass the ``TrainingSession`` instance as
+    the first argument.  To avoid confusion we now accept the session first and
+    message second which aligns with the tests.  The internal logic remains the
+    same.
+    """
     try:
         from app.services.gpt4o_service import get_gpt4o_service
         
@@ -541,7 +549,9 @@ def generate_ai_response(message, session_object, conversation_metadata=None):
                     logger.error(f"Error retrieving session from string ID: {str(retrieve_error)}")
                     return "I'm interested in learning more about your product. Could you tell me about the main benefits or how it might help my business?", session_object
             else:
-                return "I'm interested in learning more about your product. Could you tell me about the main benefits or how it might help my business?", session_object
+                # If it's a string but not a digit, it's an unusable session_object
+                logger.error(f"Session object is a non-digit string: '{session_object}'. Cannot proceed.")
+                return "I'm having trouble understanding the session context. Please try again.", session_object
         
         logger.info(f"Generating AI response for session {session_object.id}")
         logger.info(f"Received user message: '{message}'")

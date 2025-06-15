@@ -1,74 +1,96 @@
-import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { পার্থক্য } from "@mui/material";
+import React, { createContext, useContext, ReactNode, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import api from '@/lib/axios';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
-  id: number;
-  name: string;
+  id: string;
   email: string;
-  // Add other user fields if returned by your API
+  onboarding_complete?: boolean;
+  onboardingComplete?: boolean;
 }
 
-interface AuthState {
+interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   isLoading: boolean;
+  login: (user: User, redirect?: string | false) => void;
+  logout: () => void;
+  refetchUser: () => void;
 }
 
-interface AuthContextProps extends AuthState {
-  // Add login/logout functions here if needed later
-}
-
-const AuthContext = createContext<AuthContextProps | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const fetchUserStatus = async (): Promise<User | null> => {
+  try {
+    console.log('🔍 Fetching user status...');
+    const response = await api.get('/api/auth/status');
+    console.log('📋 Auth status response:', response.data);
+    
+    if (response.data && response.data.authenticated) {
+      // Normalize the onboarding status field names for consistency
+      const user = response.data.user;
+      user.onboarding_complete = user.onboardingComplete || user.onboarding_complete || false;
+      console.log('✅ User authenticated:', user);
+      return user;
+    }
+    console.log('❌ User not authenticated');
+    return null;
+  } catch (error) {
+    console.error('🚨 Error fetching user status:', error);
+    return null;
+  }
+};
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [authState, setAuthState] = useState<AuthState>({
-    isAuthenticated: false,
-    user: null,
-    isLoading: true, // Start in loading state
+export const AuthProvider = ({ children }: AuthProviderProps) => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: user, isLoading, refetch } = useQuery<User | null>({
+    queryKey: ['userStatus'],
+    queryFn: fetchUserStatus,
+    staleTime: 15 * 60 * 1000, // 15 minutes instead of 5
+    refetchOnWindowFocus: false, // Disable aggressive refetching
+    refetchInterval: 10 * 60 * 1000, // Check every 10 minutes instead of on focus
   });
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/status`, {
-          headers: {
-            'ngrok-skip-browser-warning': 'true'
-          }
-        });
-        if (!response.ok) {
-          // Handle non-2xx responses (e.g., 401 Unauthorized)
-          if (response.status === 401) {
-             console.log('User not authenticated.');
-             setAuthState({ isAuthenticated: false, user: null, isLoading: false });
-          } else {
-             throw new Error(`HTTP error! status: ${response.status}`);
-          }
-        } else {
-           const data = await response.json();
-           console.log('Auth status checked:', data);
-           setAuthState({
-             isAuthenticated: data.isAuthenticated,
-             user: data.user || null,
-             isLoading: false,
-           });
-        }
-      } catch (error) {
-        console.error('Error fetching auth status:', error);
-        setAuthState({ isAuthenticated: false, user: null, isLoading: false });
-      }
-    };
+  const login = useCallback((newUser: User, redirect: string | false = '/dashboard') => {
+    queryClient.setQueryData(['userStatus'], newUser);
+    if (redirect) {
+      navigate(redirect);
+    }
+  }, [queryClient, navigate]);
 
-    checkAuth();
-  }, []); // Empty dependency array ensures this runs only once on mount
+  const logout = useCallback(() => {
+    console.log('🚪 Logout function called');
+    queryClient.setQueryData(['userStatus'], null);
+    console.log('🗑️ Cleared user data from query cache');
+    
+    api.post('/api/auth/logout')
+      .then((response) => {
+        console.log('✅ Logout API success:', response.data);
+      })
+      .catch((error) => {
+        console.error('❌ Logout API error:', error);
+      })
+      .finally(() => {
+        console.log('🔄 Navigating to login page');
+        navigate('/login');
+      });
+  }, [queryClient, navigate]);
 
   return (
-    <AuthContext.Provider value={authState}>
+    <AuthContext.Provider value={{
+      isAuthenticated: !!user,
+      user,
+      isLoading,
+      login,
+      logout,
+      refetchUser: refetch,
+    }}>
       {children}
     </AuthContext.Provider>
   );

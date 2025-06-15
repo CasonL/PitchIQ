@@ -8,8 +8,11 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import logging
-from app.config_manager import config
 from flask import current_app, render_template
+from flask_mail import Message
+from app.extensions import mail
+import os
+from threading import Thread
 
 # Configure more detailed logging
 logging.basicConfig(
@@ -19,18 +22,66 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def send_email(to_email: str, subject: str, html_content: str, text_content: str = None) -> bool:
+def send_async_email(app, msg):
+    with app.app_context():
+        try:
+            mail.send(msg)
+        except Exception as e:
+            logger.error(f"Error sending email: {e}")
+
+def send_email(subject, recipients, text_body, html_body, sender=None):
+    """
+    Sends an email using Flask-Mail with asynchronous support.
+    """
+    if not sender:
+        sender = current_app.config.get('MAIL_DEFAULT_SENDER')
+    
+    app = current_app._get_current_object()
+    msg = Message(subject, sender=sender, recipients=recipients)
+    msg.body = text_body
+    msg.html = html_body
+    
+    # Send email in a background thread
+    thr = Thread(target=send_async_email, args=[app, msg])
+    thr.start()
+    return thr
+
+def send_password_reset_email(user):
+    """
+    Sends a password reset email to a user.
+    """
+    token = user.get_reset_password_token()
+    send_email(
+        '[PitchIQ] Reset Your Password',
+        recipients=[user.email],
+        text_body=render_template('auth/email/reset_password.txt', user=user, token=token),
+        html_body=render_template('auth/email/reset_password.html', user=user, token=token)
+    )
+
+def send_verification_email(user):
+    """
+    Sends an email verification email to a new user.
+    """
+    token = user.get_email_verification_token()
+    send_email(
+        '[PitchIQ] Verify Your Email Address',
+        recipients=[user.email],
+        text_body=render_template('auth/email/verify_email.txt', user=user, token=token),
+        html_body=render_template('auth/email/verify_email.html', user=user, token=token)
+    )
+
+def send_email_smtp(to_email: str, subject: str, html_content: str, text_content: str = None) -> bool:
     """
     Send an email using SMTP with enhanced error handling.
     """
     try:
         # Get email config from config manager instead of direct environment variables
-        smtp_server = config.get('SMTP_SERVER')
-        smtp_port = int(config.get('SMTP_PORT', 587))
-        smtp_username = config.get('SMTP_USERNAME')
-        smtp_password = config.get('SMTP_PASSWORD')
-        from_email = config.get('FROM_EMAIL')
-        email_enabled = config.get('EMAIL_ENABLED', False)
+        smtp_server = current_app.config.get('SMTP_SERVER')
+        smtp_port = int(current_app.config.get('SMTP_PORT', 587))
+        smtp_username = current_app.config.get('SMTP_USERNAME')
+        smtp_password = current_app.config.get('SMTP_PASSWORD')
+        from_email = current_app.config.get('FROM_EMAIL')
+        email_enabled = current_app.config.get('EMAIL_ENABLED', False)
         
         # Check if email is enabled
         if not email_enabled:
@@ -107,51 +158,3 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: str
     except Exception as e:
         logger.error(f"Unexpected error sending email: {str(e)}", exc_info=True)
         return False
-
-def send_password_reset_email(to_email: str, reset_url: str) -> bool:
-    """
-    Send a password reset email.
-    
-    Args:
-        to_email: Recipient email address
-        reset_url: Password reset URL
-            
-    Returns:
-        True if email was sent successfully, False otherwise
-    """
-    logger.info(f"Preparing password reset email for {to_email}")
-    
-    # Define subject for the email
-    subject = "Reset Your Sales Training AI Password"
-    
-    html_content = f"""
-    <html>
-        <body>
-            <h2>Password Reset Request</h2>
-            <p>You requested to reset your Sales Training AI password. Click the link below to set a new password:</p>
-            <p><a href="{reset_url}">Reset Password</a></p>
-            <p>If you did not request a password reset, please ignore this email.</p>
-            <p>This link will expire in 1 hour.</p>
-        </body>
-    </html>
-    """
-    
-    text_content = f"""
-    Password Reset Request
-    
-    You requested to reset your Sales Training AI password. Follow the link below to set a new password:
-    
-    {reset_url}
-    
-    If you did not request a password reset, please ignore this email.
-    
-    This link will expire in 1 hour.
-    """
-    
-    result = send_email(to_email, subject, html_content, text_content)
-    if result:
-        logger.info(f"Password reset email sent successfully to {to_email}")
-    else:
-        logger.error(f"Failed to send password reset email to {to_email}")
-    
-    return result

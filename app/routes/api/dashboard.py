@@ -10,9 +10,10 @@ import logging
 from app.services.api_manager import api_manager # Import api_manager
 from app.extensions import csrf # Import csrf
 import json
+from app.services.openai_service import OpenAIService
+from app.models import Conversation, UserProfile
 
-# Create dashboard API blueprint (Removed url_prefix)
-dashboard_api = Blueprint('dashboard_api', __name__)
+dashboard_api_bp = Blueprint('dashboard_api', __name__)
 
 # Add logger
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 # --- MOCK DATA AND ROUTES REMOVED TO AVOID CONFLICT WITH api_blueprint.py ---
 
 @csrf.exempt
-@dashboard_api.route('/coach', methods=['GET', 'POST'])
+@dashboard_api_bp.route('/coach', methods=['GET', 'POST']) # CHANGED to api.route
 # @login_required # Removed to allow testing without login
 def coach_conversation():
     """Handle conversation flow with the AI Coach."""
@@ -126,9 +127,9 @@ Information to gather for the Product Stage:
                 
             ai_response_content = service_manager.openai_service.generate_response(
                 messages=messages_for_api,
-                model=current_app.config.get('OPENAI_DEFAULT_MODEL', 'gpt-4o-mini'), # Or a specific model for coaching
+                model="gpt-4o",  # Upgraded to premium model for high-quality coaching
                 temperature=0.3, # Lowered temperature from 0.7 to 0.3
-                max_tokens=300, # Increased token count slightly for potentially longer enthusiastic responses + summary
+                max_tokens=400, # Increased token count for richer coaching responses
                 current_stage=current_stage # Pass current_stage
             )
 
@@ -214,7 +215,7 @@ Information to gather for the Product Stage:
             return jsonify({'error': 'An internal server error occurred'}), 500 
 
 # Add streaming endpoint
-@dashboard_api.route('/coach/stream', methods=['POST'])
+@dashboard_api_bp.route('/coach/stream', methods=['POST']) # CHANGED to api.route
 # @login_required # Commented out for testing
 def coach_conversation_stream():
     """
@@ -285,3 +286,24 @@ Respond thoughtfully, but conversationally, as if you're talking informally."""
     except Exception as e:
         logger.error(f"Error in coach_conversation_stream: {str(e)}", exc_info=True)
         return jsonify({'error': 'An internal server error occurred'}), 500 
+
+@dashboard_api_bp.route('/data')
+@login_required
+def get_dashboard_data():
+    """
+    Returns essential data for the main dashboard.
+    """
+    # This is a placeholder. Real implementation will fetch data.
+    return jsonify({
+        'user': {
+            'name': current_user.name if hasattr(current_user, 'name') else 'User',
+        },
+        'recent_sessions': [
+            {'id': 1, 'title': 'Practice Pitch - Q4 Report', 'score': 85},
+            {'id': 2, 'title': 'Objection Handling - Pricing', 'score': 92},
+        ],
+        'metrics': {
+            'overall_score': 88,
+            'improvement': 5,
+        }
+    })

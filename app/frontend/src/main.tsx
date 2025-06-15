@@ -2,7 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App' // Assuming App is your root component
 import './index.css'
-import { BrowserRouter, createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { BrowserRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext'; // Import AuthProvider
 import { NavbarHeightProvider } from './context/NavbarHeightContext'; // ADDED
 import { MessageProcessor } from './lib/messageProcessor'; // Import message processor
@@ -10,22 +11,29 @@ import { MessageProcessor } from './lib/messageProcessor'; // Import message pro
 // Initialize global message processor
 console.log('Initializing global message processor...');
 
-// Create router with future flags
-const router = createBrowserRouter(
-  [
-    {
-      path: '*',
-      element: <App />
-    }
-  ]
-);
+// This setup is now handled within App.tsx with <BrowserRouter>
+// const router = createBrowserRouter(
+//   [
+//     {
+//       path: '*',
+//       element: <App />
+//     }
+//   ]
+// );
+
+// Create a client
+const queryClient = new QueryClient();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <AuthProvider> {/* Wrap App with AuthProvider */}
-      <NavbarHeightProvider> {/* ADDED */}
-        <RouterProvider router={router} />
-      </NavbarHeightProvider> {/* ADDED */}
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <NavbarHeightProvider>
+            <App />
+          </NavbarHeightProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   </React.StrictMode>,
 )

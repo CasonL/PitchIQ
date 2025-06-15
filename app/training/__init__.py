@@ -3,7 +3,7 @@
 from flask import Blueprint
 
 # Initialize the blueprint
-training_bp = Blueprint('training', __name__, url_prefix='/training')
+training = Blueprint('training', __name__)
 
 # Import routes to register them
 

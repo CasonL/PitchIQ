@@ -1,0 +1,60 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# AI Collaboration Guidelines for SalesTraining AI
+
+This document is the source of truth for any AI agent or developer working on this project. It outlines the architecture, development workflow, and key configurations.
+
+## 1. Project Overview
+
+- **Backend:** A Python Flask application that serves a REST API and handles all business logic, database interactions, and communication with external AI services.
+- **Frontend:** A React application (using TypeScript and Vite) that provides the user interface.
+
+## 2. Technology Stack
+
+- **Backend:** Python, Flask, SQLAlchemy, Alembic
+- **Frontend:** React, TypeScript, Vite, React Query
+- **Database:** PostgreSQL (via `psycopg2-binary`)
+- **Deployment:** The backend is served using `waitress`.
+
+## 3. Directory Structure
+
+- `app/`: Contains the core Flask application.
+- `app/frontend/`: Contains the entire React frontend application.
+- `app/frontend/vite.config.js`: **Vite config is here.** It's configured to proxy API requests to the Flask backend.
+- `instance/`: Contains instance-specific configurations.
+- `instance/.env`: **The environment file MUST be located here.** It contains all secrets and environment-specific settings.
+- `migrations/`: Contains the Alembic database migration scripts.
+- `run_app.py`: **Use this for DEVELOPMENT.** Starts the Flask development server with auto-reloading and debugging.
+- `run_waitress.py`: **Use this for PRODUCTION.** Starts the application using the production-grade Waitress WSGI server.
+- `requirements.txt`: Python package dependencies.
+
+## 4. Development Workflow
+
+**The development environment requires two separate terminals.**
+
+### Terminal 1: Run the Backend
+
+1.  Navigate to the project root: `C:\Users\cason\OneDrive\salestraining-ai`
+2.  Activate the virtual environment: `.\venv\Scripts\Activate.ps1`
+3.  Start the backend server: `python run_app.py`
+
+### Terminal 2: Run the Frontend
+
+1.  Navigate to the frontend directory: `cd app/frontend`
+2.  Install dependencies (only need to do this once or when packages change): `npm install`
+3.  Start the frontend dev server: `npm run dev`
+
+The frontend will be available at `http://localhost:5173` (or another port if 5173 is busy) and will automatically proxy API calls to the backend running on port 5000.
+
+## 5. Coding Rules & Patterns
+
+- Prefer simple, clear solutions.
+- Avoid code duplication. Check for existing functionality before writing new code.
+- All database models are defined in a single location and managed via SQLAlchemy.
+- All API endpoints should be defined in `app/routes/api/`.
+- All frontend components should be organized logically within `app/frontend/src/components/`.
+- Ensure environment variables from `instance/.env` are used for all sensitive data and configuration. Do not hardcode secrets.
+- Write tests for new functionality. 

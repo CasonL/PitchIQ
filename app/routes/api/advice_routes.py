@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify
 import re # For simple keyword checking
-
-advice_api_blueprint = Blueprint('advice_api', __name__, url_prefix='/api/dashboard')
+from . import api
 
 # Define more detailed (simulated) expectations for achievements
 ACHIEVEMENT_EXPECTATIONS = {
@@ -135,7 +134,7 @@ def check_criteria(text, criteria_keywords):
                 return True
     return False # Return False if fewer than 2 distinct keywords were found
 
-@advice_api_blueprint.route('/get-achievement-advice', methods=['POST'])
+@api.route('/dashboard/get-achievement-advice', methods=['POST'])
 def get_achievement_advice():
     data = request.get_json()
     achievement_id = data.get('achievementId')

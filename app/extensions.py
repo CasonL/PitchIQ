@@ -7,8 +7,39 @@ This module initializes shared Flask extensions to prevent circular imports.
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+# Attempt to import real Flask-Limiter and its components, fallback if any error occurs
+limiter = None
+get_remote_address = None
+limiter_active = False
+
+try:
+    from flask_limiter import Limiter as RealLimiter # Alias to avoid name clash
+    from flask_limiter.util import get_remote_address as real_get_remote_address # Alias
+    
+    # Try to instantiate the real limiter to catch import-time issues within its dependencies
+    # We don't need to keep this instance if it succeeds, 
+    # it's just to trigger any import errors early.
+    # The actual instance used by the app will be created below.
+    _test_limiter = RealLimiter(key_func=real_get_remote_address, storage_uri="memory://")
+
+    # If the above line didn't raise an exception, then it's safe to use the real ones
+    Limiter = RealLimiter
+    get_remote_address = real_get_remote_address
+    limiter_active = True
+    import logging
+    logging.getLogger(__name__).info("Successfully imported and tested Flask-Limiter.")
+
+except Exception as e: # Catch any exception during import or initial test
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.error(
+        f"Failed to import or initialize Flask-Limiter (or its dependencies like 'limits'): {e}. "
+        f"Using fallback limiter. RATE LIMITING WILL BE INACTIVE."
+    )
+    from .limiter_fallback import FallbackLimiter as Limiter # Use alias
+    from .limiter_fallback import get_remote_address # Use alias
+    limiter_active = False # Ensure this is set to false on any error
+
 from authlib.integrations.flask_client import OAuth
 from flask_migrate import Migrate
 from flask_bcrypt import Bcrypt
@@ -56,7 +87,31 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 mail = Mail()
-limiter = Limiter(key_func=get_remote_address)
+
+# Instantiate the Limiter (either real or fallback based on the try-except block)
+# The key_func and storage_uri are only relevant for the real Limiter.
+# FallbackLimiter is designed to accept them but will ignore storage_uri.
+if limiter_active and Limiter and get_remote_address: # Check if real Limiter components are set
+    limiter = Limiter(
+        key_func=get_remote_address,
+        storage_uri="memory://" 
+    )
+elif Limiter and get_remote_address: # Fallback scenario
+    limiter = Limiter(key_func=get_remote_address)
+else:
+    # This case should ideally not be reached if the try-except is structured correctly
+    # but as a last resort, create a totally dummy object if Limiter itself is None
+    import logging
+    logging.getLogger(__name__).critical("Limiter could not be resolved to real or fallback. Rate limiting is definitely off.")
+    class CriticalFallbackLimiter:
+        def __init__(self, *args, **kwargs): pass
+        def init_app(self, app, *args, **kwargs): pass
+        def limit(self, *args, **kwargs):
+            def decorator(func):
+                return func
+            return decorator
+    limiter = CriticalFallbackLimiter()
+
 oauth = OAuth()
 
 # Load configuration from object (assuming Config is defined elsewhere)
@@ -112,6 +167,20 @@ def init_extensions(app):
         # Initialize Flask-Login
         logger.info("Initializing Flask-Login...")
         login_manager.init_app(app)
+        
+        # When an unauthorized user tries to access a @login_required route,
+        # Flask-Login normally redirects to the login page (login_view).
+        # For API calls, we want to return a 401 Unauthorized status instead of a redirect.
+        @login_manager.unauthorized_handler
+        def unauthorized():
+            # Check if the request path is for an API endpoint. This is more reliable
+            # than checking the blueprint name.
+            if request.path.startswith('/api/'):
+                # For API calls, return a JSON response with a 401 status code
+                return jsonify(error="Authentication is required. Please log in."), 401
+            # For non-API calls, perform the default redirect to the login page
+            return redirect(url_for('auth.login'))
+            
         login_manager.login_view = 'auth.login'
         login_manager.login_message = 'Please log in to access this page.'
         login_manager.login_message_category = 'info'

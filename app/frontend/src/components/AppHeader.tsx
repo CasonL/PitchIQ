@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Button } from '@/components/ui/button';
 import { User, Settings, LogOut, ChevronDown, Edit2 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useAuthContext } from "@/context/AuthContext";
 import type { SalesMethodology } from "@/pages/Dashboard";
 
 // Define props for AppHeader
@@ -12,7 +13,16 @@ interface AppHeaderProps {
 
 // Dropdown menu component
 const UserDropdown = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const { logout } = useAuthContext();
+  
   if (!isOpen) return null;
+  
+  const handleLogout = () => {
+    console.log('🖱️ Logout button clicked');
+    onClose();
+    console.log('🚪 Calling logout function from AuthContext');
+    logout();
+  };
   
   return (
     <div className="absolute right-0 mt-2 w-48 bg-white border rounded-md shadow-lg py-1 z-50">
@@ -33,14 +43,13 @@ const UserDropdown = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
         Settings
       </Link>
       <hr className="my-1" />
-      <Link 
-        to="/logout" 
-        className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center"
-        onClick={onClose}
+      <button 
+        onClick={handleLogout}
+        className="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center"
       >
         <LogOut size={16} className="mr-2" />
         Logout
-      </Link>
+      </button>
     </div>
   );
 };
@@ -48,6 +57,8 @@ const UserDropdown = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
 const AppHeader: React.FC<AppHeaderProps> = ({ currentUserMethodology, onMethodologyClick }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const location = useLocation();
+  
+  console.log('🏗️ AppHeader component rendered - logout functionality should be available');
   
   // Determine which page is active
   const isDashboard = location.pathname.includes('dashboard');
@@ -96,7 +107,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({ currentUserMethodology, onMethodo
           <div className="relative">
             <button 
               className="flex items-center gap-2 text-gray-700 hover:text-gray-900"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              onClick={() => {
+                console.log('🖱️ User dropdown button clicked, opening:', !isDropdownOpen);
+                setIsDropdownOpen(!isDropdownOpen);
+              }}
             >
               <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
                 <User size={18} />

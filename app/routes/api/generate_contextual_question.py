@@ -5,18 +5,17 @@ import openai
 from app.utils.auth import require_auth
 from app.utils.logger import get_logger
 
+generate_contextual_question_bp = Blueprint('generate_contextual_question', __name__)
+
 # Get logger
 logger = get_logger(__name__)
-
-# Initialize blueprint
-generate_contextual_question_blueprint = Blueprint('generate_contextual_question', __name__)
 
 # Environment setup
 openai.api_key = os.environ.get('OPENAI_API_KEY')
 
-@generate_contextual_question_blueprint.route('/api/generate-contextual-question', methods=['POST'])
+@generate_contextual_question_bp.route('/generate-contextual-question', methods=['POST'])
 @require_auth
-def generate_contextual_question():
+def generate_contextual_question_route():
     """
     API endpoint to generate contextual questions based on previous conversation
     """
@@ -77,7 +76,7 @@ def generate_contextual_question():
         return jsonify({"error": str(e)}), 500
 
 
-@generate_contextual_question_blueprint.route('/api/generate-followup-question', methods=['POST'])
+@generate_contextual_question_bp.route('/generate-followup-question', methods=['POST'])
 @require_auth
 def generate_followup_question():
     """

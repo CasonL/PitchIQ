@@ -8,7 +8,6 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 import json
-from flask import current_app
 
 # Import the db instance from extensions.py
 from app.extensions import db
@@ -62,6 +61,7 @@ class User(db.Model, UserMixin):
             
             # Log the result
             try:
+                from flask import current_app
                 current_app.logger.info(f"Password check result for {self.id}: {result}")
             except (ImportError, RuntimeError):
                 print(f"Password check result for {self.id}: {result}", flush=True)
@@ -192,6 +192,15 @@ class UserProfile(db.Model):
     initial_setup_complete = db.Column(db.Boolean, default=False, nullable=False)
     onboarding_step = db.Column(db.String(50), default='product')  # Might repurpose or remove later
     onboarding_step_new = db.Column(db.Integer, default=0)
+
+    # Personalization Form Data
+    coach_persona = db.Column(db.Text, nullable=True) # AI-generated summary
+    p_product = db.Column(db.Text, nullable=True)
+    p_value_prop = db.Column(db.Text, nullable=True)
+    p_audience = db.Column(db.Text, nullable=True)
+    p_sales_context = db.Column(db.Text, nullable=True)
+    p_sales_methodology = db.Column(db.Text, nullable=True)
+    p_improvement_goal = db.Column(db.Text, nullable=True)
 
     # Sales context
     product_service = db.Column(db.Text, nullable=True)

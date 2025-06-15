@@ -306,7 +306,7 @@ class OpenAIService:
             
             # Extract and return the generated text
             if response.choices and len(response.choices) > 0:
-                result = response.choices[0].message['content']
+                result = response.choices[0].message.content
                 return result
             else:
                 error_msg = "No choices returned from OpenAI API"
@@ -635,6 +635,31 @@ class OpenAIService:
         except Exception as e:
             logger.error(f"Unexpected error during embedding creation: {str(e)}", exc_info=True)
             return None
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    def get_completion(self, prompt: str, system_prompt: str = None, 
+                      temperature: float = 0.7, max_tokens: int = 500, model: str = None) -> Optional[str]:
+        """
+        Simple completion method for single prompt requests.
+        
+        Args:
+            prompt: The user prompt
+            system_prompt: Optional system prompt
+            temperature: Temperature parameter for controlling randomness
+            max_tokens: Maximum tokens to generate
+            model: Optional override for the default model
+            
+        Returns:
+            String containing the generated text or None if failed
+        """
+        messages = [{"role": "user", "content": prompt}]
+        return self.generate_response(
+            messages=messages,
+            system_prompt=system_prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            model=model
+        )
 
 # --- Global Instance --- 
 # Create an instance but don't initialize fully here.

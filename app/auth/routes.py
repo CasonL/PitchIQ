@@ -1,4 +1,4 @@
-# print("DEBUG: app.auth.routes - VERY TOP OF FILE PARSING", flush=True) # NEW DEBUG PRINT
+import sys # Add this import
 """
 Authentication routes for the Sales Training AI application.
 
@@ -17,19 +17,22 @@ import logging
 import traceback
 from authlib.integrations.flask_client import OAuth
 from flask_wtf.csrf import generate_csrf
-# from app.extensions import csrf # COMPLETELY COMMENTED OUT FOR NOW
+from app.extensions import csrf
 
 # Import db from extensions
 from app.extensions import db, oauth
 from app.models import User, Conversation, Message, Feedback, UserProfile, PerformanceMetrics, FeedbackAnalysis
-from app.auth.security import validate_password, check_rate_limit, record_failed_login, record_successful_login, csrf_required, rate_limit, check_login_attempts
-from app.services.email_service import send_password_reset_email
+from app.auth.security import validate_password, check_rate_limit, record_failed_login, record_successful_login, rate_limit, check_login_attempts
+from app.services.email_service import send_password_reset_email, send_verification_email
 from app.auth.forms import LoginForm, RegistrationForm, ResetPasswordRequestForm, ResetPasswordForm
 from app.utils.security_utils import is_safe_url
 
+# Import the existing blueprint instance from the __init__.py file
+from . import auth
+
 # print("DEBUG: app.auth.routes - BEFORE BLUEPRINT DEFINITION", flush=True) # NEW DEBUG PRINT
 # Create blueprint
-auth = Blueprint('auth', __name__, url_prefix='/auth')
+# auth = Blueprint('auth', __name__, url_prefix='/auth') # This is redundant and incorrect
 # print("DEBUG: app.auth.routes - 'auth' blueprint DEFINED", flush=True) # DEBUG PRINT
 
 # We'll initialize Google in the record_params function
@@ -60,204 +63,29 @@ def record_params(setup_state):
         client_kwargs={'scope': 'openid email profile'},
     )
 
-@auth.route('/login')
+@auth.route('/login', methods=['GET'])
 def login():
-    """Login page."""
-    try:
-        # Redirect if already logged in
-        if current_user.is_authenticated:
-            return redirect('/training/dashboard')
-        
-        # Check for next parameter
-        next_url = request.args.get('next')
-        if next_url:
-            session['next_url'] = next_url
-        
-        # Standard template rendering with error handling
-        return render_template('auth/login.html')
-    except Exception as e:
-        print(f"Error in login route: {str(e)}", flush=True)
-        import traceback
-        print(traceback.format_exc(), flush=True)
-        return f"Error loading login page: {str(e)}"
+    """Serve the main React application, which handles the login form."""
+    # If a user is already authenticated, redirect them to the dashboard.
+    if current_user.is_authenticated:
+        # Assuming you have a main blueprint with a catch-all for React routes
+        return redirect(url_for('main.index'))
 
-@auth.route('/login', methods=['POST'])
-@csrf_required
-@rate_limit(limit=10, window=60)  # 10 login attempts per minute
-def login_post():
-    """Handle login form submission."""
-    print("!!! login_post FUNCTION ENTERED !!!", flush=True) # Add explicit print
-    
-    # Debug incoming request
-    print(f"Request content type: {request.content_type}", flush=True)
-    print(f"Request method: {request.method}", flush=True)
-    print(f"Request is JSON: {request.is_json}", flush=True)
-    
-    try:
-        # Get form data
-        if request.is_json:
-            try:
-                data = request.get_json()
-                print(f"JSON data received: {data.keys() if data else 'None'}", flush=True)
-                email = data.get('email')
-                password = data.get('password') # Get raw password
-                remember = data.get('remember', False)
-            except Exception as json_error:
-                print(f"Error parsing JSON: {str(json_error)}", flush=True)
-                current_app.logger.error(f"Error parsing JSON request data: {str(json_error)}")
-                return jsonify({'error': 'Invalid JSON data'}), 400
-        else:
-            try:
-                print(f"Form data received: {request.form.keys()}", flush=True)
-                email = request.form.get('email')
-                password = request.form.get('password') # Get raw password
-                remember = request.form.get('remember') == 'on'
-            except Exception as form_error:
-                print(f"Error parsing form data: {str(form_error)}", flush=True)
-                current_app.logger.error(f"Error parsing form data: {str(form_error)}")
-                return jsonify({'error': 'Invalid form data'}), 400
-        
-        # Make sure email is a string before manipulating it
-        if email is None:
-            return jsonify({'error': 'Email is required'}), 400
-        
-        # Convert email to lowercase to ensure case-insensitive matching
-        email = email.strip().lower()
-            
-        # Trim whitespace from password just in case
-        password = password.strip() if password else None
-        
-        # Input validation
-        if not email or not password:
-            return jsonify({'error': 'Please provide both email and password'}), 400
-        
-        # Check if account is locked
-        is_allowed, lockout_time = check_login_attempts(email) # Uses email key
-        if not is_allowed:
-            return jsonify({
-                'error': f'Too many login attempts. Try again in {lockout_time} seconds.'
-            }), 429
-        
-        # Get user with explicit session handling
-        from sqlalchemy.sql import text
-        try:
-            # Find user with explicit query
-            user = db.session.execute(
-                text("SELECT * FROM user WHERE email = :email"),
-                {"email": email}
-            ).first()
-            
-            # Convert to User object if found
-            if user:
-                user = User.query.get(user[0])  # user[0] is the ID from the raw query
-                current_app.logger.info(f"Found user: {user.email}")
-            else:
-                current_app.logger.info(f"User not found for email: {email}")
-                # Record failed login
-                is_locked, lockout_time = record_failed_login(email) # Uses email key
-                if is_locked:
-                    return jsonify({
-                        'error': f'Account locked due to too many failed attempts. Try again in {lockout_time} seconds.'
-                    }), 429
-                return jsonify({'error': 'Invalid email or password. Please try again.'}), 401
-                
-        except Exception as db_error:
-            current_app.logger.error(f"Database error looking up user: {str(db_error)}")
-            return jsonify({'error': 'A system error occurred during login. Please try again.'}), 500
-        
-        # Check password with explicit error handling
-        try:
-            # --- DEBUGGING PASSWORD CHECK --- 
-            password_check_result = user.check_password(password)
-            current_app.logger.info(f"Password check result for {user.email}: {password_check_result}")
-            # --- END DEBUGGING --- 
-            
-            if not password_check_result:
-                # Record failed login
-                is_locked, lockout_time = record_failed_login(email) # Uses email key
-                if is_locked:
-                    return jsonify({
-                        'error': f'Account locked due to too many failed attempts. Try again in {lockout_time} seconds.'
-                    }), 429
-                return jsonify({'error': 'Invalid email or password. Please try again.'}), 401
-            
-            # Explicitly commit session here BEFORE login_user, just in case
-            try:
-                db.session.commit()
-                current_app.logger.info("DB session committed before login_user.")
-            except Exception as commit_error:
-                db.session.rollback()
-                current_app.logger.error(f"Error committing DB session before login_user: {commit_error}")
-                # Decide if this should prevent login - probably yes
-                return jsonify({'error': 'A system error occurred during login. Please try again.'}), 500
-
-        except Exception as pw_error:
-            current_app.logger.error(f"Password check error: {str(pw_error)}")
-            return jsonify({'error': 'A system error occurred during login. Please try again.'}), 500
-        
-        # Record successful login
-        try:
-            record_successful_login(email)
-        except Exception as record_error:
-            # Log but don't abort login if just the record fails
-            current_app.logger.error(f"Error recording successful login: {str(record_error)}")
-        
-        # Log user in
-        try:
-            login_user(user, remember=remember)
-        except Exception as login_error:
-            current_app.logger.error(f"Error in login_user: {str(login_error)}")
-            return jsonify({'error': 'A system error occurred during login. Please try again.'}), 500
-        
-        # Get redirect URL - FIX REDIRECT URL ISSUES
-        try:
-            next_url = session.pop('next_url', None)
-            # Use fallback route instead of blueprint route that doesn't exist
-            if not next_url:
-                # Instead of url_for('training.show_dashboard') which doesn't exist
-                next_url = '/training/dashboard'  # Use direct URL path
-
-            # Check if user profile exists and has required fields
-            if not hasattr(user, 'profile') or not user.profile:
-                # Redirect to onboarding instead if profile doesn't exist
-                next_url = '/training/onboarding'  # Use direct URL path
-                current_app.logger.warning(f"User {user.id} logged in but has no profile, redirecting to onboarding")
-            else:
-                # Verify that we can access profile data safely
-                profile_id = user.profile.id
-                current_app.logger.info(f"User {user.id} logged in with profile {profile_id}")
-        except Exception as profile_error:
-            current_app.logger.error(f"Error checking user profile after login: {str(profile_error)}")
-            # Redirect to a safe fallback if there's an error
-            next_url = '/'  # Fallback to home page
-        
-        return jsonify({
-            'status': 'success',
-            'redirect': next_url
-        })
-        
-    except Exception as e:
-        # Log any unhandled exceptions
-        current_app.logger.error(f"Unhandled exception in login_post: {str(e)}", exc_info=True)
-        # Close and roll back the session to prevent locking issues
-        try:
-            db.session.rollback()
-        except:
-            pass
-        return jsonify({'error': 'An unexpected error occurred. Please try again.'}), 500
+    # For any unauthenticated GET request to /login, just serve the React app.
+    # React Router will see the '/login' path and render the correct component.
+    return current_app.send_static_file('index.html')
 
 @auth.route('/signup')
 def signup():
     """Signup page."""
     # Redirect if already logged in
     if current_user.is_authenticated:
-        return redirect(url_for('training.show_dashboard'))
+        return redirect(url_for('training.show_dashboard')) # This redirect should eventually go to the React dashboard route
     
-    return render_template('auth/signup.html')
+    # return render_template('auth/signup.html')
+    return jsonify({'message': 'Signup page is now handled by the frontend application. Use POST to /auth/register to sign up.'}), 405 # Method Not Allowed for GET
 
 @auth.route('/register', methods=['GET', 'POST'])
-# @csrf_required # Temporarily disable CSRF for debugging
-@csrf_required # Re-enabled CSRF
 @rate_limit(limit=10, window=3600)  # 10 requests per hour
 def register():
     """Handle user registration."""
@@ -268,10 +96,14 @@ def register():
     print(f"Request Form Data: {request.form.to_dict()}", flush=True)
     print(f"Request JSON Data: {request.get_json(silent=True)}", flush=True)
     # --- END DEBUGGING ---
-    
+
     if request.method == 'GET':
-        # Add now variable for base template footer
-        return render_template('auth/signup.html', now=datetime.utcnow())
+        # Add now variable for base template footer - REMOVED
+        # return render_template('auth/signup.html', now=datetime.utcnow())
+        # Redirect if already logged in (moved from signup() for consistency if /register is hit directly)
+        if current_user.is_authenticated:
+            return redirect(url_for('training.show_dashboard')) # This redirect should eventually go to the React dashboard route
+        return jsonify({'message': 'Signup page is now handled by the frontend application. Use POST to register.'}), 405 # Method Not Allowed for GET
     
     # Handle both JSON and form data
     if request.is_json:
@@ -288,118 +120,128 @@ def register():
     
     # Validate input
     if not name or not email or not password:
-        if request.is_json:
-            return jsonify({'error': 'All fields are required'}), 400
-        flash('All fields are required', 'error')
-        return render_template('auth/signup.html')
+        # Always return JSON for API calls
+        return jsonify({'error': 'All fields are required'}), 400
     
     if password != confirm_password:
-        if request.is_json:
-            return jsonify({'error': 'Passwords do not match'}), 400
-        flash('Passwords do not match', 'error')
-        return render_template('auth/signup.html')
+        # Always return JSON for API calls
+        return jsonify({'error': 'Passwords do not match'}), 400
     
     # Validate password strength
     is_valid, error_message = validate_password(password)
     if not is_valid:
         print(f"Password validation failed: {error_message}", flush=True) # DEBUG
-        if request.is_json:
-            return jsonify({'error': error_message}), 400
-        flash(error_message, 'error')
-        return render_template('auth/signup.html')
+        # Always return JSON for API calls
+        return jsonify({'error': error_message}), 400
     
     # Check if email already exists
     user_exists = User.query.filter_by(email=email).first()
     if user_exists:
-        if request.is_json:
-            return jsonify({'error': 'Email already registered'}), 400
-        flash('Email already registered', 'error')
-        return render_template('auth/signup.html')
+        # Always return JSON for API calls
+        return jsonify({'error': 'Email already registered'}), 400
         
     # --- Add Try/Except block around user/profile creation ---
     try:
         # Create new user
-        user = User(name=name, email=email)
-        user.set_password(password)
+        new_user = User(name=name, email=email)
+        new_user.set_password(password)
         
-        # Initialize skills and profile data
-        user.skills_dict = {
-            'rapport_building': 70,
-            'needs_discovery': 65,
-            'objection_handling': 60,
-            'closing': 55,
-            'product_knowledge': 75,
-            'overall': 65
-        }
+        # Generate email verification token
+        new_user.email_verification_token = secrets.token_urlsafe(32)
+        new_user.email_verification_token_expires = datetime.utcnow() + timedelta(hours=24)
         
-        db.session.add(user)
-        # Commit the user first to get the user.id for the profile
-        # This might still hit the race condition, but the except block will catch it
-        db.session.flush() # Assigns user.id without full commit yet 
-        
+        db.session.add(new_user)
+        db.session.flush() # Flush to get the new_user.id
+
         # Create user profile with reasonable defaults
         profile = UserProfile(
-            user_id=user.id, # Use the flushed ID
+            user_id=new_user.id,
             emotional_intelligence_score=7.5,
             experience_level='intermediate',
             product_type='Software',
             target_market='B2B',
-            onboarding_complete=False, 
+            onboarding_complete=False,
+            initial_setup_complete=False, # Ensure new users must personalize
             onboarding_step='experience',
             total_roleplays=0,
-            total_feedback_received=0
+            total_feedback_received=0,
+            objection_handling_scores=json.dumps({
+                "price": 7.0, "competition": 6.5, "need": 7.5, "timing": 6.0
+            })
         )
-        
-        # Set default JSON fields
-        profile.objection_handling_scores = json.dumps({
-            "price": 7.0,
-            "competition": 6.5,
-            "need": 7.5,
-            "timing": 6.0
-        })
-        
         db.session.add(profile)
         
         # Final commit for both user and profile
         db.session.commit()
+
+        # Send verification email
+        try:
+            # Construct verification URL (points to frontend)
+            # TODO: Use a configured frontend base URL instead of request.host_url if they differ significantly
+            # or if Flask is not aware of the final public-facing frontend URL (e.g. behind a proxy)
+            frontend_base_url = current_app.config.get('FRONTEND_BASE_URL', request.host_url.rstrip('/'))
+            verification_url = f"{frontend_base_url}/verify-email/{new_user.email_verification_token}"
+            send_verification_email(new_user.email, verification_url)
+            current_app.logger.info(f"Verification email sent to {new_user.email} with URL: {verification_url}")
+        except Exception as e_email:
+            current_app.logger.error(f"Failed to send verification email to {new_user.email}: {e_email}")
+            # Decide if registration should fail if email sending fails. 
+            # For now, we'll let it proceed but log the error.
         
-        # Log in the new user
-        login_user(user)
+        # Log in the new user (they are active but not verified yet)
+        login_user(new_user)
         
-        # Return success response
-        if request.is_json:
-            return jsonify({
-                'status': 'success',
-                'redirect': url_for('training.show_onboarding_page')
-            })
-        flash('Registration successful!', 'success')
-        return redirect(url_for('training.show_onboarding_page'))
+        # Make session permanent so it respects PERMANENT_SESSION_LIFETIME
+        session.permanent = True
+        
+        # Prepare user data for the response, including verification status
+        user_data_for_response = {
+            'id': new_user.id,
+            'name': new_user.name,
+            'email': new_user.email,
+            'role': new_user.role,
+            'onboardingComplete': profile.onboarding_complete,
+            'onboarding_complete': profile.onboarding_complete,
+            'subscription_tier': profile.subscription_tier,
+            'is_premium': profile.is_premium(),
+            'can_use_roleplays': profile.can_use_roleplays(),
+            'email_verified': new_user.is_email_verified,
+        }
+        
+        # Success response - NEW: Include redirect info based on plan
+        redirect_url = '/chat' if not profile.is_premium() else '/personalization'
+        
+        response_data = {
+            'message': 'Registration successful',
+            'user': user_data_for_response,
+            'redirect': redirect_url,
+            'plan_type': 'free' if not profile.is_premium() else 'premium'
+        }
+        
+        record_successful_login(new_user)
+        current_app.logger.info(f"New user registered successfully: {new_user.email} (ID: {new_user.id})")
+        
+        return jsonify(response_data), 201
         
     except IntegrityError as e: # Catch potential unique constraint violation
         db.session.rollback() # Rollback the failed transaction
         current_app.logger.warning(f"IntegrityError during registration for email {email}: {e}")
-        # Return the 'Email already registered' error, as that's the likely cause
-        if request.is_json:
-            return jsonify({'error': 'Email already registered'}), 400
-        flash('Email already registered', 'error')
-        return render_template('auth/signup.html')
+        # Always return JSON for API calls
+        return jsonify({'error': 'Email already registered'}), 400
         
     except Exception as e: # Catch any other unexpected errors
         db.session.rollback()
         current_app.logger.error(f"Unexpected error during registration for {email}: {e}", exc_info=True)
-        if request.is_json:
-            return jsonify({'error': 'An unexpected error occurred during registration.'}), 500
-        flash('An unexpected error occurred. Please try again.', 'danger')
-        return render_template('auth/signup.html')
+        # Always return JSON for API calls
+        return jsonify({'error': 'An unexpected error occurred during registration.'}), 500
 
-@auth.route('/logout', methods=['GET', 'POST'])
+@auth.route('/logout')
 @login_required
 def logout():
-    """Log out the current user."""
+    """Logout the current user."""
     logout_user()
-    flash('You have been logged out successfully', 'info')
-    # Redirect to the React frontend homepage instead of 'index'
-    return redirect('http://localhost:8080/')
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('auth.login'))
 
 @auth.route('/settings', methods=['GET'])
 @login_required
@@ -413,7 +255,6 @@ def settings():
 
 @auth.route('/settings/account-info', methods=['POST'])
 @login_required
-@csrf_required
 def update_account_info():
     """Handle updates to basic account information like name."""
     try:
@@ -436,7 +277,6 @@ def update_account_info():
 
 @auth.route('/settings/change-password', methods=['POST'])
 @login_required
-@csrf_required
 def change_password():
     """Handle password change requests."""
     try:
@@ -476,7 +316,6 @@ def change_password():
 
 @auth.route('/settings/preferences', methods=['POST'])
 @login_required
-@csrf_required
 def update_preferences():
     """Handle updates to user training preferences."""
     try:
@@ -523,8 +362,6 @@ def update_preferences():
 def reset_onboarding():
     """Reset onboarding status to allow users to go through onboarding process again."""
     try:
-        # from models import UserProfile # Already imported UserProfile at the top of the file
-        
         # Get user profile or create if not exists
         profile = UserProfile.query.filter_by(user_id=current_user.id).first()
         
@@ -555,7 +392,6 @@ def upgrade_account():
 
 @auth.route('/settings/subscription', methods=['POST'])
 @login_required
-@csrf_required
 def update_subscription():
     """Handle updates to subscription tier (admin or development use only)."""
     if os.environ.get('FLASK_ENV') != 'production' or current_user.role == 'admin':
@@ -564,7 +400,12 @@ def update_subscription():
             if tier in ['free', 'premium', 'enterprise']:
                 profile = current_user.profile
                 if profile:
-                    profile.subscription_tier = tier
+                    if tier == 'premium':
+                        profile.upgrade_to_premium()
+                    elif tier == 'free':
+                        profile.downgrade_to_free()
+                    else:
+                        profile.subscription_tier = tier
                     db.session.commit()
                     flash(f'Subscription updated to {tier} tier successfully.', 'success')
                     logger.info(f"User {current_user.id} subscription updated to {tier}")
@@ -581,9 +422,80 @@ def update_subscription():
     
     return redirect(url_for('auth.settings'))
 
+@auth.route('/api/subscription/status', methods=['GET'])
+@login_required
+def get_subscription_status():
+    """Get current user's subscription status and usage."""
+    try:
+        profile = current_user.profile
+        if not profile:
+            return jsonify({'error': 'User profile not found'}), 404
+        
+        usage_stats = profile.get_usage_stats()
+        return jsonify({
+            'success': True,
+            'subscription': usage_stats
+        })
+    except Exception as e:
+        logger.error(f"Error getting subscription status for user {current_user.id}: {e}")
+        return jsonify({'error': 'Failed to get subscription status'}), 500
+
+@auth.route('/api/subscription/upgrade', methods=['POST'])
+@login_required
+def upgrade_subscription():
+    """Upgrade user to premium (for now, just simulate - later add payment processing)."""
+    try:
+        profile = current_user.profile
+        if not profile:
+            return jsonify({'error': 'User profile not found'}), 404
+        
+        if profile.is_premium():
+            return jsonify({'error': 'User is already premium'}), 400
+        
+        # For now, just upgrade without payment processing
+        # Later: Add Stripe/payment integration here
+        profile.upgrade_to_premium()
+        db.session.commit()
+        
+        logger.info(f"User {current_user.id} upgraded to premium")
+        return jsonify({
+            'success': True,
+            'message': 'Successfully upgraded to premium!',
+            'subscription': profile.get_usage_stats()
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error upgrading user {current_user.id} to premium: {e}")
+        return jsonify({'error': 'Failed to upgrade subscription'}), 500
+
+@auth.route('/api/subscription/downgrade', methods=['POST'])
+@login_required
+def downgrade_subscription():
+    """Downgrade user to free plan."""
+    try:
+        profile = current_user.profile
+        if not profile:
+            return jsonify({'error': 'User profile not found'}), 404
+        
+        if not profile.is_premium():
+            return jsonify({'error': 'User is not premium'}), 400
+        
+        profile.downgrade_to_free()
+        db.session.commit()
+        
+        logger.info(f"User {current_user.id} downgraded to free")
+        return jsonify({
+            'success': True,
+            'message': 'Successfully downgraded to free plan',
+            'subscription': profile.get_usage_stats()
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error downgrading user {current_user.id} to free: {e}")
+        return jsonify({'error': 'Failed to downgrade subscription'}), 500
+
 @auth.route('/delete-account', methods=['POST'])
 @login_required
-@csrf_required
 def delete_account():
     """Handle account deletion."""
     try:
@@ -605,8 +517,7 @@ def delete_account():
         
         # --- Start transaction ---
         
-        # Delete related data (ensure models are imported or use strings)
-        from models import Conversation, Message, Feedback, UserProfile, PerformanceMetrics, FeedbackAnalysis
+        # Delete related data (models are already imported at the top of the file)
 
         # Bulk delete related items efficiently
         Message.query.filter(Message.conversation_id.in_(
@@ -695,6 +606,9 @@ def google_callback():
         # Log in user
         login_user(user)
         
+        # Make session permanent so it respects PERMANENT_SESSION_LIFETIME
+        session.permanent = True
+        
         # Redirect to next_url or dashboard
         next_url = session.pop('next_url', None) or url_for('training.show_dashboard')
         return redirect(next_url)
@@ -705,17 +619,16 @@ def google_callback():
     
 @auth.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
-    """
-    Handle forgotten password requests with enhanced logging and security
-    """
+    """Handle forgotten password requests with enhanced logging and security"""
     # Log request details for debugging
-    current_app.logger.info(f"Forgot password request received")
-    current_app.logger.info(f"Request method: {request.method}")
-    current_app.logger.info(f"Request content type: {request.content_type}")
+    current_app.logger.info(f"Forgot password request received for {request.method} to /forgot-password")
+    # current_app.logger.info(f"Request method: {request.method}") # Redundant
+    # current_app.logger.info(f"Request content type: {request.content_type}") # More relevant for POST
 
-    # GET request - just render the form
+    # GET request - now handled by frontend
     if request.method == 'GET':
-        return render_template('auth/forgot_password.html')
+        # return render_template('auth/forgot_password.html')
+        return jsonify({'message': 'Forgot password process is handled by the frontend application. Use POST to submit an email.'}), 405
 
     # POST request - process the form submission
     try:
@@ -784,36 +697,41 @@ def forgot_password():
 
 @auth.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
-    """
-    Handle password reset with enhanced security and logging
-    """
-    current_app.logger.info(f"Reset password request received for token: {token}")
+    """Handle password reset with enhanced security and logging"""
+    current_app.logger.info(f"Reset password request received for token: {token} (Method: {request.method})")
 
     try:
         # Find user with valid reset token
         user = User.query.filter_by(reset_token=token).first()
         
-        # Validate token
-        if not user or not user.reset_token_expires:
+        # Validate token and its expiration
+        if not user or not user.reset_token_expires or user.reset_token_expires < datetime.utcnow(): # Added explicit expiration check
             current_app.logger.warning(f"Invalid or expired reset token attempted: {token}")
             
-            # For POST requests, return JSON
             if request.method == 'POST':
                 return jsonify({
                     'status': 'error',
                     'message': 'The password reset link is invalid or has expired.'
                 }), 400
             
-            # For GET requests, use flash and redirect
-            flash('The password reset link is invalid or has expired.', 'error')
-            return redirect(url_for('auth.login'))
+            # For GET requests, React will handle the /reset-password/:token route
+            # The frontend will likely make a POST to validate the token and show the form, or handle an invalid token
+            return jsonify({
+                'status': 'error',
+                'message': 'The password reset link is invalid or has expired. Please request a new one if needed.',
+                'action': 'redirect_to_forgot_password' # Hint for frontend
+            }), 400 
         
-        # GET request: show reset password form
+        # GET request: Frontend handles UI. Backend confirms token validity if hit via GET (though POST is more common for validation by frontend).
         if request.method == 'GET':
-            current_app.logger.info(f"Rendering reset password form for user: {user.email}")
-            return render_template('auth/reset_password.html', token=token)
+            current_app.logger.info(f"GET request for valid reset token for user: {user.email}. Frontend will handle UI.")
+            return jsonify({
+                'status': 'success',
+                'message': 'Token is valid. Frontend should display reset password form.',
+                'token': token # Optionally confirm the token back to frontend
+            })
         
-        # POST request: process password reset
+        # POST request: process password reset (this logic remains largely the same)
         if request.method == 'POST':
             # Handle both JSON and form data
             if request.is_json:
@@ -884,8 +802,83 @@ def reset_password(token):
             'message': 'An unexpected error occurred. Please contact support.'
         }), 500
 
+@auth.route('/verify-email/<token>', methods=['GET'])
+def verify_email(token):
+    """Handle email verification from the link sent to the user."""
+    current_app.logger.info(f"Attempting to verify email with token: {token}")
+    user = User.query.filter_by(email_verification_token=token).first()
+
+    if not user:
+        current_app.logger.warning(f"Email verification failed: Token not found - {token}")
+        return jsonify({'status': 'error', 'message': 'Invalid or expired verification link.'}), 400
+
+    if user.is_email_verified:
+        current_app.logger.info(f"Email already verified for user: {user.email}")
+        return jsonify({'status': 'success', 'message': 'Email already verified. You can login.'}), 200
+
+    if user.email_verification_token_expires < datetime.utcnow():
+        current_app.logger.warning(f"Email verification failed: Token expired for user {user.email} - token {token}")
+        # Frontend should ideally guide user to request a new token
+        return jsonify({
+            'status': 'error',
+            'message': 'Verification link has expired. Please request a new one.',
+            'action': 'resend_verification' # Hint for frontend
+        }), 400
+
+    try:
+        user.is_email_verified = True
+        user.email_verification_token = None
+        user.email_verification_token_expires = None
+        db.session.commit()
+        current_app.logger.info(f"Email successfully verified for user: {user.email}")
+        # It's generally better to return JSON and let frontend redirect or display message.
+        # If user might not be logged in, frontend handles login flow after this.
+        return jsonify({
+            'status': 'success', 
+            'message': 'Email successfully verified. You can now login or continue.'
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error during email verification for user {user.email}: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': 'An unexpected error occurred during verification.'}), 500
+
+@auth.route('/resend-verification-email', methods=['POST'])
+@login_required # User must be logged in to resend verification for their own account
+def resend_verification_email_route(): # Renamed to avoid conflict with service function
+    """Resend the email verification link to the currently logged-in user."""
+    user = current_user
+    current_app.logger.info(f"Resend verification email request for user: {user.email}")
+
+    if user.is_email_verified:
+        current_app.logger.info(f"User {user.email} requested resend, but email is already verified.")
+        return jsonify({'status': 'info', 'message': 'Your email is already verified.'}), 200 # Or 400 if considered a bad request
+
+    # Generate a new token and expiration
+    user.email_verification_token = secrets.token_urlsafe(32)
+    user.email_verification_token_expires = datetime.utcnow() + timedelta(hours=24)
+    
+    try:
+        db.session.commit() # Save new token first
+
+        # Construct verification URL (points to frontend)
+        frontend_base_url = current_app.config.get('FRONTEND_BASE_URL', request.host_url.rstrip('/'))
+        verification_url = f"{frontend_base_url}/verify-email/{user.email_verification_token}"
+        
+        email_sent = send_verification_email(user.email, verification_url)
+        if email_sent:
+            current_app.logger.info(f"New verification email sent successfully to {user.email}")
+            return jsonify({'status': 'success', 'message': 'A new verification email has been sent to your address.'}), 200
+        else:
+            current_app.logger.error(f"Failed to resend verification email to {user.email} (email_service returned false)")
+            # Don't rollback token changes, user can try again or contact support
+            return jsonify({'status': 'error', 'message': 'Failed to send verification email. Please try again shortly.'}), 500
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error during resend verification email for {user.email}: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': 'An unexpected error occurred.'}), 500
+
 @auth.route('/check-account-status', methods=['POST'])
-@csrf_required
 def check_account_status():
     """Check if an account is locked and when it will be unlocked."""
     if request.is_json:
@@ -939,27 +932,78 @@ def auth_status():
         user_data = {
             'id': current_user.id,
             'email': current_user.email,
-            'username': current_user.username,
-            'profile': {
-                'name': current_user.profile.name if hasattr(current_user, 'profile') and current_user.profile else None,
-                'preferred_name': current_user.profile.preferred_name if hasattr(current_user, 'profile') and current_user.profile else None,
-                'experience_level': current_user.profile.experience_level if hasattr(current_user, 'profile') and current_user.profile else None,
-            }
+            'name': current_user.name,
+            'profile': {}
+        }
+        if hasattr(current_user, 'profile') and current_user.profile:
+            user_data['profile'] = {
+                'experience_level': current_user.profile.experience_level,
+                'initial_setup_complete': current_user.profile.initial_setup_complete
         }
         return jsonify({'authenticated': True, 'user': user_data}), 200
     else:
         return jsonify({'authenticated': False}), 200
 
-# print("DEBUG: app.auth.routes - IMMEDIATELY BEFORE get_csrf_token definition", flush=True) # DEBUG PRINT
-
-# from app.extensions import csrf # COMPLETELY COMMENTED OUT FOR NOW (This was its state)
-
 @auth.route('/api/csrf-token', methods=['GET'])
-# @csrf.exempt # Will cause error, but that's okay for this test (This was its state)
+@csrf.exempt
 def get_csrf_token():
-    """API endpoint to provide a CSRF token."""
-    logger.info("Accessed /auth/api/csrf-token endpoint")
+    # print("DEBUG: get_csrf_token - ROUTE ENTERED - NEW VERSION CHECK", flush=True)
+
+    # Generate a CSRF token. This also sets it in the session.
     token = generate_csrf()
-    logger.info(f"Generated CSRF token: {token} for /auth/api/csrf-token")
-    return jsonify({'csrfToken': token})
-# print("DEBUG: app.auth.routes - IMMEDIATELY AFTER get_csrf_token definition", flush=True) # DEBUG PRINT
+    
+    # Explicitly mark the session as modified to ensure it gets saved and a cookie is sent.
+    # This is crucial for the subsequent request's CSRF validation to work.
+    session.modified = True
+
+    # Your debug logic can go here if needed
+    # session['example_data'] = 'this is a test'
+    # logger.info(f"CSRF Route: Entered. Session ID before any action: {request.cookies.get('session')}. Is session new? {session.new}")
+    # logger.info(f"CSRF Route: Token generated: {token}")
+    # logger.info(f"CSRF Route: Session modified. example_data set. Session ID after modification: {request.cookies.get('session')}. Is session permanent? {session.permanent}")
+    
+    response = jsonify({'csrfToken': token})
+    # logger.info(f"CSRF Route: Response created. Vary headers: {response.headers.getlist('Vary')}")
+    
+    return response
+
+@auth.route('/api/simple-onboarding', methods=['POST'])
+@login_required
+def simple_onboarding():
+    """Handle simple onboarding with just product info for free users."""
+    try:
+        data = request.get_json()
+        product_info = data.get('product', '').strip()
+        
+        if not product_info:
+            return jsonify({'error': 'Product information is required'}), 400
+        
+        profile = current_user.profile
+        if not profile:
+            return jsonify({'error': 'User profile not found'}), 404
+        
+        # Save minimal product info
+        profile.p_product = product_info
+        profile.onboarding_complete = True
+        profile.initial_setup_complete = True
+        
+        # Generate a simple coach persona based on just the product
+        coach_persona = f"Meet your AI Sales Coach! I'm here to help you sell {product_info} more effectively. I'll provide personalized practice scenarios, give you actionable feedback, and help you overcome common objections. Ready to start practicing?"
+        profile.coach_persona = coach_persona
+        
+        db.session.commit()
+        
+        logger.info(f"Simple onboarding completed for user {current_user.id}")
+        return jsonify({
+            'success': True,
+            'message': 'Onboarding complete! Let\'s start practicing.',
+            'coach_persona': coach_persona,
+            'redirect': '/chat'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in simple onboarding for user {current_user.id}: {e}")
+        return jsonify({'error': 'Failed to complete onboarding'}), 500
+
+# print("DEBUG: app.auth.routes - BOTTOM OF FILE PARSING", flush=True) # NEW DEBUG PRINT

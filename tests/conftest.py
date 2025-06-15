@@ -1,34 +1,21 @@
 import pytest
-from app import create_app # Updated import
+from app import create_app, db
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def app():
-    """Session-wide test Flask application."""
-    # Create app instance with test config
-    test_config = {
-        "TESTING": True,
-        # Use in-memory SQLite for tests to avoid interfering with dev db
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:", 
-        "WTF_CSRF_ENABLED": False, # Disable CSRF forms for easier testing
-        "LOGIN_DISABLED": True, # Optionally disable login requirement for some tests
-        # Add other test-specific configs here
-    }
-    flask_app = create_app(test_config)
+    """Create and configure a new app instance for each test module."""
+    # Create a test app instance
+    app = create_app('testing')
 
-    # Establish an application context before running tests that need it
-    with flask_app.app_context():
-        # Optional: Create all database tables for in-memory db
-        # from app.extensions import db
-        # db.create_all() 
-        
-        yield flask_app # Provide the app instance to tests
-        
-        # Optional: Clean up database tables after tests
-        # db.drop_all()
+    # Establish an application context
+    with app.app_context():
+        # Create the database and the database table(s)
+        db.create_all()
+        yield app
+        # Drop all tables after the test is complete
+        db.drop_all()
 
-    # Clean up / reset resources here if necessary
-
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def client(app):
     """A test client for the app."""
     return app.test_client()

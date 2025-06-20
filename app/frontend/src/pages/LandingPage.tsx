@@ -46,6 +46,7 @@ const LandingPage = () => {
       {/* Floating Demo Bar */}
       <FloatingDemoBar 
         onDemoSubmit={handleDemoSubmit}
+        onOpenEmailModal={openEmailSignupModal}
       />
       
       {/* Email Signup Modal */}

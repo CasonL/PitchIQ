@@ -4,6 +4,7 @@ import { NovaSonicInterface } from '../voice/NovaSonicInterface';
 
 interface FloatingDemoBarProps {
   onDemoSubmit: (product: string) => void;
+  onOpenEmailModal?: () => void;
 }
 
 interface ChatMessage {
@@ -27,7 +28,7 @@ interface DemoScenario {
   excellentResponseExample?: string;
 }
 
-const FloatingDemoBar: React.FC<FloatingDemoBarProps> = ({ onDemoSubmit }) => {
+const FloatingDemoBar: React.FC<FloatingDemoBarProps> = ({ onDemoSubmit, onOpenEmailModal }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [product, setProduct] = useState('');
   const [showCard, setShowCard] = useState(false);
@@ -767,14 +768,16 @@ ${currentScenario.technique.description}
                 <div className="border-t border-gray-200 p-4 text-center">
                   <button
                     onClick={() => {
-                      if (!hasSubmittedEmail) {
-                        onDemoSubmit(submittedProduct); // Trigger waitlist signup if not already done
+                      if (onOpenEmailModal) {
+                        onOpenEmailModal();
+                      } else {
+                        // Fallback to original behavior if modal function not provided
+                        onDemoSubmit(submittedProduct);
                       }
-                      window.location.href = '/auth/register';
                     }}
                     className="px-8 py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full font-semibold hover:from-red-600 hover:to-pink-600 transition-all transform hover:scale-105"
                   >
-                    {hasSubmittedEmail ? 'Continue to App' : 'Start Free Trial'}
+                    Get Early Access
                   </button>
                 </div>
               )}

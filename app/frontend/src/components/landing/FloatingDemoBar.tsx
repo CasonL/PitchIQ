@@ -87,22 +87,41 @@ const FloatingDemoBar: React.FC<FloatingDemoBarProps> = ({ onDemoSubmit, onOpenE
   const getDemoScenario = (productName: string): DemoScenario => {
     const productLower = productName.toLowerCase();
     
+    // Art/Creative Services
+    if (productLower.includes('art') || productLower.includes('design') || 
+        productLower.includes('creative') || productLower.includes('graphic') ||
+        productLower.includes('illustration') || productLower.includes('painting')) {
+      return {
+        context: "Gallery owner meeting! You're pitching commissioned artwork to a boutique hotel chain owner who's been burned by unreliable artists before...",
+        prospectMessage: "Your portfolio is impressive, I'll give you that. But I've been down this road before with artists. We commissioned a series for our lobby last year - the artist was three months late, the style wasn't what we discussed, and when we asked for revisions, they got defensive and said it was their 'artistic vision.' I ended up having to hire someone else to finish the project. How do I know you won't leave me hanging when I have a grand opening deadline?",
+        coachingPrompt: "The prospect is a hotel owner who had a terrible experience with an unreliable artist. They mentioned specific issues: 3 months late, wrong style, defensive about revisions, and abandoning the project. They're worried about being left hanging with a deadline. The user's response was: '{userResponse}'. Did they address the reliability concerns and project management issues, or did they just talk about their artistic abilities?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey mentioned being **3 months late**, **wrong style**, and **defensive about revisions**. These are project management and communication issues, not artistic talent issues.\n\n**Address their reliability concerns first.**",
+        learningPoint: "## 🎯 Key Learning\n\n**When selling creative services,** prospects often worry more about reliability and communication than pure talent. Address the business concerns first.",
+        technique: {
+          name: "Process Transparency",
+          description: "When prospects have been burned by unreliable service providers, show them your specific process and accountability measures.",
+          example: "I completely understand your concern - that sounds like a nightmare scenario for any business owner. Let me share exactly how I handle projects to prevent that. I use a detailed project timeline with milestone check-ins, provide style mockups for approval before starting, and build revision rounds into the contract. Can I walk you through my process so you can see how I ensure we stay on track and aligned?"
+        },
+        excellentResponseExample: "That sounds absolutely frustrating - being left hanging with a grand opening deadline would be my worst nightmare too. I've actually built my entire business process around preventing exactly that scenario. I use detailed contracts with milestone payments, provide style mockups for approval before starting any work, and build revision rounds into the timeline. I also send weekly progress updates with photos. Would it help if I showed you my project management system and connected you with my last three clients so you can hear directly how I handle deadlines and communication?"
+      };
+    }
+
     // Fintech/Financial Services
     if (productLower.includes('fintech') || productLower.includes('financial') || 
         productLower.includes('accounting') || productLower.includes('payroll') ||
         productLower.includes('banking') || productLower.includes('payment')) {
       return {
-        context: "Fintech call in progress! You're speaking with a CFO who just finished explaining their current financial processes. They mentioned trying a 'digital transformation' last year. There's a story here...",
-        prospectMessage: "Look, your platform has all the features we need, I'll give you that. But we went through a 'digital transformation' last year with another fintech company. Took 8 months to implement, our accounting team was in chaos, and half of them still refuse to use it properly. Why should I put my team through that again?",
-        coachingPrompt: "The user is selling fintech software to a CFO who had a traumatic implementation experience. The CFO mentioned 'accounting team was in chaos' and 'refuse to use it properly' - this indicates change management failure and user adoption trauma, not technical issues. The user's response was: '{userResponse}'. Analyze if they addressed the emotional trauma or just focused on technical features. Provide coaching feedback on what they missed.",
-        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nYou missed the **emotional core**! The CFO mentioned *'chaos'* and team members *'refusing to use it'* - these are emotional wounds, not technical problems.\n\n**Instead of jumping to features, try acknowledging their pain first.**",
-        learningPoint: "## 🎯 Key Learning\n\n**Remember:** When prospects share traumatic experiences, address the emotion before the logic. Their team's trust was broken - that's the real objection to overcome.",
+        context: "CFO boardroom meeting! You're presenting to a financial services company that just went through a regulatory audit nightmare...",
+        prospectMessage: "Look, your compliance features look comprehensive on paper, but we just survived a regulatory audit that nearly cost us our license. The auditors found gaps in our transaction monitoring that our previous fintech vendor assured us were 'bank-grade secure.' We had to hire external consultants, pay hefty fines, and I spent three months explaining to the board why our 'cutting-edge' system failed basic compliance requirements. Before I even consider another vendor, I need to know: what happens when the regulators come knocking and find issues with your system?",
+        coachingPrompt: "The prospect is a CFO who just survived a regulatory audit nightmare. Their previous fintech vendor promised 'bank-grade security' but failed basic compliance, resulting in fines, external consultants, and board explanations. They're asking about regulatory accountability. The user's response was: '{userResponse}'. Did they address the regulatory risk and vendor accountability concerns, or did they just make more compliance promises?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey just told you they **nearly lost their license** because a vendor made compliance promises that failed! Making more promises won't work.\n\n**Address vendor accountability and regulatory risk-sharing.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In regulated industries,** prospects need to know what happens when things go wrong, not just promises that they won't.",
         technique: {
-          name: "Mirror & Validate",
-          description: "When someone presents frustration like this, mirror their emotional state and validate their concerns before offering solutions.",
-          example: "That sounds incredibly frustrating - 8 months of chaos would shake anyone's confidence. It makes complete sense that you'd be hesitant to put your team through that again. Can you tell me what went wrong with the training and support during that implementation?"
+          name: "Risk Partnership",
+          description: "When prospects have regulatory concerns, show how you share the risk and provide accountability, not just promises.",
+          example: "That's exactly the kind of scenario that keeps CFOs up at night, and I completely understand your concern. Here's what sets us apart: we provide regulatory liability insurance that covers our clients, we have a dedicated compliance team that works directly with your auditors, and we maintain detailed audit trails that satisfy regulatory requirements. Can I show you our regulatory partnership agreement and connect you with a CFO who went through an audit using our system?"
         },
-        excellentResponseExample: "I can only imagine how frustrating that must have been - 8 months of chaos would shake anyone's confidence in new systems. It makes complete sense that you'd be hesitant to put your team through that again. Before we even talk about our platform, can you help me understand what specifically went wrong with the implementation and training? I want to make sure we're not even the right fit if we can't address those core issues."
+        excellentResponseExample: "That's exactly the kind of scenario that keeps CFOs up at night, and I completely understand your concern. Here's what sets us apart: we provide regulatory liability insurance that covers our clients, we have a dedicated compliance team that works directly with your auditors, and we maintain detailed audit trails that satisfy regulatory requirements. More importantly, we stand behind our compliance with contractual guarantees - if regulators find gaps in our system, we cover the remediation costs. Can I show you our regulatory partnership agreement and connect you with a CFO who went through an audit using our system?"
       };
     }
     
@@ -111,33 +130,94 @@ const FloatingDemoBar: React.FC<FloatingDemoBarProps> = ({ onDemoSubmit, onOpenE
         productLower.includes('platform') || productLower.includes('app') ||
         productLower.includes('crm') || productLower.includes('erp')) {
       return {
-        context: "Software demo call! You're presenting to a VP of Operations who's clearly frustrated with vendor promises...",
-        prospectMessage: "Look, I've heard this pitch before. 'Revolutionary platform,' 'seamless integration,' 'intuitive interface' - every vendor says the exact same thing. Then we spend 6 months implementing, our productivity tanks, and I'm explaining to the CEO why we're over budget and behind schedule. Why should I believe you're any different?",
-        coachingPrompt: "The prospect is expressing deep vendor fatigue and cynicism. They're quoting typical vendor language ('revolutionary platform,' 'seamless integration,' 'intuitive interface') and describing a pattern of disappointment. They're essentially saying 'prove you're not like every other vendor.' The user's response was: '{userResponse}'. Did they fall into the trap of making more vendor-like promises, or did they break the pattern by acknowledging their skepticism and taking a completely different approach?",
-        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey just told you they've heard the **same promises from every vendor**! If you respond with more promises or features, you're proving their point.\n\n**Break the pattern instead.**",
-        learningPoint: "## 🎯 Key Learning\n\n**When prospects quote vendor language back at you,** they're showing you the pattern that's failed them. Don't add to it - **interrupt it completely.**",
+        context: "VP of Operations crisis call! They're dealing with a current software disaster and considering replacements...",
+        prospectMessage: "I'm going to be brutally honest with you - we're currently in month 4 of what was supposed to be a 6-week implementation with another vendor. Our team is working overtime to maintain our old system while trying to learn the new one, our customers are complaining about delayed responses, and I just had to explain to the CEO why our productivity is down 30%. The vendor keeps saying 'it's normal implementation challenges' and 'trust the process.' I'm starting to think all software companies are the same - overpromise on the demo, underdeliver on reality. Why should I believe you're any different?",
+        coachingPrompt: "The prospect is currently living through a software implementation disaster - 4 months vs 6 weeks promised, team working overtime, 30% productivity drop, customer complaints, and a vendor that's dismissive of their concerns. They're expressing deep cynicism about all software vendors. The user's response was: '{userResponse}'. Did they acknowledge the current crisis and differentiate their implementation approach, or did they fall into the same vendor pattern?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey're **currently living through a software nightmare** - 30% productivity drop, customer complaints, team burnout. They don't need another pitch, they need rescue.\n\n**Acknowledge their current crisis first.**",
+        learningPoint: "## 🎯 Key Learning\n\n**When prospects are in crisis mode,** they need immediate help and proof of different approach, not another sales pitch.",
         technique: {
-          name: "Pattern Interrupt",
-          description: "When prospects are stuck in a negative pattern from repeated vendor disappointments, acknowledge their skepticism directly and take a completely different approach than every other vendor.",
-          example: "You know what? You're absolutely right to be skeptical. I'd feel exactly the same way after those experiences. Instead of giving you another pitch about how 'revolutionary' our platform is, can I ask what specifically went wrong with those implementations? I want to understand if we're even the right fit before we waste any more of your time."
+          name: "Crisis Intervention",
+          description: "When prospects are currently suffering from a vendor failure, focus on immediate help and demonstrable differences in approach.",
+          example: "That sounds like an absolute nightmare - 30% productivity drop would have me panicking too. Before we even talk about our platform, can I help you with your current situation? I have some strategies that might help salvage your current implementation or at least minimize the damage. And if you do decide to make a change, I can show you exactly how our implementation process is different - including penalty clauses if we miss our timeline."
         },
-        excellentResponseExample: "You know what? You're absolutely right to be skeptical. I'd feel exactly the same way after those experiences. Instead of giving you another pitch about how 'revolutionary' our platform is, can I ask what specifically went wrong with those implementations? I want to understand if we're even the right fit before we waste any more of your time."
+        excellentResponseExample: "That sounds like an absolute nightmare - 30% productivity drop and customer complaints would have me in crisis mode too. Before we even talk about our platform, can I help you with your current situation? I have some strategies that might help salvage your current implementation or at least minimize the damage. More importantly, if you do decide to make a change, I can show you exactly how our implementation process is different - including penalty clauses if we miss our timeline and dedicated crisis support. Would it help if I connected you with someone who was in a similar situation and how we handled their transition?"
       };
     }
-    
-    // Default scenario for other products
-    return {
-      context: "Sales call in progress! Your prospect just shared a concern that reveals deeper issues...",
-      prospectMessage: "I'm interested in what you're offering, but I need to be honest - we've tried similar solutions before and they didn't work out. The team wasn't happy with the change, and we ended up going back to our old way of doing things. What makes you think this time would be different?",
-      coachingPrompt: "The prospect is sharing past failure and team resistance to change. The user's response was: '{userResponse}'. Did they explore the root cause of the previous failure or just pitch their product benefits?",
-      fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey mentioned **team unhappiness** and *reverting to old ways* - that's a change management issue, not a product issue.\n\n**Dig deeper into what went wrong.**",
-      learningPoint: "## 🎯 Key Learning\n\n**Past failures often reveal organizational challenges.** Understanding the *'why'* behind previous failures is more valuable than listing your features.",
-      technique: {
-        name: "Root Cause Analysis",
-        description: "When prospects mention past failures, dig into the underlying reasons rather than assuming your product will be different.",
-        example: "That's really valuable insight. It sounds like the team had a tough experience. Can you help me understand what specifically made them unhappy with the change? Was it the training, the workflow disruption, or something else entirely?"
+
+    // Marketing/Advertising Services
+    if (productLower.includes('marketing') || productLower.includes('advertising') || 
+        productLower.includes('seo') || productLower.includes('social media') ||
+        productLower.includes('digital marketing') || productLower.includes('content')) {
+      return {
+        context: "Marketing Director under pressure! Their last campaign failed spectacularly and the CEO is questioning the entire marketing budget...",
+        prospectMessage: "I'll be straight with you - our last marketing agency promised us a 300% ROI and 'viral-ready content that would transform our brand.' We spent $50K over six months and got a 0.2% engagement rate and three qualified leads. The CEO is now questioning every marketing dollar we spend, and I'm fighting to keep my budget from being slashed. The agency kept showing us 'industry benchmarks' and saying our expectations were unrealistic. I need results I can actually show to the board, not more creative concepts and engagement metrics. How do I know you won't just burn through our budget with pretty campaigns that don't drive revenue?",
+        coachingPrompt: "The prospect is a Marketing Director under pressure after a failed campaign - $50K spent for 0.2% engagement and 3 leads, CEO questioning marketing budget, agency blamed 'unrealistic expectations.' They need board-presentable results, not creative concepts. The user's response was: '{userResponse}'. Did they focus on measurable ROI and revenue impact, or did they fall into typical agency language about creativity and engagement?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey just told you they got **3 leads for $50K** and the **CEO is questioning the marketing budget**. They need revenue results, not creative concepts.\n\n**Focus on measurable business impact.**",
+        learningPoint: "## 🎯 Key Learning\n\n**When marketing budgets are under scrutiny,** prospects need revenue-focused results they can defend to executives, not engagement metrics.",
+        technique: {
+          name: "Revenue Accountability",
+          description: "When prospects have been burned by agencies focused on vanity metrics, lead with revenue impact and financial accountability.",
+          example: "That's exactly why I focus on revenue impact, not engagement rates. I understand you need results you can present to the board. Let me show you how I structure campaigns with clear revenue targets and provide weekly ROI reports. I also offer performance guarantees - if we don't hit our lead generation targets, you don't pay the full fee. Can I walk you through a case study where we turned around a similar situation?"
+        },
+        excellentResponseExample: "That's exactly why I focus on revenue impact, not engagement rates. I completely understand the pressure you're under with the CEO questioning every marketing dollar. Let me show you how I structure campaigns with clear revenue targets, provide weekly ROI reports with actual pipeline impact, and offer performance guarantees - if we don't hit our lead generation targets, you don't pay the full fee. More importantly, I can show you a case study where we turned around a similar situation and helped the Marketing Director actually increase their budget based on results. Would that be helpful?"
+      };
+    }
+
+    // Consulting Services
+    if (productLower.includes('consulting') || productLower.includes('strategy') || 
+        productLower.includes('advisory') || productLower.includes('coach') ||
+        productLower.includes('training') || productLower.includes('development')) {
+      return {
+        context: "CEO strategy session! They've been burned by consultants who created beautiful decks but no real change...",
+        prospectMessage: "I've worked with consultants before, and frankly, I'm skeptical. The last firm we hired spent three months interviewing everyone, created a beautiful 200-slide presentation with lots of frameworks and buzzwords, charged us $200K, and then left us with a binder of recommendations that my team couldn't actually implement. Six months later, nothing had changed except our bank account was lighter. They kept saying we needed to 'embrace the transformation journey' when we asked for concrete next steps. I need someone who can actually help us execute, not just diagnose problems we already know we have. How do I know you won't just give me another expensive PowerPoint deck?",
+        coachingPrompt: "The prospect is a CEO burned by consultants who created a $200K PowerPoint deck with no implementation support. They mentioned 'beautiful presentation,' 'frameworks and buzzwords,' but 'nothing had changed' after 6 months. They need execution help, not more diagnosis. The user's response was: '{userResponse}'. Did they focus on implementation and concrete results, or did they sound like another consultant with frameworks?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey spent **$200K on a PowerPoint deck** that changed nothing! They need **execution support**, not more analysis and frameworks.\n\n**Focus on implementation and hands-on results.**",
+        learningPoint: "## 🎯 Key Learning\n\n**Executives are tired of consultants who diagnose and disappear.** They need partners who stay and help implement real change.",
+        technique: {
+          name: "Implementation Partnership",
+          description: "When prospects have been burned by consultants who don't implement, focus on hands-on execution and measurable outcomes.",
+          example: "I completely understand your frustration - that's exactly why I work differently. Instead of creating recommendations and leaving, I stay and help implement them. I work directly with your team, provide hands-on training, and we measure progress weekly with concrete metrics. My fee is tied to actual results achieved, not deliverables created. Can I show you how I helped another CEO implement similar changes and the specific outcomes we achieved?"
+        },
+        excellentResponseExample: "I completely understand your frustration - that's exactly why I work differently. Instead of creating recommendations and leaving, I stay and help implement them. I work directly with your team, provide hands-on training, and we measure progress weekly with concrete metrics. My fee is tied to actual results achieved, not deliverables created. I also provide a 90-day implementation guarantee - if we don't see measurable progress, I'll continue working at no additional cost until we do. Can I show you how I helped another CEO implement similar changes and the specific outcomes we achieved?"
+      };
+    }
+
+    // Default scenario for other products - make it more dynamic
+    const genericScenarios = [
+      {
+        context: "Procurement meeting! Your prospect is dealing with budget constraints and vendor fatigue...",
+        prospectMessage: `I'll be honest with you - we've been through this evaluation process three times in the past two years. Each time, we get excited about a solution, go through lengthy demos and negotiations, and then either the budget gets cut or the vendor overpromises and underdelivers. Our team is exhausted from change initiatives that don't stick, and frankly, I'm not sure I have the political capital to push through another ${productName} implementation. The last vendor promised it would 'pay for itself in 6 months' - we're still waiting 18 months later. What makes you think this time will be different?`,
+        coachingPrompt: "The prospect has been through 3 failed evaluations in 2 years, dealing with budget cuts, vendor overpromises, team exhaustion from failed change initiatives, and loss of political capital. They mentioned a vendor who promised ROI in 6 months but delivered nothing in 18 months. The user's response was: '{userResponse}'. Did they acknowledge the evaluation fatigue and focus on reducing risk, or did they make more promises?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey've been through **3 failed evaluations** and lost **political capital** from failed implementations. They don't need more promises.\n\n**Address their evaluation fatigue and risk concerns.**",
+        technique: {
+          name: "Risk Mitigation",
+          description: "When prospects are exhausted from failed vendor evaluations, focus on reducing their risk and proving value quickly.",
+          example: "I completely understand the evaluation fatigue - three failed attempts would exhaust anyone. Instead of another lengthy evaluation, what if we started with a small pilot project that proves value in 30 days? That way you can show concrete results before making any major commitment or spending political capital."
+        }
       },
-      excellentResponseExample: "That's really valuable insight, and I appreciate you being honest about it. It sounds like the team had a tough experience with change. Before I even mention our solution, can you help me understand what specifically made them unhappy? Was it the training process, the workflow disruption, lack of support, or something else entirely? I want to make sure we understand the root cause before discussing if we're even a good fit."
+      {
+        context: "Department head meeting! They're under pressure to improve results with limited resources...",
+        prospectMessage: `Look, I'm interested in ${productName}, but I need to be realistic about our situation. My team is already stretched thin, we're being asked to do more with less, and any new initiative needs to show immediate impact. We tried implementing a new solution last year - it took 4 months to get everyone trained, productivity dipped during the transition, and by the time we saw benefits, leadership had moved on to the next priority. I can't afford another project that disrupts operations without guaranteed results. How do you ensure this won't become another time-consuming distraction?`,
+        coachingPrompt: "The prospect is a department head under pressure with a stretched team. They mentioned a previous implementation that took 4 months training, caused productivity dips, and leadership moved on before seeing benefits. They need immediate impact without operational disruption. The user's response was: '{userResponse}'. Did they address the operational disruption concerns and focus on quick wins, or did they ignore the resource constraints?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey're **stretched thin** and can't afford **operational disruption**. They need solutions that work with their constraints, not against them.\n\n**Focus on minimal disruption and quick wins.**",
+        technique: {
+          name: "Constraint-Based Selling",
+          description: "When prospects have resource constraints and operational pressures, design solutions that work within their limitations.",
+          example: "I completely understand the resource constraints - disrupting operations isn't an option when you're already stretched thin. What if we implemented this in phases, starting with your biggest pain point, so you see immediate results without overwhelming your team? We can design the rollout around your operational schedule."
+        }
+      }
+    ];
+
+    const randomScenario = genericScenarios[Math.floor(Math.random() * genericScenarios.length)];
+    
+    return {
+      context: randomScenario.context,
+      prospectMessage: randomScenario.prospectMessage,
+      coachingPrompt: randomScenario.coachingPrompt,
+      fallbackCoaching: randomScenario.fallbackCoaching,
+      learningPoint: "## 🎯 Key Learning\n\n**Every prospect has been burned before.** Understanding their specific pain points and constraints is more valuable than pitching features.",
+      technique: randomScenario.technique,
+      excellentResponseExample: "That's exactly the kind of experience that makes anyone cautious about new vendors. I appreciate you sharing that context - it helps me understand what you need to see to feel confident moving forward. Before we even discuss our solution, can you help me understand what specifically went wrong with the previous implementation? I want to make sure we're addressing the root issues, not just adding another layer of complexity."
     };
   };
 
@@ -145,22 +225,33 @@ const FloatingDemoBar: React.FC<FloatingDemoBarProps> = ({ onDemoSubmit, onOpenE
   const getAICoaching = async (userResponse: string, scenario: DemoScenario): Promise<string> => {
     try {
       setIsAIResponding(true);
-      const prompt = `${scenario.coachingPrompt.replace('{userResponse}', userResponse)}
+      const prompt = `You are an expert sales coach analyzing a salesperson's response to a challenging prospect scenario.
 
-Here's an example of an EXCELLENT response to this scenario:
-"${scenario.excellentResponseExample}"
+SCENARIO CONTEXT: ${scenario.coachingPrompt.replace('{userResponse}', userResponse)}
 
-Compare the user's actual response to this excellent example. Analyze if the user's response:
-1. EXCELLENT - Matches the quality and approach of the example (acknowledge pattern, show deep empathy, ask great questions, differentiate from other vendors)
-2. GOOD - Shows some understanding but missed key elements
-3. NEEDS_WORK - Fell into common traps or missed the main point
+USER'S ACTUAL RESPONSE: "${userResponse}"
 
-Format your response using markdown:
-- If EXCELLENT: Use ## 🎉 EXCELLENT and explain specifically what they did right
-- If GOOD: Use ## ✅ GOOD EFFORT and provide constructive feedback
-- If NEEDS_WORK: Use ## ⚠️ NEEDS WORK and provide coaching with specific improvements
+EXCELLENT BENCHMARK RESPONSE: "${scenario.excellentResponseExample}"
 
-Use **bold** for key points and > blockquotes for example phrases. Keep under 100 words.`;
+DEEP ANALYSIS REQUIRED:
+1. Did they acknowledge the prospect's emotional state and specific pain points?
+2. Did they avoid making typical vendor promises or pitches?
+3. Did they ask diagnostic questions to understand root causes?
+4. Did they differentiate their approach from failed vendors?
+5. Did they focus on risk mitigation and proof over promises?
+
+COACHING EVALUATION:
+- EXCELLENT (90-100%): Demonstrates advanced sales psychology, addresses emotional core, asks powerful questions, completely avoids vendor traps
+- GOOD (70-89%): Shows solid understanding but missed 1-2 key elements or fell into minor vendor patterns  
+- NEEDS_WORK (0-69%): Fell into vendor traps, made promises instead of asking questions, ignored emotional context
+
+Provide specific coaching feedback with:
+- What they did RIGHT (even if needs work)
+- What they MISSED or did wrong
+- Specific improvement suggestions
+- Example of better phrasing
+
+Format: Use appropriate header (🎉 EXCELLENT / ✅ GOOD EFFORT / ⚠️ NEEDS WORK), **bold** key points, > blockquotes for examples. Keep under 150 words.`;
       
       const response = await fetch('/api/chat/coaching-feedback', {
         method: 'POST',
@@ -191,13 +282,19 @@ Use **bold** for key points and > blockquotes for example phrases. Keep under 10
   const getRetryFeedback = async (userResponse: string, scenario: DemoScenario): Promise<string> => {
     try {
       setIsAIResponding(true);
-      const prompt = `The user just tried again using the ${scenario.technique?.name} technique. Their retry response was: "${userResponse}". The original scenario was about a CFO who had a traumatic implementation experience with chaos and team resistance. 
+      const prompt = `The user is practicing the ${scenario.technique?.name} technique after receiving coaching. 
 
-Provide encouraging feedback on how their second attempt was better, focusing on what they did right this time. Format using markdown:
-- Use ## ✅ MUCH BETTER! as the header
-- Use **bold** for key improvements
-- Use > blockquotes for good phrases they used
-- Keep it positive and specific about the improvement`;
+ORIGINAL SCENARIO: ${scenario.context}
+TECHNIQUE BEING PRACTICED: ${scenario.technique?.name} - ${scenario.technique?.description}
+USER'S RETRY RESPONSE: "${userResponse}"
+
+Analyze their improvement and provide encouraging feedback focusing on:
+- What specific elements of the technique they used correctly
+- How their approach was better than typical vendor responses
+- What they did right in addressing the prospect's concerns
+- Any remaining areas for refinement
+
+Format: Use ## ✅ MUCH BETTER! header, **bold** key improvements, > blockquotes for good phrases they used. Keep encouraging and specific about the improvement. Under 120 words.`;
       
       const response = await fetch('/api/chat/coaching-feedback', {
         method: 'POST',

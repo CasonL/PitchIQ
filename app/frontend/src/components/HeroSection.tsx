@@ -256,9 +256,9 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
                animate="visible"
                custom={0} // Stagger delay index
              >
-               <span className="block text-4xl sm:text-5xl md:text-4xl lg:text-5xl font-outfit font-bold text-gray-900 leading-tight">
-                 Scale Sales <span className="text-pitchiq-red">With AI</span>
-               </span>
+                               <span className="block text-4xl sm:text-5xl md:text-4xl lg:text-5xl font-outfit font-bold text-gray-900 leading-tight">
+                  Transform Sales <span className="text-pitchiq-red">With AI Today</span>
+                </span>
              </motion.h1>
              
              <motion.p 

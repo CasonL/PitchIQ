@@ -3,36 +3,42 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, CheckCircle } from "lucide-react";
 
-const encode = (data: { [key: string]: string }) => {
-  return Object.keys(data)
-    .map((key) => encodeURIComponent(key) + "=" + encodeURIComponent(data[key]))
-    .join("&");
-};
-
 const PreReleaseHeroSection = () => {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleEmailSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (email) {
-      fetch("/", {
+    if (!email || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/email-signup/signup", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: encode({ "form-name": "early-access-form", email }),
-      })
-        .then(() => {
-          console.log("Form successfully submitted to Netlify");
-          setIsSubmitted(true);
-          setTimeout(() => {
-            setIsSubmitted(false);
-            setEmail("");
-          }, 3000);
-        })
-        .catch((error) => {
-          console.error("Form submission error:", error);
-          alert("There was an error submitting the form. Please try again.");
-        });
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, early_access: true }),
+      });
+
+      if (response.ok) {
+        console.log("Email successfully submitted to Flask API");
+        setIsSubmitted(true);
+        setTimeout(() => {
+          setIsSubmitted(false);
+          setEmail("");
+        }, 5000);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Submission failed. Please try again.");
+        setIsSubmitting(false);
+      }
+    } catch (error) {
+      console.error("Form submission error:", error);
+      setError("Network error. Please try again.");
+      setIsSubmitting(false);
     }
   };
 
@@ -56,8 +62,7 @@ const PreReleaseHeroSection = () => {
               </div>
               
               {!isSubmitted ? (
-                <form onSubmit={handleEmailSubmit} className="space-y-4" data-netlify="true" name="early-access-form">
-                  <input type="hidden" name="form-name" value="early-access-form" />
+                <form onSubmit={handleEmailSubmit} className="space-y-4">
                   <Input
                     type="email"
                     placeholder="Enter your email address"
@@ -66,13 +71,18 @@ const PreReleaseHeroSection = () => {
                     required
                     className="w-full"
                     name="email"
+                    disabled={isSubmitting}
                   />
+                  {error && (
+                    <p className="text-red-600 text-sm">{error}</p>
+                  )}
                   <Button 
                     type="submit"
                     size="lg" 
                     className="w-full bg-pitchiq-red hover:bg-pitchiq-red/90 text-white text-lg btn-hover-effect"
+                    disabled={isSubmitting || !email}
                   >
-                    Join the Waitlist
+                    {isSubmitting ? "Submitting..." : "Join the Waitlist"}
                   </Button>
                 </form>
               ) : (

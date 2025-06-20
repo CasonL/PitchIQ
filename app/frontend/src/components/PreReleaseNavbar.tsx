@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 
-const Navbar = () => {
+const PreReleaseNavbar = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -14,15 +14,14 @@ const Navbar = () => {
         
         {/* Desktop menu */}
         <div className="hidden md:flex gap-8">
-          <a href="#features" className="text-foreground/80 hover:text-pitchiq-purple transition-colors">Features</a>
-          <a href="/how-it-works" className="text-foreground/80 hover:text-pitchiq-purple transition-colors">How It Works</a>
+          <a href="#about" className="text-foreground/80 hover:text-pitchiq-purple transition-colors">About Us</a>
+          <a href="#how-it-works" className="text-foreground/80 hover:text-pitchiq-purple transition-colors">How It Works</a>
           <a href="#testimonials" className="text-foreground/80 hover:text-pitchiq-purple transition-colors">Testimonials</a>
-          <a href="#pricing" className="text-foreground/80 hover:text-pitchiq-purple transition-colors">Pricing</a>
         </div>
         
         <div className="hidden md:block">
           <Button variant="outline" className="mr-2">Sign In</Button>
-          <Button>Get Started</Button>
+          <Button>Get Early Access</Button>
         </div>
         
         {/* Mobile menu button */}
@@ -34,13 +33,12 @@ const Navbar = () => {
       {/* Mobile menu */}
       {isOpen && (
         <div className="md:hidden py-4 flex flex-col gap-4 animate-fade-in">
-          <a href="#features" className="text-foreground/80 hover:text-pitchiq-purple px-2 py-1">Features</a>
-          <a href="/how-it-works" className="text-foreground/80 hover:text-pitchiq-purple px-2 py-1">How It Works</a>
+          <a href="#about" className="text-foreground/80 hover:text-pitchiq-purple px-2 py-1">About Us</a>
+          <a href="#how-it-works" className="text-foreground/80 hover:text-pitchiq-purple px-2 py-1">How It Works</a>
           <a href="#testimonials" className="text-foreground/80 hover:text-pitchiq-purple px-2 py-1">Testimonials</a>
-          <a href="#pricing" className="text-foreground/80 hover:text-pitchiq-purple px-2 py-1">Pricing</a>
           <div className="flex flex-col gap-2 pt-2">
             <Button variant="outline" className="w-full">Sign In</Button>
-            <Button className="w-full">Get Started</Button>
+            <Button className="w-full">Get Early Access</Button>
           </div>
         </div>
       )}
@@ -48,4 +46,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar;
+export default PreReleaseNavbar; 

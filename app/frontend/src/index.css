@@ -1,5 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Saira:wght@500&display=swap');
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,97 +7,89 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 47.4% 11.2%;
+    --background: 260 33% 98%;
+    --foreground: 258 15% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    --card-foreground: 258 15% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 258 15% 15%;
 
-    /* PitchIQ Red - Primary */
-    --primary: 350 85% 51%;
+    --primary: 255 82% 75%;
     --primary-foreground: 0 0% 100%;
 
-    /* Navy blue for secondary */
-    --secondary: 218 100% 26%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 260 33% 95%;
+    --secondary-foreground: 258 15% 15%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 260 33% 95%;
+    --muted-foreground: 258 10% 60%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 260 33% 95%;
+    --accent-foreground: 258 15% 15%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 350 85% 51%;
+    --border: 260 33% 90%;
+    --input: 260 33% 90%;
+    --ring: 255 82% 75%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 222.2 84% 4.9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 350 85% 51%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
-    --sidebar-ring: 350 85% 51%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 258 15% 15%;
+    --foreground: 260 33% 98%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 258 15% 15%;
+    --card-foreground: 260 33% 98%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 258 15% 15%;
+    --popover-foreground: 260 33% 98%;
 
-    /* PitchIQ Red - Primary */
-    --primary: 350 85% 51%;
+    --primary: 255 82% 75%;
     --primary-foreground: 0 0% 100%;
 
-    /* Navy blue for secondary */
-    --secondary: 218 100% 26%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 258 12% 20%;
+    --secondary-foreground: 260 33% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 258 12% 20%;
+    --muted-foreground: 258 10% 75%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 258 12% 20%;
+    --accent-foreground: 260 33% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 350 85% 51%;
+    --border: 258 12% 25%;
+    --input: 258 12% 25%;
+    --ring: 255 82% 75%;
     
-    --sidebar-background: 222.2 84% 4.9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 350 85% 51%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
-    --sidebar-ring: 350 85% 51%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
-  }
-
-  html, body {
-    /* overflow-x: hidden; <-- Removed this line */
   }
 
   body {
@@ -111,7 +103,7 @@
   }
   
   .text-gradient {
-    @apply bg-gradient-to-r from-pitchiq-red to-pitchiq-navy bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-pitchiq-purple to-pitchiq-purple-light bg-clip-text text-transparent;
   }
   
   .btn-hover-effect {
@@ -121,82 +113,4 @@
   .card-hover {
     @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
   }
-
-  /* Professional design shadowing */
-  .card-shadow-subtle {
-    @apply shadow-[0_2px_8px_rgba(0,0,0,0.08)];
-  }
-  
-  .card-shadow-medium {
-    @apply shadow-[0_4px_12px_rgba(0,0,0,0.12)];
-  }
-  
-  .card-shadow-prominent {
-    @apply shadow-[0_8px_24px_rgba(0,0,0,0.15)];
-  }
-  
-  /* Professional hover effects */
-  .interactive-card {
-    @apply transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_6px_16px_rgba(0,0,0,0.1)];
-  }
-  
-  /* Styled heading */
-  .dashboard-heading {
-    @apply text-2xl font-bold text-foreground relative after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-12 after:h-1 after:bg-pitchiq-red after:rounded-full;
-  }
-
-  /* Subtle background pulse for AI card */
-  .ai-summary-card {
-    background: linear-gradient(-45deg, hsl(var(--card)), hsl(var(--muted)), hsl(var(--card)));
-    background-size: 400% 400%;
-    animation: gradientPulse 15s ease infinite;
-  }
-}
-
-@keyframes gradientPulse {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* Add styles for typing indicator */
-@layer utilities {
-  .animation-delay-200 {
-    animation-delay: 0.2s;
-  }
-  .animation-delay-400 {
-    animation-delay: 0.4s;
-  }
-  .typing-indicator .dot {
-    @apply inline-block w-2 h-2 bg-current rounded-full mx-0.5;
-  }
-}
-
-/* Custom Animations */
-@keyframes pulse-red-aura {
-  0%, 100% {
-    filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.6));
-  }
-  50% {
-    filter: drop-shadow(0 0 20px rgba(239, 68, 68, 1.0));
-  }
-}
-
-.animate-pulse-red-aura {
-  animation: pulse-red-aura 1.5s infinite ease-in-out;
-}
-
-@keyframes pulse-target-animation {
-  0%, 100% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 4px #ef4444); 
-  }
-  50% {
-    transform: scale(1.1);
-    filter: drop-shadow(0 0 10px #ef4444); 
-  }
-}
-
-.animate-pulse-target {
-  animation: pulse-target-animation 2s infinite ease-in-out;
 }

@@ -11,6 +11,8 @@ import LandingPage from "./pages/LandingPage";
 import ChatTestPage from './pages/ChatTestPage';
 import HowItWorksPage from './pages/HowItWorksPage';
 import PreReleaseLandingPage from './pages/PreReleaseLandingPage';
+import BlogPage from './pages/BlogPage';
+import BlogPostPage from './pages/BlogPostPage';
 
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -50,6 +52,8 @@ const App = () => (
       <Route path="/chat-test" element={<ChatTestPage />} />
       <Route path="/how-it-works" element={<HowItWorksPage />} />
       <Route path="/pre-release" element={<PreReleaseLandingPage />} />
+      <Route path="/blog" element={<BlogPage />} />
+      <Route path="/blog/:slug" element={<BlogPostPage />} />
 
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />

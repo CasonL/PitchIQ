@@ -10,7 +10,7 @@ const blogPostsContent = {
   "ai-sales-training-techniques-boost-close-rates": {
     title: "10 AI Sales Training Techniques That Boost Close Rates by 40%",
     author: "Cason Lamothe",
-    date: "January 15, 2024",
+    date: "June 15, 2025",
     readTime: "8 min read",
     category: "Sales Training",
     tags: ["AI Training", "Close Rates", "Performance"],
@@ -89,7 +89,7 @@ const blogPostsContent = {
   "enterprise-sales-coaching-complete-guide-2024": {
     title: "Enterprise Sales Coaching: The Complete Guide for 2024",
     author: "Cason Lamothe",
-    date: "January 12, 2024",
+    date: "June 12, 2025",
     readTime: "12 min read",
     category: "Enterprise",
     tags: ["Enterprise", "Coaching", "ROI"],
@@ -226,7 +226,7 @@ const blogPostsContent = {
   "b2b-sales-training-vs-traditional-methods-roi": {
     title: "B2B Sales Training vs Traditional Methods: ROI Comparison",
     author: "Cason Lamothe",
-    date: "January 10, 2024",
+    date: "June 8, 2025",
     readTime: "6 min read",
     category: "Analysis",
     tags: ["B2B", "ROI", "Comparison"],

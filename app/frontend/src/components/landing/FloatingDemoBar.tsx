@@ -309,7 +309,7 @@ Provide encouraging feedback on how their second attempt was better, focusing on
           clearInterval(typeInterval);
           resolve();
         }
-      }, 30);
+      }, 10);
     });
   };
 
@@ -330,11 +330,11 @@ Provide encouraging feedback on how their second attempt was better, focusing on
     setDemoStep(0);
     
     // Start with AI's first message (intro)
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 300));
     await typeMessage(scenario.context, true);
     
     // Wait a bit, then automatically show the second message (conversation starter)
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 500));
             // Don't show prospect message as text in voice mode - it will be spoken via ElevenLabs
         if (!isVoiceMode) {
           await typeMessage(scenario.prospectMessage, true);
@@ -353,7 +353,7 @@ Provide encouraging feedback on how their second attempt was better, focusing on
     addUserMessage(currentMessage);
     
     // Wait a bit before AI responds
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 400));
     
     if (demoStep === 1 && currentScenario) {
       // First user response - get AI coaching
@@ -368,14 +368,14 @@ Provide encouraging feedback on how their second attempt was better, focusing on
       
       if (isExcellentResponse) {
         // For excellent responses, skip technique teaching and go straight to advanced tips
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 800));
         await typeMessage("## 🚀 OUTSTANDING!\n\nYou clearly understand **advanced sales psychology!** You naturally used the right approach without needing coaching. That's the kind of emotional intelligence that separates **top performers** from average salespeople.", true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 800));
         await typeMessage("## 🎯 Ready for More?\n\n**Ready to master even more advanced techniques like this?** PitchIQ has dozens of scenarios and techniques to help you become a sales superstar!", true);
         setDemoStep(4); // Skip to completion
       } else {
         // For responses that need work, teach the technique
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 800));
         
         if (currentScenario.technique) {
           const techniqueMessage = `## 🎯 ${currentScenario.technique.name} Technique
@@ -397,22 +397,22 @@ ${currentScenario.technique.description}
       // Check if they want to restart or deep dive
       if (currentMessage.toLowerCase().includes('restart') || currentMessage.toLowerCase().includes('try again')) {
         await typeMessage("## 🔄 Awesome! Let's Practice More\n\n**To unlock unlimited practice scenarios and advanced coaching,** let's get you signed up first!", true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 800));
         onDemoSubmit(submittedProduct); // Trigger waitlist signup
         setHasSubmittedEmail(true);
         setDemoStep(4); // Move to completion
       } else if (currentMessage.toLowerCase().includes('deep dive') || currentMessage.toLowerCase().includes('breakdown') || currentMessage.includes('analysis') || currentMessage.includes('more details') || currentMessage.includes('explain more')) {
         await typeMessage("## 🧠 Deep Dive Analysis\n\n**Great choice!** Advanced technique breakdowns, psychology insights, and detailed coaching are available in the full **PitchIQ** experience.", true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 800));
         await typeMessage("## 🚀 Ready to Master Sales Psychology?\n\nLet's get you access to **dozens of techniques, scenarios, and deep-dive analyses** that will transform your sales conversations!", true);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
         onDemoSubmit(submittedProduct); // Trigger waitlist signup
         setHasSubmittedEmail(true);
         setDemoStep(4); // Move to completion
       } else {
         // Second response - show learning point and wrap up
         await typeMessage(currentScenario.learningPoint, true);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         await typeMessage("## 🎉 Great Job!\n\nThis is just a taste of what **PitchIQ** can teach you. Ready to improve your sales conversations?", true);
         setDemoStep(4);
       }
@@ -420,7 +420,7 @@ ${currentScenario.technique.description}
       // Retry attempt - provide encouraging feedback
       const retryFeedback = await getRetryFeedback(currentMessage, currentScenario);
       await typeMessage(retryFeedback, true);
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 800));
       await typeMessage("## 🎉 Much Better!\n\nYou can see how using **specific techniques** transforms your conversations. Ready to master more sales skills with **PitchIQ**?", true);
       setDemoStep(4);
     }

@@ -74,13 +74,13 @@ const HowItWorksSection: React.FC<HowItWorksProps> = ({ onOpenEmailModal }) => {
       viewport={{ once: true, amount: 0.1 }}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 sm:pr-8 md:pr-12 lg:pr-8">
-        <motion.div className="text-left mb-12 md:mb-16 sm:mr-24 md:mr-32 lg:mr-0" variants={itemVariants}>
+        <motion.div className="text-left lg:text-center mb-12 md:mb-16 sm:mr-24 md:mr-32 lg:mr-0" variants={itemVariants}>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 font-outfit text-gray-900">
             Sophisticated Training,<br/>
             Simple Implementation
           </h2>
           <div>
-            <p className="text-lg md:text-xl text-foreground/80 max-w-3xl">
+            <p className="text-lg md:text-xl text-foreground/80 max-w-3xl lg:mx-auto">
               Unlike static training programs, PitchIQ adapts to each rep while maintaining enterprise standards.
             </p>
           </div>

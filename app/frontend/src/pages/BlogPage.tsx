@@ -4,6 +4,8 @@ import { Calendar, ArrowRight, User, Clock, Search, Filter, Tag } from 'lucide-r
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import Navbar from '@/components/Navbar';
+import EmailSignupModal from '@/components/EmailSignupModal';
 
 const blogPosts = [
   {
@@ -79,6 +81,7 @@ const categories = ["All", "Sales Training", "Enterprise", "Analysis", "Remote W
 const BlogPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
 
   const filteredPosts = blogPosts.filter(post => {
     const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -114,8 +117,10 @@ const BlogPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
+      <Navbar onOpenEmailModal={() => setIsEmailModalOpen(true)} />
+      
       {/* Header */}
-      <section className="py-16 md:py-24 bg-gradient-to-br from-gray-50 to-white">
+      <section className="py-16 md:py-24 bg-gradient-to-br from-gray-50 to-white" style={{ paddingTop: '120px' }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div 
             className="text-center mb-12"
@@ -366,6 +371,11 @@ const BlogPage: React.FC = () => {
           </motion.div>
         </div>
       </section>
+      
+      <EmailSignupModal 
+        isOpen={isEmailModalOpen} 
+        onClose={() => setIsEmailModalOpen(false)} 
+      />
     </div>
   );
 };

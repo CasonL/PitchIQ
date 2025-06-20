@@ -66,7 +66,7 @@ const PricingSection = () => {
     <section id="pricing" className="py-32 md:py-48 px-6 md:px-10 lg:px-20">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4">Find Your Perfect Fit.</h2>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 font-outfit text-gray-900">Find Your Perfect Fit.</h2>
           <p className="text-lg text-foreground/70 max-w-2xl mx-auto">
             Simple, transparent pricing to fuel your sales growth.
           </p>

@@ -9,7 +9,7 @@ import { useParams, Link } from 'react-router-dom';
 const blogPostsContent = {
   "ai-sales-training-techniques-boost-close-rates": {
     title: "10 AI Sales Training Techniques That Boost Close Rates by 40%",
-    author: "Sarah Chen",
+    author: "Cason Lamothe",
     date: "January 15, 2024",
     readTime: "8 min read",
     category: "Sales Training",
@@ -88,7 +88,7 @@ const blogPostsContent = {
   },
   "enterprise-sales-coaching-complete-guide-2024": {
     title: "Enterprise Sales Coaching: The Complete Guide for 2024",
-    author: "Mike Rodriguez",
+    author: "Cason Lamothe",
     date: "January 12, 2024",
     readTime: "12 min read",
     category: "Enterprise",
@@ -225,7 +225,7 @@ const blogPostsContent = {
   },
   "b2b-sales-training-vs-traditional-methods-roi": {
     title: "B2B Sales Training vs Traditional Methods: ROI Comparison",
-    author: "Emma Thompson",
+    author: "Cason Lamothe",
     date: "January 10, 2024",
     readTime: "6 min read",
     category: "Analysis",
@@ -393,6 +393,45 @@ const blogPostsContent = {
 
 const BlogPostPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = post?.title || 'PitchIQ Blog Post';
+    const text = post?.excerpt || 'Check out this article from PitchIQ';
+
+    // Try to use the native Web Share API if available
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: title,
+          text: text,
+          url: url,
+        });
+      } catch (error) {
+        // User cancelled or error occurred, fall back to clipboard
+        fallbackShare(url, title);
+      }
+    } else {
+      // Fallback for browsers that don't support Web Share API
+      fallbackShare(url, title);
+    }
+  };
+
+  const fallbackShare = (url: string, title: string) => {
+    // Copy to clipboard
+    navigator.clipboard.writeText(url).then(() => {
+      // You could add a toast notification here
+      alert('Article link copied to clipboard!');
+    }).catch(() => {
+      // If clipboard fails, open share dialog with common platforms
+      const shareText = `Check out this article: ${title} - ${url}`;
+      const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
+      const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+      
+      // Open LinkedIn share (most relevant for B2B content)
+      window.open(linkedInUrl, '_blank', 'width=600,height=400');
+    });
+  };
   
   if (!slug || !blogPostsContent[slug as keyof typeof blogPostsContent]) {
     return (
@@ -493,7 +532,10 @@ const BlogPostPage: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Found this helpful?</h3>
               <p className="text-gray-600">Share it with your team</p>
             </div>
-            <Button className="bg-pitchiq-red hover:bg-pitchiq-red/90">
+            <Button 
+              className="bg-pitchiq-red hover:bg-pitchiq-red/90"
+              onClick={handleShare}
+            >
               <Share2 className="h-4 w-4 mr-2" />
               Share Article
             </Button>

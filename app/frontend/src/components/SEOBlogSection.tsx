@@ -7,7 +7,7 @@ const blogPosts = [
   {
     title: "10 AI Sales Training Techniques That Boost Close Rates by 40%",
     excerpt: "Discover how enterprise sales teams are using AI-powered training to dramatically improve their performance and revenue outcomes.",
-    author: "Sarah Chen",
+    author: "Cason Lamothe",
     date: "January 15, 2024",
     readTime: "8 min read",
     category: "Sales Training",
@@ -16,7 +16,7 @@ const blogPosts = [
   {
     title: "Enterprise Sales Coaching: The Complete Guide for 2024",
     excerpt: "Everything you need to know about implementing scalable sales coaching programs that deliver measurable ROI for large organizations.",
-    author: "Mike Rodriguez",
+    author: "Cason Lamothe",
     date: "January 12, 2024",
     readTime: "12 min read",
     category: "Enterprise",
@@ -25,7 +25,7 @@ const blogPosts = [
   {
     title: "B2B Sales Training vs Traditional Methods: ROI Comparison",
     excerpt: "A comprehensive analysis of AI-powered sales training platforms versus traditional coaching methods, with real performance data.",
-    author: "Emma Thompson",
+    author: "Cason Lamothe",
     date: "January 10, 2024",
     readTime: "6 min read",
     category: "Analysis",

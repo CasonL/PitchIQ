@@ -9,7 +9,7 @@ const blogPosts = [
   {
     title: "10 AI Sales Training Techniques That Boost Close Rates by 40%",
     excerpt: "Discover how enterprise sales teams are using AI-powered training to dramatically improve their performance and revenue outcomes. Learn the specific techniques that top-performing organizations implement.",
-    author: "Sarah Chen",
+    author: "Cason Lamothe",
     date: "January 15, 2024",
     readTime: "8 min read",
     category: "Sales Training",
@@ -20,7 +20,7 @@ const blogPosts = [
   {
     title: "Enterprise Sales Coaching: The Complete Guide for 2024",
     excerpt: "Everything you need to know about implementing scalable sales coaching programs that deliver measurable ROI for large organizations. From setup to execution.",
-    author: "Mike Rodriguez",
+    author: "Cason Lamothe",
     date: "January 12, 2024",
     readTime: "12 min read",
     category: "Enterprise",
@@ -31,7 +31,7 @@ const blogPosts = [
   {
     title: "B2B Sales Training vs Traditional Methods: ROI Comparison",
     excerpt: "A comprehensive analysis of AI-powered sales training platforms versus traditional coaching methods, with real performance data from 500+ organizations.",
-    author: "Emma Thompson",
+    author: "Cason Lamothe",
     date: "January 10, 2024",
     readTime: "6 min read",
     category: "Analysis",
@@ -42,7 +42,7 @@ const blogPosts = [
   {
     title: "How to Scale Sales Training for Remote Teams",
     excerpt: "Master the art of training distributed sales teams with AI-powered coaching. Learn best practices for maintaining consistency and quality across locations.",
-    author: "David Park",
+    author: "Cason Lamothe",
     date: "January 8, 2024",
     readTime: "10 min read",
     category: "Remote Work",
@@ -53,7 +53,7 @@ const blogPosts = [
   {
     title: "The Psychology of Sales Objections: AI-Powered Insights",
     excerpt: "Understanding buyer psychology through AI analysis. Discover how machine learning reveals patterns in objection handling that human coaches miss.",
-    author: "Dr. Lisa Wang",
+    author: "Cason Lamothe",
     date: "January 5, 2024",
     readTime: "9 min read",
     category: "Psychology",
@@ -64,7 +64,7 @@ const blogPosts = [
   {
     title: "Building a Sales Training ROI Dashboard: Essential Metrics",
     excerpt: "Track what matters most in sales training. Learn how to build comprehensive dashboards that prove training impact and guide strategic decisions.",
-    author: "Alex Chen",
+    author: "Cason Lamothe",
     date: "January 3, 2024",
     readTime: "7 min read",
     category: "Analytics",

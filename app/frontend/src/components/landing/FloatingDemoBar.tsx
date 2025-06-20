@@ -163,6 +163,158 @@ const FloatingDemoBar: React.FC<FloatingDemoBarProps> = ({ onDemoSubmit, onOpenE
       };
     }
 
+    // Healthcare/Medical
+    if (productLower.includes('healthcare') || productLower.includes('medical') || 
+        productLower.includes('hospital') || productLower.includes('clinic') ||
+        productLower.includes('patient') || productLower.includes('emr') || productLower.includes('ehr')) {
+      return {
+        context: "Chief Medical Officer emergency meeting! They're dealing with a patient safety crisis from their current system...",
+        prospectMessage: "I'll be direct with you - we just had a near-miss incident where our current system failed to flag a critical drug interaction. The patient is fine, but it could have been fatal. Our medical staff is losing confidence in the technology, nurses are going back to paper charts for safety, and the board is demanding answers. The vendor keeps saying it's a 'configuration issue' and that we need more training. I can't risk patient safety on another system that might have gaps. How do you guarantee this won't put our patients at risk?",
+        coachingPrompt: "The prospect is a CMO dealing with a patient safety crisis. Their current system failed to flag a critical drug interaction, staff is reverting to paper charts, and the vendor is blaming configuration. Patient safety is the ultimate concern. The user's response was: '{userResponse}'. Did they address patient safety as the top priority and provide concrete safety guarantees, or did they just pitch features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey mentioned a **near-fatal drug interaction** and **patient safety crisis**. This isn't about features - it's about life and death.\n\n**Lead with patient safety guarantees.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In healthcare, patient safety trumps everything.** Address safety concerns with concrete guarantees before discussing any other benefits.",
+        technique: {
+          name: "Safety-First Approach",
+          description: "In healthcare sales, always lead with patient safety guarantees and risk mitigation before discussing features or benefits.",
+          example: "Patient safety is absolutely our top priority, and I completely understand your concern after that near-miss. Let me show you our safety protocols: we have FDA validation for drug interaction checking, real-time clinical decision support, and we provide safety guarantees with liability coverage. Before we discuss any features, can I show you our safety validation process and connect you with another CMO who went through a similar situation?"
+        },
+        excellentResponseExample: "Patient safety is absolutely our top priority, and I completely understand your concern after that near-miss incident. That's exactly why we built our system with multiple safety layers: FDA validation for drug interaction checking, real-time clinical decision support, and we provide safety guarantees with liability coverage. More importantly, we'll conduct a full safety audit of your current gaps before implementation. Can I show you our safety validation process and connect you with another CMO who went through a similar transition without any safety incidents?"
+      };
+    }
+
+    // Real Estate
+    if (productLower.includes('real estate') || productLower.includes('property') || 
+        productLower.includes('mls') || productLower.includes('realtor') ||
+        productLower.includes('listing') || productLower.includes('rental')) {
+      return {
+        context: "Brokerage owner crisis meeting! They're losing top agents to competitors with better technology...",
+        prospectMessage: "I'm going to be honest - I'm desperate. I've lost three of my top producers this quarter to competing brokerages that have better technology. My agents are complaining that our current system is slow, the mobile app crashes during showings, and they're losing deals because they can't access property information quickly. The last tech vendor promised 'cutting-edge tools' but delivered a system that's actually worse than what we had before. My remaining agents are threatening to leave, and I can't afford to lose any more revenue. How do I know your system won't drive away the rest of my team?",
+        coachingPrompt: "The prospect is a brokerage owner in crisis - lost 3 top producers due to bad technology, current system crashes during showings, agents threatening to leave, previous vendor delivered worse system than before. They're desperate but scared of another failure. The user's response was: '{userResponse}'. Did they address the agent retention crisis and provide proof of agent satisfaction, or did they just pitch technology features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey're **losing top producers** and agents are **threatening to leave**. This is about agent retention and revenue survival, not technology features.\n\n**Focus on agent satisfaction and retention.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In real estate, agent satisfaction directly impacts brokerage survival.** Address retention concerns with agent testimonials and satisfaction guarantees.",
+        technique: {
+          name: "Agent Retention Focus",
+          description: "When brokerages are losing agents due to technology issues, focus on agent satisfaction metrics and retention guarantees.",
+          example: "I completely understand the panic of losing top producers - that's a revenue crisis. Let me show you our agent satisfaction scores: 94% of agents report increased productivity, and we have a 98% agent retention rate post-implementation. More importantly, we offer a satisfaction guarantee - if your agents aren't happy within 60 days, we'll make it right or you don't pay. Can I connect you with three brokers who were in similar situations and how we helped them retain and attract top talent?"
+        },
+        excellentResponseExample: "I completely understand the panic of losing top producers - that's a revenue crisis that threatens your entire business. Let me show you our agent satisfaction scores: 94% of agents report increased productivity, and we have a 98% agent retention rate post-implementation. More importantly, we offer a satisfaction guarantee - if your agents aren't happy within 60 days, we'll make it right or you don't pay. Can I connect you with three brokers who were in similar situations and how we helped them not only retain agents but actually attract top talent from competitors?"
+      };
+    }
+
+    // Legal Services
+    if (productLower.includes('legal') || productLower.includes('law') || 
+        productLower.includes('attorney') || productLower.includes('lawyer') ||
+        productLower.includes('court') || productLower.includes('litigation')) {
+      return {
+        context: "Managing Partner emergency meeting! They're facing a malpractice risk from document management failures...",
+        prospectMessage: "We have a serious problem. Last month, we nearly missed a statute of limitations deadline because our document management system failed to properly track case dates. We caught it at the last minute, but it could have been a malpractice claim worth millions. Our malpractice insurance carrier is now requiring us to upgrade our systems or face higher premiums. The IT vendor we used last year promised 'bulletproof document security' but we've had three data breaches and compliance violations. I can't risk another system that might expose us to liability. How do you guarantee this won't create legal exposure for our firm?",
+        coachingPrompt: "The prospect is a Managing Partner facing malpractice risk from system failures. They nearly missed a statute of limitations deadline, had 3 data breaches, and insurance carrier is demanding upgrades. Legal liability and compliance are paramount concerns. The user's response was: '{userResponse}'. Did they address legal liability and compliance guarantees, or did they just discuss document management features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey mentioned **malpractice risk** and **millions in liability**. This isn't about document management - it's about legal exposure and professional survival.\n\n**Lead with liability protection and compliance guarantees.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In legal services, liability protection is everything.** Address malpractice risk and compliance first, features second.",
+        technique: {
+          name: "Liability Protection First",
+          description: "When selling to law firms, always lead with liability protection, compliance guarantees, and malpractice risk mitigation.",
+          example: "Malpractice risk is absolutely unacceptable, and I understand your concern after that close call. We provide comprehensive liability protection: automated deadline tracking with multiple alerts, bank-level security with compliance guarantees, and we carry professional liability insurance that covers our clients. Before discussing features, let me show you our compliance certifications and connect you with another managing partner who eliminated their malpractice risk using our system."
+        },
+        excellentResponseExample: "Malpractice risk is absolutely unacceptable, and I understand your concern after that close call with the statute of limitations. We provide comprehensive liability protection: automated deadline tracking with multiple alerts, bank-level security with compliance guarantees, and we carry professional liability insurance that covers our clients. More importantly, we'll conduct a full risk audit of your current processes and provide a written compliance guarantee. Can I show you our malpractice prevention protocols and connect you with another managing partner who eliminated their risk exposure?"
+      };
+    }
+
+    // Manufacturing/Industrial
+    if (productLower.includes('manufacturing') || productLower.includes('factory') || 
+        productLower.includes('industrial') || productLower.includes('production') ||
+        productLower.includes('supply chain') || productLower.includes('inventory')) {
+      return {
+        context: "Plant Manager crisis call! They're dealing with production downtime costing millions...",
+        prospectMessage: "We're hemorrhaging money. Our current system went down for 8 hours last week, costing us $2.3 million in lost production and delayed shipments. Our biggest customer is threatening to find alternative suppliers if we can't guarantee reliability. The previous vendor assured us their system had '99.9% uptime' but we've had six major outages this year. My operations team is working around the clock to manually track everything, which is creating safety risks and quality issues. I can't afford another system that might fail during peak production. How do you guarantee this won't shut down our operations?",
+        coachingPrompt: "The prospect is a Plant Manager dealing with production downtime crisis - $2.3M lost from 8-hour outage, customer threatening to leave, 6 major outages this year, manual tracking creating safety risks. Operational reliability is critical. The user's response was: '{userResponse}'. Did they address uptime guarantees and operational reliability, or did they just pitch system features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey lost **$2.3 million** from downtime and have **safety risks** from manual processes. This is about operational survival, not system features.\n\n**Lead with uptime guarantees and reliability.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In manufacturing, downtime equals lost revenue and safety risks.** Address uptime guarantees and operational reliability first.",
+        technique: {
+          name: "Uptime Guarantee Focus",
+          description: "When selling to manufacturers, lead with uptime guarantees, redundancy systems, and operational reliability metrics.",
+          example: "Production downtime is unacceptable when you're losing millions per hour. We guarantee 99.95% uptime with financial penalties if we don't meet it. We have redundant systems, 24/7 monitoring, and instant failover capabilities. More importantly, we'll provide a backup plan during implementation so you never have operational risk. Can I show you our uptime track record and connect you with another plant manager who eliminated their downtime issues?"
+        },
+        excellentResponseExample: "Production downtime is absolutely unacceptable when you're losing millions per hour. We guarantee 99.95% uptime with financial penalties if we don't meet it - we actually pay you for any downtime we cause. We have redundant systems, 24/7 monitoring, and instant failover capabilities. More importantly, we'll provide a complete backup plan during implementation so you never have operational risk. Can I show you our uptime track record and connect you with another plant manager who went from 6 outages per year to zero?"
+      };
+    }
+
+    // Education/Schools
+    if (productLower.includes('education') || productLower.includes('school') || 
+        productLower.includes('university') || productLower.includes('student') ||
+        productLower.includes('learning') || productLower.includes('academic')) {
+      return {
+        context: "Superintendent emergency meeting! They're facing parent backlash over student data privacy breaches...",
+        prospectMessage: "We're in crisis mode. Our current student information system was hacked last month, exposing personal data of 15,000 students and families. Parents are furious, the school board is demanding answers, and we're facing potential lawsuits. The vendor claimed their system was 'FERPA compliant' but clearly the security wasn't adequate. Teachers are afraid to use any technology now, and we're back to paper records for sensitive information. I can't implement another system that might expose our students to privacy risks. How do you guarantee student data will be protected?",
+        coachingPrompt: "The prospect is a Superintendent dealing with a student data breach crisis - 15,000 students exposed, parent backlash, potential lawsuits, teachers refusing to use technology. Student privacy and FERPA compliance are critical. The user's response was: '{userResponse}'. Did they address student privacy protection and FERPA compliance guarantees, or did they just discuss system features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey exposed **15,000 students' data** and are facing **lawsuits**. This is about student privacy protection, not system capabilities.\n\n**Lead with privacy guarantees and FERPA compliance.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In education, student privacy is sacred.** Address data protection and FERPA compliance before discussing any other features.",
+        technique: {
+          name: "Privacy Protection First",
+          description: "When selling to schools, always lead with student privacy protection, FERPA compliance, and data security guarantees.",
+          example: "Student privacy is absolutely sacred, and I understand your crisis after that data breach. We provide comprehensive privacy protection: end-to-end encryption, FERPA certification, and we carry cyber liability insurance that covers our school clients. Before discussing any features, let me show you our security protocols and connect you with another superintendent who strengthened their privacy protection after a similar incident."
+        },
+        excellentResponseExample: "Student privacy is absolutely sacred, and I understand the crisis you're facing after that data breach. We provide comprehensive privacy protection: end-to-end encryption, FERPA certification, and we carry cyber liability insurance that covers our school clients. More importantly, we'll conduct a full security audit and provide written privacy guarantees. Can I show you our security protocols and connect you with another superintendent who went from a data breach to becoming a model for student privacy protection?"
+      };
+    }
+
+    // Nonprofit/Charity
+    if (productLower.includes('nonprofit') || productLower.includes('charity') || 
+        productLower.includes('donation') || productLower.includes('fundraising') ||
+        productLower.includes('volunteer') || productLower.includes('foundation')) {
+      return {
+        context: "Executive Director funding crisis! They're facing donor fatigue and declining donations...",
+        prospectMessage: "We're in a funding crisis. Donations are down 40% this year, our major donors are giving less due to 'economic uncertainty,' and our current donor management system is so outdated that we're losing track of donor relationships. We just lost a $500K grant because we missed the application deadline - our system didn't send the reminder alerts. Our development team is spending more time fighting the technology than cultivating donors. The board is questioning every expense, and I can't justify spending money on another system that might not work. How do you guarantee this will actually help us raise more money?",
+        coachingPrompt: "The prospect is an Executive Director in funding crisis - 40% donation decrease, lost $500K grant due to system failure, donor relationship tracking problems, board scrutinizing expenses. ROI and fundraising effectiveness are critical. The user's response was: '{userResponse}'. Did they focus on fundraising ROI and donor relationship improvement, or did they just pitch nonprofit software features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey lost a **$500K grant** due to system failure and donations are **down 40%**. This is about fundraising survival, not software features.\n\n**Focus on fundraising ROI and donor relationship improvement.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In nonprofits, every dollar spent must directly impact fundraising success.** Address donation increase and donor retention first.",
+        technique: {
+          name: "Mission Impact Focus",
+          description: "When selling to nonprofits, focus on how the solution directly impacts their mission through improved fundraising and donor relationships.",
+          example: "Losing major donors and grants threatens your entire mission. Let me show you how we've helped similar nonprofits increase donations by 25% through better donor relationship management and automated grant tracking. We also offer nonprofit pricing and ROI guarantees - if you don't see increased donations within 12 months, we'll refund your investment. Can I show you a case study of another nonprofit that turned around their funding crisis?"
+        },
+        excellentResponseExample: "Losing major donors and grants absolutely threatens your entire mission and the people you serve. Let me show you how we've helped similar nonprofits increase donations by 25% through better donor relationship management, automated grant tracking, and donor retention programs. More importantly, we offer nonprofit pricing and ROI guarantees - if you don't see increased donations within 12 months, we'll refund your investment. Can I show you a case study of another nonprofit that went from a funding crisis to record-breaking fundraising?"
+      };
+    }
+
+    // Government/Public Sector
+    if (productLower.includes('government') || productLower.includes('public sector') || 
+        productLower.includes('municipal') || productLower.includes('federal') ||
+        productLower.includes('state') || productLower.includes('city')) {
+      return {
+        context: "City Manager transparency crisis! They're facing public backlash over service delivery failures...",
+        prospectMessage: "We're under intense public scrutiny. Our current system failed during the last snowstorm, leaving residents without updates on road clearing for 12 hours. The mayor is getting angry calls, city council meetings are packed with frustrated citizens, and local media is questioning our competence. Our previous vendor promised 'government-grade reliability' but the system crashes whenever we need it most. Citizens are demanding transparency and real-time updates, but our current technology makes us look incompetent. I can't implement another system that might fail during a crisis and make us look even worse. How do you guarantee this won't embarrass us publicly?",
+        coachingPrompt: "The prospect is a City Manager facing public accountability crisis - system failed during emergency, angry citizens, media scrutiny, mayor pressure. Public trust and transparency are critical. The user's response was: '{userResponse}'. Did they address public accountability and crisis reliability, or did they just pitch government software features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey faced **public embarrassment** during a crisis and have **angry citizens** demanding accountability. This is about public trust, not software features.\n\n**Focus on crisis reliability and public transparency.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In government, system failures become public embarrassments.** Address crisis reliability and public accountability first.",
+        technique: {
+          name: "Public Accountability Focus",
+          description: "When selling to government, focus on public accountability, crisis reliability, and transparency that builds citizen trust.",
+          example: "Public embarrassment during a crisis can end political careers and damage citizen trust. We guarantee 99.9% uptime during emergencies with redundant systems and real-time citizen communication tools. We also provide crisis support and public communication assistance. Can I show you how we helped another city maintain public trust during their last major emergency?"
+        },
+        excellentResponseExample: "Public embarrassment during a crisis can absolutely end political careers and permanently damage citizen trust. We guarantee 99.9% uptime during emergencies with redundant systems, real-time citizen communication tools, and automated public updates. More importantly, we provide crisis support and public communication assistance to maintain transparency. Can I show you how we helped another city not only maintain public trust during their last major emergency but actually increase citizen satisfaction scores?"
+      };
+    }
+
+    // Energy/Utilities
+    if (productLower.includes('energy') || productLower.includes('utility') || 
+        productLower.includes('power') || productLower.includes('electric') ||
+        productLower.includes('gas') || productLower.includes('water')) {
+      return {
+        context: "Utility Operations Director crisis! They're facing regulatory fines for service reliability failures...",
+        prospectMessage: "We're facing a regulatory nightmare. The state utility commission just fined us $15 million for excessive service outages, and we're under investigation for grid reliability violations. Our current monitoring system failed to predict three major outages this summer, leaving 200,000 customers without power for hours. Customers are demanding rate reductions, politicians are calling for investigations, and our shareholders are furious about the fines. The previous vendor promised 'smart grid capabilities' but we're more reactive than ever. I can't risk another system that might cause more outages and regulatory violations. How do you guarantee this won't create more reliability problems?",
+        coachingPrompt: "The prospect is a Utility Operations Director facing regulatory crisis - $15M fine for outages, 200K customers affected, political pressure, shareholder anger. Grid reliability and regulatory compliance are critical. The user's response was: '{userResponse}'. Did they address regulatory compliance and grid reliability, or did they just pitch utility software features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey were fined **$15 million** for outages affecting **200,000 customers**. This is about regulatory survival and public safety.\n\n**Focus on grid reliability and regulatory compliance.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In utilities, reliability failures affect public safety and trigger massive fines.** Address regulatory compliance first.",
+        technique: {
+          name: "Reliability Assurance",
+          description: "When selling to utilities, focus on grid reliability, regulatory compliance, and public safety guarantees.",
+          example: "Regulatory fines and service outages affect both public safety and your financial survival. We guarantee improved grid reliability with predictive analytics that prevent outages before they happen. We also provide regulatory compliance support and liability protection. Can I show you how we helped another utility eliminate their regulatory violations and improve customer satisfaction?"
+        },
+        excellentResponseExample: "Regulatory fines and service outages absolutely affect both public safety and your financial survival. We guarantee improved grid reliability with predictive analytics that prevent outages before they happen, automated regulatory reporting, and compliance monitoring. More importantly, we provide regulatory compliance support and liability protection for any system-related issues. Can I show you how we helped another utility go from regulatory violations to becoming a model for grid reliability?"
+      };
+    }
+
     // Consulting Services
     if (productLower.includes('consulting') || productLower.includes('strategy') || 
         productLower.includes('advisory') || productLower.includes('coach') ||
@@ -179,6 +331,196 @@ const FloatingDemoBar: React.FC<FloatingDemoBarProps> = ({ onDemoSubmit, onOpenE
           example: "I completely understand your frustration - that's exactly why I work differently. Instead of creating recommendations and leaving, I stay and help implement them. I work directly with your team, provide hands-on training, and we measure progress weekly with concrete metrics. My fee is tied to actual results achieved, not deliverables created. Can I show you how I helped another CEO implement similar changes and the specific outcomes we achieved?"
         },
         excellentResponseExample: "I completely understand your frustration - that's exactly why I work differently. Instead of creating recommendations and leaving, I stay and help implement them. I work directly with your team, provide hands-on training, and we measure progress weekly with concrete metrics. My fee is tied to actual results achieved, not deliverables created. I also provide a 90-day implementation guarantee - if we don't see measurable progress, I'll continue working at no additional cost until we do. Can I show you how I helped another CEO implement similar changes and the specific outcomes we achieved?"
+      };
+    }
+
+    // E-commerce/Retail
+    if (productLower.includes('ecommerce') || productLower.includes('e-commerce') || 
+        productLower.includes('retail') || productLower.includes('online store') ||
+        productLower.includes('shopping') || productLower.includes('commerce')) {
+      return {
+        context: "E-commerce Director panic mode! They're losing millions during peak season due to website crashes...",
+        prospectMessage: "We're in full crisis mode. Our website crashed three times during Black Friday weekend, costing us an estimated $4.2 million in lost sales. Customers are leaving negative reviews about our 'unreliable' platform, and our conversion rate has dropped 30% since the crashes. The previous e-commerce vendor promised their platform could 'handle any traffic spike' but it failed spectacularly when we needed it most. Peak holiday season is coming again, and I can't afford another disaster. How do you guarantee your platform won't crash when we need it most?",
+        coachingPrompt: "The prospect is an E-commerce Director dealing with website crash crisis - $4.2M lost during Black Friday, 30% conversion drop, negative customer reviews, another peak season approaching. Platform reliability during high traffic is critical. The user's response was: '{userResponse}'. Did they address traffic handling and uptime guarantees during peak periods, or did they just pitch e-commerce features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey lost **$4.2 million** during peak sales period and have **another holiday season coming**. This is about revenue survival during critical periods.\n\n**Focus on traffic handling and peak season reliability.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In e-commerce, platform reliability during peak traffic directly impacts revenue.** Address high-traffic performance first.",
+        technique: {
+          name: "Peak Performance Guarantee",
+          description: "When selling to e-commerce, focus on traffic handling capabilities and uptime guarantees during peak sales periods.",
+          example: "Revenue loss during peak season is devastating, and I understand your panic about the upcoming holidays. We guarantee 99.99% uptime during peak traffic with auto-scaling that handles 10x traffic spikes. We also provide revenue protection - if our platform causes lost sales, we compensate you. Can I show you our Black Friday performance data and connect you with another e-commerce director who went from crashes to record-breaking sales?"
+        },
+        excellentResponseExample: "Revenue loss during peak season is absolutely devastating, and I understand your panic about the upcoming holidays. We guarantee 99.99% uptime during peak traffic with auto-scaling that handles 10x traffic spikes. More importantly, we provide revenue protection - if our platform causes lost sales during peak periods, we compensate you for the revenue loss. Can I show you our Black Friday performance data and connect you with another e-commerce director who went from crashes to record-breaking sales?"
+      };
+    }
+
+    // Insurance
+    if (productLower.includes('insurance') || productLower.includes('claims') || 
+        productLower.includes('underwriting') || productLower.includes('policy') ||
+        productLower.includes('actuarial') || productLower.includes('risk')) {
+      return {
+        context: "Insurance CEO regulatory meeting! They're facing massive fines for claims processing delays...",
+        prospectMessage: "We're facing a regulatory nightmare. The state insurance commissioner just fined us $8.5 million for delayed claims processing, and we're under investigation for potential bad faith practices. Our current system is so slow that we're missing regulatory deadlines for claim responses, and customers are filing complaints daily. The previous vendor promised 'streamlined claims processing' but we're actually slower than before implementation. Our agents are manually tracking everything to avoid more violations, which is creating errors and more delays. I can't risk another system that might make our compliance problems worse. How do you guarantee this won't create more regulatory issues?",
+        coachingPrompt: "The prospect is an Insurance CEO facing regulatory crisis - $8.5M fine for delayed claims, bad faith investigation, missing regulatory deadlines, customer complaints. Regulatory compliance and claims speed are critical. The user's response was: '{userResponse}'. Did they address regulatory compliance and claims processing speed guarantees, or did they just pitch insurance features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey were fined **$8.5 million** for regulatory violations and are under **bad faith investigation**. This is about regulatory survival, not system features.\n\n**Lead with compliance guarantees and regulatory protection.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In insurance, regulatory compliance is everything.** Address compliance guarantees and claims processing speed before features.",
+        technique: {
+          name: "Regulatory Compliance First",
+          description: "When selling to insurance companies, always lead with regulatory compliance guarantees and claims processing speed metrics.",
+          example: "Regulatory fines and bad faith investigations are company-threatening issues. We guarantee compliance with all state regulations and provide automated tracking for regulatory deadlines. We also carry errors and omissions insurance that covers our clients. Before discussing features, let me show you our compliance track record and connect you with another CEO who eliminated their regulatory risks."
+        },
+        excellentResponseExample: "Regulatory fines and bad faith investigations are absolutely company-threatening issues. We guarantee compliance with all state regulations, provide automated tracking for regulatory deadlines, and carry errors and omissions insurance that covers our clients. More importantly, we'll conduct a full compliance audit and provide written regulatory guarantees. Can I show you our compliance track record and connect you with another CEO who went from regulatory violations to becoming a compliance model?"
+      };
+    }
+
+    // Nonprofit/Charity
+    if (productLower.includes('nonprofit') || productLower.includes('charity') || 
+        productLower.includes('donation') || productLower.includes('fundraising') ||
+        productLower.includes('volunteer') || productLower.includes('foundation')) {
+      return {
+        context: "Executive Director funding crisis! They're facing donor fatigue and declining donations...",
+        prospectMessage: "We're in a funding crisis. Donations are down 40% this year, our major donors are giving less due to 'economic uncertainty,' and our current donor management system is so outdated that we're losing track of donor relationships. We just lost a $500K grant because we missed the application deadline - our system didn't send the reminder alerts. Our development team is spending more time fighting the technology than cultivating donors. The board is questioning every expense, and I can't justify spending money on another system that might not work. How do you guarantee this will actually help us raise more money?",
+        coachingPrompt: "The prospect is an Executive Director in funding crisis - 40% donation decrease, lost $500K grant due to system failure, donor relationship tracking problems, board scrutinizing expenses. ROI and fundraising effectiveness are critical. The user's response was: '{userResponse}'. Did they focus on fundraising ROI and donor relationship improvement, or did they just pitch nonprofit software features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey lost a **$500K grant** due to system failure and donations are **down 40%**. This is about fundraising survival, not software features.\n\n**Focus on fundraising ROI and donor relationship improvement.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In nonprofits, every dollar spent must directly impact fundraising success.** Address donation increase and donor retention first.",
+        technique: {
+          name: "Mission Impact Focus",
+          description: "When selling to nonprofits, focus on how the solution directly impacts their mission through improved fundraising and donor relationships.",
+          example: "Losing major donors and grants threatens your entire mission. Let me show you how we've helped similar nonprofits increase donations by 25% through better donor relationship management and automated grant tracking. We also offer nonprofit pricing and ROI guarantees - if you don't see increased donations within 12 months, we'll refund your investment. Can I show you a case study of another nonprofit that turned around their funding crisis?"
+        },
+        excellentResponseExample: "Losing major donors and grants absolutely threatens your entire mission and the people you serve. Let me show you how we've helped similar nonprofits increase donations by 25% through better donor relationship management, automated grant tracking, and donor retention programs. More importantly, we offer nonprofit pricing and ROI guarantees - if you don't see increased donations within 12 months, we'll refund your investment. Can I show you a case study of another nonprofit that went from a funding crisis to record-breaking fundraising?"
+      };
+    }
+
+    // Transportation/Logistics
+    if (productLower.includes('transportation') || productLower.includes('logistics') || 
+        productLower.includes('shipping') || productLower.includes('freight') ||
+        productLower.includes('delivery') || productLower.includes('fleet')) {
+      return {
+        context: "Logistics Director crisis call! They're losing major clients due to delivery tracking failures...",
+        prospectMessage: "We're hemorrhaging clients. Our biggest customer just terminated a $12 million annual contract because our tracking system failed to provide accurate delivery updates, and they missed critical shipments to their customers. Three other major clients are threatening to leave if we can't guarantee reliable tracking and on-time delivery. Our current system shows packages as 'delivered' when they're still in transit, and drivers are spending hours on the phone explaining delays instead of making deliveries. The previous vendor promised 'real-time visibility' but we're more blind than ever. I can't afford to lose any more clients. How do you guarantee accurate tracking and delivery performance?",
+        coachingPrompt: "The prospect is a Logistics Director losing clients - lost $12M contract due to tracking failures, 3 more clients threatening to leave, inaccurate delivery status, drivers wasting time on calls. Tracking accuracy and delivery performance are critical. The user's response was: '{userResponse}'. Did they address tracking accuracy and delivery performance guarantees, or did they just pitch logistics features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey lost a **$12 million contract** due to tracking failures and have **3 more clients threatening to leave**. This is about client retention and delivery accuracy.\n\n**Focus on tracking accuracy and delivery performance guarantees.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In logistics, tracking accuracy directly impacts client retention.** Address delivery performance and tracking reliability first.",
+        technique: {
+          name: "Delivery Performance Guarantee",
+          description: "When selling to logistics companies, focus on tracking accuracy, delivery performance metrics, and client retention guarantees.",
+          example: "Losing major clients due to tracking failures is devastating for a logistics business. We guarantee 99.5% tracking accuracy with real-time GPS updates and automated customer notifications. We also provide client retention support - if our system causes delivery issues that lose clients, we help with client recovery efforts. Can I show you our tracking accuracy data and connect you with another logistics director who improved their client retention?"
+        },
+        excellentResponseExample: "Losing major clients due to tracking failures is absolutely devastating for a logistics business. We guarantee 99.5% tracking accuracy with real-time GPS updates, automated customer notifications, and delivery performance monitoring. More importantly, we provide client retention support - if our system causes delivery issues that lose clients, we help with client recovery efforts and performance improvement plans. Can I show you our tracking accuracy data and connect you with another logistics director who went from losing clients to winning new business?"
+      };
+    }
+
+    // Energy/Utilities
+    if (productLower.includes('energy') || productLower.includes('utility') || 
+        productLower.includes('power') || productLower.includes('electric') ||
+        productLower.includes('gas') || productLower.includes('water')) {
+      return {
+        context: "Utility Operations Director crisis! They're facing regulatory fines for service reliability failures...",
+        prospectMessage: "We're facing a regulatory nightmare. The state utility commission just fined us $15 million for excessive service outages, and we're under investigation for grid reliability violations. Our current monitoring system failed to predict three major outages this summer, leaving 200,000 customers without power for hours. Customers are demanding rate reductions, politicians are calling for investigations, and our shareholders are furious about the fines. The previous vendor promised 'smart grid capabilities' but we're more reactive than ever. I can't risk another system that might cause more outages and regulatory violations. How do you guarantee this won't create more reliability problems?",
+        coachingPrompt: "The prospect is a Utility Operations Director facing regulatory crisis - $15M fine for outages, 200K customers affected, political pressure, shareholder anger. Grid reliability and regulatory compliance are critical. The user's response was: '{userResponse}'. Did they address regulatory compliance and grid reliability, or did they just pitch utility software features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey were fined **$15 million** for outages affecting **200,000 customers**. This is about regulatory survival and public safety.\n\n**Focus on grid reliability and regulatory compliance.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In utilities, reliability failures affect public safety and trigger massive fines.** Address regulatory compliance first.",
+        technique: {
+          name: "Reliability Assurance",
+          description: "When selling to utilities, focus on grid reliability, regulatory compliance, and public safety guarantees.",
+          example: "Regulatory fines and service outages affect both public safety and your financial survival. We guarantee improved grid reliability with predictive analytics that prevent outages before they happen. We also provide regulatory compliance support and liability protection. Can I show you how we helped another utility eliminate their regulatory violations and improve customer satisfaction?"
+        },
+        excellentResponseExample: "Regulatory fines and service outages absolutely affect both public safety and your financial survival. We guarantee improved grid reliability with predictive analytics that prevent outages before they happen, automated regulatory reporting, and compliance monitoring. More importantly, we provide regulatory compliance support and liability protection for any system-related issues. Can I show you how we helped another utility go from regulatory violations to becoming a model for grid reliability?"
+      };
+    }
+
+    // Food Service/Restaurant
+    if (productLower.includes('restaurant') || productLower.includes('food service') || 
+        productLower.includes('kitchen') || productLower.includes('menu') ||
+        productLower.includes('dining') || productLower.includes('hospitality')) {
+      return {
+        context: "Restaurant Owner survival meeting! They're losing customers due to order management failures...",
+        prospectMessage: "I'm desperate. Our current POS system crashed during our busiest dinner service last Saturday, and we had to turn away 200+ customers because we couldn't process orders or payments. The kitchen was in chaos, servers were writing orders on napkins, and customers were walking out furious. We've lost half our weekend reservations since then because word spread on social media about the disaster. The previous vendor promised their system was 'restaurant-tested' but it clearly can't handle our volume. With razor-thin margins, I can't afford another system failure that drives away customers. How do you guarantee this won't destroy my business during a busy service?",
+        coachingPrompt: "The prospect is a Restaurant Owner in crisis - POS crashed during peak service, turned away 200+ customers, lost weekend reservations, social media backlash, razor-thin margins. System reliability during peak service is critical for survival. The user's response was: '{userResponse}'. Did they address peak service reliability and customer retention, or did they just pitch POS features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey **turned away 200+ customers** and lost weekend reservations due to system failure. This is about business survival during peak service.\n\n**Focus on peak service reliability and customer experience.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In restaurants, system failures during peak service can destroy the business.** Address service reliability and customer experience first.",
+        technique: {
+          name: "Peak Service Reliability",
+          description: "When selling to restaurants, focus on system reliability during peak service times and customer experience protection.",
+          example: "System failures during peak service can destroy a restaurant's reputation overnight. We guarantee 99.9% uptime during service hours with instant backup systems. We also provide customer experience protection - if our system causes service disruptions, we help with customer recovery efforts. Can I show you our peak service performance data and connect you with another restaurant owner who eliminated their service disruptions?"
+        },
+        excellentResponseExample: "System failures during peak service can absolutely destroy a restaurant's reputation overnight. We guarantee 99.9% uptime during service hours with instant backup systems and offline mode capabilities. More importantly, we provide customer experience protection - if our system causes service disruptions, we help with customer recovery efforts and reputation management. Can I show you our peak service performance data and connect you with another restaurant owner who went from service disasters to smooth operations?"
+      };
+    }
+
+    // Construction/Architecture
+    if (productLower.includes('construction') || productLower.includes('architecture') || 
+        productLower.includes('building') || productLower.includes('contractor') ||
+        productLower.includes('project management') || productLower.includes('engineering')) {
+      return {
+        context: "General Contractor emergency meeting! They're facing project delays costing millions in penalties...",
+        prospectMessage: "We're in serious trouble. Our current project management system failed to track critical path dependencies, and now we're 6 weeks behind on a $50 million hospital project. The delay penalties are $100,000 per day, and we've already lost $4.2 million. The client is threatening to terminate our contract and hire another contractor to finish the job. Our project managers are back to using Excel and whiteboards because they don't trust the system, which is creating more coordination failures. I can't afford another software implementation that might delay projects further. How do you guarantee this won't cause more project delays?",
+        coachingPrompt: "The prospect is a General Contractor facing project delay crisis - 6 weeks behind on $50M project, $100K daily penalties, $4.2M lost, client threatening termination, team using Excel. Project timeline accuracy is critical. The user's response was: '{userResponse}'. Did they address project timeline guarantees and delay prevention, or did they just pitch project management features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey're losing **$100,000 per day** in penalties and facing **contract termination**. This is about project survival and timeline accuracy.\n\n**Focus on timeline guarantees and delay prevention.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In construction, delays equal massive financial penalties and contract loss.** Address timeline accuracy and delay prevention first.",
+        technique: {
+          name: "Timeline Accuracy Guarantee",
+          description: "When selling to construction companies, focus on project timeline accuracy, delay prevention, and penalty protection.",
+          example: "Project delays with those kinds of penalties can bankrupt a contractor. We guarantee accurate timeline tracking with early warning systems for potential delays. We also provide delay prevention consulting and penalty protection - if our system causes project delays, we help cover the penalties. Can I show you our timeline accuracy data and connect you with another general contractor who eliminated their delay issues?"
+        },
+        excellentResponseExample: "Project delays with those kinds of penalties can absolutely bankrupt a contractor. We guarantee accurate timeline tracking with early warning systems for potential delays and critical path monitoring. More importantly, we provide delay prevention consulting and penalty protection - if our system causes project delays, we help cover the associated penalties. Can I show you our timeline accuracy data and connect you with another general contractor who went from chronic delays to finishing projects early?"
+      };
+    }
+
+    // Automotive/Dealership
+    if (productLower.includes('automotive') || productLower.includes('dealership') || 
+        productLower.includes('car dealer') || productLower.includes('auto') ||
+        productLower.includes('vehicle') || productLower.includes('showroom')) {
+      return {
+        context: "Dealership General Manager crisis! They're losing sales due to inventory management failures...",
+        prospectMessage: "We're bleeding money. Our inventory management system showed we had 12 Honda Accords in stock when a customer wanted to buy one, but when we went to the lot, we had zero. The customer walked out and bought from our competitor across the street. This happens daily - we're promising cars we don't have and disappointing customers who never come back. Our sales team has lost trust in the system and spends half their time physically checking the lot instead of selling. Last month we lost $300K in sales because of inventory discrepancies. The manufacturer is threatening to reduce our allocation if we can't get our act together. How do you guarantee your system won't show phantom inventory?",
+        coachingPrompt: "The prospect is a Dealership GM facing inventory crisis - promising cars they don't have, customers walking out, $300K lost sales, manufacturer threatening allocation reduction, sales team wasting time checking lots. Inventory accuracy is critical for sales and relationships. The user's response was: '{userResponse}'. Did they address inventory accuracy and sales recovery, or did they just pitch dealership software features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey lost **$300K in sales** due to phantom inventory and the **manufacturer is threatening** their allocation. This is about sales survival and relationships.\n\n**Focus on inventory accuracy and sales recovery.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In automotive, inventory accuracy directly impacts sales and manufacturer relationships.** Address accuracy guarantees first.",
+        technique: {
+          name: "Accuracy Assurance",
+          description: "When selling to dealerships, focus on inventory accuracy, sales recovery, and manufacturer relationship protection.",
+          example: "Phantom inventory kills sales and damages manufacturer relationships. We guarantee 99.8% inventory accuracy with real-time lot tracking and automated reconciliation. We also provide sales recovery support - if our system causes lost sales due to inventory errors, we help with customer follow-up and compensation. Can I show you our accuracy data and connect you with another GM who eliminated their inventory discrepancies?"
+        },
+        excellentResponseExample: "Phantom inventory absolutely kills sales and damages critical manufacturer relationships. We guarantee 99.8% inventory accuracy with real-time lot tracking, automated reconciliation, and instant alerts for discrepancies. More importantly, we provide sales recovery support - if our system causes lost sales due to inventory errors, we help with customer follow-up and compensation programs. Can I show you our accuracy data and connect you with another GM who went from inventory chaos to record sales months?"
+      };
+    }
+
+    // Media/Publishing
+    if (productLower.includes('media') || productLower.includes('publishing') || 
+        productLower.includes('newspaper') || productLower.includes('magazine') ||
+        productLower.includes('content') || productLower.includes('editorial')) {
+      return {
+        context: "Publisher emergency meeting! They're facing advertiser exodus due to content management failures...",
+        prospectMessage: "We're in a full-scale crisis. Our content management system crashed during our biggest advertising campaign launch, and we couldn't update our website for 6 hours. Three major advertisers pulled their campaigns because their ads weren't displaying properly, costing us $400K in lost revenue. Our editorial team is back to emailing Word documents because they don't trust the system, which is creating version control nightmares and missed deadlines. Readers are complaining about broken links and outdated content. The previous vendor promised 'media-grade reliability' but we've had more downtime than a startup blog. How do you guarantee this won't kill what's left of our advertising revenue?",
+        coachingPrompt: "The prospect is a Publisher in crisis - system crashed during major campaign, lost $400K from advertiser pullouts, 6-hour website downtime, editorial team using email, broken links, missed deadlines. Content reliability and advertiser confidence are critical. The user's response was: '{userResponse}'. Did they address content reliability and advertiser retention, or did they just pitch publishing features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey lost **$400K from advertisers** due to system failure and have **editorial chaos**. This is about revenue survival and content reliability.\n\n**Focus on uptime guarantees and advertiser confidence.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In media, content failures directly impact advertiser confidence and revenue.** Address reliability and advertiser retention first.",
+        technique: {
+          name: "Content Reliability Assurance",
+          description: "When selling to publishers, focus on content reliability, advertiser confidence, and revenue protection.",
+          example: "Content failures destroy advertiser confidence and kill revenue. We guarantee 99.95% uptime with instant failover and content backup systems. We also provide advertiser confidence protection - if our system causes campaign failures, we help with advertiser retention and compensation. Can I show you our uptime data and connect you with another publisher who rebuilt advertiser trust after similar issues?"
+        },
+        excellentResponseExample: "Content failures absolutely destroy advertiser confidence and kill revenue streams. We guarantee 99.95% uptime with instant failover, content backup systems, and real-time monitoring. More importantly, we provide advertiser confidence protection - if our system causes campaign failures, we help with advertiser retention, compensation programs, and trust rebuilding. Can I show you our uptime data and connect you with another publisher who went from advertiser exodus to record advertising revenue?"
+      };
+    }
+
+    // Telecommunications
+    if (productLower.includes('telecom') || productLower.includes('telecommunications') || 
+        productLower.includes('phone') || productLower.includes('wireless') ||
+        productLower.includes('network') || productLower.includes('cellular')) {
+      return {
+        context: "Telecom Operations Director emergency! They're facing massive customer churn due to service outages...",
+        prospectMessage: "We're hemorrhaging customers. Our network monitoring system failed to detect a critical outage that left 50,000 customers without service for 8 hours. By the time we realized what happened, social media was exploding with angry customers threatening to switch carriers. We've lost 12,000 customers this month alone, and our customer service team is overwhelmed with complaints and cancellation requests. The regulatory commission is investigating us for service reliability violations. Our previous vendor promised 'carrier-grade monitoring' but we're more blind to network issues than ever. I can't afford another system that might miss critical outages. How do you guarantee we'll catch problems before customers do?",
+        coachingPrompt: "The prospect is a Telecom Operations Director facing customer exodus - 50K customers lost service for 8 hours, 12K customers left, social media backlash, regulatory investigation, overwhelmed customer service. Network reliability and customer retention are critical. The user's response was: '{userResponse}'. Did they address network monitoring and customer retention, or did they just pitch telecom features?",
+        fallbackCoaching: "## ⚠️ NEEDS WORK\n\nThey lost **12,000 customers** due to an 8-hour outage and face **regulatory investigation**. This is about customer retention and network reliability.\n\n**Focus on proactive monitoring and customer retention.**",
+        learningPoint: "## 🎯 Key Learning\n\n**In telecom, network failures directly cause customer churn and regulatory issues.** Address proactive monitoring first.",
+        technique: {
+          name: "Proactive Network Assurance",
+          description: "When selling to telecom, focus on proactive network monitoring, customer retention, and regulatory compliance.",
+          example: "Network outages cause immediate customer churn and regulatory problems. We guarantee proactive monitoring that detects issues before customers experience them, with automated alerts and instant response protocols. We also provide customer retention support during outages. Can I show you our detection speed data and connect you with another operations director who eliminated their customer churn from outages?"
+        },
+        excellentResponseExample: "Network outages absolutely cause immediate customer churn and regulatory problems. We guarantee proactive monitoring that detects issues before customers experience them, with automated alerts, instant response protocols, and predictive failure analysis. More importantly, we provide customer retention support during outages and regulatory compliance assistance. Can I show you our detection speed data and connect you with another operations director who went from massive churn to industry-leading customer satisfaction?"
       };
     }
 

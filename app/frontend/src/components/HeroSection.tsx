@@ -244,11 +244,11 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
     <>
     {/* Removed the local scroll anchor div */}
     {/* <div ref={emailSignupAnchorRef} style={{ position: 'relative', top: '-80px', height: '1px' }} data-purpose="email-signup-scroll-anchor" /> */}
-    <section className="min-h-screen flex flex-col justify-center items-center pt-24 sm:pt-32 md:pt-40 lg:pt-48 xl:pt-56 pb-16 sm:pb-20 md:pb-24 lg:pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <section className="min-h-screen flex flex-col justify-center items-center pt-32 sm:pt-40 md:pt-48 lg:pt-56 xl:pt-64 pb-16 sm:pb-20 md:pb-24 lg:pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden bg-white">
       <div className="max-w-7xl mx-auto w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-10 lg:gap-16 items-center">
           {/* Left Column: Text Content */}
-          <div className="order-1 lg:order-1 text-center lg:text-left">
+          <div className="order-1 lg:order-1 text-left">
                          <motion.h1 
                className="font-outfit font-bold text-gray-900 leading-tight mb-6 sm:mb-8"
                variants={textVariants}
@@ -256,20 +256,21 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
                animate="visible"
                custom={0} // Stagger delay index
              >
-                               <span className="block text-4xl sm:text-5xl md:text-4xl lg:text-5xl font-outfit font-bold text-gray-900 leading-tight">
+                               <span className="block text-5xl sm:text-6xl md:text-5xl lg:text-6xl xl:text-7xl font-outfit font-bold text-gray-900 leading-tight">
                   Never Lose<br/>
                   <span className="text-pitchiq-red">Million-Dollar Deals</span>
                 </span>
              </motion.h1>
              
                            <motion.p 
-                className="text-lg sm:text-xl md:text-lg text-gray-700 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-8 lg:mb-6"
+                className="text-lg sm:text-xl md:text-lg text-gray-700 max-w-2xl lg:mx-0 leading-relaxed mb-8 lg:mb-6"
                 variants={textVariants}
                 initial="hidden"
                 animate="visible"
                 custom={1} // Stagger delay index
               >
-                PitchIQ's AI role-plays turn every rep into revenue-ready closers. Slash onboarding from six months to six weeks, fix objections in real time, and defend margins, whether you manage ten sellers or ten thousand.
+                <span className="block sm:hidden">PitchIQ's AI role-plays turn every rep into revenue-ready closers. Slash onboarding time and defend margins.</span>
+                <span className="hidden sm:block">PitchIQ's AI role-plays turn every rep into revenue-ready closers. Slash onboarding from six months to six weeks, fix objections in real time, and defend margins, whether you manage ten sellers or ten thousand.</span>
               </motion.p>
             
             <motion.div
@@ -277,7 +278,7 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
               initial="hidden"
               animate="visible"
               custom={2} // Stagger delay index
-              className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8 lg:mb-6"
+              className="flex flex-col sm:flex-row gap-4 justify-start mb-8 lg:mb-6"
             >
               <Button 
                 size="lg" 
@@ -291,7 +292,7 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
 
             {/* Simple feature highlight */}
             <motion.div 
-              className="flex items-center justify-center lg:justify-start pt-2"
+              className="flex items-center justify-start pt-2"
               variants={textVariants}
               initial="hidden"
               animate="visible"
@@ -310,117 +311,7 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
             </motion.div>
           </div>
           
-          {/* Mobile Training Process Visual */}
-          <div className="order-2 lg:hidden mt-12 mb-8">
-            {/* Full-width red section with rounded top */}
-            <div className="-mx-4 sm:-mx-6 bg-pitchiq-red/15 rounded-t-[3rem] pt-8 pb-6 px-4 sm:px-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-                className="space-y-6"
-              >
-              {/* Dashboard Preview */}
-              <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-                {/* Dashboard Header */}
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                      <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                      <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                    </div>
-                    <div className="text-xs text-gray-500 font-medium">Sales Training Dashboard</div>
-                  </div>
-                </div>
-                
-                {/* Dashboard Content */}
-                <div className="p-6">
-                  {/* Progress Overview */}
-                  <div className="mb-6">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Team Performance</h3>
-                    <div className="space-y-3">
-                      {/* Sales Rep Progress */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                          </div>
-                          <span className="text-sm text-gray-700">Sarah Martinez</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500">Progress</div>
-                          <div className="text-sm font-semibold text-green-600">92%</div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                          </div>
-                          <span className="text-sm text-gray-700">Mike Chen</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500">Progress</div>
-                          <div className="text-sm font-semibold text-blue-600">78%</div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                          </div>
-                          <span className="text-sm text-gray-700">Alex Johnson</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500">Progress</div>
-                          <div className="text-sm font-semibold text-yellow-600">45%</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Metrics */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-pitchiq-red/5 rounded-lg p-3">
-                      <div className="text-xs text-gray-500 mb-1">Avg. Ramp Time</div>
-                      <div className="text-lg font-bold text-pitchiq-red">3.2 weeks</div>
-                      <div className="text-xs text-green-600">↓ 40% faster</div>
-                    </div>
-                    <div className="bg-green-50 rounded-lg p-3">
-                      <div className="text-xs text-gray-500 mb-1">Compliance</div>
-                      <div className="text-lg font-bold text-green-600">98%</div>
-                      <div className="text-xs text-green-600">✓ Enterprise ready</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Training Flow */}
-              <div className="text-center">
-                <div className="text-sm text-gray-500 mb-2">AI-powered training adapts to each sales rep</div>
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 bg-pitchiq-red rounded-full animate-pulse"></div>
-                    <span className="text-xs text-gray-600">Assess</span>
-                  </div>
-                  <ArrowRight className="w-3 h-3 text-gray-400" />
-                  <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 bg-pitchiq-red rounded-full animate-pulse delay-75"></div>
-                    <span className="text-xs text-gray-600">Train</span>
-                  </div>
-                  <ArrowRight className="w-3 h-3 text-gray-400" />
-                  <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 bg-pitchiq-red rounded-full animate-pulse delay-150"></div>
-                    <span className="text-xs text-gray-600">Measure</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-            </div>
-          </div>
+
           
           {/* Desktop Animation (unchanged) */}
           <motion.div
@@ -490,6 +381,99 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
                 </h3>
               </motion.div>
             </motion.div>
+          </motion.div>
+        </div>
+        
+        {/* Floating Dashboard Visual for Medium Screens */}
+        <div className="hidden sm:block lg:hidden absolute right-4 md:right-8 -bottom-20 md:-bottom-32 z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 30, x: 20 }}
+            animate={{ opacity: 1, y: 0, x: 0 }}
+            transition={{ duration: 1.0, delay: 0.6, ease: "easeOut" }}
+            className="w-80 md:w-96"
+          >
+                         {/* Dashboard Preview - Floating */}
+             <div className="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
+              {/* Dashboard Header */}
+              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                    <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                    <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                  </div>
+                  <div className="text-xs text-gray-500 font-medium">Sales Training Dashboard</div>
+                </div>
+              </div>
+              
+              {/* Dashboard Content */}
+              <div className="p-6">
+                {/* Progress Overview */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Team Performance</h3>
+                  <div className="space-y-3">
+                    {/* Sales Rep Progress */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        </div>
+                        <span className="text-sm text-gray-700">Sarah Martinez</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-gray-500">Progress</div>
+                        <div className="text-sm font-semibold text-green-600">92%</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                        </div>
+                        <span className="text-sm text-gray-700">Mike Chen</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-gray-500">Progress</div>
+                        <div className="text-sm font-semibold text-blue-600">78%</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                          <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                        </div>
+                        <span className="text-sm text-gray-700">Alex Johnson</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-gray-500">Progress</div>
+                        <div className="text-sm font-semibold text-yellow-600">45%</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Metrics */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-pitchiq-red/5 rounded-lg p-3">
+                    <div className="text-xs text-gray-500 mb-1">Avg. Ramp Time</div>
+                    <div className="text-lg font-bold text-pitchiq-red">3.2 weeks</div>
+                    <div className="text-xs text-green-600">↓ 40% faster</div>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3">
+                    <div className="text-xs text-gray-500 mb-1">Compliance</div>
+                    <div className="text-lg font-bold text-green-600">98%</div>
+                    <div className="text-xs text-green-600">✓ Enterprise ready</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Small floating indicator */}
+            <div className="absolute -bottom-2 -right-2 bg-pitchiq-red text-white text-xs px-2 py-1 rounded-full shadow-lg">
+              Live Demo
+            </div>
           </motion.div>
         </div>
       </div>

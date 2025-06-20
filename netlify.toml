@@ -3,7 +3,7 @@
   publish = "dist/"          # Publish directory (relative to 'base')
   command = "npm run build"  # Your build command
 
-# Optional: You can also specify the Node.js version here if needed,
-# though your UI settings already show Node.js 22.x which should be fine.
-# [build.environment]
-#   NODE_VERSION = "22" 
+[build.environment]
+  NODE_VERSION = "22"
+  # Set the Flask backend URL for email signup API calls
+  VITE_API_BASE_URL = "https://your-flask-backend-url.com" 

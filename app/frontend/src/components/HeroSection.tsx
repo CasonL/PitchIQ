@@ -257,19 +257,20 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
                custom={0} // Stagger delay index
              >
                                <span className="block text-4xl sm:text-5xl md:text-4xl lg:text-5xl font-outfit font-bold text-gray-900 leading-tight">
-                  Transform Sales <span className="text-pitchiq-red">With AI Today</span>
+                  Never Lose<br/>
+                  <span className="text-pitchiq-red">Million-Dollar Deals</span>
                 </span>
              </motion.h1>
              
-             <motion.p 
-               className="text-lg sm:text-xl md:text-lg text-gray-700 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-8 lg:mb-6"
-               variants={textVariants}
-               initial="hidden"
-               animate="visible"
-               custom={1} // Stagger delay index
-             >
-               AI-powered sales training that delivers measurable ROI for enterprise teams
-             </motion.p>
+                           <motion.p 
+                className="text-lg sm:text-xl md:text-lg text-gray-700 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-8 lg:mb-6"
+                variants={textVariants}
+                initial="hidden"
+                animate="visible"
+                custom={1} // Stagger delay index
+              >
+                PitchIQ's AI role-plays turn every rep into revenue-ready closers. Slash onboarding from six months to six weeks, fix objections in real time, and defend margins, whether you manage ten sellers or ten thousand.
+              </motion.p>
             
             <motion.div
               variants={textVariants} // Can use the same or a new variant for button

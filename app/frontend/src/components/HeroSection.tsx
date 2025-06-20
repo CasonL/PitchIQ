@@ -249,16 +249,27 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-10 lg:gap-16 items-center">
           {/* Left Column: Text Content */}
           <div className="order-1 lg:order-1 text-center lg:text-left">
-            <div className="text-center space-y-6 md:space-y-8">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
-                AI Sales Training Platform That 
-                <span className="text-pitchiq-red block mt-2">Transforms Performance</span>
-              </h1>
-              <h2 className="text-lg sm:text-xl lg:text-2xl text-gray-600 font-medium max-w-3xl mx-auto">
-                Practice with hyper-realistic AI buyers, master objection handling, and close more deals. 
-                <span className="font-semibold text-gray-800">Enterprise sales training that delivers measurable ROI.</span>
-              </h2>
-            </div>
+                         <motion.h1 
+               className="font-outfit font-bold text-gray-900 leading-tight mb-6 sm:mb-8"
+               variants={textVariants}
+               initial="hidden"
+               animate="visible"
+               custom={0} // Stagger delay index
+             >
+               <span className="block text-4xl sm:text-5xl md:text-4xl lg:text-5xl font-outfit font-bold text-gray-900 leading-tight">
+                 Scale Sales <span className="text-pitchiq-red">With AI</span>
+               </span>
+             </motion.h1>
+             
+             <motion.p 
+               className="text-lg sm:text-xl md:text-lg text-gray-700 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-8 lg:mb-6"
+               variants={textVariants}
+               initial="hidden"
+               animate="visible"
+               custom={1} // Stagger delay index
+             >
+               AI-powered sales training that delivers measurable ROI for enterprise teams
+             </motion.p>
             
             <motion.div
               variants={textVariants} // Can use the same or a new variant for button

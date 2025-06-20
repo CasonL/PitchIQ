@@ -244,13 +244,13 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
     <>
     {/* Removed the local scroll anchor div */}
     {/* <div ref={emailSignupAnchorRef} style={{ position: 'relative', top: '-80px', height: '1px' }} data-purpose="email-signup-scroll-anchor" /> */}
-    <section className="min-h-screen flex flex-col justify-center items-center pt-32 sm:pt-40 md:pt-48 lg:pt-56 xl:pt-64 pb-16 sm:pb-20 md:pb-24 lg:pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden bg-white">
+    <section className="h-auto flex flex-col justify-start items-center pt-32 sm:pt-36 md:pt-40 lg:pt-44 pb-0 px-4 sm:px-6 lg:px-8 overflow-hidden bg-white">
       <div className="max-w-7xl mx-auto w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-10 lg:gap-16 items-center">
           {/* Left Column: Text Content */}
           <div className="order-1 lg:order-1 text-left">
                          <motion.h1 
-               className="font-outfit font-bold text-gray-900 leading-tight mb-6 sm:mb-8"
+               className="font-outfit font-bold text-gray-900 leading-tight mb-6"
                variants={textVariants}
                initial="hidden"
                animate="visible"
@@ -263,7 +263,7 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
              </motion.h1>
              
                            <motion.p 
-                className="text-lg sm:text-xl md:text-lg text-gray-700 max-w-2xl lg:mx-0 leading-relaxed mb-8 lg:mb-6"
+                className="text-lg sm:text-xl md:text-lg text-gray-700 max-w-2xl lg:mx-0 leading-relaxed mb-8"
                 variants={textVariants}
                 initial="hidden"
                 animate="visible"
@@ -278,7 +278,7 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
               initial="hidden"
               animate="visible"
               custom={2} // Stagger delay index
-              className="flex flex-col sm:flex-row gap-4 justify-start mb-8 lg:mb-6"
+              className="flex flex-col sm:flex-row gap-4 justify-start mb-8"
             >
               <Button 
                 size="lg" 
@@ -292,7 +292,7 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
 
             {/* Simple feature highlight */}
             <motion.div 
-              className="flex items-center justify-start pt-2"
+              className="flex items-center justify-start pt-2 mb-8"
               variants={textVariants}
               initial="hidden"
               animate="visible"
@@ -469,13 +469,97 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
                 </div>
               </div>
             </div>
-            
-            {/* Small floating indicator */}
-            <div className="absolute -bottom-2 -right-2 bg-pitchiq-red text-white text-xs px-2 py-1 rounded-full shadow-lg">
-              Live Demo
-            </div>
           </motion.div>
         </div>
+      </div>
+    </section>
+
+    {/* Mobile Visual Section - Only visible on small screens */}
+    <section className="block sm:hidden bg-white pt-16 sm:pt-20 md:pt-24 pb-4 px-4">
+      <div className="max-w-sm mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.3 }}
+        >
+          {/* Mobile Dashboard Preview */}
+          <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+            {/* Dashboard Header */}
+            <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                </div>
+                <div className="text-xs text-gray-500 font-medium">Sales Dashboard</div>
+              </div>
+            </div>
+            
+            {/* Dashboard Content */}
+            <div className="p-4">
+              {/* Progress Overview */}
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Team Performance</h3>
+                <div className="space-y-2">
+                  {/* Sales Rep Progress */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      </div>
+                      <span className="text-xs text-gray-700">Sarah M.</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-500">Progress</div>
+                      <div className="text-sm font-semibold text-green-600">92%</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      </div>
+                      <span className="text-xs text-gray-700">Mike C.</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-500">Progress</div>
+                      <div className="text-sm font-semibold text-blue-600">78%</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                      </div>
+                      <span className="text-xs text-gray-700">Alex J.</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-500">Progress</div>
+                      <div className="text-sm font-semibold text-yellow-600">45%</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Metrics */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-pitchiq-red/5 rounded-lg p-2">
+                  <div className="text-xs text-gray-500 mb-1">Avg. Ramp Time</div>
+                  <div className="text-sm font-bold text-pitchiq-red">3.2 weeks</div>
+                  <div className="text-xs text-green-600">↓ 40% faster</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-2">
+                  <div className="text-xs text-gray-500 mb-1">Compliance</div>
+                  <div className="text-sm font-bold text-green-600">98%</div>
+                  <div className="text-xs text-green-600">✓ Ready</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </div>
     </section>
 

@@ -348,6 +348,11 @@ def create_app(config_name='dev'):
         # Serves favicon.ico from the root of your React app's dist folder
         return send_from_directory(react_frontend_dist_dir, 'favicon.ico')
     
+    @flask_instance.route('/iq-icon.ico')
+    def serve_iq_icon():
+        # Serves iq-icon.ico from the root of your React app's dist folder
+        return send_from_directory(react_frontend_dist_dir, 'iq-icon.ico')
+    
     @flask_instance.route('/pitchiq-logo.png')
     def serve_pitchiq_logo():
         # Serves pitchiq-logo.png from the root of your React app's dist folder

@@ -283,6 +283,7 @@ Provide encouraging feedback on how their second attempt was better, focusing on
   const closeChat = () => {
     saveProgress();
     setIsChatClosed(true);
+    setShowCard(false);
   };
 
   const typeMessage = (text: string, isAI: boolean) => {
@@ -399,7 +400,7 @@ ${currentScenario.technique.description}
         onDemoSubmit(submittedProduct); // Trigger waitlist signup
         setHasSubmittedEmail(true);
         setDemoStep(4); // Move to completion
-      } else if (currentMessage.toLowerCase().includes('deep dive') || currentMessage.toLowerCase().includes('breakdown') || currentMessage.toLowerCase().includes('analysis') || currentMessage.toLowerCase().includes('more details') || currentMessage.toLowerCase().includes('explain more')) {
+      } else if (currentMessage.toLowerCase().includes('deep dive') || currentMessage.toLowerCase().includes('breakdown') || currentMessage.includes('analysis') || currentMessage.includes('more details') || currentMessage.includes('explain more')) {
         await typeMessage("## 🧠 Deep Dive Analysis\n\n**Great choice!** Advanced technique breakdowns, psychology insights, and detailed coaching are available in the full **PitchIQ** experience.", true);
         await new Promise(resolve => setTimeout(resolve, 1500));
         await typeMessage("## 🚀 Ready to Master Sales Psychology?\n\nLet's get you access to **dozens of techniques, scenarios, and deep-dive analyses** that will transform your sales conversations!", true);
@@ -461,7 +462,7 @@ ${currentScenario.technique.description}
   return (
     <React.Fragment>
       {/* Background overlay with blur when demo is active */}
-      {showCard && (
+      {(showCard || showModeSelection) && (
         <div 
           className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
           style={{ backdropFilter: 'blur(8px)' }}
@@ -484,8 +485,26 @@ ${currentScenario.technique.description}
             // Mode selection card
             <div className="w-full max-w-lg mx-auto bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
               <div className="bg-red-500 px-6 py-4">
-                <h3 className="text-white font-semibold text-lg">Choose Your Demo Mode</h3>
-                <p className="text-white/90 text-sm">Product: {submittedProduct}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-white font-semibold text-lg">Choose Your Demo Mode</h3>
+                    <p className="text-white/90 text-sm">Product: {submittedProduct}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowModeSelection(false);
+                      setShowCard(false);
+                      setProduct('');
+                      setSubmittedProduct('');
+                    }}
+                    className="ml-2 p-1 hover:bg-red-400/20 rounded-full transition-colors"
+                    title="Close modal"
+                  >
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               <div className="p-6 space-y-4">
                 <p className="text-gray-600 text-center mb-6">

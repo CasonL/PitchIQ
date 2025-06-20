@@ -104,6 +104,9 @@ const HowItWorksSection: React.FC<HowItWorksProps> = ({ onOpenEmailModal }) => {
               <p className="text-base text-gray-600 mb-4">
                 Upload your sales methodology, objection handling frameworks, and compliance requirements.
               </p>
+              <p className="text-base text-gray-600 mb-4">
+                This customizes each rep's training experience while ensuring enterprise compliance across your entire organization.
+              </p>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-pitchiq-red" />
                 <span className="text-pitchiq-red font-medium text-sm">One-time setup</span>

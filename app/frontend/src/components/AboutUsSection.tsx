@@ -20,7 +20,7 @@ const AboutUsSection: React.FC<AboutUsSectionProps> = ({ onOpenEmailModal }) => 
             Enterprise-Grade <span className="text-red-600">Sales Training</span>
           </h2>
           <p className="mt-6 text-lg text-gray-600">
-            Built for organizations that need to scale sales performance while maintaining compliance standards. Our platform delivers measurable training ROI with enterprise security and comprehensive analytics.
+            Built for organizations that need to scale sales performance while maintaining compliance standards.
           </p>
           <div className="mt-8">
             <Button 
@@ -42,7 +42,7 @@ const AboutUsSection: React.FC<AboutUsSectionProps> = ({ onOpenEmailModal }) => 
             Ready to Transform Your Sales Organization?
           </h3>
           <p className="mt-4 text-lg text-gray-600">
-            Schedule a demo to see how PitchIQ delivers measurable training ROI for enterprise sales teams.
+            Schedule a demo to see how PitchIQ delivers measurable training ROI.
           </p>
           <div className="mt-8">
             <Button 

@@ -22,17 +22,17 @@ const simplifiedImprovementSteps = [
   {
     icon: BotMessageSquare,
     title: "AI Learns Your Sales Methodology",
-    description: "Configure once, scale infinitely. Our AI absorbs your unique sales process and delivers personalized coaching that follows your exact methodology.",
+    description: "Configure once, scale infinitely. Our AI absorbs your unique sales process.",
   },
   {
     icon: Sparkles,
     title: "Adapts to Every Rep, Maintains Standards",
-    description: "Each rep gets personalized feedback while meeting enterprise compliance requirements. Individual growth with organizational consistency.",
+    description: "Each rep gets personalized feedback while meeting enterprise compliance requirements.",
   },
   {
     icon: TrendingUp,
     title: "Scales From 10 to 10,000 Reps",
-    description: "Whether you're training a team or an entire sales organization, PitchIQ delivers the same quality coaching to everyone, simultaneously.",
+    description: "Whether you're training a team or an entire sales organization, PitchIQ delivers quality coaching.",
   },
 ];
 
@@ -80,7 +80,7 @@ const HowItWorksSection: React.FC<HowItWorksProps> = ({ onOpenEmailModal }) => {
           </h2>
           <div className="flex justify-center">
             <p className="text-lg md:text-xl text-foreground/80 max-w-3xl">
-              Unlike static training programs, PitchIQ adapts to each rep while maintaining enterprise standards. Deploy personalized AI coaching that learns your methodology and delivers consistent results across thousands of reps.
+              Unlike static training programs, PitchIQ adapts to each rep while maintaining enterprise standards.
             </p>
           </div>
         </motion.div>
@@ -98,7 +98,7 @@ const HowItWorksSection: React.FC<HowItWorksProps> = ({ onOpenEmailModal }) => {
               </div>
               <h4 className="text-lg font-bold text-gray-800 mb-3">Your Sales DNA, Amplified by AI</h4>
               <p className="text-base text-gray-600 mb-4">
-                Upload your sales methodology, objection handling frameworks, and compliance requirements. Our AI learns your approach and scales it across your entire organization.
+                Upload your sales methodology, objection handling frameworks, and compliance requirements.
               </p>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-pitchiq-red" />

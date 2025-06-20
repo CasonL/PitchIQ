@@ -4,6 +4,8 @@ import HeroSection from "@/components/HeroSection";
 import AboutUsSection from "@/components/AboutUsSection";
 import FeatureShowcase from "@/components/FeatureShowcase";
 import HowItWorksSection from "@/components/HowItWorksSection";
+import SEOBlogSection from "@/components/SEOBlogSection";
+import TestingSection from "@/components/TestingSection";
 import Footer from "@/components/Footer";
 import EmailSignupModal from "@/components/EmailSignupModal";
 
@@ -35,6 +37,8 @@ const LandingPage = () => {
         <HeroSection onOpenEmailModal={openEmailSignupModal} />
         <HowItWorksSection onOpenEmailModal={openEmailSignupModal} />
         <FeatureShowcase />
+        <SEOBlogSection />
+        <TestingSection />
         <AboutUsSection onOpenEmailModal={openEmailSignupModal} />
         
         {/* Enhanced Signup Section */}

@@ -8,28 +8,28 @@ const features = [
     iconBg: 'bg-green-100',
     iconColor: 'text-green-600',
     title: 'Accelerate Team Onboarding',
-    description: 'Reduce new hire ramp time from 6 months to 6 weeks. Our AI delivers consistent, standardized training that scales across your entire organization.'
+    description: 'Reduce new hire ramp time from 6 months to 6 weeks with consistent, standardized training.'
   },
   {
     icon: Sparkles,
     iconBg: 'bg-red-100',
     iconColor: 'text-red-600',
     title: 'Ensure Regulatory Compliance',
-    description: 'Meet industry compliance requirements with documented training protocols, audit trails, and standardized conversation frameworks tailored to financial services.'
+    description: 'Meet industry compliance requirements with documented training protocols and audit trails.'
   },
   {
     icon: MessageSquare,
     iconBg: 'bg-yellow-100',
     iconColor: 'text-yellow-600',
     title: 'Standardize Sales Excellence',
-          description: 'Deploy best practices consistently across teams. AI coaching ensures every rep follows proven methodologies and maintains quality standards.'
+    description: 'Deploy best practices consistently across teams with AI coaching.'
   },
   {
     icon: Users,
     iconBg: 'bg-blue-100',
     iconColor: 'text-blue-600',
     title: 'Measure Performance Impact',
-    description: 'Track improvement metrics, conversion rates, and ROI with comprehensive analytics. Get the data you need to justify training investments and demonstrate results.'
+    description: 'Track improvement metrics, conversion rates, and ROI with comprehensive analytics.'
   }
 ];
 
@@ -63,7 +63,7 @@ const FeatureShowcase: React.FC = () => {
             Enterprise Sales Training That Delivers Results
           </h2>
           <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
-                          Purpose-built for organizations that need to scale sales performance, ensure compliance, and drive measurable ROI from their training investments.
+            Purpose-built for organizations that need to scale sales performance and drive measurable ROI.
           </p>
         </div>
         <motion.div 

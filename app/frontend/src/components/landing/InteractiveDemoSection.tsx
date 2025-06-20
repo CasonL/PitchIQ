@@ -297,7 +297,7 @@ const InteractiveDemoSection: React.FC<InteractiveDemoSectionProps> = ({ onSignu
                 </span>
               </div>
               
-              <h2 className="font-outfit font-bold text-2xl md:text-3xl lg:text-4xl text-gray-900 mb-6 leading-tight">
+              <h2 className="font-outfit font-bold text-xl md:text-2xl lg:text-3xl text-gray-900 mb-6 leading-tight">
                 Your AI Coach is <br />
                 <span className="text-pitchiq-red">Ready to Practice</span>
               </h2>
@@ -396,7 +396,7 @@ const InteractiveDemoSection: React.FC<InteractiveDemoSectionProps> = ({ onSignu
               </span>
             </div>
             
-            <h2 className="font-outfit font-bold text-2xl md:text-3xl lg:text-4xl text-gray-900 mb-6 leading-tight">
+            <h2 className="font-outfit font-bold text-xl md:text-2xl lg:text-3xl text-gray-900 mb-6 leading-tight">
               Generate Your <br />
               <span className="text-pitchiq-red">AI Sales Coach</span>
             </h2>

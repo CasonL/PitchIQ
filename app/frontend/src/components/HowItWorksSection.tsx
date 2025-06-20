@@ -75,7 +75,7 @@ const HowItWorksSection: React.FC<HowItWorksProps> = ({ onOpenEmailModal }) => {
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 sm:pr-8 md:pr-12 lg:pr-8">
         <motion.div className="text-left lg:text-center mb-12 md:mb-16 sm:mr-24 md:mr-32 lg:mr-0" variants={itemVariants}>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 font-outfit text-gray-900">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 font-outfit text-gray-900">
             <span className="block lg:inline">Sophisticated Training,</span>
             <span className="block lg:inline lg:ml-1">Simple Implementation</span>
           </h2>
@@ -95,7 +95,7 @@ const HowItWorksSection: React.FC<HowItWorksProps> = ({ onOpenEmailModal }) => {
                 <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 text-gray-600 mr-4 flex-shrink-0">
                   <span className="font-bold text-sm">1</span>
                 </div>
-                <h3 className="text-xl font-outfit font-bold text-gray-800">Enterprise Configuration</h3>
+                <h3 className="text-lg font-outfit font-bold text-gray-800">Enterprise Configuration</h3>
               </div>
               <h4 className="text-lg font-bold text-gray-800 mb-3">Your Sales DNA, Amplified by AI</h4>
               <p className="text-base text-gray-600 mb-4">
@@ -170,7 +170,7 @@ const HowItWorksSection: React.FC<HowItWorksProps> = ({ onOpenEmailModal }) => {
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 text-gray-600 mr-4 flex-shrink-0">
               <span className="font-bold text-sm">2</span>
             </div>
-            <h3 className="text-xl font-outfit font-bold text-gray-800">Continuous Performance Optimization</h3>
+            <h3 className="text-lg font-outfit font-bold text-gray-800">Continuous Performance Optimization</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">

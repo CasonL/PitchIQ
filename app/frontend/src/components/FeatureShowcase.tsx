@@ -59,7 +59,7 @@ const FeatureShowcase: React.FC = () => {
     <section className="py-20 sm:py-28 bg-white">
       <div className="container mx-auto px-6 lg:px-8">
         <div className="text-left lg:text-center sm:mr-24 md:mr-32 lg:mr-0">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 font-outfit text-gray-900">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 font-outfit text-gray-900">
             Enterprise Sales Training That Delivers Results
           </h2>
           <p className="text-lg md:text-xl text-foreground/80 max-w-3xl lg:mx-auto">
@@ -83,7 +83,7 @@ const FeatureShowcase: React.FC = () => {
                 <feature.icon className={`w-8 h-8 ${feature.iconColor}`} />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">{feature.title}</h3>
+                <h3 className="text-lg font-bold text-gray-900">{feature.title}</h3>
                 <p className="mt-2 text-gray-600">{feature.description}</p>
               </div>
             </motion.div>

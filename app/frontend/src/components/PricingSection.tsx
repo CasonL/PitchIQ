@@ -21,7 +21,7 @@ const PricingPlan = ({ name, price, description, features, buttonText, primary =
       className={`rounded-xl p-8 animate-fade-in ${primary ? 'bg-gradient-to-br from-pitchiq-navy to-pitchiq-dark text-white' : 'bg-white shadow-sm border'}`}
       style={{ animationDelay: delay }}
     >
-      <h3 className="text-xl font-bold mb-2">{name}</h3>
+                    <h3 className="text-lg font-bold mb-2">{name}</h3>
       <div className="mb-4">
         <span className="text-3xl font-bold">{price}</span>
         {price !== "Custom" && <span className="text-sm opacity-80">/month</span>}
@@ -66,7 +66,7 @@ const PricingSection = () => {
     <section id="pricing" className="py-32 md:py-48 px-6 md:px-10 lg:px-20">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 font-outfit text-gray-900">Find Your Perfect Fit.</h2>
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 font-outfit text-gray-900">Find Your Perfect Fit.</h2>
           <p className="text-lg md:text-xl text-foreground/70 max-w-2xl mx-auto">
             Simple, transparent pricing to fuel your sales growth.
           </p>

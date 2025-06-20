@@ -256,7 +256,7 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
                animate="visible"
                custom={0} // Stagger delay index
              >
-                               <span className="block text-5xl sm:text-6xl md:text-5xl lg:text-6xl xl:text-7xl font-outfit font-bold text-gray-900 leading-tight">
+                               <span className="block text-4xl sm:text-5xl lg:text-6xl font-outfit font-bold text-gray-900 leading-tight">
                   Never Lose<br/>
                   <span className="text-pitchiq-red">Million-Dollar Deals</span>
                 </span>

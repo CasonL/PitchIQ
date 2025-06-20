@@ -65,7 +65,7 @@ const SEOBlogSection: React.FC = () => {
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
         >
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 font-outfit text-gray-900">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 font-outfit text-gray-900">
             Sales Training Insights & Best Practices
           </h2>
           <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
@@ -97,7 +97,7 @@ const SEOBlogSection: React.FC = () => {
                   </div>
                 </div>
                 
-                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-pitchiq-red transition-colors duration-200">
+                <h3 className="text-lg font-bold text-gray-900 mb-3 group-hover:text-pitchiq-red transition-colors duration-200">
                   <a href={`/blog/${post.slug}`} className="line-clamp-2">
                     {post.title}
                   </a>

@@ -244,7 +244,7 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
     <>
     {/* Removed the local scroll anchor div */}
     {/* <div ref={emailSignupAnchorRef} style={{ position: 'relative', top: '-80px', height: '1px' }} data-purpose="email-signup-scroll-anchor" /> */}
-    <section className="min-h-screen flex flex-col justify-center items-center pt-48 sm:pt-56 md:pt-64 lg:pt-72 xl:pt-80 pb-16 sm:pb-20 md:pb-24 lg:pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <section className="min-h-screen flex flex-col justify-center items-center pt-24 sm:pt-32 md:pt-40 lg:pt-48 xl:pt-56 pb-16 sm:pb-20 md:pb-24 lg:pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
       <div className="max-w-7xl mx-auto w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-10 lg:gap-16 items-center">
           {/* Left Column: Text Content */}

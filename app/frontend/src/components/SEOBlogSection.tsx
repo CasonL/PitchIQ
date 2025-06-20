@@ -68,7 +68,7 @@ const SEOBlogSection: React.FC = () => {
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 font-outfit text-gray-900">
             Sales Training Insights & Best Practices
           </h2>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+          <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
             Expert insights on AI sales training, enterprise coaching strategies, and proven techniques to maximize your team's performance.
           </p>
         </motion.div>

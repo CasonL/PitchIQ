@@ -87,16 +87,19 @@ const HowItWorksSection: React.FC<HowItWorksProps> = ({ onOpenEmailModal }) => {
         </motion.div>
 
         {/* --- PART 1: Enterprise Configuration --- */}
+        <motion.div variants={itemVariants}>
+          <div className="flex items-center mb-6">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 text-gray-600 mr-4 flex-shrink-0">
+              <span className="font-bold text-sm">1</span>
+            </div>
+            <h3 className="text-lg font-outfit font-bold text-gray-800">Enterprise Configuration</h3>
+          </div>
+        </motion.div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-16 items-center">
-          {/* Left Column: Stepper */}
+          {/* Left Column: Content */}
           <motion.div className="space-y-8" variants={itemVariants}>
-            <div className="p-6 rounded-lg">
-              <div className="flex items-center mb-6">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 text-gray-600 mr-4 flex-shrink-0">
-                  <span className="font-bold text-sm">1</span>
-                </div>
-                <h3 className="text-lg font-outfit font-bold text-gray-800">Enterprise Configuration</h3>
-              </div>
+            <div className="rounded-lg">
               <h4 className="text-lg font-bold text-gray-800 mb-3">Your Sales DNA, Amplified by AI</h4>
               <p className="text-base text-gray-600 mb-4">
                 Upload your sales methodology, objection handling frameworks, and compliance requirements.

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { NovaSonicInterface } from '../voice/NovaSonicInterface';
 
 interface FloatingDemoBarProps {
   onDemoSubmit: (product: string) => void;
@@ -30,6 +31,7 @@ const FloatingDemoBar: React.FC<FloatingDemoBarProps> = ({ onDemoSubmit }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [product, setProduct] = useState('');
   const [showCard, setShowCard] = useState(false);
+  const [showModeSelection, setShowModeSelection] = useState(false);
   const [submittedProduct, setSubmittedProduct] = useState('');
   const [isExpanding, setIsExpanding] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -49,6 +51,36 @@ const FloatingDemoBar: React.FC<FloatingDemoBarProps> = ({ onDemoSubmit }) => {
     emailSubmitted: boolean;
   } | null>(null);
   const [hasAnimatedIn, setHasAnimatedIn] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [novaSonicStatus, setNovaSonicStatus] = useState<any>(null);
+
+  // Check Nova Sonic status on component mount
+  useEffect(() => {
+    const checkNovaSonicStatus = async () => {
+      try {
+        const response = await fetch('/api/nova-sonic/status');
+        if (response.ok) {
+          const status = await response.json();
+          setNovaSonicStatus(status);
+        }
+      } catch (error) {
+        console.log('Nova Sonic not available:', error);
+      }
+    };
+    
+    checkNovaSonicStatus();
+  }, []);
+
+  // Handle voice input from Nova Sonic
+  const handleVoiceInput = (transcript: string) => {
+    if (transcript.trim()) {
+      setUserInput(transcript);
+      // Auto-submit the voice input
+      setTimeout(() => {
+        handleUserMessage();
+      }, 500);
+    }
+  };
 
   // Get demo scenario based on product type
   const getDemoScenario = (productName: string): DemoScenario => {
@@ -210,6 +242,20 @@ Provide encouraging feedback on how their second attempt was better, focusing on
     return () => window.removeEventListener('scroll', handleScroll);
   }, [hasAnimatedIn]);
 
+  // Prevent body scroll when demo card is open
+  useEffect(() => {
+    if (showCard) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    // Cleanup function to restore scroll on unmount
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showCard]);
+
   const saveProgress = () => {
     setSavedProgress({
       product: submittedProduct,
@@ -287,7 +333,10 @@ Provide encouraging feedback on how their second attempt was better, focusing on
     
     // Wait a bit, then automatically show the second message (conversation starter)
     await new Promise(resolve => setTimeout(resolve, 1500));
-    await typeMessage(scenario.prospectMessage, true);
+            // Don't show prospect message as text in voice mode - it will be spoken via ElevenLabs
+        if (!isVoiceMode) {
+          await typeMessage(scenario.prospectMessage, true);
+        }
     setDemoStep(1);
     setCurrentScenario(scenario);
   };
@@ -382,197 +431,339 @@ ${currentScenario.technique.description}
     setSubmittedProduct(product);
     setIsExpanding(true);
     
-    // Trigger expansion animation
+    // Trigger expansion animation to show mode selection
     setTimeout(() => {
-      setShowCard(true);
-      startDemo(product);
+      setShowModeSelection(true);
+      setIsExpanding(false);
     }, 300);
     
     // Don't call onDemoSubmit here - only call it when demo is complete
   };
 
+  const handleModeSelection = (voiceMode: boolean) => {
+    setIsVoiceMode(voiceMode);
+    setShowModeSelection(false);
+    setShowCard(true);
+    
+    // Generate the scenario for both modes
+    const scenario = getDemoScenario(submittedProduct);
+    setCurrentScenario(scenario);
+    
+    if (!voiceMode) {
+      // For text mode, start the demo flow with typing animations
+      startDemo(submittedProduct);
+    }
+    // For voice mode, just show the interface with the scenario set
+  };
+
   if (!isVisible) return null;
 
   return (
-    <div className={`fixed bottom-8 left-0 right-0 z-50 pointer-events-none transition-opacity duration-700 ${hasAnimatedIn ? 'opacity-100' : 'opacity-0'}`}>
-      <div className="mx-auto pointer-events-auto">
-        {isChatClosed && savedProgress ? (
-          // Continue button when chat is closed
-          <div className="flex justify-center">
-            <button
-              onClick={restoreProgress}
-              className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full font-semibold hover:from-red-600 hover:to-pink-600 transition-all transform hover:scale-105 shadow-lg"
-            >
-              Continue Demo
-            </button>
-          </div>
-                 ) : !showCard ? (
-          // Floating input bar
-          <div className={`transition-all duration-300 ${isExpanding ? 'transform scale-110 opacity-0' : ''}`}>
-            <div className="w-full max-w-2xl mx-auto px-4 sm:px-6">
-              <form onSubmit={handleSubmit}>
-                <input
-                  type="text"
-                  value={product}
-                  onChange={(e) => setProduct(e.target.value)}
-                  placeholder="What are you selling?"
-                  className="w-full px-4 py-2 rounded-full bg-white border border-black/20 shadow-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-red-500/20 focus:border-black/30 transition-all duration-200"
-                />
-              </form>
-              <div className="text-center mt-1.5">
-                <div className="inline-block px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs text-black font-medium border border-black/10">
-                  Press Enter for instant demo • Sign up free
-                </div>
-              </div>
+    <React.Fragment>
+      {/* Background overlay with blur when demo is active */}
+      {showCard && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+          style={{ backdropFilter: 'blur(8px)' }}
+        />
+      )}
+      
+      <div className={`fixed bottom-8 left-0 right-0 z-50 pointer-events-none transition-opacity duration-700 ${hasAnimatedIn ? 'opacity-100' : 'opacity-0'}`}>
+        <div className="mx-auto pointer-events-auto">
+          {isChatClosed && savedProgress ? (
+            // Continue button when chat is closed
+            <div className="flex justify-center">
+              <button
+                onClick={restoreProgress}
+                className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full font-semibold hover:from-red-600 hover:to-pink-600 transition-all transform hover:scale-105 shadow-lg"
+              >
+                Continue Demo
+              </button>
             </div>
-          </div>
-        ) : (
-          // Demo card
-          <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
-            <div className="bg-red-500 px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-white font-semibold text-lg">AI Sales Coach Demo</h3>
-                                      <p className="text-white/90 text-sm">Product: {submittedProduct}</p>
-                </div>
-                <div className="flex items-center space-x-3">
-                  {isAIResponding && (
-                    <div className="text-white text-sm">
-                      AI thinking...
+          ) : showModeSelection ? (
+            // Mode selection card
+            <div className="w-full max-w-lg mx-auto bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+              <div className="bg-red-500 px-6 py-4">
+                <h3 className="text-white font-semibold text-lg">Choose Your Demo Mode</h3>
+                <p className="text-white/90 text-sm">Product: {submittedProduct}</p>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-gray-600 text-center mb-6">
+                  How would you like to practice your sales conversation?
+                </p>
+                
+                <div className="space-y-3">
+                  {/* Text Mode Option */}
+                  <button
+                    onClick={() => handleModeSelection(false)}
+                    className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-red-500 hover:bg-red-50 transition-all group"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-red-100 transition-colors">
+                        <svg className="w-6 h-6 text-blue-600 group-hover:text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 text-left">
+                        <h4 className="font-semibold text-gray-900 group-hover:text-red-600">💬 Text Chat</h4>
+                        <p className="text-sm text-gray-600">Type your responses and get instant coaching feedback</p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <svg className="w-5 h-5 text-gray-400 group-hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
                     </div>
-                  )}
-                  <button
-                    onClick={() => {
-                      if (!isVoiceMode) {
-                        // Trying to switch to voice mode
-                        alert('🎤 Voice Mode coming soon! Get early access by signing up.');
-                      } else {
-                        // Switching back to text mode
-                        setIsVoiceMode(false);
-                      }
-                    }}
-                    className="relative inline-flex h-8 w-16 items-center rounded-full bg-white/10 border border-black/30 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
-                    title={isVoiceMode ? "Switch to Text Mode" : "Switch to Voice Mode (Coming Soon)"}
-                  >
-                    {/* Message bubble icon */}
-                    <svg 
-                      className={`absolute left-1.5 w-3.5 h-3.5 transition-colors ${!isVoiceMode ? 'text-white' : 'text-white/40'}`} 
-                      fill="currentColor" 
-                      viewBox="0 0 20 20"
-                    >
-                      <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
-                    </svg>
-                    
-                    {/* Microphone icon */}
-                    <svg 
-                      className={`absolute right-1.5 w-3.5 h-3.5 transition-colors ${isVoiceMode ? 'text-white' : 'text-white/40'}`} 
-                      fill="currentColor" 
-                      viewBox="0 0 20 20"
-                    >
-                      <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-                    </svg>
-                    
-                    {/* Sliding indicator */}
-                    <span
-                      className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                        isVoiceMode ? 'translate-x-8' : 'translate-x-1'
-                      }`}
-                    />
                   </button>
+
+                  {/* Voice Mode Option */}
                   <button
-                    onClick={closeChat}
-                    className="ml-2 p-1 hover:bg-red-400/20 rounded-full transition-colors"
-                    title="Close chat"
+                    onClick={() => handleModeSelection(true)}
+                    disabled={!novaSonicStatus?.available}
+                    className={`w-full p-5 border-2 rounded-2xl transition-all duration-200 group ${
+                      novaSonicStatus?.available 
+                        ? 'border-gray-200 hover:border-blue-400 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:shadow-lg' 
+                        : 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-60'
+                    }`}
                   >
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <div className="flex items-center space-x-4">
+                      <div className={`relative flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ${
+                        novaSonicStatus?.available 
+                          ? 'bg-gradient-to-br from-blue-100 to-indigo-100 group-hover:from-blue-200 group-hover:to-indigo-200 group-hover:scale-110' 
+                          : 'bg-gray-100'
+                      }`}>
+                        <svg className={`w-7 h-7 transition-colors ${
+                          novaSonicStatus?.available 
+                            ? 'text-blue-600 group-hover:text-blue-700' 
+                            : 'text-gray-400'
+                        }`} fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                        </svg>
+                        {/* Voice indicator waves */}
+                        {novaSonicStatus?.available && (
+                          <div className="absolute -inset-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-full h-full rounded-full border-2 border-blue-300 animate-ping"></div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <h4 className={`font-bold text-lg transition-colors ${
+                            novaSonicStatus?.available 
+                              ? 'text-gray-900 group-hover:text-blue-700' 
+                              : 'text-gray-500'
+                          }`}>
+                            🎤 Voice Chat
+                          </h4>
+                          {novaSonicStatus?.available ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 group-hover:bg-blue-100 group-hover:text-blue-800 transition-colors">
+                              Available
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              Unavailable
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-sm leading-relaxed ${
+                          novaSonicStatus?.available 
+                            ? 'text-gray-600 group-hover:text-gray-700' 
+                            : 'text-gray-400'
+                        }`}>
+                          {novaSonicStatus?.available 
+                            ? 'Speak naturally and get real-time AI coaching with voice responses powered by Amazon Nova Sonic' 
+                            : 'Voice mode requires AWS Nova Sonic configuration. Using text mode instead.'
+                          }
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                          novaSonicStatus?.available 
+                            ? 'bg-blue-100 group-hover:bg-blue-200' 
+                            : 'bg-gray-100'
+                        }`}>
+                          <svg className={`w-4 h-4 transition-colors ${
+                            novaSonicStatus?.available 
+                              ? 'text-blue-600 group-hover:text-blue-700' 
+                              : 'text-gray-400'
+                          }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
                   </button>
                 </div>
               </div>
             </div>
-            
-            <div className="h-96 overflow-y-auto p-6 space-y-4">
-              {messages.map((message) => (
-                <div key={message.id} className={`flex ${message.isAI ? 'justify-start' : 'justify-end'}`}>
-                  <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                    message.isAI 
-                      ? 'bg-gray-100 text-gray-800' 
-                      : 'bg-red-500 text-white'
-                  }`}>
-                    {message.isTyping ? (
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                      </div>
-                    ) : (
-                      <div className="text-sm prose prose-sm max-w-none">
-                        <ReactMarkdown
-                          components={{
-                            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                            strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
-                            em: ({ children }) => <em className="italic">{children}</em>,
-                            ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
-                            ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
-                            li: ({ children }) => <li className="mb-1">{children}</li>,
-                            h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
-                            h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
-                            h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
-                            code: ({ children }) => <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
-                            blockquote: ({ children }) => <blockquote className="border-l-2 border-gray-300 pl-3 italic text-gray-600 mb-2">{children}</blockquote>
-                          }}
-                        >
-                          {message.text}
-                        </ReactMarkdown>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            {demoStep > 0 && demoStep < 4 && (
-              <div className="border-t border-gray-200 p-4">
-                <form onSubmit={(e) => { e.preventDefault(); handleUserMessage(); }} className="flex space-x-3">
+          ) : !showCard ? (
+            // Floating input bar
+            <div className={`transition-all duration-300 ${isExpanding ? 'transform scale-110 opacity-0' : ''}`}>
+              <div className="w-full max-w-2xl mx-auto px-4 sm:px-6">
+                <form onSubmit={handleSubmit}>
                   <input
                     type="text"
-                    value={userInput}
-                    onChange={(e) => setUserInput(e.target.value)}
-                    placeholder="Type your response..."
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                    disabled={isAIResponding}
+                    value={product}
+                    onChange={(e) => setProduct(e.target.value)}
+                    placeholder="What are you selling?"
+                    className="w-full px-4 py-2 rounded-full bg-white border border-black/20 shadow-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-red-500/20 focus:border-black/30 transition-all duration-200"
                   />
-                  <button
-                    type="submit"
-                    disabled={!userInput.trim() || isAIResponding}
-                    className="px-6 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Send
-                  </button>
                 </form>
+                <div className="text-center mt-1.5">
+                  <div className="inline-block px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs text-black font-medium border border-black/10">
+                    Press Enter for instant demo • Sign up free
+                  </div>
+                </div>
               </div>
-            )}
-            
-            {demoStep === 4 && (
-              <div className="border-t border-gray-200 p-4 text-center">
-                <button
-                  onClick={() => {
-                    if (!hasSubmittedEmail) {
-                      onDemoSubmit(submittedProduct); // Trigger waitlist signup if not already done
-                    }
-                    window.location.href = '/auth/register';
-                  }}
-                  className="px-8 py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full font-semibold hover:from-red-600 hover:to-pink-600 transition-all transform hover:scale-105"
-                >
-                  {hasSubmittedEmail ? 'Continue to App' : 'Start Free Trial'}
-                </button>
+            </div>
+          ) : (
+            // Demo card
+            <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+              <div className="bg-red-500 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-white font-semibold text-lg">AI Sales Coach Demo</h3>
+                    <p className="text-white/90 text-sm">Product: {submittedProduct}</p>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    {isAIResponding && (
+                      <div className="text-white text-sm">
+                        AI thinking...
+                      </div>
+                    )}
+                    <div className="text-white/90 text-sm">
+                      {isVoiceMode ? '🎤 Voice Mode' : '💬 Text Mode'}
+                    </div>
+                    <button
+                      onClick={closeChat}
+                      className="ml-2 p-1 hover:bg-red-400/20 rounded-full transition-colors"
+                      title="Close chat"
+                    >
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        )}
+              
+              <div className="h-[500px] flex flex-col">
+                {isVoiceMode && novaSonicStatus?.available ? (
+                  <div className="flex flex-col h-full">
+                    {/* Single context message at the top */}
+                    <div className="px-6 pt-4 pb-2">
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center">
+                            <span className="text-blue-700 text-sm">🎯</span>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-blue-700 uppercase tracking-wide mb-1">Sales Training Scenario</p>
+                            <p className="text-sm text-blue-800 leading-relaxed">
+                              {currentScenario?.context || "Sales call in progress! Your prospect just shared a concern that reveals deeper issues..."}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Main voice interface - takes remaining space */}
+                    <div className="flex-1 px-6 pb-4">
+                      <NovaSonicInterface 
+                        onTranscript={handleVoiceInput}
+                        isListening={isListening}
+                        onListeningChange={setIsListening}
+                        scenario={currentScenario}
+                        compact={true}
+                        hideContext={true}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="overflow-y-auto p-6 space-y-4 h-full">
+                    {messages.map((message) => (
+                      <div key={message.id} className={`flex ${message.isAI ? 'justify-start' : 'justify-end'}`}>
+                        <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
+                          message.isAI 
+                            ? 'bg-gray-100 text-gray-800' 
+                            : 'bg-red-500 text-white'
+                        }`}>
+                          {message.isTyping ? (
+                            <div className="flex space-x-1">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                            </div>
+                          ) : (
+                            <div className="text-sm prose prose-sm max-w-none">
+                              <ReactMarkdown
+                                components={{
+                                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                  strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+                                  em: ({ children }) => <em className="italic">{children}</em>,
+                                  ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
+                                  ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
+                                  li: ({ children }) => <li className="mb-1">{children}</li>,
+                                  h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                                  h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                                  h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                                  code: ({ children }) => <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                                  blockquote: ({ children }) => <blockquote className="border-l-2 border-gray-300 pl-3 italic text-gray-600 mb-2">{children}</blockquote>
+                                }}
+                              >
+                                {message.text}
+                              </ReactMarkdown>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {demoStep > 0 && demoStep < 4 && !isVoiceMode && (
+                <div className="border-t border-gray-200 p-4">
+                  <form onSubmit={(e) => { e.preventDefault(); handleUserMessage(); }} className="flex space-x-3">
+                    <input
+                      type="text"
+                      value={userInput}
+                      onChange={(e) => setUserInput(e.target.value)}
+                      placeholder="Type your response..."
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      disabled={isAIResponding}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!userInput.trim() || isAIResponding}
+                      className="px-6 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Send
+                    </button>
+                  </form>
+                </div>
+              )}
+              
+              {demoStep === 4 && (
+                <div className="border-t border-gray-200 p-4 text-center">
+                  <button
+                    onClick={() => {
+                      if (!hasSubmittedEmail) {
+                        onDemoSubmit(submittedProduct); // Trigger waitlist signup if not already done
+                      }
+                      window.location.href = '/auth/register';
+                    }}
+                    className="px-8 py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full font-semibold hover:from-red-600 hover:to-pink-600 transition-all transform hover:scale-105"
+                  >
+                    {hasSubmittedEmail ? 'Continue to App' : 'Start Free Trial'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </React.Fragment>
   );
 };
 

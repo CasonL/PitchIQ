@@ -34,7 +34,7 @@ def system_health():
             'database': check_database_connection(),
             'openai': check_openai_connection(),
             'elevenlabs': check_elevenlabs_connection(),
-            'deepgram': check_deepgram_connection()
+    
         },
         'system': get_system_info(),
         'app': get_app_info()
@@ -43,7 +43,7 @@ def system_health():
     # Determine overall status
     critical_components = ['database']
     critical_status = all(health['components'][c]['status'] == 'healthy' for c in critical_components)
-    api_status = any(health['components'][c]['status'] == 'healthy' for c in ['openai', 'elevenlabs', 'deepgram'])
+    api_status = any(health['components'][c]['status'] == 'healthy' for c in ['openai', 'elevenlabs'])
     
     if critical_status and api_status:
         health['status'] = 'healthy'
@@ -124,27 +124,7 @@ def check_elevenlabs_connection():
             'message': f'Error checking ElevenLabs: {str(e)}'
         }
 
-def check_deepgram_connection():
-    """Check Deepgram API connection"""
-    try:
-        from app.services.api_manager import api_manager
-        if not api_manager.service_status.get('deepgram'):
-            return {
-                'status': 'unhealthy',
-                'message': 'Deepgram service not initialized'
-            }
-        
-        # Optionally perform a real API test here
-        return {
-            'status': 'healthy',
-            'message': 'Deepgram service initialized'
-        }
-    except Exception as e:
-        logger.error(f"Deepgram health check failed: {str(e)}")
-        return {
-            'status': 'unknown',
-            'message': f'Error checking Deepgram: {str(e)}'
-        }
+
 
 def get_system_info():
     """Get system resource information"""
@@ -202,8 +182,7 @@ def check_api_connectivity() -> Dict[str, Any]:
         Dict with API connection statuses
     """
     results = {
-        "openai": check_openai_connectivity(),
-        "deepgram": check_deepgram_connectivity()
+        "openai": check_openai_connectivity()
     }
     return results
 
@@ -323,28 +302,4 @@ def test_domain_connectivity(domain: str) -> Dict[str, Any]:
     
     return result
 
-def check_deepgram_connectivity() -> Dict[str, Any]:
-    """
-    Tests connectivity to Deepgram API.
-    
-    Returns:
-        Dict with connection status
-    """
-    try:
-        key = current_app.config.get('DEEPGRAM_API_KEY') or os.environ.get('DEEPGRAM_API_KEY')
-        
-        if not key:
-            return {
-                "status": "error",
-                "message": "Deepgram API key not configured"
-            }
-        
-        # Just check if API key exists for now
-        # Future: implement actual API test
-        return {
-            "status": "unknown",
-            "message": "Key exists but connectivity not tested"
-        }
-    except Exception as e:
-        logger.error(f"Error checking Deepgram API connectivity: {str(e)}")
-        return {"status": "error", "message": str(e)} 
+ 

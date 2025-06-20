@@ -65,7 +65,7 @@ const SEOBlogSection: React.FC = () => {
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
         >
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 font-outfit text-gray-900">
             Sales Training Insights & Best Practices
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">

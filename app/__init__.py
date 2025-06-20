@@ -137,6 +137,10 @@ def create_app(config_name='dev'):
     # Initialize API manager
     api_manager.init_app(flask_instance)
     
+    # Initialize Nova Sonic service
+    from app.services.nova_sonic_service import nova_sonic_service
+    nova_sonic_service.init_app(flask_instance)
+    
     # Register health check routes
     register_health_routes(flask_instance)
     
@@ -152,6 +156,9 @@ def create_app(config_name='dev'):
     from app.routes.api.generate_contextual_question import generate_contextual_question_bp
     from app.routes.api.embeddings import embeddings_bp
     from app.routes.api.dashboard_coach import dashboard_coach_bp
+    from app.routes.api.nova_sonic_routes import nova_sonic_bp
+    from app.routes.api.seo_routes import seo_bp
+    from app.routes.api.openai_realtime_routes import openai_realtime_bp
 
     # Register API blueprints
     flask_instance.register_blueprint(api_main_bp, url_prefix='/api')
@@ -165,6 +172,9 @@ def create_app(config_name='dev'):
     flask_instance.register_blueprint(generate_contextual_question_bp, url_prefix='/api/generate-contextual-question')
     flask_instance.register_blueprint(embeddings_bp, url_prefix='/api/embeddings')
     flask_instance.register_blueprint(dashboard_coach_bp, url_prefix='/api/dashboard-coach')
+    flask_instance.register_blueprint(nova_sonic_bp)
+    flask_instance.register_blueprint(seo_bp)
+    flask_instance.register_blueprint(openai_realtime_bp, url_prefix='/api/openai-realtime')
     
     # Exempt specific blueprints from CSRF protection after they are created
     # but before the app runs. This is the correct place to do this.
@@ -179,6 +189,9 @@ def create_app(config_name='dev'):
     csrf.exempt(generate_contextual_question_bp)
     csrf.exempt(embeddings_bp)
     csrf.exempt(dashboard_coach_bp)
+    csrf.exempt(nova_sonic_bp)
+    csrf.exempt(seo_bp)
+    csrf.exempt(openai_realtime_bp)
     
     # Initialize other extensions (this will call csrf.init_app)
     with flask_instance.app_context():
@@ -298,6 +311,22 @@ def create_app(config_name='dev'):
         else:
             # Handle GET request
             return jsonify({'message': 'GET request successful. Use POST to send data.'}), 200
+    
+    # +++ Add a simple Nova Sonic test route +++
+    @flask_instance.route('/api/nova-sonic-direct-test', methods=['GET'])
+    def nova_sonic_direct_test():
+        """Direct test route to verify Nova Sonic service access"""
+        try:
+            from app.services.nova_sonic_service import nova_sonic_service
+            sessions_count = len(nova_sonic_service.sessions)
+            return jsonify({
+                'success': True,
+                'message': 'Direct Nova Sonic test successful',
+                'sessions_count': sessions_count,
+                'service_type': 'minimal_test'
+            })
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
     #
     # The following route is commented out because it conflicts with serving

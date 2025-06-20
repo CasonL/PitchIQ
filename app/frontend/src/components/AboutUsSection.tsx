@@ -16,8 +16,8 @@ const AboutUsSection: React.FC<AboutUsSectionProps> = ({ onOpenEmailModal }) => 
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-6">
             <Users className="w-8 h-8 text-red-600" />
           </div>
-          <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900">
-            Enterprise-Grade <span className="text-red-600">Sales Training</span>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 font-outfit text-gray-900">
+            Enterprise-Grade Sales Training
           </h2>
           <p className="mt-6 text-lg text-gray-600">
             Built for organizations that need to scale sales performance while maintaining compliance standards.
@@ -38,7 +38,7 @@ const AboutUsSection: React.FC<AboutUsSectionProps> = ({ onOpenEmailModal }) => 
 
         {/* Final CTA */}
         <div className="max-w-3xl mx-auto">
-          <h3 className="text-3xl font-bold text-gray-900">
+          <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 font-outfit text-gray-900">
             Ready to Transform Your Sales Organization?
           </h3>
           <p className="mt-4 text-lg text-gray-600">

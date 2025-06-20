@@ -21,7 +21,7 @@ const CtaSection = () => {
   return (
     <section className="py-24 md:py-32 bg-pitchiq-navy">
       <div className="max-w-4xl mx-auto px-6 text-center">
-        <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+                  <h2 className="text-2xl md:text-3xl font-bold text-white mb-6">
           Ready to Be First in Line?
         </h2>
         <p className="text-lg md:text-xl text-white/80 mb-10">

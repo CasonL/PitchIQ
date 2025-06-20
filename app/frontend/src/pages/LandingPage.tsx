@@ -39,18 +39,7 @@ const LandingPage = () => {
         <SEOBlogSection />
         <AboutUsSection onOpenEmailModal={openEmailSignupModal} />
         
-        {/* Enhanced Signup Section */}
-        <section id="signup" className="py-16 md:py-24 bg-gradient-to-br from-pitchiq-red/5 to-white">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-              Ready to Transform Your Sales Performance?
-            </h2>
-            <p className="text-lg text-gray-600 mb-8">
-              Join sales professionals who are already using PitchIQ to close more deals and build confidence.
-            </p>
-            <EmailSignup id="main-email-signup" />
-          </div>
-        </section>
+
       </main>
       <Footer />
       

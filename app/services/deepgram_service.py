@@ -915,8 +915,9 @@ class DeepgramService:
             # Initialize client
             client = DeepgramClient(self.api_key)
             
-            # Prepare options object
-            prerecorded_options = DeepgramClient.PrerecordedOptions(**options)
+            # Prepare options object (fix for SDK v3.0.0)
+            from deepgram import PrerecordedOptions
+            prerecorded_options = PrerecordedOptions(**options)
             
             # Prepare payload
             payload = {"buffer": audio_buffer}

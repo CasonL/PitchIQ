@@ -5,7 +5,6 @@ from flask import Flask, current_app
 # Import service classes
 from app.services.openai_service import OpenAIService
 from app.services.eleven_labs_service import ElevenLabsService
-from app.services.deepgram_service import DeepgramService
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +16,11 @@ class APIManager:
     def __init__(self, app=None):
         self.openai_service = OpenAIService()
         self.elevenlabs_service = ElevenLabsService()
-        self.deepgram_service = DeepgramService()
         
         # Service status tracking
         self.service_status = {
             'openai': False,
-            'elevenlabs': False,
-            'deepgram': False
+            'elevenlabs': False
         }
         
         if app is not None:
@@ -36,7 +33,6 @@ class APIManager:
         # Initialize services
         self._init_openai(app)
         self._init_elevenlabs(app)
-        self._init_deepgram(app)
         
         # Register the manager on the app itself and in the extensions dictionary
         if not hasattr(app, 'extensions'):
@@ -67,15 +63,7 @@ class APIManager:
             logger.error(f"Failed to initialize ElevenLabs service: {str(e)}")
             self.service_status['elevenlabs'] = False
     
-    def _init_deepgram(self, app):
-        """Initialize Deepgram service"""
-        try:
-            self.deepgram_service.init_app(app)
-            self.service_status['deepgram'] = True
-            logger.info("Deepgram service initialized")
-        except Exception as e:
-            logger.error(f"Failed to initialize Deepgram service: {str(e)}")
-            self.service_status['deepgram'] = False
+
     
     def _register_health_check(self, app):
         """Register health check endpoint"""
@@ -84,8 +72,7 @@ class APIManager:
             """Check health of all API services"""
             return {
                 'openai': self.service_status['openai'],
-                'elevenlabs': self.service_status['elevenlabs'],
-                'deepgram': self.service_status['deepgram']
+                'elevenlabs': self.service_status['elevenlabs']
             }
     
     def get_service(self, service_name):
@@ -94,8 +81,6 @@ class APIManager:
             return self.openai_service
         elif service_name == 'elevenlabs':
             return self.elevenlabs_service
-        elif service_name == 'deepgram':
-            return self.deepgram_service
         else:
             raise ValueError(f"Unknown service: {service_name}")
     

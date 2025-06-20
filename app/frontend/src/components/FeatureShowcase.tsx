@@ -58,11 +58,11 @@ const FeatureShowcase: React.FC = () => {
   return (
     <section className="py-20 sm:py-28 bg-white">
       <div className="container mx-auto px-6 lg:px-8">
-        <div className="text-center">
-          <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900">
+        <div className="text-left sm:mr-24 md:mr-32 lg:mr-0">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 font-outfit text-gray-900">
             Enterprise Sales Training That Delivers Results
           </h2>
-          <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+          <p className="text-lg md:text-xl text-foreground/80 max-w-3xl">
             Purpose-built for organizations that need to scale sales performance and drive measurable ROI.
           </p>
         </div>

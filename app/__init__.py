@@ -343,6 +343,26 @@ def create_app(config_name='dev'):
         # Serves vite.svg from the root of your React app's dist folder
         return send_from_directory(react_frontend_dist_dir, 'vite.svg')
     
+    @flask_instance.route('/favicon.ico')
+    def serve_favicon():
+        # Serves favicon.ico from the root of your React app's dist folder
+        return send_from_directory(react_frontend_dist_dir, 'favicon.ico')
+    
+    @flask_instance.route('/pitchiq-logo.png')
+    def serve_pitchiq_logo():
+        # Serves pitchiq-logo.png from the root of your React app's dist folder
+        return send_from_directory(react_frontend_dist_dir, 'pitchiq-logo.png')
+    
+    @flask_instance.route('/iq-logo.png')
+    def serve_iq_logo():
+        # Serves iq-logo.png from the root of your React app's dist folder
+        return send_from_directory(react_frontend_dist_dir, 'iq-logo.png')
+    
+    @flask_instance.route('/iq-favicon.png')
+    def serve_iq_favicon():
+        # Serves iq-favicon.png from the root of your React app's dist folder
+        return send_from_directory(react_frontend_dist_dir, 'iq-favicon.png')
+    
     # Add a route to serve the demo.mp3 file
     # Ensure demo.mp3 is in react_frontend_dist_dir if served this way
     @flask_instance.route('/demo.mp3')

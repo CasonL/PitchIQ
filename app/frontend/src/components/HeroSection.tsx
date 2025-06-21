@@ -298,10 +298,10 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
               animate="visible"
               custom={3} // Stagger delay index
             >
-              <div className="flex items-center space-x-6 text-sm text-gray-600">
+              <div className="flex items-center space-x-4 text-xs sm:text-sm text-gray-600">
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                  <span>40% faster ramp time</span>
+                  <span>40% faster ramp</span>
                 </div>
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>

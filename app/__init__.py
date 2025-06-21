@@ -114,6 +114,8 @@ def create_app(config_name='dev'):
 
     # Restore the full list of allowed origins, ensuring it's used as a list
     allowed_origins = [
+        "https://pitchiq.ca",                                # Production domain
+        "https://www.pitchiq.ca",                           # Production domain with www
         "https://683dfb0aeaa20f0008871d1a--euphonious-treacle-b2b989.netlify.app", # Explicit deploy preview
         "https://euphonious-treacle-b2b989.netlify.app",      # Main Netlify frontend
         r"https://.*--euphonious-treacle-b2b989\.netlify\.app", # Regex for Netlify deploy previews for this site

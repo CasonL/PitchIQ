@@ -307,6 +307,10 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                   <span>Enterprise ready</span>
                 </div>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                  <span>Bank-grade security</span>
+                </div>
               </div>
             </motion.div>
           </div>

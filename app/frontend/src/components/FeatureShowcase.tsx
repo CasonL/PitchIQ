@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Sparkles, MessageSquare, Users } from 'lucide-react';
+import { Zap, Sparkles, MessageSquare, Users, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const features = [
@@ -25,9 +25,16 @@ const features = [
     description: 'Deploy best practices consistently across teams with AI coaching.'
   },
   {
-    icon: Users,
+    icon: Shield,
     iconBg: 'bg-blue-100',
     iconColor: 'text-blue-600',
+    title: 'Enterprise-Grade Security',
+    description: 'Military-grade Fernet encryption (AES-128) with unique keys per business. Your data is protected with the same standards used by financial institutions.'
+  },
+  {
+    icon: Users,
+    iconBg: 'bg-purple-100',
+    iconColor: 'text-purple-600',
     title: 'Measure Performance Impact',
     description: 'Track improvement metrics, conversion rates, and ROI with comprehensive analytics.'
   }

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -15,12 +15,15 @@ import traceback
 from datetime import datetime
 import json
 
+# Add the app directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(sys.stdout),
+        logging.StreamHandler(),
         logging.FileHandler('voice_diagnostic.log')
     ]
 )

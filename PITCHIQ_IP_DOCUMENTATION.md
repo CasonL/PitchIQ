@@ -7,13 +7,13 @@
 ## LEGAL NOTICE & COPYRIGHT
 
 **Document Title:** PitchIQ: AI-Powered Sales Intelligence & Assessment Platform - Comprehensive IP Documentation  
-**Author:** Cason [Your Full Legal Name]  
+**Author:** Cason David Neill Lamothe 
 **Date Created:** June 20, 2025  
-**Time:** [Current Time with Timezone]  
-**Location:** [Your Location]  
-**Document Version:** 1.0  
+**Time:** 11:26 PM
+**Location:** 176 daniel cres, T4R 3M2, Red Deer, AB, Canada
+**Document Version:** 1.0
 
-**COPYRIGHT NOTICE:** This document and all concepts, ideas, methodologies, technical implementations, and business strategies contained herein are the exclusive intellectual property of Cason [Your Full Legal Name]. All rights reserved. No part of this document may be reproduced, distributed, or transmitted in any form without explicit written permission.
+**COPYRIGHT NOTICE:** This document and all concepts, ideas, methodologies, technical implementations, and business strategies contained herein are the exclusive intellectual property of Cason David Neill Lamothe. All rights reserved. No part of this document may be reproduced, distributed, or transmitted in any form without explicit written permission.
 
 ---
 
@@ -186,7 +186,7 @@ PitchIQ represents a revolutionary AI-powered platform that transforms sales tra
 
 This document contains highly confidential and proprietary information regarding PitchIQ's business strategy, technical implementation, and intellectual property. Any unauthorized disclosure, reproduction, or use of this information is strictly prohibited and may result in legal action.
 
-**Authorized Recipients:** None without explicit written permission from Cason [Your Full Legal Name]
+**Authorized Recipients:** None without explicit written permission from Cason David Neill Lamothe
 
 **Document Security:** This document should be stored securely and access should be logged and monitored.
 
@@ -194,7 +194,7 @@ This document contains highly confidential and proprietary information regarding
 
 ## DECLARATION OF OWNERSHIP
 
-I, Cason [Your Full Legal Name], hereby declare that:
+I, Cason David Neill Lamothe, hereby declare that:
 
 1. All concepts, ideas, and innovations described in this document are my original creation
 2. The technical implementation of PitchIQ has been developed solely by me or under my direct supervision

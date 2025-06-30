@@ -38,8 +38,6 @@ const LandingPage = () => {
         <FeatureShowcase />
         <SEOBlogSection />
         <AboutUsSection onOpenEmailModal={openEmailSignupModal} />
-        
-
       </main>
       <Footer />
       

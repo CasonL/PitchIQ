@@ -1,7 +1,7 @@
-from flask import render_template, flash, redirect, url_for, current_app
+from flask import render_template, flash, redirect, url_for, current_app, request
 from flask_login import login_required, current_user
 from . import admin_bp
-from app.models import EmailSignup # Assuming EmailSignup is in app.models
+from app.models import EmailSignup, User, UserProfile # Assuming EmailSignup is in app.models
 from app import db # Assuming db is initialized in app/__init__.py
 
 # Helper function to check for admin status
@@ -54,4 +54,61 @@ def view_email_signups():
         flash('Error fetching email signups.', 'danger')
         signups = []
         
-    return render_template('admin/email_signups.html', title='Email Signups', signups=signups) 
+    return render_template('admin/email_signups.html', title='Email Signups', signups=signups)
+
+@admin_bp.route('/legendary-personas')
+@login_required
+def legendary_personas():
+    """Admin page to manage legendary persona access for users."""
+    if not is_admin():
+        flash('You do not have permission to access this page.', 'danger')
+        try:
+            return redirect(url_for('main.index'))
+        except Exception:
+            return redirect('/')
+    
+    try:
+        # Get all users with their profiles
+        users = db.session.query(User, UserProfile)\
+            .outerjoin(UserProfile, User.id == UserProfile.user_id)\
+            .order_by(User.created_at.desc()).all()
+        
+        current_app.logger.info(f"Admin user {current_user.email} accessing legendary personas management.")
+    except Exception as e:
+        current_app.logger.error(f"Error fetching users for legendary personas: {e}", exc_info=True)
+        flash('Error fetching user data.', 'danger')
+        users = []
+    
+    return render_template('admin/legendary_personas.html', title='Legendary Personas Access', users=users)
+
+@admin_bp.route('/toggle-legendary-access/<int:user_id>', methods=['POST'])
+@login_required
+def toggle_legendary_access(user_id):
+    """Toggle legendary persona access for a specific user."""
+    if not is_admin():
+        flash('You do not have permission to perform this action.', 'danger')
+        return redirect(url_for('admin.legendary_personas'))
+    
+    try:
+        user = User.query.get_or_404(user_id)
+        
+        # Get or create user profile
+        profile = UserProfile.query.filter_by(user_id=user_id).first()
+        if not profile:
+            profile = UserProfile(user_id=user_id)
+            db.session.add(profile)
+        
+        # Toggle legendary persona access
+        profile.has_legendary_personas = not (profile.has_legendary_personas or False)
+        db.session.commit()
+        
+        status = "enabled" if profile.has_legendary_personas else "disabled"
+        flash(f'Legendary persona access {status} for {user.email}', 'success')
+        current_app.logger.info(f"Admin {current_user.email} {status} legendary personas for user {user.email}")
+        
+    except Exception as e:
+        current_app.logger.error(f"Error toggling legendary access for user {user_id}: {e}", exc_info=True)
+        flash('Error updating user access.', 'danger')
+        db.session.rollback()
+    
+    return redirect(url_for('admin.legendary_personas')) 

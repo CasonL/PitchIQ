@@ -10,7 +10,7 @@ api = Blueprint('api', __name__)
 api_bp = api  # Alias for backward compatibility
 
 # Import the API routes to register them with the blueprint
-from . import personalization, auth, contact, email_signup, dashboard, chat, generate_contextual_question, embeddings, dashboard_coach, roleplay
+from . import personalization, auth, contact, email_signup, dashboard, chat, generate_contextual_question, embeddings, dashboard_coach, roleplay, dual_voice_routes, deepgram_routes
 
 # Test endpoint for persona service
 @api.route('/test-persona', methods=['POST'])

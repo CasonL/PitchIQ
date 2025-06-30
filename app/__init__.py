@@ -124,7 +124,10 @@ def create_app(config_name='dev'):
         "http://127.0.0.1:8080",                             # Local dev (Flask server port)
         "http://localhost:5173",                             # Local dev (vite default)
         "http://127.0.0.1:5173",                              # Local dev (vite default)
-        "http://10.0.0.150:5173"
+        "http://10.0.0.150:5173",
+        "http://localhost:5174",                             # Local dev (vite alternate port)
+        "http://127.0.0.1:5174",                              # Local dev (vite alternate port)
+        "http://10.0.0.150:5174"
     ]
 
     CORS(flask_instance, origins=allowed_origins, supports_credentials=True, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers="*", expose_headers=["Content-Length"], max_age=86400)
@@ -139,9 +142,7 @@ def create_app(config_name='dev'):
     # Initialize API manager
     api_manager.init_app(flask_instance)
     
-    # Initialize Nova Sonic service
-    from app.services.nova_sonic_service import nova_sonic_service
-    nova_sonic_service.init_app(flask_instance)
+    # Voice services removed - using Deepgram Voice Agent only
     
     # Register health check routes
     register_health_routes(flask_instance)
@@ -158,9 +159,8 @@ def create_app(config_name='dev'):
     from app.routes.api.generate_contextual_question import generate_contextual_question_bp
     from app.routes.api.embeddings import embeddings_bp
     from app.routes.api.dashboard_coach import dashboard_coach_bp
-    from app.routes.api.nova_sonic_routes import nova_sonic_bp
     from app.routes.api.seo_routes import seo_bp
-    from app.routes.api.openai_realtime_routes import openai_realtime_bp
+    from app.routes.api.business_onboarding import business_onboarding_bp
 
     # Register API blueprints
     flask_instance.register_blueprint(api_main_bp, url_prefix='/api')
@@ -174,14 +174,36 @@ def create_app(config_name='dev'):
     flask_instance.register_blueprint(generate_contextual_question_bp, url_prefix='/api/generate-contextual-question')
     flask_instance.register_blueprint(embeddings_bp, url_prefix='/api/embeddings')
     flask_instance.register_blueprint(dashboard_coach_bp, url_prefix='/api/dashboard-coach')
-    flask_instance.register_blueprint(nova_sonic_bp)
     flask_instance.register_blueprint(seo_bp)
-    flask_instance.register_blueprint(openai_realtime_bp, url_prefix='/api/openai-realtime')
+    flask_instance.register_blueprint(business_onboarding_bp, url_prefix='/api/business-onboarding')
     
-    # Exempt specific blueprints from CSRF protection after they are created
-    # but before the app runs. This is the correct place to do this.
+    # Deepgram Voice Agent API
+    from app.routes.api.deepgram_routes import deepgram_bp
+    flask_instance.register_blueprint(deepgram_bp, url_prefix='/api/deepgram')
+    
+    # Dual Voice Agent API
+    from app.routes.api.dual_voice_routes import dual_voice_bp
+    flask_instance.register_blueprint(dual_voice_bp, url_prefix='/api/dual-voice')
+    
+    # Simple Voice Training API (using standard STT/TTS)
+    from app.routes.api.simple_voice_routes import simple_voice_bp
+    flask_instance.register_blueprint(simple_voice_bp, url_prefix='/api/voice')
+    
+    # Register demo blueprint
+    from app.demo import demo
+    flask_instance.register_blueprint(demo, url_prefix='/demo')
+    
+    # Initialize other extensions (this will call csrf.init_app)
+    with flask_instance.app_context():
+        try:
+            init_extensions(flask_instance)
+        except Exception as e:
+            flask_instance.logger.error(f"Error initializing extensions: {e}")
+    
+    # Exempt specific blueprints from CSRF protection AFTER they are initialized
+    # This must be done after csrf.init_app() is called
     csrf.exempt(api_main_bp)
-    # csrf.exempt(auth_api_bp)
+    csrf.exempt(auth_api_bp)
     csrf.exempt(email_signup_bp)
     csrf.exempt(contact_bp)
     csrf.exempt(dashboard_api_bp)
@@ -191,16 +213,11 @@ def create_app(config_name='dev'):
     csrf.exempt(generate_contextual_question_bp)
     csrf.exempt(embeddings_bp)
     csrf.exempt(dashboard_coach_bp)
-    csrf.exempt(nova_sonic_bp)
     csrf.exempt(seo_bp)
-    csrf.exempt(openai_realtime_bp)
-    
-    # Initialize other extensions (this will call csrf.init_app)
-    with flask_instance.app_context():
-        try:
-            init_extensions(flask_instance)
-        except Exception as e:
-            flask_instance.logger.error(f"Error initializing extensions: {e}")
+    csrf.exempt(business_onboarding_bp)
+    csrf.exempt(deepgram_bp)
+    csrf.exempt(dual_voice_bp)
+    csrf.exempt(simple_voice_bp)
     
     # --- Custom Error Handler for CSRF ---
     from flask_wtf.csrf import CSRFError
@@ -267,14 +284,12 @@ def create_app(config_name='dev'):
     from app.voice import voice as voice_blueprint
     from app.training import training as training_blueprint
     from app.dashboard import dashboard as dashboard_blueprint
-    from app.demo import demo as demo_blueprint
     flask_instance.register_blueprint(auth_bp) # Register auth routes first
     flask_instance.register_blueprint(main_blueprint)
     flask_instance.register_blueprint(chat_blueprint, url_prefix='/chat')
     flask_instance.register_blueprint(voice_blueprint, url_prefix='/voice')
     flask_instance.register_blueprint(training_blueprint, url_prefix='/training')
     flask_instance.register_blueprint(dashboard_blueprint, url_prefix='/dashboard')
-    flask_instance.register_blueprint(demo_blueprint, url_prefix='/demo')
     
     # Register the API routes
     # flask_instance.register_blueprint(generate_contextual_question_blueprint, url_prefix='/api/generate_contextual_question')
@@ -314,21 +329,7 @@ def create_app(config_name='dev'):
             # Handle GET request
             return jsonify({'message': 'GET request successful. Use POST to send data.'}), 200
     
-    # +++ Add a simple Nova Sonic test route +++
-    @flask_instance.route('/api/nova-sonic-direct-test', methods=['GET'])
-    def nova_sonic_direct_test():
-        """Direct test route to verify Nova Sonic service access"""
-        try:
-            from app.services.nova_sonic_service import nova_sonic_service
-            sessions_count = len(nova_sonic_service.sessions)
-            return jsonify({
-                'success': True,
-                'message': 'Direct Nova Sonic test successful',
-                'sessions_count': sessions_count,
-                'service_type': 'minimal_test'
-            })
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+    # Voice service test routes removed - using Deepgram Voice Agent only
 
     #
     # The following route is commented out because it conflicts with serving
@@ -387,6 +388,11 @@ def create_app(config_name='dev'):
     # AND AFTER all blueprints (especially /api, /auth etc.)
     @flask_instance.route('/<path:path>')
     def serve_react_static_files_or_index(path):
+        # CRITICAL FIX: Don't intercept API routes - let Flask handle them normally
+        if path.startswith('api/'):
+            flask_instance.logger.debug(f"Catch-all: API route '{path}' - aborting to let Flask blueprints handle it")
+            abort(404)  # This allows Flask to continue looking for blueprint routes
+        
         # Construct the full path to the potential static file in app/frontend/dist
         requested_file_path = os.path.join(react_frontend_dist_dir, path)
 

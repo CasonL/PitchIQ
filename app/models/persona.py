@@ -34,6 +34,7 @@ class BuyerPersona(db.Model):
 
     # New detailed fields from rich persona JSON
     business_description = db.Column(db.Text, nullable=True)
+    business_context = db.Column(db.String(10), nullable=True)  # B2B or B2C
     longterm_personal_description = db.Column(db.Text, nullable=True)  # JSON string
     shortterm_personal_description = db.Column(db.Text, nullable=True)  # JSON string
     demographic_description = db.Column(db.Text, nullable=True)  # JSON string

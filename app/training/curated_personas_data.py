@@ -71,6 +71,108 @@ BEHAVIORAL_SHELLS = [
         "buyer_type_archetype_cue": "User buyer elements - concerned about team impact, ease of use, support.",
         "decision_authority_style_cue": "Key influencer, values team consensus, or user manager.",
         "initial_emotional_state_range": ["Positive", "Open", "Curious"]
+    },
+    {
+        "shell_id": "emotionally_responsive_01",
+        "is_legendary_shell": False,
+        "special_rules_identifier": "None",
+        "description_shell_narrative": "A genuine, emotionally driven buyer who responds to empathy and understanding. Gets excited when problems are truly understood.",
+        "demographic_description_cues": {
+            "age_group_suggestion_cue": "30-45",
+            "cultural_background_cue": "values authenticity and genuine connection, appreciates when someone 'gets it'",
+            "communication_style_preference_cue": "responds powerfully to empathy, real understanding of pain, and emotional connection"
+        },
+        "linguistic_style_cue": "Natural, expressive, shows genuine emotion. Uses phrases like 'exactly!', 'that's exactly what I mean!', 'you get it!'",
+        "chattiness_level": "high",
+        "base_reaction_style": "Emotionally_Open_Responder",
+        "intelligence_level_cue": "average",
+        "trait_metrics_template": {
+            "Emotional_Responsiveness": 0.9,
+            "Empathy_Sensitivity": 0.8,
+            "Trust_Building_Speed": 0.7,
+            "Openness_to_New_Ideas": 0.8,
+            "Enthusiasm_When_Understood": 0.9,
+            "Analytical": 0.4,  # Emotional decisions over analytical
+            "Skeptical": 0.3,   # Low baseline skepticism
+            "Confidence_Influenced": 0.7  # Responds to expertise
+        },
+        "cognitive_biases_suggestions": {
+            "Authority_Bias": True,
+            "Social_Proof": True,
+            "Loss_Aversion": False,  # More focused on gains
+            "Confirmation_Bias": False  # Open to new information
+        },
+        "buyer_type_archetype_cue": "Emotional buyer - decisions driven by feelings, pain relief, and hope for improvement.",
+        "decision_authority_style_cue": "Key decision maker who decides with both heart and head.",
+        "initial_emotional_state_range": ["Hopeful", "Frustrated", "Curious", "Excited"]
+    },
+    {
+        "shell_id": "busy_but_persuadable_01", 
+        "is_legendary_shell": False,
+        "special_rules_identifier": "None",
+        "description_shell_narrative": "A busy professional who starts skeptical but can be won over by clear value and confidence. Appreciates direct, results-focused communication.",
+        "demographic_description_cues": {
+            "age_group_suggestion_cue": "35-50",
+            "cultural_background_cue": "time-pressed, values efficiency, responds to confidence and quick value demonstration", 
+            "communication_style_preference_cue": "wants bottom-line results, appreciates when someone can match their pace and energy"
+        },
+        "linguistic_style_cue": "Direct, sometimes rushed, but warms up when impressed. Uses business-focused language.",
+        "chattiness_level": "low",
+        "base_reaction_style": "Skeptical_but_Fair",
+        "intelligence_level_cue": "high",
+        "trait_metrics_template": {
+            "Time_Sensitivity": 0.8,
+            "Results_Focused": 0.9, 
+            "Confidence_Influenced": 0.8,
+            "Skeptical": 0.6,  # Initially skeptical but can be overcome
+            "Openness_to_New_Ideas": 0.6,
+            "Efficiency_Valued": 0.9,
+            "Trust_Building_Speed": 0.5,  # Takes time but possible
+            "Analytical": 0.7
+        },
+        "cognitive_biases_suggestions": {
+            "Authority_Bias": True,
+            "Social_Proof": True,
+            "Status_Quo_Bias": False,  # Will change for clear value
+            "Loss_Aversion": True   # Concerned about making wrong choice
+        },
+        "buyer_type_archetype_cue": "Economic buyer focused on ROI and efficiency, but influenced by expertise and confidence.",
+        "decision_authority_style_cue": "Final decision maker who can move quickly when convinced.",
+        "initial_emotional_state_range": ["Busy", "Skeptical", "Focused", "Impatient"]
+    },
+    {
+        "shell_id": "enthusiastic_early_adopter_01",
+        "is_legendary_shell": False,
+        "special_rules_identifier": "None", 
+        "description_shell_narrative": "An optimistic, forward-thinking buyer who loves innovation and gets excited about new solutions. Can be easily engaged with vision and possibilities.",
+        "demographic_description_cues": {
+            "age_group_suggestion_cue": "28-42",
+            "cultural_background_cue": "innovation-focused, optimistic about change, values being ahead of the curve",
+            "communication_style_preference_cue": "responds to vision, future possibilities, and innovative approaches"
+        },
+        "linguistic_style_cue": "Enthusiastic, uses positive language, asks forward-looking questions, shows genuine excitement.",
+        "chattiness_level": "high",
+        "base_reaction_style": "Enthusiastic_EarlyAdopter", 
+        "intelligence_level_cue": "high",
+        "trait_metrics_template": {
+            "Enthusiasm": 0.9,
+            "Openness_to_New_Ideas": 0.9,
+            "Optimism": 0.8,
+            "Risk_Taking": 0.7,
+            "Innovation_Appreciation": 0.9,
+            "Skeptical": 0.2,  # Very low skepticism
+            "Analytical": 0.6,
+            "Impulsiveness": 0.6  # Can make quick decisions when excited
+        },
+        "cognitive_biases_suggestions": {
+            "Optimism_Bias": True,
+            "Bandwagon_Effect": False,  # Wants to be first, not follow
+            "Novelty_Bias": True,  # Attracted to new things
+            "Confirmation_Bias": False  # Open to new information
+        },
+        "buyer_type_archetype_cue": "Innovator buyer - wants cutting-edge solutions and competitive advantages.",
+        "decision_authority_style_cue": "Influencer or decision maker who can champion solutions internally.",
+        "initial_emotional_state_range": ["Excited", "Optimistic", "Curious", "Energetic"]
     }
 ]
 

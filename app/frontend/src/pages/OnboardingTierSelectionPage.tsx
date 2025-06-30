@@ -172,61 +172,11 @@ const OnboardingTierSelectionPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Security Trust Section */}
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-8">
-            <div className="text-center mb-6">
-              <div className="flex items-center justify-center space-x-2 mb-4">
-                <Shield className="h-8 w-8 text-green-600" />
-                <Lock className="h-8 w-8 text-green-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-black mb-2">Your Data Security is Our Priority</h3>
-              <p className="text-gray-600">Enterprise-grade encryption protecting your sensitive information</p>
-            </div>
-            
-            <div className="grid md:grid-cols-2 gap-8">
-              <div>
-                <h4 className="font-semibold text-black mb-3">Military-Grade Encryption</h4>
-                <ul className="space-y-2 text-sm text-gray-700">
-                  <li className="flex items-start">
-                    <Check className="h-4 w-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Fernet Encryption:</strong> AES-128 with HMAC authentication</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-4 w-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Unique Keys:</strong> Individual encryption key per user/business</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-4 w-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Secure Storage:</strong> Keys stored separately from encrypted data</span>
-                  </li>
-                </ul>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold text-black mb-3">Zero-Access Architecture</h4>
-                <ul className="space-y-2 text-sm text-gray-700">
-                  <li className="flex items-start">
-                    <Check className="h-4 w-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Private by Design:</strong> Only you can decrypt your information</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-4 w-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Financial Standard:</strong> Same encryption used by banks</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-4 w-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Compliance Ready:</strong> Built for enterprise security requirements</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            
-            <div className="text-center mt-6 pt-6 border-t border-gray-200">
-              <p className="text-xs text-gray-600 italic">
-                Built with Python's cryptography library - the industry standard for secure data protection
-              </p>
-            </div>
+        {/* Security Reminder */}
+        <div className="text-center">
+          <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
+            <Shield className="h-4 w-4 text-green-600" />
+            <span>Protected by AES-128 encryption</span>
           </div>
         </div>
       </div>

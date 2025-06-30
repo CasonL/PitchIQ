@@ -218,7 +218,7 @@ def register():
             'plan_type': 'free' if not profile.is_premium() else 'premium'
         }
         
-        record_successful_login(new_user)
+        record_successful_login(request.remote_addr)
         current_app.logger.info(f"New user registered successfully: {new_user.email} (ID: {new_user.id})")
         
         return jsonify(response_data), 201
@@ -891,7 +891,7 @@ def check_account_status():
         return jsonify({'error': 'Email is required'}), 400
     
     # Check if account is locked
-    is_allowed, lockout_time = check_login_attempts(email)
+    is_allowed, lockout_time = check_login_attempts(request.remote_addr)
     if not is_allowed:
         return jsonify({
             'status': 'locked',

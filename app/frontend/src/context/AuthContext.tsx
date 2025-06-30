@@ -65,20 +65,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, [queryClient, navigate]);
 
   const logout = useCallback(() => {
+    if (process.env.NODE_ENV === 'development') {
     console.log('🚪 Logout function called');
-    queryClient.setQueryData(['userStatus'], null);
-    console.log('🗑️ Cleared user data from query cache');
+    }
     
+    // Optimistic logout - clear cache immediately
+    queryClient.setQueryData(['userStatus'], null);
+    
+    if (process.env.NODE_ENV === 'development') {
+    console.log('🗑️ Cleared user data from query cache');
+    }
+    
+    // Navigate immediately for better UX
+    navigate('/login');
+    
+    // Call logout API in background (don't block UI)
     api.post('/api/auth/logout')
       .then((response) => {
+        if (process.env.NODE_ENV === 'development') {
         console.log('✅ Logout API success:', response.data);
+        }
       })
       .catch((error) => {
+        if (process.env.NODE_ENV === 'development') {
         console.error('❌ Logout API error:', error);
-      })
-      .finally(() => {
-        console.log('🔄 Navigating to login page');
-        navigate('/login');
+        }
+        // If logout fails, user is already redirected, so no rollback needed
       });
   }, [queryClient, navigate]);
 

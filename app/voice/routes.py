@@ -13,7 +13,7 @@ from app.models import db
 from app.services.openai_service import openai_service
 from app.services.gpt4o_service import get_gpt4o_service
 from app.services.conversation_state_manager import ConversationStateManager, ConversationPhase
-from app.services.eleven_labs_service import get_eleven_labs_service
+# from app.services.eleven_labs_service import get_eleven_labs_service  # REMOVED: Deprecated
 import re
 
 # Create the blueprint
@@ -240,109 +240,12 @@ def text_to_speech():
 @voice.route('/api/debug-tts', methods=['POST'])
 @login_required
 def debug_tts():
-    """Debug endpoint for ElevenLabs TTS.
-    
-    This endpoint provides more detailed error information and 
-    doesn't modify the response from ElevenLabs.
-    """
-    try:
-        # Get request data
-        data = request.json
-        if not data or 'text' not in data:
-            return jsonify({'error': 'No text provided'}), 400
-            
-        text = data.get('text')
-        voice_id = data.get('voice_id', '9BWtsMINqrJLrRacOk9x')  # Default to 'Aria' voice
-        
-        # Log the request
-        text_preview = text[:50] + '...' if len(text) > 50 else text
-        logger.info(f"Debug TTS request from user {current_user.id}: {text_preview}")
-        
-        # Get ElevenLabs API key
-        eleven_labs_api_key = current_app.config.get('ELEVEN_LABS_API_KEY')
-        
-        if not eleven_labs_api_key:
-            eleven_labs_api_key = os.environ.get('ELEVEN_LABS_API_KEY')
-            
-        if not eleven_labs_api_key:
-            logger.error("ElevenLabs API key not found in configuration")
-            return jsonify({
-                'error': 'TTS service not configured',
-                'details': {
-                    'config_key': current_app.config.get('ELEVEN_LABS_API_KEY') is not None,
-                    'env_key': os.environ.get('ELEVEN_LABS_API_KEY') is not None,
-                    'env_key_alt': os.environ.get('ELEVENLABS_API_KEY') is not None
-                }
-            }), 500
-        
-        # ElevenLabs API endpoint
-        url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-        
-        # Set headers with API key
-        headers = {
-            "Accept": "audio/mpeg",
-            "Content-Type": "application/json",
-            "xi-api-key": eleven_labs_api_key
-        }
-        
-        # Set up request data
-        payload = {
-            "text": text,
-            "model_id": "eleven_monolingual_v1",
-            "voice_settings": {
-                "stability": 0.5,
-                "similarity_boost": 0.75
-            }
-        }
-        
-        # Make request to ElevenLabs
-        logger.info(f"Sending request to ElevenLabs API: {url}")
-        response = requests.post(url, json=payload, headers=headers)
-        
-        # Log response details
-        logger.info(f"ElevenLabs response status: {response.status_code}")
-        logger.info(f"ElevenLabs response headers: {dict(response.headers)}")
-        
-        if response.status_code != 200:
-            error_text = response.text
-            try:
-                # Try to parse as JSON for better error reporting
-                error_json = response.json()
-                logger.error(f"ElevenLabs API error JSON: {error_json}")
-                return jsonify({
-                    'error': f'TTS service error: {response.status_code}',
-                    'details': error_json
-                }), 500
-            except:
-                # Fallback to text response
-                logger.error(f"ElevenLabs API error text: {error_text}")
-                return jsonify({
-                    'error': f'TTS service error: {response.status_code}',
-                    'details': error_text
-                }), 500
-        
-        # Get content type from response
-        content_type = response.headers.get('Content-Type', 'audio/mpeg')
-        logger.info(f"Response Content-Type: {content_type}, Content length: {len(response.content)} bytes")
-        
-        # Return the audio data with detailed headers
-        return Response(
-            response.content,
-            mimetype=content_type,
-            headers={
-                "Content-Type": content_type,
-                "X-ElevenLabs-Voice-ID": voice_id,
-                "X-Content-Length": str(len(response.content))
-            }
-        )
-        
-    except Exception as e:
-        logger.exception(f"Error in debug TTS API: {str(e)}")
-        return jsonify({
-            'error': 'An error occurred processing TTS request',
-            'exception': str(e),
-            'traceback': str(traceback.format_exc())
-        }), 500
+    """Debug TTS endpoint - DEPRECATED: Use Deepgram Voice Agent instead."""
+    return jsonify({
+        'error': 'Debug TTS endpoint deprecated',
+        'message': 'This endpoint has been deprecated. Please use the Deepgram Voice Agent for voice-to-voice conversations.',
+        'redirect': '/dashboard'
+    }), 410  # 410 Gone - resource no longer available
 
 @voice.route('/api/roleplay', methods=['POST'])
 @login_required

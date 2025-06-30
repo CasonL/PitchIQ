@@ -25,6 +25,344 @@ from app.models import UserProfile, Conversation, Message, Feedback, BuyerPerson
 
 logger = logging.getLogger(__name__)
 
+# === NEW: Voice-Enabled Chat Services ===
+
+class VoiceChatSession:
+    """Manages voice-enabled chat sessions with Deepgram voice-to-voice integration."""
+    
+    def __init__(self, session_id: str, user_id: int, scenario: str = 'sales_training'):
+        self.session_id = session_id
+        self.user_id = user_id
+        self.scenario = scenario
+        self.conversation_history = []
+        self.session_metadata = {
+            'start_time': datetime.utcnow().isoformat(),
+            'scenario': scenario,
+            'voice_enabled': True,
+            'deepgram_integration': True
+        }
+        
+    def add_message(self, role: str, content: str, metadata: Dict = None):
+        """Add a message to the conversation history."""
+        message = {
+            'role': role,
+            'content': content,
+            'timestamp': datetime.utcnow().isoformat(),
+            'metadata': metadata or {}
+        }
+        self.conversation_history.append(message)
+        return message
+    
+    def get_conversation_context(self) -> str:
+        """Get formatted conversation context for AI prompts."""
+        if not self.conversation_history:
+            return ""
+        
+        context_lines = []
+        for msg in self.conversation_history[-10:]:  # Last 10 messages for context
+            role = msg['role'].title()
+            content = msg['content']
+            context_lines.append(f"{role}: {content}")
+        
+        return "\n".join(context_lines)
+
+def create_voice_chat_session(user_id: int, scenario: str = 'sales_training') -> VoiceChatSession:
+    """Create a new voice-enabled chat session."""
+    session_id = f"voice-chat-{user_id}-{int(datetime.utcnow().timestamp())}"
+    session = VoiceChatSession(session_id, user_id, scenario)
+    
+    logger.info(f"Created voice chat session {session_id} for user {user_id}")
+    return session
+
+def generate_voice_optimized_response(
+    session: VoiceChatSession,
+    user_message: str,
+    user_profile: UserProfile = None
+) -> Dict[str, Any]:
+    """
+    Generate AI response optimized for voice interaction.
+    
+    Returns:
+        Dict containing response text, voice settings, and metadata
+    """
+    try:
+        # Add user message to session
+        session.add_message('user', user_message)
+        
+        # Get user context
+        context = _build_voice_context(session, user_profile)
+        
+        # Generate AI response using OpenAI
+        ai_response = _generate_ai_voice_response(context, user_message, session.scenario)
+        
+        # Add AI response to session
+        session.add_message('assistant', ai_response)
+        
+        # Optimize text for voice synthesis
+        voice_optimized_text = _optimize_text_for_voice(ai_response)
+        
+        return {
+            'response': ai_response,
+            'voice_text': voice_optimized_text,
+            'session_id': session.session_id,
+            'voice_settings': _get_voice_settings_for_scenario(session.scenario),
+            'metadata': {
+                'optimized_for_voice': True,
+                'scenario': session.scenario,
+                'conversation_length': len(session.conversation_history)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating voice response: {str(e)}")
+        fallback_response = _generate_fallback_voice_response(user_message, session.scenario)
+        return {
+            'response': fallback_response,
+            'voice_text': fallback_response,
+            'session_id': session.session_id,
+            'error': str(e),
+            'fallback': True
+        }
+
+def _build_voice_context(session: VoiceChatSession, user_profile: UserProfile = None) -> str:
+    """Build context for voice-optimized AI responses."""
+    context_parts = [
+        "You are an AI sales coach in a voice conversation.",
+        "Keep responses conversational, natural, and under 100 words.",
+        "Use contractions and casual language appropriate for spoken dialogue.",
+        "Ask engaging follow-up questions to maintain conversation flow."
+    ]
+    
+    if session.scenario == 'sales_training':
+        context_parts.append("Focus on sales skills, techniques, and practical advice.")
+    elif session.scenario == 'roleplay':
+        context_parts.append("You are roleplaying as a potential customer or client.")
+    elif session.scenario == 'cold_call':
+        context_parts.append("Simulate a cold call scenario with realistic objections.")
+    
+    if user_profile:
+        if user_profile.experience_level:
+            context_parts.append(f"User experience level: {user_profile.experience_level}")
+        if user_profile.product_service:
+            context_parts.append(f"User's product/service: {user_profile.product_service}")
+    
+    # Add recent conversation context
+    conversation_context = session.get_conversation_context()
+    if conversation_context:
+        context_parts.append("Recent conversation:")
+        context_parts.append(conversation_context)
+    
+    return "\n".join(context_parts)
+
+def _generate_ai_voice_response(context: str, user_message: str, scenario: str) -> str:
+    """Generate AI response using OpenAI optimized for voice."""
+    try:
+        messages = [
+            {"role": "system", "content": context},
+            {"role": "user", "content": user_message}
+        ]
+        
+        response = openai_service.chat_completion(
+            messages=messages,
+            max_tokens=150,  # Shorter responses for voice
+            temperature=0.7,
+            model="gpt-4o-mini"
+        )
+        
+        return response.strip()
+        
+    except Exception as e:
+        logger.error(f"Error in AI voice response generation: {str(e)}")
+        return _generate_fallback_voice_response(user_message, scenario)
+
+def _generate_fallback_voice_response(user_message: str, scenario: str) -> str:
+    """Generate a simple fallback response for voice conversations."""
+    fallback_responses = {
+        'sales_training': [
+            "That's a great question! Let me help you think through that.",
+            "I understand what you're asking. Here's what I'd suggest...",
+            "That's something many salespeople struggle with. Let's work on it together."
+        ],
+        'roleplay': [
+            "Interesting point. Tell me more about that.",
+            "I see what you mean. Can you explain how that would work?",
+            "That sounds promising. What would be the next step?"
+        ],
+        'cold_call': [
+            "I appreciate you calling, but I'm not sure this is right for us.",
+            "We're pretty happy with our current solution. What makes yours different?",
+            "I don't have much time right now. Can you give me the quick version?"
+        ]
+    }
+    
+    responses = fallback_responses.get(scenario, fallback_responses['sales_training'])
+    import random
+    return random.choice(responses)
+
+def _optimize_text_for_voice(text: str) -> str:
+    """Optimize text for natural voice synthesis."""
+    if not text:
+        return text
+    
+    # Apply voice optimizations similar to existing preprocess_text_for_speech
+    optimizations = {
+        r'\bI am\b': "I'm",
+        r'\byou are\b': "you're",
+        r'\bthey are\b': "they're",
+        r'\bwe are\b': "we're",
+        r'\bis not\b': "isn't",
+        r'\bdoes not\b': "doesn't",
+        r'\bdo not\b': "don't",
+        r'\bcannot\b': "can't",
+        r'\bwill not\b': "won't",
+        r'\bthat is\b': "that's",
+        r'\bit is\b': "it's",
+        r'\bwould not\b': "wouldn't",
+        r'\bcould not\b': "couldn't",
+        r'\bshould not\b': "shouldn't",
+        r'\b(However|Furthermore|Moreover)\b': r'Also',
+        r'\bin conclusion\b': r'So'
+    }
+    
+    optimized_text = text
+    for pattern, replacement in optimizations.items():
+        optimized_text = re.sub(pattern, replacement, optimized_text, flags=re.IGNORECASE)
+    
+    # Add natural pauses
+    optimized_text = re.sub(r'(\w+) (but|and|or|so) (\w+)', r'\1, \2 \3', optimized_text)
+    
+    # Break up long sentences
+    sentences = re.split(r'([.!?])', optimized_text)
+    result_sentences = []
+    
+    for i in range(0, len(sentences), 2):
+        if i+1 < len(sentences):
+            sentence = sentences[i] + sentences[i+1]
+            words = sentence.split()
+            if len(words) > 20:  # Break long sentences
+                midpoint = len(words) // 2
+                first_half = ' '.join(words[:midpoint])
+                second_half = ' '.join(words[midpoint:])
+                if not first_half.endswith(('.', '!', '?')):
+                    first_half += '...'
+                result_sentences.extend([first_half, second_half])
+            else:
+                result_sentences.append(sentence)
+        elif i < len(sentences):
+            result_sentences.append(sentences[i])
+    
+    return ' '.join(result_sentences)
+
+def _get_voice_settings_for_scenario(scenario: str) -> Dict[str, Any]:
+    """Get voice synthesis settings optimized for different scenarios."""
+    base_settings = {
+        'stability': 0.65,
+        'similarity_boost': 0.85,
+        'style': 0.35,
+        'use_speaker_boost': True,
+        'speed': 1.0
+    }
+    
+    scenario_adjustments = {
+        'sales_training': {
+            'style': 0.4,  # Slightly more expressive for coaching
+            'speed': 0.95   # Slightly slower for learning
+        },
+        'roleplay': {
+            'stability': 0.7,  # More stable for consistent character
+            'style': 0.3       # Less dramatic for realistic customer
+        },
+        'cold_call': {
+            'stability': 0.6,  # Slightly less stable for natural variation
+            'style': 0.2,      # More neutral for realistic prospect
+            'speed': 1.05      # Slightly faster for busy prospect feel
+        }
+    }
+    
+    settings = base_settings.copy()
+    if scenario in scenario_adjustments:
+        settings.update(scenario_adjustments[scenario])
+    
+    return settings
+
+# === Voice Session Management ===
+
+# In-memory storage for active voice sessions (in production, use Redis or database)
+_active_voice_sessions: Dict[str, VoiceChatSession] = {}
+
+def get_voice_session(session_id: str) -> Optional[VoiceChatSession]:
+    """Get an active voice chat session."""
+    return _active_voice_sessions.get(session_id)
+
+def store_voice_session(session: VoiceChatSession):
+    """Store a voice chat session."""
+    _active_voice_sessions[session.session_id] = session
+
+def end_voice_session(session_id: str) -> bool:
+    """End and cleanup a voice chat session."""
+    if session_id in _active_voice_sessions:
+        session = _active_voice_sessions[session_id]
+        # Log session end
+        logger.info(f"Ending voice session {session_id} with {len(session.conversation_history)} messages")
+        
+        # TODO: Save session data to database for analytics
+        
+        # Remove from active sessions
+        del _active_voice_sessions[session_id]
+        return True
+    return False
+
+def cleanup_expired_voice_sessions():
+    """Clean up expired voice sessions (call periodically)."""
+    current_time = datetime.utcnow()
+    expired_sessions = []
+    
+    for session_id, session in _active_voice_sessions.items():
+        # Sessions expire after 1 hour of inactivity
+        last_activity = datetime.fromisoformat(session.session_metadata['start_time'])
+        if (current_time - last_activity).total_seconds() > 3600:
+            expired_sessions.append(session_id)
+    
+    for session_id in expired_sessions:
+        end_voice_session(session_id)
+    
+    if expired_sessions:
+        logger.info(f"Cleaned up {len(expired_sessions)} expired voice sessions")
+
+# === Integration with Existing Services ===
+
+def integrate_voice_with_training_session(training_session: TrainingSession, voice_session: VoiceChatSession):
+    """Integrate voice chat data with existing training session."""
+    try:
+        # Update training session with voice data
+        if not training_session.metadata:
+            training_session.metadata = {}
+        
+        training_session.metadata.update({
+            'voice_session_id': voice_session.session_id,
+            'voice_enabled': True,
+            'voice_messages_count': len(voice_session.conversation_history),
+            'voice_scenario': voice_session.scenario
+        })
+        
+        # Save voice conversation as messages in the training session
+        for msg in voice_session.conversation_history:
+            message = Message(
+                session_id=training_session.id,
+                role=msg['role'],
+                content=msg['content'],
+                timestamp=datetime.fromisoformat(msg['timestamp']),
+                metadata=msg.get('metadata', {})
+            )
+            db.session.add(message)
+        
+        db.session.commit()
+        logger.info(f"Integrated voice session {voice_session.session_id} with training session {training_session.id}")
+        
+    except Exception as e:
+        logger.error(f"Error integrating voice session with training: {str(e)}")
+        db.session.rollback()
+
 # --- Fallback Persona Generation ---
 def generate_fallback_persona(sales_info: Dict[str, Any]) -> str:
     """Generates a simple, deterministic fallback persona text."""

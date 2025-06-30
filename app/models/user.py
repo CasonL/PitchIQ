@@ -36,6 +36,11 @@ class User(db.Model, UserMixin):
     reset_token = db.Column(db.String(100), nullable=True)
     reset_token_expires = db.Column(db.DateTime, nullable=True)
     
+    # Email verification fields
+    is_email_verified = db.Column(db.Boolean, nullable=False, default=False)
+    email_verification_token = db.Column(db.String(100), nullable=True)
+    email_verification_token_expires = db.Column(db.DateTime, nullable=True)
+    
     def set_password(self, password):
         """Set password hash."""
         self.password_hash = generate_password_hash(password)
@@ -64,6 +69,14 @@ class User(db.Model, UserMixin):
             import logging
             logging.getLogger(__name__).error(f"Password check error: {str(e)}")
             return False
+    
+    def get_reset_password_token(self):
+        """Get the password reset token for this user."""
+        return self.reset_token
+    
+    def get_email_verification_token(self):
+        """Get the email verification token for this user."""
+        return self.email_verification_token
     
     @property
     def skills_dict(self):
@@ -172,6 +185,7 @@ class UserProfile(db.Model):
     has_advanced_coaching = db.Column(db.Boolean, default=False)
     has_unlimited_roleplays = db.Column(db.Boolean, default=False)
     has_detailed_analytics = db.Column(db.Boolean, default=False)
+    has_legendary_personas = db.Column(db.Boolean, default=False)  # Admin-controlled legendary persona access
     
     # Performance tracking across sessions
     total_roleplays = db.Column(db.Integer, default=0)

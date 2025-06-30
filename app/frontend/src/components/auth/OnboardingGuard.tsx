@@ -19,6 +19,7 @@ const OnboardingGuard = ({ children }: { children: JSX.Element }) => {
   // Check both localStorage and backend user data for onboarding completion
   const localStorageComplete = localStorage.getItem('onboarding_complete') === 'true';
   const backendComplete = user?.onboarding_complete || false;
+  const selectedTier = localStorage.getItem('selected_tier');
   
   // User must be authenticated and have completed onboarding in backend
   // If there's a mismatch, prefer the backend state (more authoritative)
@@ -30,9 +31,18 @@ const OnboardingGuard = ({ children }: { children: JSX.Element }) => {
   }
 
   if (!isOnboardingComplete) {
-    // Redirect them to the /personalize page, but save the current location they were
-    // trying to go to. This allows us to send them back there after they personalize.
-    return <Navigate to="/personalize" state={{ from: location }} replace />;
+    // First check if user has selected a tier
+    if (!selectedTier) {
+      // Redirect to tier selection first
+      return <Navigate to="/select-plan" state={{ from: location }} replace />;
+    }
+    
+    // If tier is selected but onboarding not complete, redirect to appropriate onboarding
+    if (selectedTier === 'enterprise') {
+      return <Navigate to="/business-onboarding" state={{ from: location }} replace />;
+    } else {
+      return <Navigate to="/personalize" state={{ from: location }} replace />;
+    }
   }
 
   return children;

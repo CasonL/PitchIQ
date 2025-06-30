@@ -17,7 +17,7 @@ from flask import current_app
 from app.models import Conversation, Message, User, db
 from app.services.openai_service import OpenAIService, get_openai_service
 from app.services.conversation_state_manager import ConversationStateManager, ConversationPhase
-from app.services.eleven_labs_service import ElevenLabsService, get_eleven_labs_service
+from app.services.industry_persona_templates import get_industry_context_prompt_addition, apply_industry_modifications
 from app.utils.logging_utils import setup_logger
 
 # Configure logging
@@ -263,175 +263,111 @@ class GPT4oService:
         behavioral_shell_data: Optional[Dict[str, Any]] = None
     ) -> str:
         """
-        Creates the prompt for the LLM to generate a customer persona.
-        If behavioral_shell_data is provided, it instructs the LLM to use the shell
-        and generate the remaining contextual details. Otherwise, it asks for a full persona.
+        Create a comprehensive prompt for generating realistic customer personas
+        with enhanced voice-specific behavioral traits.
         """
-        product_service = user_profile_context.get("product_service", "a product/service")
-        industry = user_profile_context.get("industry", "various industries")
-        target_market = user_profile_context.get("target_market", "various businesses")
-        experience = user_profile_context.get("experience_level", "intermediate")
+        
+        # Get the product/service and target market from context
+        product_service = user_profile_context.get('product_service', 'Business solution')
+        target_market = user_profile_context.get('target_market', 'Business professionals')
+        industry = user_profile_context.get('industry', 'Various industries')
+        
+        # Get industry-specific context
+        industry_prompt_addition = get_industry_context_prompt_addition(industry)
+        
+        base_prompt = f"""You are an expert AI assistant that generates detailed and realistic customer personas for sales roleplay simulations.   
 
-        if behavioral_shell_data:
-            shell_id = behavioral_shell_data.get("shell_id", "unknown_shell")
-            
-            prompt = f"""You are an AI assistant that creates detailed customer personas for sales roleplay.
-You will be given:
-1. Sales Context: The salesperson is selling '{product_service}' to the '{industry}' industry, targeting '{target_market}'. Their experience level is '{experience}'.
-2. A "Behavioral Shell" defining the core personality, communication style, and various cues.
+CRITICAL INSTRUCTION: Create a HUMAN, EMOTIONALLY RESPONSIVE persona who can be genuinely convinced through skilled sales techniques. This persona should have realistic objections, concerns, and decision-making patterns.
 
-Your task is to:
-A. STRICTLY ADHERE to ALL characteristics, styles, and cues defined in the provided Behavioral Shell.
-   Shell ID: {shell_id}
-   Key Shell Attributes to embody (from the provided Behavioral Shell):
-    - Description Shell Narrative: {behavioral_shell_data.get("description_shell_narrative", "A standard persona.")}
-    - Demographic Description Cues: {json.dumps(behavioral_shell_data.get("demographic_description_cues", {}))}
-    - Linguistic Style Cue: {behavioral_shell_data.get("linguistic_style_cue", "standard professional English")}
-    - Chattiness Level: {behavioral_shell_data.get("chattiness_level", "medium")}
-    - Base Reaction Style: {behavioral_shell_data.get("base_reaction_style", "Neutral")}
-    - Intelligence Level Cue: {behavioral_shell_data.get("intelligence_level_cue", "average")}
-    - Trait Metrics Template: {json.dumps(behavioral_shell_data.get("trait_metrics_template", {"Balanced": 0.5}))}
-    - Cognitive Biases Suggestions: {json.dumps(behavioral_shell_data.get("cognitive_biases_suggestions", {"Standard_Bias": True}))}
-    - Buyer Archetype Cue: {behavioral_shell_data.get("buyer_type_archetype_cue", "standard buyer")}
-    - Decision Authority Style Cue: {behavioral_shell_data.get("decision_authority_style_cue", "standard decision maker")}
-    - Initial Emotional State Range: {json.dumps(behavioral_shell_data.get("initial_emotional_state_range", ["Neutral"]))}
+CONVERSATION FLOW INSTRUCTION: When Sam (the AI sales coach) has gathered both the user's product/service information AND target market information, Sam should ALWAYS ask for explicit confirmation before generating the persona. Sam should say something like:
 
-B. Based on the Sales Context AND the Behavioral Shell, GENERATE the following SPECIFIC contextual details and FINALIZE attributes for the persona:
-   - name: (string, e.g., 'Sarah Chen', 'David Miller')
-   - role: (string, e.g., 'Marketing Manager at a {industry} company')
-   - company_name: (string, a plausible company name for the '{industry}' sector)
-   - business_description: (string, A detailed paragraph of 3-4 sentences. MUST include: what the company's main products/services are, who its typical customers are, its approximate size [e.g., startup, mid-sized (specify employee range like 50-200 if mid-sized), enterprise], and its market position or a key differentiator [e.g., innovator, cost leader, niche specialist]. Make this descriptive and specific.)
-   - mission_statement: (string, A concise 1-2 sentence mission statement for the company.)
-   - strategic_goals: (list of 2-3 strings, key strategic goals for the company for the next 1-2 years. e.g., 'Expand into the European market', 'Improve customer retention by 20%', 'Launch a flagship AI-powered analytics platform.')
-   - longterm_personal_description: (object, with keys like "family_relationships_specifics", "education_specifics", "hobbies_interests_specifics", "dreams_ambitions_specifics". Generate plausible, brief details consistent with the shell's 'demographic_description_cues'.)
-   - shortterm_personal_description: (object, with keys like "recent_life_events_specifics", "current_mood_influencers_specifics". Generate plausible, brief details.)
-   - industry_context: (string, the specific industry they operate in, derived from '{industry}')
-   - pain_points: (list of 3-4 strings, specific pain points this persona would have RELATED TO '{product_service}', considering their shell traits and the Sales Context.)
-   - primary_concern: (string, their main worry/goal RELATED TO '{product_service}')
-   - objections: (list of 2-3 strings, specific objections they would raise against '{product_service}', consistent with their shell traits and Sales Context.)
-   - description_narrative: (string, a brief 2-3 sentence narrative overview combining key shell traits and the generated specifics, highlighting their main motivation regarding '{product_service}'.)
-   
-   Derived/Finalized attributes (based on Shell cues):
-   - demographic_description: (object, with "age_group", "cultural_background", "communication_style_notes". Generate specific details inspired by the Shell's 'demographic_description_cues'.)
-   - intelligence_level: (string, select/finalize from 'low', 'average', 'high' based on Shell's 'intelligence_level_cue'.)
-   - trait_metrics: (object, finalize trait metrics based on the Shell's 'trait_metrics_template'. Adhere closely to the template, adjusting scores minimally if needed for coherence.) This will be used as 'personality_traits'.
-   - emotional_state: (string, select a specific state from the Shell's 'initial_emotional_state_range', e.g., 'Focused' or 'Neutral'.)
-   - buyer_type: (string, determine the final buyer type, e.g., 'Analytical', 'Economic', based on the Shell's 'buyer_type_archetype_cue'.)
-   - decision_authority: (string, determine final decision authority, e.g., 'Final_Decision_Maker', 'Influencer_Recommender', based on the Shell's 'decision_authority_style_cue'.)
-   - cognitive_biases: (object, select a few relevant biases based on the Shell's 'cognitive_biases_suggestions' and assign a strength (0.1-1.0) if applicable, e.g., {{"Status_Quo_Bias": 0.7}}.)
+"Perfect! I have all the information I need about your [product/service] and your target market of [target market]. Should I go ahead and generate your buyer persona now?"
 
-C. Output a single, valid JSON object. This object should be a MERGE of:
-   1. Copied metadata and direct stylistic attributes from the provided Behavioral Shell (e.g., `shell_id`, `is_legendary_shell`, `special_rules_identifier`, `linguistic_style_cue`, `chattiness_level`, `base_reaction_style`).
-   2. The new contextual details you generated in Section B (e.g., `name`, `role`, `company_name`, `business_description`, etc.).
-   3. Attributes you derived/finalized in Section B based on cues from the Behavioral Shell (e.g., `demographic_description` (final object), `intelligence_level` (final value), `trait_metrics` (final object), `emotional_state` (final value), `buyer_type` (final value), `decision_authority` (final value), `cognitive_biases` (final object)).
-   The final JSON structure should look like the example below and include all necessary fields for a complete persona that can be parsed by the system.
+Only after the user confirms with "yes", "sure", "go ahead", or similar confirmation should Sam proceed with persona generation.
 
-   Example JSON Structure:
-   {{
-     "shell_id": "{shell_id}", // Copied from input shell
-     "is_legendary_shell": {behavioral_shell_data.get("is_legendary_shell", False)}, // Copied
-     "special_rules_identifier": "{behavioral_shell_data.get("special_rules_identifier", "None")}", // Copied
-     "linguistic_style_cue": "{behavioral_shell_data.get("linguistic_style_cue", "standard professional English")}", // Copied
-     "chattiness_level": "{behavioral_shell_data.get("chattiness_level", "medium")}", // Copied
-     "base_reaction_style": "{behavioral_shell_data.get("base_reaction_style", "Neutral")}", // Copied
-     // Description shell narrative from shell is mainly for your guidance, the primary output is description_narrative below.
+PERSONA GENERATION CONTEXT:
+- Product/Service: {product_service}
+- Target Market: {target_market}
+- Industry Context: {industry}
 
-     // Generated contextual specifics (Section B):
-     "name": "...",
-     "role": "...",
-     "company_name": "...",
-     "business_description": "...",
-     "mission_statement": "...",
-     "strategic_goals": ["...", "..."],
-     "longterm_personal_description": {{ "family_relationships_specifics": "...", "education_specifics": "...", ... }},
-     "shortterm_personal_description": {{ "recent_life_events_specifics": "...", "current_mood_influencers_specifics": "..." }},
-     "industry_context": "...", // Specific industry, derived from context
-     "pain_points": ["...", "..."],
-     "primary_concern": "...",
-     "objections": ["...", "..."],
-     "description_narrative": "...", // The NEW synthesized narrative based on shell and specifics
+{industry_prompt_addition}
 
-     // Derived/Finalized attributes based on Shell cues (Section B):
-     "demographic_description": {{ "age_group": "...", "cultural_background": "...", "communication_style_notes": "..." }},
-     "intelligence_level": "...", // e.g., "average" or "high"
-     "trait_metrics": {{ "Analytical": 0.8, "Skeptical": 0.6, ... }}, // This will be used as 'personality_traits'
-     "emotional_state": "...", // e.g., "Neutral" or "Focused"
-     "buyer_type": "...", // e.g., "Analytical"
-     "decision_authority": "...", // e.g., "Influencer_Recommender"
-     "cognitive_biases": {{ "Status_Quo_Bias": 0.7, ... }}
-   }}
-Ensure the output is ONLY the JSON object. No other text before or after.
-"""
-        else:
-            # Fallback to original full persona generation prompt (simplified)
-            # This part needs to be the same detailed prompt we had before for generating a full persona from scratch
-            # For now, this is a placeholder. We need to ensure it requests ALL fields, including the new detailed ones.
-            prompt = f"""You are an expert AI assistant that generates detailed and realistic customer personas for sales roleplay simulations.
-The persona should behave like a potential buyer evaluating a product/service.
+Generate DETAILED, SPECIFIC business information. For 'surface_business_info', create a realistic company overview with specific details like company name, size, founding year, industry, locations, and services - NOT generic phrases.
 
-Sales Context:
-- Product/Service of Interest: {product_service}
-- Sales Environment (B2B/B2C): Target is '{target_market}'
-- Target Salesperson Experience Level: {experience}
+Create a JSON response with the following structure:
 
-Output a single, valid JSON object representing the persona. The JSON object MUST conform to the following structure. Strive for realism and provide rich detail for all fields:
 {{
-  "name": "string (e.g., 'Sarah Chen', 'David Miller')",
-  "role": "string (e.g., 'Marketing Manager at a {industry} company', 'Small Business Owner in {industry}')",
-  "company_name": "string (a plausible company name)",
-  "description_narrative": "string (A brief 2-3 sentence narrative overview of the persona, their company, their primary motivation for considering the product/service. This should incorporate their role and general situation.)",
-  "business_description": "string (A detailed paragraph of 3-4 sentences. MUST include: what the company's main products/services are, who its typical customers are, its approximate size [e.g., startup, mid-sized (specify employee range like 50-200 if mid-sized), enterprise], and its market position or a key differentiator [e.g., innovator, cost leader, niche specialist]. Make this descriptive and specific.)",
-  "mission_statement": "string (A concise 1-2 sentence mission statement for the company.)",
-  "strategic_goals": ["string (List 2-3 key strategic goals for the company for the next 1-2 years. e.g., 'Expand into the European market', 'Improve customer retention by 20%', 'Launch a flagship AI-powered analytics platform'.)"],
+  "name": "[Realistic first and last name]",
+  "role": "[Specific job title]",
+  "company_name": "[Specific company name]",
+  "business_context": "B2B",
+  "description_narrative": "[2-3 sentence personality description]",
   
-  "longterm_personal_description": {{
-    "family_relationships_specifics": "string (e.g., 'Married, two young children', 'Single, focused on career')",
-    "education_specifics": "string (e.g., 'MBA in Marketing', 'Learned on the job')",
-    "hobbies_interests_specifics": "string (e.g., 'Enjoys hiking and reading tech blogs', 'Passionate about local community events')",
-    "dreams_ambitions_specifics": "string (e.g., 'Aspires to be CMO', 'Wants to see their small business thrive')"
-  }},
-  "shortterm_personal_description": {{
-    "recent_life_events_specifics": "string (e.g., 'Recently promoted', 'Dealing with a supplier issue')",
-    "current_mood_influencers_specifics": "string (e.g., 'Slightly stressed due to deadlines but optimistic', 'Feeling cautious due to budget reviews')"
-  }},
+  // SURFACE-LEVEL INFO (what they'd reveal initially - shown to user)
+  "surface_business_info": "[Detailed company overview with specific details like company name, size, founding year, industry, locations, services]",
+  "surface_pain_points": "[What they'd openly discuss about challenges]", 
+  "surface_concern": "[Initial concern they'd share]",
   
-  "demographic_description": {{
-    "age_group_suggestion": "string (e.g., '30-40', '50-60')",
-    "cultural_background_cue": "string (e.g., 'Prefers direct communication', 'Values building rapport first')",
-    "communication_style_preference_cue": "string (e.g., 'Likes data and facts', 'Responds well to stories and examples')"
-  }},
+  // DEEP INFO (revealed only through skilled discovery - NOT shown to user)
+  "deep_business_context": "[Full company situation and strategic context]",
+  "deep_pain_points": ["[Hidden pain point 1]", "[Hidden pain point 2]"],
+  "primary_concern": "[Their real, deeper concern]",
   
-  "linguistic_style_cue": "string (Describe their typical language style, e.g., 'Professional and articulate', 'Casual and friendly', 'Speaks with some regional dialect cues like occasional y'all')",
-  "chattiness_level": "string (Enum: 'low', 'medium', 'high')",
-  "base_reaction_style": "string (e.g., 'Skeptical_Challenger', 'Enthusiastic_EarlyAdopter', 'Cautious_Pragmatist', 'Relationship_Focused_Amiable')",
-  "intelligence_level": "string (Enum: 'low', 'average', 'high')", // Corrected key name
-  "trait_metrics": {{ // This object will be used as 'personality_traits'
-    "Analytical": "float (0.1-1.0)", "Skeptical": "float (0.1-1.0)", "Openness_to_New_Ideas": "float (0.1-1.0)", 
-    "Risk_Aversion": "float (0.1-1.0)", "Patience": "float (0.1-1.0)", "Confidence": "float (0.1-1.0)",
-    "Detail_Oriented": "float (0.1-1.0)", "Impulsiveness": "float (0.1-1.0)", "Tech_Savviness_Impression": "float (0.1-1.0, how tech-savvy they seem)"
-    // Add other relevant traits, aim for 7-10 diverse traits
-  }},
-  "emotional_state": "string (e.g., 'Neutral', 'Focused', 'Curious', 'Skeptical', 'Hurried', 'Optimistic', 'Guarded')", // Corrected key name
-  "buyer_type": "string (e.g., 'Economic', 'User', 'Technical', 'Coach', 'Strategic', 'Innovator')",
-  "decision_authority": "string (e.g., 'Final_Decision_Maker', 'Influencer_Recommender', 'Gatekeeper', 'User_With_Input')",
-  "industry_context": "string (The specific industry they operate in, derived from '{industry}')", // Corrected key name
+  "emotional_state": "[Current emotional state]",
+  "decision_authority": "[Decision-making level: Decision Maker/Influencer/Gatekeeper]",
+  "industry_context": "{industry}",
   
-  "pain_points": ["string (List 3-5 significant challenges or pain points. Designate ONE as the 'True Core Pain Point' - genuinely significant and potentially solvable by '{product_service}'. Designate ONE or TWO others as 'Red Herring Pain Points' - issues the persona will initially emphasize as very problematic or urgent, even if they are ultimately less critical or not directly solvable by '{product_service}'. The remaining can be general business challenges. Ensure variety and make the red herrings sound convincing.)"],
-  "primary_concern": "string (This should initially align with one of the 'Red Herring Pain Points' to make the misdirection more effective. However, the persona's deeper, underlying motivation and the problem that ultimately needs solving for a successful 'sale' in the simulation is the 'True Core Pain Point'. The persona should only reveal this true core pain after significant probing and trust-building from the salesperson.)",
-  "objections": ["string (List 2-3 specific objections they would raise against '{product_service}')"],
-  "cognitive_biases": {{ // Provide suggestions for common biases, AI should pick a few relevant ones and assign a strength (0.1-1.0)
-    "Anchoring": "float (0.1-1.0, if relevant)", "Status_Quo_Bias": "float (0.1-1.0, if relevant)", 
-    "Loss_Aversion": "float (0.1-1.0, if relevant)", "Confirmation_Bias": "float (0.1-1.0, if relevant)",
-    "Availability_Heuristic": "float (0.1-1.0, if relevant)"
+  // ENHANCED VOICE-SPECIFIC FIELDS for realistic conversation dynamics
+  "speech_patterns": {{
+    "pace": "[slow/moderate/fast]",
+    "interruption_style": "[polite/assertive/aggressive]", 
+    "filler_words": ["um", "uh", "well"],
+    "regional_expressions": ["[any regional phrases]"]
   }},
   
-  "shell_id": "N/A_full_generation", // Indicate this was not from a shell
-  "is_legendary_shell": false,
-  "special_rules_identifier": "None"
+  "conversation_dynamics": {{
+    "comfort_with_silence": "[low/moderate/high]",
+    "question_asking_tendency": "[low/moderate/high]", 
+    "story_sharing_level": "[low/medium/high]",
+    "technical_comfort": "[low/medium/high]"
+  }},
+  
+  "emotional_responsiveness": {{
+    "excitement_triggers": ["[what excites them]", "[another trigger]"],
+    "frustration_triggers": ["[what frustrates them]", "[another trigger]"], 
+    "trust_building_factors": ["[what builds trust]", "[another factor]"],
+    "skepticism_reducers": ["[what reduces skepticism]", "[another factor]"]
+  }},
+  
+  "persuasion_psychology": {{
+    "responds_to_authority": [true/false],
+    "influenced_by_social_proof": [true/false], 
+    "motivated_by_urgency": [true/false],
+    "values_relationship_over_features": [true/false]
+  }},
+  
+  "pain_points": ["[pain point 1]", "[pain point 2]", "[pain point 3]"],
+  "objections": ["[likely objection 1]", "[likely objection 2]"],
+  
+  // BEHAVIORAL TRAITS for realistic voice interaction
+  "personality_traits": {{
+    "openness": [0.1-0.9],
+    "conscientiousness": [0.1-0.9], 
+    "extraversion": [0.1-0.9],
+    "agreeableness": [0.1-0.9],
+    "neuroticism": [0.1-0.9]
+  }},
+  
+  "conversation_guidelines": {{
+    "initial_skepticism_level": "[low/medium/high]",
+    "information_sharing_pace": "[guarded/moderate/open]",
+    "relationship_building_preference": "[task-focused/relationship-first/balanced]"
+  }}
 }}
-Ensure the output is ONLY the JSON object. No other text before or after.
-"""
-        return prompt
+
+IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, realistic objections, and human decision-making patterns. They should be convincible through good sales technique, but not easily manipulated."""
+
+        return base_prompt
 
     def generate_customer_persona(
         self, 
@@ -468,7 +404,22 @@ Ensure the output is ONLY the JSON object. No other text before or after.
             
             # Basic validation: does it look like JSON?
             if response_content and response_content.strip().startswith("{") and response_content.strip().endswith("}"):
-                # Further validation could be added here (e.g., trying to parse it)
+                # Apply industry-specific modifications if we have industry context
+                industry_context = user_profile_context.get("industry", "")
+                if industry_context:
+                    try:
+                        # Parse the JSON, apply modifications, and convert back to JSON string
+                        persona_dict = json.loads(response_content)
+                        modified_persona = apply_industry_modifications(persona_dict, industry_context)
+                        response_content = json.dumps(modified_persona, indent=2)
+                        logger.info(f"Applied industry modifications for: {industry_context}")
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Could not parse persona JSON for industry modifications: {e}")
+                        # Continue with original response_content
+                    except Exception as e:
+                        logger.warning(f"Error applying industry modifications: {e}")
+                        # Continue with original response_content
+                
                 return response_content
             else:
                 logger.error(f"API did not return valid JSON. Response: {response_content}")
@@ -619,8 +570,11 @@ Is Legendary Shell: {behavioral_shell_data.get("is_legendary_shell", False) if b
         persona_name = persona.get("name", "Customer")
         persona_role = persona.get("role", "Potential Customer")
         
-        # Detailed Descriptions (NEW)
-        business_desc = persona.get("business_description", "No specific business context provided.")
+        # Detailed Descriptions (NEW) - Use deep context for AI behavior
+        if internal_data:
+            business_desc = internal_data.get("deep_business_context", persona.get("business_description", "No specific business context provided."))
+        else:
+            business_desc = persona.get("business_description", "No specific business context provided.")
         
         longterm_personal_desc = persona.get("longterm_personal_description", {})
         longterm_family = longterm_personal_desc.get("family_relationships", "N/A")
@@ -645,12 +599,45 @@ Is Legendary Shell: {behavioral_shell_data.get("is_legendary_shell", False) if b
         buyer_type = persona.get("buyer_type", "Unknown")
         decision_authority = persona.get("decision_authority", "Unknown")
         industry_context = persona.get("industry_context", "general")
-        pain_points = persona.get("pain_points", [])
-        primary_concern = persona.get("primary_concern", "finding a good solution.")
+        # Use deep/internal information for AI behavior, not the surface info shown to user
+        internal_data = persona.get("_internal", {})
+        if internal_data:
+            pain_points = internal_data.get("deep_pain_points", persona.get("pain_points", []))
+            primary_concern = internal_data.get("true_primary_concern", persona.get("primary_concern", "finding a good solution."))
+        else:
+            # Fallback to direct persona data if no internal structure
+            pain_points = persona.get("pain_points", [])
+            primary_concern = persona.get("primary_concern", "finding a good solution.")
         objections = persona.get("objections", [])
         cognitive_biases = persona.get("cognitive_biases", {})
         linguistic_style_cue = persona.get("linguistic_style_cue", "standard professional English.")
         chattiness_level = persona.get("chattiness_level", "medium") # Get chattiness level
+        
+        # NEW: Extract speech patterns and conversation dynamics
+        speech_patterns = persona.get("speech_patterns", {})
+        conversation_dynamics = persona.get("conversation_dynamics", {})
+        
+        # Extract specific speech pattern details
+        speech_pace = speech_patterns.get("pace", "medium")
+        volume_tendency = speech_patterns.get("volume_tendency", "normal")
+        interruption_style = speech_patterns.get("interruption_style", "natural_flow")
+        filler_words = speech_patterns.get("filler_words", [])
+        regional_expressions = speech_patterns.get("regional_expressions", [])
+        
+        # Extract conversation dynamics
+        comfort_with_silence = conversation_dynamics.get("comfort_with_silence", "medium")
+        question_asking_tendency = conversation_dynamics.get("question_asking_tendency", "medium")
+        story_sharing_level = conversation_dynamics.get("story_sharing_level", "moderate")
+        technical_comfort = conversation_dynamics.get("technical_comfort", "competent")
+        
+        # Personality Trait System (NEW)
+        core_trait = persona.get("core_personality_trait", "Analytical")
+        supporting_trait = persona.get("supporting_personality_trait", "Patient")
+        personality_blend = persona.get("personality_blend_description", "Balanced professional approach")
+        
+        # Generate personality behavior instructions
+        from app.services.personality_traits import get_trait_behavior_instructions
+        personality_instructions = get_trait_behavior_instructions(core_trait, supporting_trait)
 
         # --- Conversation State Insights (if available) ---
         current_phase_val = "rapport" # Default if no state
@@ -668,8 +655,55 @@ Is Legendary Shell: {behavioral_shell_data.get("is_legendary_shell", False) if b
         call_objective = "This is a 10-minute voice-to-voice discovery call. Your main goal is to understand the salesperson's offering and see if it addresses your primary concern. The salesperson (Cason) will likely try to build rapport and then uncover your needs."
         time_awareness_cue = "Be mindful that this is a relatively short call, so while natural conversation is good, discussions should be reasonably focused."
         voice_dynamics_cue = f"Communicate as if in a natural, real-time voice conversation. Use engaging language suitable for voice. Your linguistic style should be: {linguistic_style_cue}."
-
-        # --- Chattiness Instructions --- (NEW SECTION)
+        
+        # --- Enhanced Voice Dynamics Instructions ---
+        speech_instructions = ""
+        if speech_pace == "slow":
+            speech_instructions += "Speak at a measured, deliberate pace. Take your time with responses. "
+        elif speech_pace == "fast":
+            speech_instructions += "Speak at a brisk pace. You tend to talk quickly and may overlap slightly with the salesperson. "
+        
+        if volume_tendency == "quiet":
+            speech_instructions += "You tend to speak more softly - this might come through as being more reserved in your word choices. "
+        elif volume_tendency == "loud":
+            speech_instructions += "You tend to speak with energy and emphasis - this comes through as more assertive language. "
+        
+        if interruption_style == "polite_waiter":
+            speech_instructions += "You wait politely for others to finish speaking and rarely interrupt. "
+        elif interruption_style == "eager_interrupter":
+            speech_instructions += "You sometimes jump in with thoughts or questions before the other person finishes. "
+        
+        if filler_words:
+            filler_list = ', '.join(filler_words[:3])  # Use up to 3 filler words
+            speech_instructions += f"You naturally use filler words like: {filler_list}. "
+        
+        if regional_expressions:
+            regional_list = ', '.join(regional_expressions[:2])  # Use up to 2 expressions
+            speech_instructions += f"You might occasionally use expressions like: {regional_list}. "
+        
+        # --- Conversation Dynamics Instructions ---
+        dynamics_instructions = ""
+        if comfort_with_silence == "low":
+            dynamics_instructions += "You're not comfortable with long pauses and tend to fill silence with questions or comments. "
+        elif comfort_with_silence == "high":
+            dynamics_instructions += "You're comfortable with pauses and don't feel the need to fill every silence. "
+        
+        if question_asking_tendency == "high":
+            dynamics_instructions += "You naturally ask many questions to understand things better. "
+        elif question_asking_tendency == "low":
+            dynamics_instructions += "You tend to listen more than ask questions, preferring to let others explain. "
+        
+        if story_sharing_level == "extensive":
+            dynamics_instructions += "You're comfortable sharing personal anecdotes and examples from your experience. "
+        elif story_sharing_level == "minimal":
+            dynamics_instructions += "You keep personal sharing to a minimum and stick to business topics. "
+        
+        if technical_comfort == "expert":
+            dynamics_instructions += "You're very comfortable with technical discussions and may ask detailed technical questions. "
+        elif technical_comfort == "struggles":
+            dynamics_instructions += "You prefer simpler explanations and may ask for clarification on technical topics. "
+        
+        # --- Chattiness Instructions --- (Restored)
         chattiness_instructions = ""
         if chattiness_level == "low":
             chattiness_instructions = "Keep initial small talk very brief and general (e.g., 'Hey Cason! It's been pretty busy recently, but good. How are you?'). Avoid sharing specific personal details unless directly and persistently asked. Transition to business topics more quickly or let the salesperson do so promptly."
@@ -686,6 +720,8 @@ The salesperson's name is {salesperson_name}.
 **YOUR CORE INSTRUCTIONS:**
 1.  **Embody Persona Deeply:** Fully adopt the characteristics, background, and motivations defined below. Your responses should be consistent with this persona.
 2.  **Natural Conversation:** Engage in a natural, flowing conversation. Avoid sounding robotic or just listing facts. Use language appropriate for a spoken, voice-to-voice interaction.
+    - **Speech Patterns:** {speech_instructions}
+    - **Conversation Style:** {dynamics_instructions}
     - **Chattiness Note:** {chattiness_instructions} This primarily applies to rapport building and initial greetings.
 3.  **Scenario Adherence:** Remember the context: {call_objective} {time_awareness_cue} {voice_dynamics_cue}
 4.  **Objective-Driven Responses:** Your primary goal is to evaluate if the salesperson's solution can address your `primary_concern`. You are also looking to see if they understand your `pain_points`.
@@ -719,6 +755,8 @@ The salesperson's name is {salesperson_name}.
    - Base Reaction Style to New Ideas/Sales Pitches: {base_reaction_style}.
    - Intelligence Level (influences understanding and questions): {intelligence_level}.
    - Key Personality Traits (scores 0-1, higher means more prominent): {json.dumps(personality_traits)}. Let these subtly influence your responses. For example, high skepticism means you'll ask more probing questions or express doubt more readily.
+   - **PERSONALITY TRAIT SYSTEM:** {personality_blend}
+   {personality_instructions}
    - Buyer Type: {buyer_type}.
    - Decision-Making Authority: {decision_authority}.
    - Potential Objections You Might Raise (if relevant): {json.dumps(objections)}.
@@ -742,7 +780,19 @@ The salesperson's name is {salesperson_name}.
 
 *   **If Phase is 'Discovery' or 'discovery':**
     *   The salesperson will try to understand your needs. Answer their questions based on your `business_description`, `primary_concern`, and `pain_points`.
-    *   **Do NOT proactively reveal your `primary_concern` or detailed `pain_points` early in this phase. When first asked about your business, challenges, or what you're looking for, respond with general statements about your role, company goals, or broad areas of operational focus (e.g., 'My main goal is to ensure my team is efficient,' or 'We're always looking to improve our project delivery.'). Do not mention specific problems or needs solvable by a product at this stage. If the salesperson asks a follow-up question drilling down, you can then mention a slightly more specific area of challenge (e.g., 'Ensuring smooth collaboration across departments requires ongoing attention'), but still avoid pinpointing your `primary_concern` or a key `pain_point`. It should typically take at least 2-3 increasingly specific questions from the salesperson for you to start revealing your true `primary_concern` or a significant, solvable `pain_point`. Only provide these deep details when their questions demonstrate genuine understanding and skillful, persistent probing.**
+    *   **CRITICAL: PROGRESSIVE INFORMATION REVELATION:**
+        - **Level 1 (Surface Talk)**: Start with generic business challenges that any professional might mention
+        - **Level 2 (Surface Pain Points)**: Share the surface-level concerns you'd mention to anyone
+        - **Level 3 (Deeper Issues)**: Only reveal your true `primary_concern` and `deep_pain_points` after the salesperson demonstrates:
+          * Genuine understanding of your industry/role
+          * Empathy for your situation
+          * Skillful questioning that shows they're listening
+          * Trust-building through expertise or shared experience
+        - **MAKE THEM WORK FOR IT**: Don't volunteer your deepest concerns. They must earn that information through skilled discovery.
+    *   **EMOTIONAL PROGRESSION EXAMPLES:**
+        - Skeptical → Curious: "I'm not sure about this... → Wait, that's interesting..."
+        - Frustrated → Hopeful: "We've tried everything... → You really understand our problem..."
+        - Busy → Engaged: "I only have a few minutes... → Tell me more about that..."
     *   **Subtle Misdirection (Red Herring): Your persona profile may contain 'Red Herring Pain Points' and a 'True Core Pain Point'. You might initially emphasize one of the 'Red Herring' issues as your main problem. Be convincing about this. Only if the salesperson skillfully probes past this, builds trust, and asks insightful questions that get to the heart of your underlying challenges, should you gradually start to reveal your 'True Core Pain Point'. This requires the salesperson to not just take your initial statements at face value but to dig deeper.**
     *   Your `personality_traits` (e.g., skepticism, detail-orientation) should influence the types of questions you ask back and the level of detail you require.
     *   If you have `cognitive_biases` like 'Status Quo Bias', you might express hesitation about change.
@@ -753,14 +803,25 @@ The salesperson's name is {salesperson_name}.
     *   This is where your `objections` might start to surface if the presentation doesn't align with your needs or raises concerns.
 
 *   **If Phase is 'Objection Handling' or 'objection_handling':**
-    *   If you've raised an `objection` (or one from your profile is triggered), express it clearly but politely, consistent with your communication style.
+    *   **LAYERED OBJECTION SYSTEM (Enhanced):**
+        - **Level 1 (Surface)**: "It's too expensive" / "We don't have time right now" / "We need to think about it"
+        - **Level 2 (Deeper)**: "We've been burned by similar solutions before" / "I'm not sure my team will adopt this"
+        - **Level 3 (Core Fears)**: "What if this doesn't work and I look bad?" / "I can't afford to make another mistake"
+    *   Express objections that match your persona's `emotional_state` and `personality_traits`.
     *   Listen to their responses. Your `persuadability` (if defined in traits) or `skepticism` will influence how easily you are convinced.
 
 *   **If Phase is 'Closing' or 'closing':**
     *   Your willingness to move forward will depend on how well your `primary_concern` and `pain_points` have been addressed, and your `decision_authority`.
     *   Refer to your `decision_authority` if they press for a decision you can't make alone.
 
-**General Conversational Rules (Revised):**
+**General Conversational Rules (Enhanced for Voice):**
+-   **Voice-Optimized Responses:** Use natural speech patterns from the PERSONA_IMPROVEMENTS.md guide:
+    * Instead of: "That's an interesting point about efficiency."
+    * Use: "Hmm, yeah... efficiency is definitely something we struggle with."
+    * Instead of: "I would like to understand more about your pricing model."
+    * Use: "So how does the pricing work? Is it per user or...?"
+    * Instead of: "I appreciate your explanation, but I have concerns."
+    * Use: "Okay, I get that, but I'm still worried about..."
 -   **Engage Interactively & Vary Responses:** Engage in a natural, flowing conversation. While asking relevant questions is part of this, vary your responses. It's natural to sometimes offer a statement, an observation, an agreement, or an acknowledgement without an immediate follow-up question. Avoid ending every single turn with a question, especially if your persona's `chattiness_level` is 'low' or 'medium', or your `base_reaction_style` is more reserved. Let the conversation breathe.
 -   **Maintain Consistency:** Once you state something or react in a certain way, try to remain consistent with that, unless the salesperson gives you a very good reason to change your mind.
 -   **Handling Minor Gaffes/Misunderstandings:** If there's a minor conversational misunderstanding or if you use a phrase that's questioned (like an uncommon regionalism), react naturally based on your overall persona. For example:

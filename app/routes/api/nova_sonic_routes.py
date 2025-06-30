@@ -18,15 +18,8 @@ nova_sonic_bp = Blueprint('nova_sonic', __name__, url_prefix='/api/nova-sonic')
 def get_status():
     """Get Nova Sonic service status - public endpoint for demo purposes"""
     try:
-        # For our minimal test service, return a simple status
-        return jsonify({
-            'available': True,
-            'region': 'us-east-1',
-            'model_id': 'amazon.nova-sonic-v1:0',
-            'initialized': True,
-            'voices': {'matthew': 'Matthew', 'tiffany': 'Tiffany'},
-            'test_mode': True
-        })
+        status = nova_sonic_service.get_status()
+        return jsonify(status)
         
     except Exception as e:
         logger.error(f"Error getting Nova Sonic status: {str(e)}")
@@ -39,69 +32,6 @@ def get_status():
             'voices': {},
             'error_message': f'Service error: {str(e)}'
         }), 200
-
-@nova_sonic_bp.route('/demo-create-session', methods=['POST'])
-def demo_create_session():
-    """Create a Nova Sonic session - STEP 1 TEST"""
-    try:
-        logger.info("🧪 STEP 1 TEST: Creating Nova Sonic session...")
-        
-        data = request.get_json() or {}
-        system_prompt = data.get('system_prompt', 'You are a helpful sales prospect.')
-        
-        logger.info(f"🧪 STEP 1 TEST: System prompt: {system_prompt[:50]}...")
-        
-        # Use asyncio to create session
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_closed():
-                raise RuntimeError("Event loop is closed")
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        
-        logger.info("🧪 STEP 1 TEST: Event loop ready, calling create_session...")
-        
-        session_id = loop.run_until_complete(
-            nova_sonic_service.create_session(system_prompt=system_prompt)
-        )
-        
-        logger.info(f"🧪 STEP 1 TEST: Session ID returned: {session_id}")
-        
-        if session_id:
-            return jsonify({
-                'success': True,
-                'session_id': session_id,
-                'message': 'Session created successfully',
-                'test_mode': True
-            })
-        else:
-            return jsonify({'error': 'Failed to create session'}), 500
-            
-    except Exception as e:
-        logger.error(f"❌ STEP 1 TEST FAILED: Error creating Nova Sonic session: {str(e)}")
-        logger.exception("Full error:")
-        return jsonify({'error': str(e), 'test_failed': True}), 500
-
-@nova_sonic_bp.route('/simple-test', methods=['GET'])
-def simple_test():
-    """Simple test endpoint to verify the service is accessible"""
-    try:
-        logger.info("🧪 SIMPLE TEST: Testing service access...")
-        
-        # Test basic service access
-        sessions_count = len(nova_sonic_service.sessions)
-        
-        return jsonify({
-            'success': True,
-            'message': 'Service accessible',
-            'sessions_count': sessions_count,
-            'test_mode': True
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ SIMPLE TEST FAILED: {str(e)}")
-        return jsonify({'error': str(e)}), 500
 
 @nova_sonic_bp.route('/demo-start-conversation', methods=['POST'])
 def demo_start_conversation():

@@ -2,36 +2,129 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Force favicon refresh -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link rel="icon" type="image/x-icon" href="/iq-icon.ico?v=3" />
+    <link rel="icon" type="image/png" href="/iq-favicon.png?v=3" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/iq-favicon.png?v=3" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/iq-favicon.png?v=3" />
+    <link rel="apple-touch-icon" href="/iq-favicon.png?v=3" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PitchIQ</title>
-    <meta name="description" content="Practice with hyper-realistic AI buyers tailored to your world. Get instant feedback, perfect your pitch, multiply your wins." />
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- Enhanced SEO Meta Tags -->
+    <title>PitchIQ - AI Sales Training Platform | Practice with Realistic AI Buyers</title>
+    <meta name="description" content="Transform your sales performance with PitchIQ's AI-powered training platform. Practice with hyper-realistic AI buyers, get instant feedback, and close more deals. Try our enterprise sales training solution today." />
+    <meta name="keywords" content="AI sales training, sales practice platform, enterprise sales training, sales coaching software, AI buyers, sales performance, sales skills training, B2B sales training, sales simulation, sales enablement" />
     <meta name="author" content="PitchIQ" />
-
-    <meta property="og:title" content="PitchIQ" />
-    <meta property="og:description" content="Practice with hyper-realistic AI buyers tailored to your world. Get instant feedback, perfect your pitch, multiply your wins." />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://pitchiq.com/" />
+    
+    <!-- Enhanced Open Graph Tags -->
+    <meta property="og:title" content="PitchIQ - AI Sales Training Platform | Practice with Realistic AI Buyers" />
+    <meta property="og:description" content="Transform your sales performance with PitchIQ's AI-powered training platform. Practice with hyper-realistic AI buyers, get instant feedback, and close more deals." />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://euphonious-treacle-b2b989.netlify.app/" />
+    <meta property="og:url" content="https://pitchiq.com/" />
     <meta property="og:site_name" content="PitchIQ" />
-    <meta property="og:image" content="https://euphonious-treacle-b2b989.netlify.app/Screenshot 2025-06-02 091705.png" />
-    <meta property="og:image:secure_url" content="https://euphonious-treacle-b2b989.netlify.app/Screenshot 2025-06-02 091705.png" />
+    <meta property="og:image" content="https://pitchiq.com/og-image.png" />
+    <meta property="og:image:secure_url" content="https://pitchiq.com/og-image.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="PitchIQ AI Sales Training Platform Dashboard" />
+    <meta property="og:locale" content="en_US" />
 
+    <!-- Enhanced Twitter Cards -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://euphonious-treacle-b2b989.netlify.app/Screenshot 2025-06-02 091705.png" />
-    <script type="module" crossorigin src="/assets/index-CUbGNncr.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BZLiCgzu.css">
+    <meta name="twitter:site" content="@PitchIQ" />
+    <meta name="twitter:creator" content="@PitchIQ" />
+    <meta name="twitter:title" content="PitchIQ - AI Sales Training Platform" />
+    <meta name="twitter:description" content="Transform your sales performance with AI-powered training. Practice with realistic AI buyers and close more deals." />
+    <meta name="twitter:image" content="https://pitchiq.com/og-image.png" />
+    <meta name="twitter:image:alt" content="PitchIQ AI Sales Training Platform" />
+
+    <!-- Business/Organization Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "PitchIQ",
+      "url": "https://pitchiq.com",
+      "logo": "https://pitchiq.com/logo.png",
+      "description": "AI-powered sales training platform that helps sales professionals practice with realistic AI buyers and improve their performance.",
+      "foundingDate": "2024",
+      "industry": "Sales Training Software",
+      "sameAs": [
+        "https://linkedin.com/company/pitchiq",
+        "https://twitter.com/pitchiq"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "Sales",
+        "email": "sales@pitchiq.com"
+      }
+    }
+    </script>
+
+    <!-- Software Application Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "PitchIQ",
+      "description": "AI-powered sales training platform for enterprise teams",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web Browser",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "priceValidUntil": "2025-12-31",
+        "availability": "https://schema.org/InStock"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "reviewCount": "127"
+      }
+    }
+    </script>
+
+    <!-- Performance & Font Optimization -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Londrina+Outline&display=swap" as="style" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Londrina+Outline&display=swap" />
+    
+    <!-- Additional Performance Tags -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
+    
+    <script src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" type="module"></script>
+    <script type="module" crossorigin src="/assets/index-th94klPm.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Cty7uf4t.css">
   </head>
 
   <body>
     <div id="root"></div>
-    <!-- Netlify hidden form -->
-    <form name="early-access-form" netlify netlify-honeypot="bot-field" hidden>
-      <input type="email" name="email" />
-      <input type="hidden" name="form-name" value="early-access-form" />
-    </form>
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
-    <!-- <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script> -->
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+
+    <!-- Netlify hidden form for early access -->
+    <form 
+      name="early-access-signup" 
+      netlify 
+      netlify-honeypot="bot-field" 
+      hidden 
+      action="/thank-you.html"
+    >
+      <input type="email" name="email" />
+      <input type="text" name="early_access_opt_in" />
+      <input type="text" name="product_updates_opt_in" />
+      <input type="text" name="computer_fingerprint_field" />
+    </form>
+    <!-- End Netlify hidden form -->
   </body>
 </html>

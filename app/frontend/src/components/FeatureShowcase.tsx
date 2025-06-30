@@ -29,7 +29,7 @@ const features = [
     iconBg: 'bg-blue-100',
     iconColor: 'text-blue-600',
     title: 'Enterprise-Grade Security',
-    description: 'Military-grade Fernet encryption (AES-128) with unique keys per business. Your data is protected with the same standards used by financial institutions.'
+    description: 'AES-128 encryption. Your data is protected with the same standards used by financial institutions.'
   },
   {
     icon: Users,

@@ -4,6 +4,8 @@ Models Package Initialization
 This file imports all models from their respective modules and sets up any
 cross-module relationships. This allows other parts of the application to
 import any model directly from `app.models` (e.g., `from app.models import User`).
+
+Models package for the Sales Training AI application.
 """
 from app.extensions import db
 
@@ -13,6 +15,7 @@ from .persona import BuyerPersona
 from .training import TrainingSession, PerformanceMetrics, SessionMetrics
 from .feedback import Feedback, FeedbackAnalysis, SessionFeedback
 from .utility import FeatureVote, SalesStage, NameUsageTracker, EmailSignup
+from .business import BusinessProfile, BusinessDocument
 
 # --- Define Relationships that cross modules ---
 
@@ -25,4 +28,12 @@ BuyerPersona.training_sessions = db.relationship('TrainingSession', back_populat
 
 # Relationships from TrainingSession back to other models have already been defined in their respective files
 # using back_populates or backref, so we don't need to redefine them here.
-# For example, `TrainingSession.user_profile` is already defined in `training.py`. 
+# For example, `TrainingSession.user_profile` is already defined in `training.py`.
+
+# Make models available at package level
+__all__ = [
+    'User',
+    'UserProfile', 
+    'BusinessProfile',
+    'BusinessDocument'
+] 

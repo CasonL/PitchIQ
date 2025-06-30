@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { NovaSonicInterface } from '../voice/NovaSonicInterface';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+// import { NovaSonicInterface } from '../voice/NovaSonicInterface'; // Removed - using Deepgram Voice Agent only
 
 interface FloatingDemoBarProps {
   onDemoSubmit: (product: string) => void;
@@ -1081,10 +1083,10 @@ ${currentScenario.technique.description}
               <div className="bg-red-500 px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-white font-semibold text-lg">AI Sales Coach Demo</h3>
-                    <p className="text-white/90 text-sm">Product: {submittedProduct}</p>
+                    <h3 className="text-white font-semibold">AI Sales Coach</h3>
                   </div>
                   <div className="flex items-center space-x-3">
+                    <Badge variant="secondary" className="bg-white/20 text-white border-transparent">Demo</Badge>
                     {isAIResponding && (
                       <div className="text-white text-sm">
                         AI thinking...
@@ -1107,78 +1109,52 @@ ${currentScenario.technique.description}
               </div>
               
               <div className="h-[500px] flex flex-col">
-                {isVoiceMode && novaSonicStatus?.available ? (
-                  <div className="flex flex-col h-full">
-                    {/* Single context message at the top */}
-                    <div className="px-6 pt-4 pb-2">
-                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center">
-                            <span className="text-blue-700 text-sm">🎯</span>
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-blue-700 uppercase tracking-wide mb-1">Sales Training Scenario</p>
-                            <p className="text-sm text-blue-800 leading-relaxed">
-                              {currentScenario?.context || "Sales call in progress! Your prospect just shared a concern that reveals deeper issues..."}
+                <div className="flex-1 p-6 flex items-center justify-center">
+                  <div className="w-full grid grid-cols-3 gap-4">
+                    {/* Card 1 */}
+                    <Card className="bg-gray-50 border-gray-200 shadow-md">
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <span>Icon 1</span>
+                          <span className="text-sm font-medium">Card One</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-xs text-gray-600">
+                          Brief description for the first feature card.
+                        </p>
+                      </CardContent>
+                    </Card>
+                    {/* Card 2 */}
+                    <Card className="bg-gray-50 border-gray-200 shadow-md">
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <span>Icon 2</span>
+                          <span className="text-sm font-medium">Card Two</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-xs text-gray-600">
+                          Brief description for the second feature card.
+                        </p>
+                      </CardContent>
+                    </Card>
+                    {/* Card 3 */}
+                    <Card className="bg-gray-50 border-gray-200 shadow-md">
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <span>Icon 3</span>
+                          <span className="text-sm font-medium">Card Three</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-xs text-gray-600">
+                          Brief description for the third feature card.
                             </p>
-                          </div>
+                      </CardContent>
+                    </Card>
                         </div>
                       </div>
-                    </div>
-                    
-                    {/* Main voice interface - takes remaining space */}
-                    <div className="flex-1 px-6 pb-4">
-                      <NovaSonicInterface 
-                        onTranscript={handleVoiceInput}
-                        isListening={isListening}
-                        onListeningChange={setIsListening}
-                        scenario={currentScenario}
-                        compact={true}
-                        hideContext={true}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="overflow-y-auto p-6 space-y-4 h-full">
-                    {messages.map((message) => (
-                      <div key={message.id} className={`flex ${message.isAI ? 'justify-start' : 'justify-end'}`}>
-                        <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                          message.isAI 
-                            ? 'bg-gray-100 text-gray-800' 
-                            : 'bg-red-500 text-white'
-                        }`}>
-                          {message.isTyping ? (
-                            <div className="flex space-x-1">
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                            </div>
-                          ) : (
-                            <div className="text-sm prose prose-sm max-w-none">
-                              <ReactMarkdown
-                                components={{
-                                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                                  strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
-                                  em: ({ children }) => <em className="italic">{children}</em>,
-                                  ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
-                                  ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
-                                  li: ({ children }) => <li className="mb-1">{children}</li>,
-                                  h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
-                                  h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
-                                  h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
-                                  code: ({ children }) => <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
-                                  blockquote: ({ children }) => <blockquote className="border-l-2 border-gray-300 pl-3 italic text-gray-600 mb-2">{children}</blockquote>
-                                }}
-                              >
-                                {message.text}
-                              </ReactMarkdown>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
               
               {demoStep > 0 && demoStep < 4 && !isVoiceMode && (

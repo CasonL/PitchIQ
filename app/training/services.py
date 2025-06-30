@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 _backup_persona = None
 
 # Constants for shell selection
-CHANCE_TO_USE_LEGENDARY_SHELL = 0.05 # 5% chance
+CHANCE_TO_USE_LEGENDARY_SHELL = 0.0 # Disabled for enterprise demos - enable via admin settings
 
 # Helper functions for AI generation and analysis
 def generate_buyer_persona(user_profile=None, use_previous_feedback=False, previous_feedback=None, session_id=None):
@@ -56,15 +56,40 @@ def generate_buyer_persona(user_profile=None, use_previous_feedback=False, previ
         selected_shell_data = None
         is_legendary_override = False
 
-        # Try to select a legendary shell
-        if LEGENDARY_BEHAVIORAL_SHELLS and random.random() < CHANCE_TO_USE_LEGENDARY_SHELL:
+        # Try to select a legendary shell (only if user has access)
+        user_has_legendary_access = (
+            user_profile and 
+            hasattr(user_profile, 'has_legendary_personas') and 
+            user_profile.has_legendary_personas
+        )
+        
+        if (LEGENDARY_BEHAVIORAL_SHELLS and 
+            user_has_legendary_access and 
+            random.random() < (CHANCE_TO_USE_LEGENDARY_SHELL or 0.05)):  # Use 5% if enabled
             selected_shell_data = random.choice(LEGENDARY_BEHAVIORAL_SHELLS)
             is_legendary_override = True # Mark that this persona should be treated as legendary
             logger.info(f"Selected a legendary behavioral shell: {selected_shell_data.get('shell_id')}")
-        # Else, try to select a standard behavioral shell
+        # Else, try to select a standard behavioral shell (prioritize emotionally responsive ones)
         elif BEHAVIORAL_SHELLS:
-            selected_shell_data = random.choice(BEHAVIORAL_SHELLS)
-            logger.info(f"Selected a standard behavioral shell: {selected_shell_data.get('shell_id')}")
+            # Prioritize emotionally responsive shells (85% chance)
+            emotionally_responsive_shells = [
+                shell for shell in BEHAVIORAL_SHELLS 
+                if shell.get('shell_id') in ['emotionally_responsive_01', 'enthusiastic_early_adopter_01', 'busy_but_persuadable_01', 'standard_amiable_01']
+            ]
+            
+            # Exclude analytical shells from the fallback pool to reduce their frequency
+            non_analytical_shells = [
+                shell for shell in BEHAVIORAL_SHELLS 
+                if shell.get('shell_id') not in ['standard_analytical_01']
+            ]
+            
+            if emotionally_responsive_shells and random.random() < 0.85:
+                selected_shell_data = random.choice(emotionally_responsive_shells)
+                logger.info(f"Selected an emotionally responsive shell: {selected_shell_data.get('shell_id')}")
+            else:
+                # Use non-analytical shells for the remaining 15%
+                selected_shell_data = random.choice(non_analytical_shells if non_analytical_shells else BEHAVIORAL_SHELLS)
+                logger.info(f"Selected a non-analytical behavioral shell: {selected_shell_data.get('shell_id')}")
         else:
             logger.warning("No behavioral shells (standard or legendary) are available. Proceeding with non-shell-guided generation.")
             # selected_shell_data will remain None, and gpt4o_service will generate a persona without a shell.
@@ -106,7 +131,9 @@ def generate_buyer_persona(user_profile=None, use_previous_feedback=False, previ
         gpt4o_service = get_gpt4o_service()
         
         # Background backup persona generation (can remain as is)
-        if not isinstance(user_profile, MockUserProfile):
+        # Check if user_profile is a mock by checking if it has the mock attributes
+        is_mock_profile = hasattr(user_profile, 'product_service') and user_profile.product_service == "Software Solutions"
+        if not is_mock_profile:
             backup_thread = Thread(target=_generate_backup_persona, args=(user_profile, selected_shell_data)) # Pass shell to backup
             backup_thread.daemon = True
             backup_thread.start()
@@ -145,6 +172,7 @@ def generate_buyer_persona(user_profile=None, use_previous_feedback=False, previ
             role=persona_data.get("role", "Business Professional"),
             industry_context=persona_data.get("industry_context") or user_profile.industry, # Prefer persona's industry, fallback to user's
             business_description=persona_data.get("business_description"),
+            business_context=persona_data.get("business_context", "B2B"),  # AI-determined B2B/B2C
             longterm_personal_description=json.dumps(persona_data.get("longterm_personal_description", {})),
             shortterm_personal_description=json.dumps(persona_data.get("shortterm_personal_description", {})),
             demographic_description=json.dumps(persona_data.get("demographic_description", {})),
@@ -284,6 +312,7 @@ def _generate_backup_persona(user_profile, selected_shell_data=None): # Added sh
                     role=persona_data.get("role", "Business Professional"),
                     industry_context=persona_data.get("industry_context") or user_profile.industry,
                     business_description=persona_data.get("business_description"),
+                    business_context=persona_data.get("business_context", "B2B"),  # AI-determined B2B/B2C
                     longterm_personal_description=json.dumps(persona_data.get("longterm_personal_description", {})),
                     shortterm_personal_description=json.dumps(persona_data.get("shortterm_personal_description", {})),
                     demographic_description=json.dumps(persona_data.get("demographic_description", {})),
@@ -334,6 +363,7 @@ def parse_persona_description(persona_input_string: str) -> dict:
                 "cognitive_biases": parsed_data.get("cognitive_biases", {"Status_Quo_Bias": 0.6}),
                 # New detailed fields from the rich persona JSON
                 "business_description": parsed_data.get("business_description", "No specific business context provided."),
+                "business_context": parsed_data.get("business_context", "B2B"),  # AI-determined B2B/B2C
                 "longterm_personal_description": parsed_data.get("longterm_personal_description", {}),
                 "shortterm_personal_description": parsed_data.get("shortterm_personal_description", {}),
                 "demographic_description": parsed_data.get("demographic_description", {}),

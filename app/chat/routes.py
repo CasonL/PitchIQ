@@ -34,29 +34,25 @@ import socketio
 from app import socketio as flask_socketio
 import requests
 import re
+from deepgram import DeepgramClient
 
 # Import the service functions
-from app.chat.services import ( # Updated import
+from app.chat.services import ( 
     generate_ai_response,
     parse_feedback_text, # Renamed from individual extractors
     update_user_profile_with_feedback,
     generate_buyer_persona
-    # Removed unused imports:
-    # handle_onboarding_message,
-    # handle_session_setup,
-    # handle_setup_message
+    # REMOVED: All old voice services - now using Deepgram voice-to-voice only
 )
 from app.services.openai_service import openai_service, OpenAIService # Updated import
 from app.extensions import db, limiter
 from app.training.services import generate_buyer_persona, generate_ai_response as generate_training_ai_response, analyze_interaction, create_training_session, get_training_session
 from app.training.emotional_response import EmotionalResponseSystem
 
-# Import OpenAI for transcribing audio
-import base64
-import tempfile
-import os
-from app.services.voice_analysis_service import voice_analysis_service, get_voice_analysis_service
-from app.services.eleven_labs_service import eleven_labs_service
+# REMOVED: Voice-related imports - now using Deepgram voice-to-voice only
+# - voice_analysis_service (replaced by Deepgram analysis)
+# - eleven_labs_service (replaced by Deepgram synthesis)
+# - base64, tempfile, os for audio processing (handled by Deepgram)
 
 # Create blueprint and logger
 chat = Blueprint("chat", __name__, url_prefix="/chat")
@@ -69,151 +65,7 @@ logger = logging.getLogger(__name__)  # Initialize logger
 # Create a Socket.IO ASGI application
 sio_asgi_app = socketio.ASGIApp(flask_socketio)
 
-# Text preprocessing for more natural speech
-def preprocess_text_for_speech(text):
-    """
-    Make AI text sound more conversational and natural for speech synthesis.
-    Adds appropriate disfluencies based on psychological research to make speech sound authentic.
-    """
-    if not text:
-        return text
-        
-    # Add contractions and make language more casual
-    replacements = {
-        r'\bI am\b': "I'm",
-        r'\byou are\b': "you're",
-        r'\bthey are\b': "they're",
-        r'\bwe are\b': "we're",
-        r'\bis not\b': "isn't",
-        r'\bdoes not\b': "doesn't",
-        r'\bdo not\b': "don't",
-        r'\bcannot\b': "can't",
-        r'\bwill not\b': "won't",
-        r'\bwhat is\b': "what's",
-        r'\bthat is\b': "that's",
-        r'\bit is\b': "it's",
-        r'\bhere is\b': "here's",
-        r'\bthere is\b': "there's",
-        r'\bhow is\b': "how's",
-        r'\bwould have\b': "would've",
-        r'\bcould have\b': "could've",
-        r'\bshould have\b': "should've",
-        r'\bmight have\b': "might've",
-        r'\bwould not\b': "wouldn't",
-        r'\bcould not\b': "couldn't",
-        r'\bshould not\b': "shouldn't",
-        # Remove transitions that add filler words
-        # r'(\. )([A-Z])': r'. Alright, \2',  # Remove transitions between thoughts
-        # r'(\? )([A-Z])': r'? Well, \2',  # Remove transitions after questions
-        r'\b(However|Furthermore|Moreover)\b': r'Also',  # Simplify formal transitions
-        r'\bin conclusion\b': r'So',  # More casual closing
-    }
-    
-    # Apply replacements
-    processed_text = text
-    for pattern, replacement in replacements.items():
-        processed_text = re.sub(pattern, replacement, processed_text, flags=re.IGNORECASE)
-    
-    # Break up very long sentences (over 20 words)
-    sentences = re.split(r'([.!?])', processed_text)
-    result_sentences = []
-    for i in range(0, len(sentences), 2):
-        if i+1 < len(sentences):
-            sentence = sentences[i] + sentences[i+1]  # Combine with punctuation
-            words = sentence.split()
-            if len(words) > 20:  # If sentence is too long
-                midpoint = len(words) // 2
-                # Find a good breaking point near the middle (after a comma, if possible)
-                comma_positions = [j for j, word in enumerate(words[:midpoint+5]) if ',' in word]
-                if comma_positions:
-                    # Use the last comma before or near the midpoint
-                    break_point = max(pos for pos in comma_positions if pos <= midpoint+5)
-                else:
-                    break_point = midpoint
-                    
-                first_half = ' '.join(words[:break_point+1])
-                second_half = ' '.join(words[break_point+1:])
-                
-                # Add a pause marker for better speech rhythm
-                if not first_half.endswith(('.', '!', '?')):
-                    first_half += '...'
-                
-                result_sentences.append(first_half)
-                result_sentences.append(second_half)
-            else:
-                result_sentences.append(sentence)
-        elif i < len(sentences):
-            result_sentences.append(sentences[i])
-    
-    processed_text = ' '.join(result_sentences)
-    
-    # Add gentle pauses with commas
-    processed_text = re.sub(r'(\w+) (but|and|or|so) (\w+)', r'\1, \2 \3', processed_text)
-    
-    # Add strategic disfluencies for authenticity (research shows 5% optimal rate)
-    # Calculate total word count
-    words = processed_text.split()
-    word_count = len(words)
-    
-    # Research shows 5% disfluency rate sounds natural without being distracting
-    # For complex responses and especially for uncertain statements or objection responses
-    target_disfluency_count = max(1, int(word_count * 0.05))
-    
-    # Find potential positions for disfluencies at natural pause points
-    # Especially before substantial statements or after punctuation
-    candidates = []
-    
-    # After sentence starts (but not at the very beginning)
-    for match in re.finditer(r'([.!?]\s+)([A-Z][a-z]+\s+)', processed_text):
-        candidates.append(match.end())
-    
-    # Before important transition words or phrases
-    for transition in ['but', 'actually', 'so', 'now', 'regarding', 'about', 'think', 'believe']:
-        for match in re.finditer(r'\b(' + transition + r')\b', processed_text, re.IGNORECASE):
-            candidates.append(match.start())
-            
-    # Before clauses following commas
-    for match in re.finditer(r'(,\s+)([a-z]+)', processed_text):
-        candidates.append(match.end(1))
-    
-    # If we don't have enough candidates, add more positions
-    if len(candidates) < target_disfluency_count:
-        # Add positions before some verbs or sentence subjects
-        for match in re.finditer(r'\s+([A-Z][a-z]+\s+)', processed_text):
-            if match.start() > 20:  # Not too close to beginning
-                candidates.append(match.start())
-                if len(candidates) >= target_disfluency_count * 3:  # Get 3x as many as needed for selection
-                    break
-    
-    # Shuffle and select the needed number of positions
-    import random
-    random.shuffle(candidates)
-    selected_positions = sorted(candidates[:target_disfluency_count])
-    
-    # Disfluency types to choose from (with their weights)
-    disfluencies = {
-        ' um ': 3,
-        ' uh ': 3,
-        ' hmm ': 1,
-        ' you know ': 1, 
-        ' I mean ': 1,
-        ' like ': 1
-    }
-    
-    # Apply disfluencies - work from end to beginning to keep positions valid
-    for pos in reversed(selected_positions):
-        # Randomly select a disfluency based on weights
-        items = list(disfluencies.items())
-        weights = [w for _, w in items]
-        disfluency = random.choices([d for d, _ in items], weights=weights, k=1)[0]
-        
-        # Insert at position
-        processed_text = processed_text[:pos] + disfluency + processed_text[pos:]
-    
-    # Remove repeated spaces and clean up
-    processed_text = re.sub(r' +', ' ', processed_text).strip()
-    
-    return processed_text
+# REMOVED: Text preprocessing for ElevenLabs TTS - now using Deepgram voice synthesis
 
 @chat.route("/")
 @login_required
@@ -432,24 +284,11 @@ def end_conversation(conversation_id):
         }), 500
 
 
-# Keep API routes for voice/transcription
-@chat.route('/api/transcribe', methods=['POST'])
-@login_required
-def transcribe_audio():
-    # ... (Keep existing transcription logic) ...
-    pass # Placeholder
-
-@chat.route('/api/analyze-voice', methods=['POST'])
-@login_required
-def analyze_voice():
-    # ... (Keep existing voice analysis logic) ...
-     pass # Placeholder
-
-@chat.route('/api/advanced-voice-metrics', methods=['POST'])
-@login_required
-def advanced_voice_metrics():
-     # ... (Keep existing advanced metrics logic) ...
-     pass # Placeholder
+# REMOVED: Old voice routes - now using Deepgram voice-to-voice only
+# These routes are no longer needed:
+# - /api/transcribe (replaced by Deepgram real-time transcription)
+# - /api/analyze-voice (replaced by Deepgram voice analysis)  
+# - /api/advanced-voice-metrics (replaced by Deepgram metrics)
 
 # Keep SocketIO handlers
 @flask_socketio.on('connect')
@@ -483,180 +322,38 @@ def start():
 @login_required
 def manual_profile_setup():
     # ... (Keep existing logic) ...
-     pass # Placeholder
+    pass
 
-# REMOVED: register_routes function (Not standard Flask practice)
-
-# --- ElevenLabs Helper Function ---
-def _get_elevenlabs_audio_url(text: str, voice_id: str = None, model_id: str = "eleven_multilingual_v2") -> str | None:
-    """Calls ElevenLabs API to generate TTS and returns audio URL (or None on failure)."""
-    if not text:
-        return None
-
-    # Default voice if none provided
-    voice_id = voice_id or "21m00Tcm4TlvDq8ikWAM" # Default Rachel
-    logger.debug(f"Requesting TTS for voice_id: {voice_id}")
-
-    # --- Get API Key (Copied from original /api/tts) ---
-    api_key = current_app.config.get('ELEVEN_LABS_API_KEY')
-    if not api_key:
-        import os
-        api_key = os.environ.get('ELEVEN_LABS_API_KEY')
-        if not api_key:
-            api_key = os.environ.get('ELEVENLABS_API_KEY')
-            if api_key: logger.info("Found API key using ELEVENLABS_API_KEY env var")
-
-    if not api_key:
-        logger.error("Eleven Labs API key not configured for TTS helper")
-        return None
-    # --- End API Key Logic ---
-
-    # API endpoint (non-streaming for getting URL)
-    # NOTE: This assumes ElevenLabs returns a URL or allows retrieval. If not, we need to adapt.
-    # For now, let's assume we need to call the non-streaming endpoint and maybe handle the binary?
-    # A better approach would be to save the audio and return a local URL, but let's try the simplest first.
-    # Trying the non-streaming endpoint first.
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-    headers = {
-        "Accept": "audio/mpeg",
-        "Content-Type": "application/json",
-        "xi-api-key": api_key
-    }
-    payload = {
-        "text": preprocess_text_for_speech(text), # Preprocess here
-        "model_id": model_id,
-        "voice_settings": {
-            "stability": 0.65,
-            "similarity_boost": 0.85,
-            "style": 0.35,
-            "use_speaker_boost": True
-        }
-    }
-
-    try:
-        logger.info(f"Making NON-STREAMING TTS API request to {url} for voice {voice_id}")
-        response = requests.post(url, json=payload, headers=headers)
-
-        if response.status_code == 200:
-            # TODO: Determine how to get a URL. For now, this function can't return one.
-            # Option 1: Save the response.content to a file and return a local URL.
-            # Option 2: Check if ElevenLabs API offers a way to get a temporary URL.
-            # Option 3: Return the binary content directly (would require frontend changes).
-            # FOR NOW: We cannot return a URL with this basic approach. Log and return None.
-            logger.warning(f"TTS API call successful, but cannot return audio URL with current implementation. Need to save audio.")
-            # Example: Save and return URL (requires file saving logic)
-            # import uuid
-            # filename = f"{uuid.uuid4()}.mp3"
-            # filepath = os.path.join(current_app.static_folder, 'tts_audio', filename)
-            # os.makedirs(os.path.dirname(filepath), exist_ok=True)
-            # with open(filepath, 'wb') as f:
-            #     f.write(response.content)
-            # return url_for('static', filename=f'tts_audio/{filename}', _external=True)
-            return None # Placeholder until saving/URL logic is implemented
-        else:
-            logger.error(f"Eleven Labs API error (non-streaming): {response.status_code} - {response.text}")
-            return None
-    except Exception as e:
-        logger.error(f"Exception calling Eleven Labs API: {str(e)}", exc_info=True)
-        return None
-
-# --- Update /api/tts route to use the helper --- 
-@chat.route('/api/tts', methods=['POST'])
-@login_required
-def text_to_speech():
-    """
-    Endpoint to convert text to speech using ElevenLabs API.
-    Accepts POST requests with JSON payload containing 'text' and optional 'voice_id'.
-    Streams the audio response back to the client.
-    """
-    # --- Add Logging ---
-    logger.info("Entered text_to_speech endpoint")
-    if not request.is_json:
-        logger.error("TTS request is not JSON")
-        return jsonify({"error": "Request must be JSON"}), 415
-
-    data = request.get_json()
-    text_to_speak = data.get('text')
-    voice_id = data.get('voice_id', '21m00Tcm4TlvDq8ikWAM') # Default voice if not provided
-    stream = data.get('stream', True) # Default to streaming if not specified
-    
-    logger.info(f"TTS Request - Text: '{text_to_speak[:50]}...', Voice ID: {voice_id}, Stream: {stream}")
-    # --- End Logging ---
-
-    if not text_to_speak:
-        logger.error("TTS request missing 'text' field")
-        return jsonify({"error": "Missing 'text' field in request"}), 400
-
-    try:
-        # Call the ElevenLabs service function
-        # Ensure the service uses the current_app's logger or its own configured logger
-        audio_stream_generator = eleven_labs_service.generate_audio_stream(
-            text=text_to_speak,
-            voice_id=voice_id,
-            # --- Specify Output Format based on previous findings ---
-            # Using 64kbps as it seemed more reliable
-            output_format="mp3_44100_64" 
-            # --- End Output Format ---
-        )
-        
-        # --- Add Logging ---
-        logger.info("Successfully called eleven_labs_service.generate_audio_stream")
-        # --- End Logging ---
-
-        # Stream the audio data back
-        # Use a generator function for the response
-        def generate():
-            logger.info("Starting audio stream generation...")
-            try:
-                for chunk in audio_stream_generator:
-                    if chunk:
-                        # logger.debug(f"Streaming audio chunk, size: {len(chunk)}")
-                        yield chunk
-                    else:
-                        logger.warning("Received empty chunk from audio generator")
-                logger.info("Finished streaming audio chunks.")
-            except Exception as e:
-                logger.error(f"Error during audio stream generation: {e}", exc_info=True)
-                # Yield an empty byte string or handle error appropriately
-                yield b''
-
-        # Return Flask Response with the generator
-        return Response(stream_with_context(generate()), mimetype='audio/mpeg')
-
-    except Exception as e:
-        logger.error(f"Error in text_to_speech: {e}", exc_info=True)
-        return jsonify({"error": f"Failed to generate speech: {str(e)}"}), 500
-
-# Also add the endpoint with /chat prefix
-@chat.route('/chat/api/tts', methods=['POST'])
-@login_required
-def chat_text_to_speech():
-    """
-    Duplicate endpoint for Eleven Labs text-to-speech API with /chat prefix.
-    """
-    return text_to_speech()
-
-@chat.route('/api/get_deepgram_token', methods=['GET'])
+@chat.route('/api/deepgram/token', methods=['GET'])
 @login_required
 def get_deepgram_token():
-    """Provides a short-lived Deepgram token."""
-    # Use the current_app logger
-    logger.info("Attempting to get Deepgram token from /chat/api/get_deepgram_token route")
-    api_key = current_app.config.get('DEEPGRAM_API_KEY')
-    if not api_key:
-        logger.error("DEEPGRAM_API_KEY not configured in the application.")
-        return jsonify({"error": "Deepgram API Key not configured"}), 500
-
+    """Generates a short-lived Deepgram API key for the client."""
     try:
-        # In a real application, you would use the Deepgram API to generate
-        # a short-lived token here using the main API key.
-        # For simplicity now, we return the main key (less secure)
-        # or a placeholder if you prefer.
-        logger.warning("Returning main DEEPGRAM_API_KEY as token - Replace with short-lived token generation for production!")
-        return jsonify({"token": api_key, "apiKey": api_key}) # Providing both for compatibility
+        deepgram_client = DeepgramClient(current_app.config["DEEPGRAM_API_KEY"])
+        
+        project_id = current_app.config.get("DEEPGRAM_PROJECT_ID")
+        if not project_id:
+            logger.warning("DEEPGRAM_PROJECT_ID not found in config. Cannot create scoped key.")
+            # As a fallback, maybe return an error or a master key if absolutely necessary for dev
+            return jsonify({"error": "Deepgram project ID not configured on server."}), 500
+
+        key_options = {
+            "comment": f"Temporary key for user {current_user.id}",
+            "scopes": ["usage:write"],
+            "time_to_live_in_seconds": 600  # 10 minutes
+        }
+        
+        response = deepgram_client.manage.v("1").projects.create_key(project_id, key_options)
+        
+        logger.info(f"Successfully created temporary Deepgram key for user {current_user.id}")
+        return jsonify({"token": response.key})
+
     except Exception as e:
-        logger.error(f"Error generating Deepgram token (placeholder): {e}", exc_info=True)
-        return jsonify({"error": "Failed to generate token"}), 500
+        logger.error(f"Error generating Deepgram token: {e}", exc_info=True)
+        return jsonify({"error": "Failed to generate Deepgram token"}), 500
+
+# Note: The old '/api/get_deepgram_token' and 'get_deepgram_token_alt' are now consolidated
+# into the single correct endpoint above.
 
 # Direct endpoint at /api/chat that the React frontend can call
 @chat.route('/api/chat', methods=['POST'])
@@ -786,11 +483,7 @@ def api_chat_endpoint():
     # --- END ORIGINAL CODE ---
 
 # Moved from app/__init__.py
-@chat.route('/api/tts', methods=['POST'])
-@login_required
-def app_text_to_speech():
-    """Direct API route for TTS, calling the main TTS function."""
-    return text_to_speech()
+# REMOVED: Duplicate TTS route - now using Deepgram voice-to-voice only
 
 # Note: No need for a separate /api/chat route here, 
 # the existing api_chat_endpoint above serves this purpose.

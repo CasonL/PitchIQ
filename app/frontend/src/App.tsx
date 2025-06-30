@@ -23,8 +23,16 @@ import ResendVerificationRequestPage from './pages/ResendVerificationRequestPage
 import PersonalizeCoachPage from './pages/PersonalizeCoachPage';
 import MeetYourCoachPage from './pages/MeetYourCoachPage';
 import EnhanceCoachPage from './pages/EnhanceCoachPage';
+import BusinessOnboardingPage from './pages/BusinessOnboardingPage';
+import OnboardingTierSelectionPage from './pages/OnboardingTierSelectionPage';
 import OnboardingGuard from './components/auth/OnboardingGuard';
 import AuthGuard from "./components/auth/AuthGuard";
+import UserDetailsGate from "./components/common/UserDetailsGate";
+import DemoLandingPage from './pages/DemoLandingPage';
+import DemoSessionPage from './pages/DemoSessionPage';
+import VoiceDebugPage from './pages/VoiceDebugPage';
+
+import AnimatedLandingPage from './pages/AnimatedLandingPage';
 
 const App = () => (
   <TooltipProvider>
@@ -33,7 +41,16 @@ const App = () => (
     <Sonner />
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/demo" element={<LandingPage />} />
+      <Route path="/demo" element={<AnimatedLandingPage />} />
+
+      <Route 
+        path="/demo/session" 
+        element={
+          <UserDetailsGate>
+            <DemoSessionPage />
+          </UserDetailsGate>
+        } 
+      />
       <Route path="/pre-release" element={<PreReleaseLandingPage />} />
       <Route path="/chat" element={<Chat />} />
       <Route path="/api-test" element={<ApiTest />} />
@@ -49,9 +66,11 @@ const App = () => (
       <Route path="/personalize-coach" element={<AuthGuard><PersonalizeCoachPage /></AuthGuard>} />
       <Route path="/meet-your-coach" element={<AuthGuard><MeetYourCoachPage /></AuthGuard>} />
       <Route path="/personalize/enhance" element={<AuthGuard><EnhanceCoachPage /></AuthGuard>} />
+      <Route path="/business-onboarding" element={<AuthGuard><BusinessOnboardingPage /></AuthGuard>} />
+      <Route path="/select-plan" element={<AuthGuard><OnboardingTierSelectionPage /></AuthGuard>} />
       <Route path="/chat-test" element={<ChatTestPage />} />
+      <Route path="/voice-debug" element={<VoiceDebugPage />} />
       <Route path="/how-it-works" element={<HowItWorksPage />} />
-      <Route path="/pre-release" element={<PreReleaseLandingPage />} />
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogPostPage />} />
 

@@ -31,6 +31,9 @@ import MainDashboardLayout from '@/components/dashboard/views/MainDashboardLayou
 import { useSalesMethodology, SalesMethodology } from '@/hooks/useSalesMethodology';
 import { useDashboardDevTools, DevDisplayMode, DEV_MODES } from '@/hooks/useDashboardDevTools';
 import PlanSection from '@/components/dashboard/PlanSection';
+// Legacy voice training cards removed - using Deepgram Voice Agent only
+import DeepgramVoiceAgentCard from '@/components/dashboard/DeepgramVoiceAgentCard';
+import SimpleVoiceTraining from '@/components/voice/SimpleVoiceTraining';
 
 // --- Type Definitions ---
 export interface ChatMessage {
@@ -212,6 +215,7 @@ const Dashboard = () => {
   const [roleplayAnalysisData, setRoleplayAnalysisData] = useState<any>(null); // Keep as any for now if type is complex and not core to MVP
   const [isFocusedInsightMode, setIsFocusedInsightMode] = useState(false);
   const [hasCompletedRoleplay, setHasCompletedRoleplay] = useState(false);
+  const [showSimpleVoiceTraining, setShowSimpleVoiceTraining] = useState(false);
 
   // --- Custom Hooks ---
   const { currentUserMethodology, handleMethodologyDisplayClick, setCurrentUserMethodology, setAiOriginalRecommendation, aiOriginalRecommendation } = useSalesMethodology();
@@ -321,6 +325,44 @@ const Dashboard = () => {
       {/* Plan Section */}
       <PlanSection className="mb-6" />
       
+      {/* Voice Training Card - Featured */}
+              {/* Voice Training Options with Cost Comparison */}
+        <div className="space-y-6">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-2">Choose Your Voice Training Experience</h3>
+            <p className="text-sm text-gray-600">Revolutionary AI voice training with multiple approaches</p>
+          </div>
+          
+          {/* Revolutionary Deepgram Voice Agent - Featured */}
+          <div className="mb-8">
+            <div className="text-center p-4 bg-gradient-to-r from-purple-100 to-blue-100 rounded-lg border-2 border-purple-300 mb-4">
+              <h4 className="font-bold text-purple-900">🚀 REVOLUTIONARY NEW</h4>
+              <p className="text-sm text-purple-800">Deepgram Voice Agent API</p>
+              <p className="text-xs text-purple-700">Single WebSocket • Natural Conversations • Professional Grade</p>
+            </div>
+            <DeepgramVoiceAgentCard />
+          </div>
+          
+          {/* Alternative: Simple Voice Training (Uses Standard STT/TTS) */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
+            <div className="text-center mb-4">
+              <h4 className="font-semibold text-gray-800">Alternative: Simple Voice Training</h4>
+              <p className="text-sm text-gray-600">Uses standard Deepgram STT + TTS (works with any API key)</p>
+            </div>
+            <div className="flex justify-center">
+              <Button 
+                onClick={() => setShowSimpleVoiceTraining(true)}
+                variant="outline"
+                className="px-6 py-2"
+              >
+                Try Simple Voice Training
+              </Button>
+            </div>
+          </div>
+          
+          {/* Cost warning removed - using single Deepgram Voice Agent solution */}
+        </div>
+      
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl p-6 shadow-sm border">
           <h3 className="text-lg font-semibold text-slate-800 mb-2">Performance Overview</h3>
@@ -364,6 +406,11 @@ const Dashboard = () => {
         <Button variant="outline" size="icon" className="fixed bottom-4 right-4 bg-gray-800 hover:bg-gray-700 text-white hover:text-blue-300 border-gray-700 z-50 rounded-full shadow-lg" onClick={() => devTools.setIsDevToolsOpen(true)} title="Open Developer Tools">
           <Settings2 size={22} />
         </Button>
+      )}
+      
+      {/* Simple Voice Training Modal */}
+      {showSimpleVoiceTraining && (
+        <SimpleVoiceTraining onClose={() => setShowSimpleVoiceTraining(false)} />
       )}
     </div>
   );

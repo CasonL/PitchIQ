@@ -1,0 +1,712 @@
+// WebSocketManager.ts - Handles WebSocket communication with Deepgram
+import { PersonaData } from './DualVoiceAgentFlow';
+import { Persona } from '../../types/persona';
+
+type LogFunction = (message: string, level?: string) => void;
+
+// Define a union type that can be either Persona or PersonaData
+type PersonaType = Persona | PersonaData;
+
+export interface WebSocketConfig {
+  sessionId: string;
+  persona: PersonaType;
+  voiceId: string;
+  onMessage: (message: any) => void;
+  onError: (error: Error) => void;
+  onClose: (code?: number, reason?: string) => void;
+  onOpen: () => void;
+  log: LogFunction;
+}
+
+// Interface for WebSocketManager to ensure methods are properly defined
+export interface IWebSocketManager {
+  connect(): Promise<void>;
+  reconnect(): void;
+  sendAudio(audioData: Float32Array): void;
+  sendTextMessage(text: string): void;
+  terminate(sessionId?: string): void;
+  reset(): void;
+}
+
+export interface DeepgramConfig {
+  type: string;
+  audio: {
+    output: {
+      encoding: string;
+      sample_rate: number;
+    }
+  };
+  agent: {
+    language: string;
+    think: {
+      provider: {
+        type: string;
+        model: string;
+      };
+      prompt: string;
+    };
+    speak: {
+      provider: {
+        type: string;
+        model: string;
+      }
+    };
+  };
+}
+
+export class WebSocketManager implements IWebSocketManager {
+  private ws: WebSocket | null = null;
+  private config: WebSocketConfig;
+  private reconnectAttempts = 0;
+  private isTerminating = false;
+  private _stableSessionId: string | null = null;
+  private keepaliveInterval: number | null = null;
+  private lastKeepAliveTime = 0;
+
+  // Constants for reconnection and keepalive
+  private readonly reconnectDelay = 1000; // Base delay in ms
+  private readonly maxReconnectAttempts = 3;
+  private readonly keepaliveIntervalMs = 10000; // Send keepalive every 10 seconds
+
+  constructor(config: WebSocketConfig) {
+    this.config = config;
+    this._stableSessionId = config.sessionId;
+  }
+  
+  /**
+   * Get the current session ID
+   * @returns The stable session ID if available, otherwise the current config session ID
+   */
+  getSessionId(): string {
+    return this._stableSessionId || this.config.sessionId;
+  }
+  
+  /**
+   * Update the session ID
+   * @param sessionId - The new session ID to use
+   */
+  updateSessionId(sessionId: string): void {
+    const oldConfigId = this.config.sessionId;
+    const oldStableId = this._stableSessionId;
+    
+    // Update both session IDs
+    this.config.sessionId = sessionId;
+    this._stableSessionId = sessionId;
+    
+    // Log the update if either ID changed
+    if (oldConfigId !== sessionId || oldStableId !== sessionId) {
+      this.config.log(`🔄 Updating session IDs to ${sessionId}`, 'info');
+      if (oldConfigId !== sessionId) {
+        this.config.log(`🔄 Config ID changed: ${oldConfigId} → ${sessionId}`, 'debug');
+      }
+      if (oldStableId !== sessionId) {
+        this.config.log(`🔄 Stable ID changed: ${oldStableId} → ${sessionId}`, 'debug');
+      }
+    }
+  }
+
+  /**
+   * Fetch Deepgram token from backend
+   */
+  async fetchToken(): Promise<{ key: string }> {
+    // Use the stable session ID for logging
+    const stableSessionId = this._stableSessionId || this.config.sessionId;
+    this.config.log(`🔑 Fetching Deepgram token for session ${stableSessionId}`, 'info');
+    
+    try {
+      // Use the correct API endpoint path that matches the backend route
+      const response = await fetch('/api/deepgram/token');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch token: ${response.status} ${response.statusText}`);
+      }
+      
+      const tokenResponse = await response.json();
+      this.config.log('🔑 Token fetched successfully', 'debug');
+      return tokenResponse;
+    } catch (error) {
+      this.config.log(`❌ Token fetch error: ${error}`, 'error');
+      throw error;
+    }
+  }
+
+  /**
+   * Connect to Deepgram WebSocket
+   */
+  async connect(): Promise<void> {
+    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
+      this.config.log('⚠️ WebSocket already connecting or connected', 'warn');
+      return;
+    }
+    
+    try {
+      // Store the current session ID in a local variable to ensure consistency
+      // throughout the entire connection process
+      const currentSessionId = this.config.sessionId;
+      
+      // Save this session ID as a class property to ensure it's used consistently
+      // even if this.config.sessionId changes during async operations
+      this._stableSessionId = currentSessionId;
+      
+      this.config.log(`🔌 Starting connection process for session ${this._stableSessionId}`, 'info');
+      
+      // Fetch token
+      const tokenResponse = await this.fetchToken();
+      
+      // Verify session ID hasn't changed during async operations
+      if (this._stableSessionId !== this.config.sessionId) {
+        this.config.log(`⚠️ Session ID changed during connection setup: was ${this._stableSessionId}, now ${this.config.sessionId}`, 'warn');
+        // Update the config session ID to match our stable ID
+        this.config.sessionId = this._stableSessionId;
+      }
+      
+      // Create WebSocket connection
+      this.config.log(`🔌 Creating WebSocket connection for session ${this._stableSessionId}`, 'info');
+      this.ws = new WebSocket(`wss://agent.deepgram.com/v1/agent/converse`, ['token', tokenResponse.key]);
+      
+      // Set up event handlers with stable session ID
+      this.setupEventHandlers(this._stableSessionId);
+      
+    } catch (error) {
+      this.config.log(`❌ WebSocket connection error: ${error}`, 'error');
+      this.reconnect();
+    }
+  }
+
+  /**
+   * Start the keepalive timer to prevent WebSocket timeouts
+   * This helps avoid 1005 closure errors from Deepgram WebSockets
+   * @param sessionId - The current session ID for logging
+   */
+  private startKeepalive(sessionId: string): void {
+    // Clear any existing interval to avoid duplicates
+    this.stopKeepalive();
+    
+    // Store the start time for tracking
+    this.lastKeepAliveTime = Date.now();
+    
+    this.config.log(`❤️ Starting keepalive for session ${sessionId} (interval: ${this.keepaliveIntervalMs}ms)`, 'info');
+    
+    // Start a new interval
+    this.keepaliveInterval = window.setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        try {
+          // Send a ping message to keep the connection alive
+          const pingMessage = JSON.stringify({
+            type: 'ping',
+            session_id: sessionId,
+            timestamp: Date.now()
+          });
+          
+          this.ws.send(pingMessage);
+          this.config.log(`❤️ Sent keepalive ping for session ${sessionId} (${Date.now() - this.lastKeepAliveTime}ms since last ping)`, 'debug');
+          this.lastKeepAliveTime = Date.now();
+        } catch (error) {
+          this.config.log(`⚠️ Failed to send keepalive ping: ${error}`, 'warn');
+        }
+      } else {
+        // Connection is closed, stop the keepalive
+        this.config.log(`⚠️ WebSocket not open during keepalive attempt, stopping timer`, 'warn');
+        this.stopKeepalive();
+      }
+    }, this.keepaliveIntervalMs);
+  }
+  
+  /**
+   * Stop the keepalive timer
+   */
+  private stopKeepalive(): void {
+    if (this.keepaliveInterval !== null) {
+      const sessionId = this._stableSessionId || this.config.sessionId;
+      this.config.log(`💔 Stopping keepalive pings for session ${sessionId}`, 'info');
+      clearInterval(this.keepaliveInterval);
+      this.keepaliveInterval = null;
+    }
+  }
+
+  /**
+   * Set up WebSocket event handlers
+   * @param sessionId - The session ID to use consistently throughout all handlers
+   */
+  private setupEventHandlers(sessionId: string): void {
+    if (!this.ws) return;
+    
+    // Store the sessionId parameter in a closure to ensure consistency
+    // throughout all event handlers, even if this.config.sessionId changes
+    // Also make sure we update our stable session ID class property
+    const stableSessionId = sessionId;
+    this._stableSessionId = sessionId;
+    
+    this.ws.onopen = () => {
+      // Force use of the stable ID we stored in the closure variable
+      // even if this.config.sessionId has been changed elsewhere
+      this.config.log(`🔌 WebSocket opened for session ${stableSessionId}`, 'info');
+      
+      // Force update our internal session ID references before sending config
+      if (this._stableSessionId !== stableSessionId) {
+        this.config.log(`⚠️ Stable session ID mismatch at WebSocket open - updating from ${this._stableSessionId} to ${stableSessionId}`, 'warn');
+        this._stableSessionId = stableSessionId;
+      }
+      
+      // Start the keepalive timer to prevent timeouts
+      this.startKeepalive(stableSessionId);
+      
+      this.sendConfiguration(stableSessionId);
+      this.config.onOpen();
+    };
+    
+    this.ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        this.config.onMessage(data);
+      } catch (e) {
+        this.config.log(`❌ Error parsing WebSocket message: ${e}`, 'error');
+      }
+    };
+    
+    this.ws.onerror = (event) => {
+      this.config.log(`❌ WebSocket error for session ${stableSessionId}: ${event}`, 'error');
+      this.config.onError(new Error(`WebSocket error for session ${stableSessionId}`));
+    };
+    
+    this.ws.onclose = (event) => {
+      // Get the most up-to-date session ID from config
+      const currentConfigSessionId = this.config.sessionId;
+      
+      this.config.log(`🔌 WebSocket closed for session ${stableSessionId} with code: ${event.code} ${event.reason ? `reason: ${event.reason}` : ''}`, 'info');
+      
+      // Stop the keepalive timer immediately
+      this.stopKeepalive();
+      
+      // Don't attempt reconnection if:
+      // 1. We're in the process of terminating
+      // 2. The closure code is 1000 (normal closure)
+      // 3. The session ID in closure doesn't match current config session ID (indicates the session has changed)
+      const isCleanClosure = event.code === 1000;
+      const isSessionChanged = stableSessionId !== currentConfigSessionId;
+      
+      if (this.isTerminating) {
+        this.config.log(`✅ Not reconnecting - termination in progress for session ${stableSessionId}`, 'info');
+      } else if (isCleanClosure) {
+        this.config.log(`✅ Not reconnecting - clean closure (code 1000) for session ${stableSessionId}`, 'info');
+      } else if (isSessionChanged) {
+        this.config.log(`⚠️ Not reconnecting - session changed from ${stableSessionId} to ${currentConfigSessionId}`, 'warn');
+      } else if (!this.isTerminating && !isCleanClosure && !isSessionChanged) {
+        const reconnectDelay = this.reconnectDelay;
+        this.config.log(`🔄 Reconnect attempt 1/${this.maxReconnectAttempts} for session ${stableSessionId} in ${reconnectDelay}ms`, 'info');
+        setTimeout(() => this.reconnect(), reconnectDelay);
+      }
+      
+      // Always pass the closure code and reason to the caller
+      this.config.onClose(event.code, event.reason);
+    };  
+  }
+
+  /**
+   * Send configuration to Deepgram
+   * @param sessionId - Optional specific session ID to use (for consistency)
+   */
+  private sendConfiguration(sessionId?: string): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      this.config.log('⚠️ Cannot send configuration: WebSocket not open', 'warn');
+      return;
+    }
+    
+    // Use provided sessionId, stable session ID, or get from config (in that order of preference)
+    const currentSessionId = sessionId || this._stableSessionId || this.config.sessionId;
+    
+    // Force all session IDs to match for consistency
+    if (this._stableSessionId !== currentSessionId) {
+      this.config.log(`🔄 Updating stable session ID from ${this._stableSessionId} to ${currentSessionId}`, 'info');
+      this._stableSessionId = currentSessionId;
+    }
+    
+    if (this.config.sessionId !== currentSessionId) {
+      this.config.log(`🔄 Updating config session ID from ${this.config.sessionId} to ${currentSessionId}`, 'info');
+      this.config.sessionId = currentSessionId;
+    }
+    
+    // Store local references to ensure consistency
+    const { persona, voiceId } = this.config;
+    
+    // Validate persona data before proceeding
+    if (!persona || !persona.name || !persona.role || !persona.company) {
+      this.config.log(`❌ Invalid persona data for session ${currentSessionId}`, 'error');
+      this.config.onError(new Error('Invalid persona data'));
+      return;
+    }
+    
+    try {
+      // Generate prompt for the AI agent
+      const prompt = this.generateProspectPrompt(persona);
+      
+      // Create configuration object with the correct Settings format
+      // Include a custom field for our session ID tracking that won't be sent to Deepgram
+      const config: any = {
+        type: 'Settings',
+        audio: {
+          input: {
+            encoding: 'linear16',
+            sample_rate: 24000
+          },
+          output: {
+            encoding: 'mp3',
+            sample_rate: 24000
+          }
+        },
+        agent: {
+          language: 'en',
+          think: {
+            provider: {
+              type: 'open_ai',
+              model: 'gpt-4o'
+            },
+            prompt: prompt
+          },
+          speak: {
+            provider: {
+              type: 'deepgram',
+              model: voiceId
+            }
+          }
+        },
+        // This is for our internal tracking only - will be removed before sending to Deepgram
+        _internal_session_id: currentSessionId
+      };
+      
+      // Log and send configuration
+      this.config.log(`📤 Sending config to Deepgram for session ${currentSessionId}`, 'debug');
+      
+      // Send configuration to backend for logging (with our internal session ID)
+      this.logConfigToBackend(config);
+      
+      // Create a clean copy of the config without our internal fields
+      const deepgramConfig = { ...config };
+      delete deepgramConfig._internal_session_id;
+      
+      // Send configuration to Deepgram
+      this.ws.send(JSON.stringify(deepgramConfig));
+    } catch (error) {
+      this.config.log(`❌ Error sending configuration: ${error}`, 'error');
+      this.config.onError(error as Error);
+    }
+  }
+
+  /**
+   * Generate prompt for Deepgram AI agent
+   */
+  private generateProspectPrompt(persona: PersonaType): string {
+    // Extract personality traits from personality_traits array or use defaults
+    let traits = 'professional, attentive';
+    
+    // Handle personality_traits which could be string[] or string
+    if (persona.personality_traits) {
+      if (Array.isArray(persona.personality_traits)) {
+        // Join array into comma-separated string
+        traits = persona.personality_traits.join(', ');
+      } else if (typeof persona.personality_traits === 'string') {
+        traits = persona.personality_traits;
+      }
+    } 
+    
+    // Handle PersonaData's communication_style if available
+    // Use type guard to check if it's PersonaData with communication_style
+    const personaData = persona as PersonaData;
+    if (personaData.communication_style && !traits) {
+      if (typeof personaData.communication_style === 'string') {
+        traits = personaData.communication_style;
+      } else if (personaData.communication_style && 
+                typeof personaData.communication_style === 'object' && 
+                personaData.communication_style.emotional_description) {
+        traits = personaData.communication_style.emotional_description;
+      }
+    }
+      
+    // This is a simplified version - the actual implementation would be more complex
+    // Use the stable session ID for consistency
+    const stableSessionId = this._stableSessionId || this.config.sessionId;
+    
+    return `You are ${persona.name}, a ${persona.role} at ${persona.company}. 
+    You have the following personality traits: ${traits}.
+    You are speaking with a sales representative who is calling you.
+    Be natural, conversational, and stay in character throughout the call.
+    Session ID: ${stableSessionId}`;
+  }
+
+  /**
+   * Log WebSocket message to backend
+   */
+  private logWebSocketMessage(message: any): void {
+    // Use the stable session ID for consistency in logs
+    const stableSessionId = this._stableSessionId || this.config.sessionId;
+    
+    fetch('/api/log-websocket-message', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        // Include credentials to handle authentication
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      // Include credentials for session cookies
+      credentials: 'include',
+      body: JSON.stringify({
+        direction: 'RECEIVED',
+        persona: this.config.persona.name,
+        message,
+        timestamp: new Date().toISOString(),
+        session_id: stableSessionId
+      })
+    }).catch(err => {
+      // Just log to console but don't interrupt the call flow
+      // This is non-critical logging functionality
+      console.warn('Failed to log message to backend:', err);
+    });
+  }
+
+  /**
+   * Log configuration to backend
+   */
+  private logConfigToBackend(config: DeepgramConfig): void {
+    // Use the stable session ID for consistency in logs
+    const stableSessionId = this._stableSessionId || this.config.sessionId;
+    
+    fetch('/api/log-websocket-message', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        // Include credentials to handle authentication
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      // Include credentials for session cookies
+      credentials: 'include',
+      body: JSON.stringify({
+        direction: 'SENT',
+        persona: this.config.persona.name,
+        message: config,
+        timestamp: new Date().toISOString(),
+        session_id: stableSessionId
+      })
+    }).catch(err => {
+      // Just log to console but don't interrupt the call flow
+      // This is non-critical logging functionality
+      console.warn('Failed to log config to backend:', err);
+    });
+  }
+
+  /**
+   * Send audio data to Deepgram
+   * @param audioData - Float32Array of audio data
+   */
+  sendAudio(audioData: Float32Array): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    
+    // Convert Float32Array to Int16Array for Deepgram
+    const audioDataInt16 = new Int16Array(audioData.length);
+    for (let i = 0; i < audioData.length; i++) {
+      audioDataInt16[i] = audioData[i] * 32767;
+    }
+    
+    // Send audio data
+    this.ws.send(audioDataInt16.buffer);
+  }
+
+  /**
+   * Send a text message to trigger the AI to respond
+   * This can be used to simulate user input or trigger greetings
+   * @param text - Text message to send
+   */
+  sendTextMessage(text: string): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      this.config.log('⚠️ Cannot send text: WebSocket not open', 'warn');
+      return;
+    }
+    
+    // Use the stable session ID for consistency in logs
+    const stableSessionId = this._stableSessionId || this.config.sessionId;
+    
+    try {
+      // Create a text message that will be processed by Deepgram
+      const textMessage = {
+        type: 'Text',
+        text: text,
+        source: 'user'
+      };
+      
+      // Log the message with our session ID
+      this.config.log(`💬 Sending text message: "${text}" for session ${stableSessionId}`, 'info');
+      
+      // Log to backend for tracking
+      this.logWebSocketMessage({
+        ...textMessage,
+        _internal_session_id: stableSessionId
+      });
+      
+      // Send the message
+      this.ws.send(JSON.stringify(textMessage));
+    } catch (error) {
+      this.config.log(`❌ Error sending text message: ${error}`, 'error');
+    }
+  }
+
+  /**
+   * Terminate the WebSocket connection with a termination message
+   * @param sessionId - Optional override session ID (usually not needed)
+   */
+  terminate(sessionId?: string): void {
+    // Get current session ID for logging - use passed sessionId, stable ID, or config ID in that order
+    const currentId = sessionId || this._stableSessionId || this.config.sessionId;
+    this.config.log(`🗙 Terminating WebSocket for session ${currentId}`, 'info');
+    
+    // Set flag to prevent reconnection attempts
+    this.isTerminating = true;
+    
+    // Stop the keepalive timer immediately
+    this.stopKeepalive();
+    
+    // Send termination message to Deepgram before closing
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      try {
+        // Construct a termination message
+        const terminationMessage = JSON.stringify({
+          type: 'TerminateSession',
+          session_id: currentId
+        });
+        
+        // Send termination message
+        this.config.log(`🗙 Sending termination message for session ${currentId}`, 'info');
+        this.ws.send(terminationMessage);
+        
+        // Delay closing to allow message to be sent
+        const delay = 500; // Increased from 300ms to 500ms for more reliable delivery
+        this.config.log(`🗙 Delaying WebSocket close by ${delay}ms for session ${currentId}`, 'info');
+        
+        setTimeout(() => {
+          if (this.ws) {
+            this.ws.close(1000, 'Terminated');
+            this.ws = null;
+            this.config.log(`✅ WebSocket closed successfully after termination for session ${currentId}`, 'info');
+          }
+        }, delay);
+      } catch (e) {
+        this.config.log(`❌ Error during termination: ${e}`, 'error');
+        if (this.ws) {
+          this.ws.close();
+          this.ws = null;
+        }
+      }
+    } else {
+      this.config.log(`⚠️ WebSocket not open during termination for session ${currentId}`, 'warn');
+    }
+  }
+
+  /**
+   * Reset all manager state (useful between reconnections)
+   * This method prevents any reconnection attempts by temporarily replacing the onClose handler
+   */
+  reset(): void {
+    // Log the reset with current session ID for traceability
+    const currentId = this._stableSessionId || this.config.sessionId;
+    this.config.log(`🔄 Resetting WebSocketManager state for session ${currentId}`, 'info');
+    
+    // Stop the keepalive timer
+    this.stopKeepalive();
+    
+    // Close any existing connection without triggering the normal onClose handler
+    if (this.ws) {
+      try {
+        if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+          // Save original onclose handler
+          const originalOnClose = this.ws.onclose;
+          
+          // Replace with empty handler to prevent reconnection logic from firing
+          this.ws.onclose = (event) => {
+            this.config.log(`🔄 Suppressing normal onclose handler during reset for session ${currentId}`, 'info');
+          };
+          
+          // Close the connection
+          this.config.log(`🔌 Closing WebSocket with replaced handler for session ${currentId}`, 'info');
+          this.ws.close(1000, 'Manager reset');
+          
+          // Only restore original handler if needed (usually not necessary as we're nulling the ws)
+          // this.ws.onclose = originalOnClose;
+        }
+      } catch (e) {
+        this.config.log(`❌ Error during WebSocket reset: ${e}`, 'error');
+      }
+      
+      // Set WebSocket to null immediately rather than waiting
+      this.ws = null;
+      this.config.log(`✅ WebSocket reference cleared immediately for session ${currentId}`, 'info');
+    }
+    
+    // Reset all state variables
+    this.reconnectAttempts = 0;
+    this.isTerminating = true; // Set this to true to prevent reconnection attempts
+    
+    // Note: We don't reset session IDs here as that should be handled by the caller
+    this.config.log(`🔄 Reset complete for session ${currentId}`, 'info');
+  }
+
+  /**
+   * Reconnect to Deepgram WebSocket
+   */
+  reconnect(): void {
+    // Use the stable session ID for reconnection
+    const stableSessionId = this._stableSessionId;
+    
+    // Verify session ID is still valid
+    if (!stableSessionId) {
+      this.config.log('❌ Cannot reconnect: No valid stable session ID', 'error');
+      this.config.onError(new Error('No valid session ID for reconnection'));
+      return;
+    }
+    
+    // Ensure config session ID matches stable ID
+    if (this.config.sessionId !== stableSessionId) {
+      this.config.log(`⚠️ Session ID mismatch during reconnect: config=${this.config.sessionId}, stable=${stableSessionId}`, 'warn');
+      this.config.sessionId = stableSessionId;
+    }
+    
+    this.reconnectAttempts++;
+    
+    if (this.reconnectAttempts > this.maxReconnectAttempts) {
+      this.config.log(`❌ Maximum reconnect attempts (${this.maxReconnectAttempts}) reached for session ${stableSessionId}`, 'error');
+      this.config.onError(new Error('Maximum reconnect attempts reached'));
+      return;
+    }
+    
+    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+    this.config.log(`🔄 Reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} for session ${stableSessionId} in ${delay}ms`, 'info');
+    
+    // Ensure any existing keepalive is stopped before closing the connection
+    this.stopKeepalive();
+    
+    // Close existing connection if any
+    if (this.ws) {
+      try {
+        this.ws.close();
+      } catch (e) {
+        // Ignore errors during close
+      }
+      this.ws = null;
+    }
+    
+    // Schedule reconnection
+    setTimeout(async () => {
+      try {
+        // Double-check that our stable session ID is still being used
+        if (this.config.sessionId !== stableSessionId) {
+          this.config.log(`⚠️ Session ID changed during reconnection delay: was ${stableSessionId}, now ${this.config.sessionId}`, 'warn');
+          // Force the config to use our stable session ID
+          this.config.sessionId = stableSessionId;
+        }
+        
+        await this.connect();
+      } catch (error) {
+        this.config.log(`❌ Reconnection failed: ${error}`, 'error');
+        this.config.onError(error as Error);
+      }
+    }, delay);
+  }
+}

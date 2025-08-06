@@ -1,0 +1,58 @@
+/* Voice Demo Aggressive White Background Overrides */
+html, body {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}
+
+/* Target absolutely everything */
+* {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}
+
+/* Target by attribute selectors */
+[class*="bg-"] {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}
+
+/* Override any inline styles */
+[style*="background"] {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}
+
+/* Target main containers and wrappers */
+#root, #main-content, #app, .container, .container-fluid, main, .main, .wrapper, .content-wrapper {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}
+
+/* Override React component backgrounds */
+.react-app, .react-component, div[id*="react"], div[class*="react"] {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}
+
+/* Target Tailwind classes */
+.bg-gray-50, .bg-gray-100, .bg-gray-200, .py-10, .py-5, .py-3 {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}
+
+/* Target Bootstrap classes */
+.bg-light, .bg-secondary, .bg-body-tertiary {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}
+
+/* Override CSS variables at the root level */
+:root {
+    --pitchiq-white: #FFFFFF !important;
+    --pitchiq-light-gray: #FFFFFF !important;
+    --background-color: #FFFFFF !important;
+    --bs-body-bg: #FFFFFF !important;
+    --bs-light-rgb: 255,255,255 !important;
+    --gray-50: #FFFFFF !important;
+    --gray-100: #FFFFFF !important;
+}

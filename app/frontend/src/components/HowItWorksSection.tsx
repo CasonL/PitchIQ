@@ -67,7 +67,7 @@ const HowItWorksSection: React.FC<HowItWorksProps> = ({ onOpenEmailModal }) => {
   return (
     <motion.section 
       id="how-it-works" 
-      className="py-16 md:py-24 bg-white"
+      className="py-16 md:py-24 bg-background"
       variants={sectionVariants}
       initial="hidden"
       whileInView="visible"

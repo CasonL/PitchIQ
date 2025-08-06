@@ -890,3 +890,123 @@ def api_send_test_message():
     except Exception as e:
         logger.error(f"Error in /api/chat/send_test_message: {str(e)}", exc_info=True)
         return jsonify({"error": "Failed to process test message", "details": str(e)}), 500 
+
+@training_bp.route('/api/training/generate-persona', methods=['POST'])
+@login_required
+def generate_training_persona():
+    """
+    Generate a buyer persona for training purposes using comprehensive bias prevention
+    """
+    try:
+        data = request.get_json() or {}
+        logger.info(f"Training persona generation request: {data}")
+        
+        # Extract product/service and target market
+        product_service = data.get('product_service', '').strip()
+        target_market = data.get('target_market', '').strip()
+        
+        if not product_service:
+            logger.warning("Missing product_service in training request")
+            return jsonify({
+                'success': False,
+                'error': 'Product or service description is required'
+            }), 400
+        
+        if not target_market:
+            logger.warning("Missing target_market in training request")
+            return jsonify({
+                'success': False,
+                'error': 'Target market description is required'
+            }), 400
+        
+        logger.info(f"Generating training persona for product: '{product_service}', target: '{target_market}'")
+        
+        # Use our comprehensive bias prevention system
+        from app.services.comprehensive_bias_prevention import ComprehensiveBiasPrevention
+        
+        try:
+            # Generate bias-free persona with contextual fears
+            framework = ComprehensiveBiasPrevention.generate_bias_free_persona_framework(
+                industry_context=None,
+                target_market=target_market,
+                complexity_level="intermediate",
+                product_service=product_service  # This triggers contextual fear generation
+            )
+            
+            # Transform framework to match expected training persona format
+            persona_data = {
+                'name': framework['name'],
+                'role': framework['role'],
+                'primary_concern': framework.get('contextual_fears', {}).get('authentic_objections', ['Looking for effective business solutions'])[0] if framework.get('contextual_fears') else 'Looking for effective business solutions',
+                'business_details': f"{framework['role']} at a {framework['industry']} organization, {framework['age_range']} years old, with {framework['decision_authority'].lower()} decision authority",
+                'about_person': f"A {framework['cultural_background']} professional with {', '.join(framework['personality_traits'][:2]).lower()} personality traits",
+                'business_context': framework['business_context'],
+                'emotional_state': f"Professional with {framework['communication_style']['emotional_expression'].lower()} emotional expression",
+                'pain_points': [fear['core_concern'] for fear in framework.get('contextual_fears', {}).get('contextual_fears', [])] or ['Efficiency challenges', 'Decision-making pressure'],
+                'decision_authority': framework['decision_authority'],
+                'objections': framework.get('contextual_fears', {}).get('authentic_objections', ['Budget constraints', 'Implementation concerns']),
+                'industry_context': framework['industry'],
+                
+                # Include the advanced contextual fear data
+                'contextual_fears': framework.get('contextual_fears', {}),
+                'conversation_flow_guidance': framework.get('conversation_flow_guidance', ''),
+                
+                # Include human authenticity data
+                'emotional_authenticity': framework.get('emotional_authenticity', {}),
+                'communication_struggles': framework.get('communication_struggles', {}),
+                'vulnerability_areas': framework.get('vulnerability_areas', {}),
+                
+                # Include cultural and demographic diversity
+                'cultural_background': framework['cultural_background'],
+                'gender': framework['gender'],
+                'age_range': framework['age_range'],
+                'communication_style': framework['communication_style']
+            }
+            
+            logger.info(f"Generated comprehensive training persona: {persona_data['name']} ({framework['cultural_background']}, {framework['gender']})")
+            
+            return jsonify({
+                'success': True,
+                'persona': persona_data,
+                'diversity_info': {
+                    'cultural_background': framework['cultural_background'],
+                    'gender': framework['gender'],
+                    'age_range': framework['age_range'],
+                    'role_level': framework['role_level']
+                },
+                'note': 'Generated using comprehensive bias prevention system with contextual fears for training'
+            })
+            
+        except Exception as bias_error:
+            logger.error(f"Comprehensive bias prevention failed in training: {str(bias_error)}")
+            # Fallback to diverse name generation for training
+            from app.services.demographic_names import DemographicNameService
+            first_name, last_name = DemographicNameService.get_name_by_demographics("mixed_american", "male")
+            full_name = f"{first_name} {last_name}"
+            
+            persona_data = {
+                'name': full_name,
+                'role': 'Business Professional',
+                'primary_concern': f'Finding effective solutions for {product_service.lower()}',
+                'business_details': f"Professional working in the {target_market} sector",
+                'about_person': f"Interested in {product_service} to solve business challenges",
+                'business_context': 'B2B',
+                'emotional_state': 'Professional and focused',
+                'pain_points': ['Efficiency challenges', 'Cost concerns', 'Time constraints'],
+                'decision_authority': 'Influencer',
+                'objections': ['Budget constraints', 'Time concerns'],
+                'industry_context': 'Business'
+            }
+            
+            return jsonify({
+                'success': True,
+                'persona': persona_data,
+                'note': 'Using diverse name fallback for training (comprehensive system temporarily failed)'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error generating training persona: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to generate training persona: {str(e)}'
+        }), 500 

@@ -1,0 +1,525 @@
+// CallControllerProvider.tsx - React component wrapper for call controller
+import React, { createContext, useCallback, useContext, useEffect, useReducer, useRef, useState } from 'react';
+import { AudioManager } from './AudioManager';
+import { WebSocketManager } from './WebSocketManager';
+import { CallMonitoring } from './CallMonitoring';
+import { VoiceSelector } from './VoiceSelector';
+import { PersonaData } from './DualVoiceAgentFlow';
+import { Persona } from '../../types/persona';
+import { ProspectCallEventBus } from './ProspectCallEventBus';
+import { ProspectCallState, initialCallState, prospectCallReducer } from './ProspectCallState';
+
+// Define a union type that can be either Persona or PersonaData
+type PersonaType = Persona | PersonaData;
+
+// Generate a unique session ID
+const generateSessionId = (persona: PersonaType): string => {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8);
+  return `${persona.name.replace(/\s+/g, '_')}_${timestamp}_${random}`;
+};
+
+// Helper function to safely get voiceId from either Persona or PersonaData
+const getVoiceId = (persona: PersonaType): string => {
+  // For Persona type (backend model)
+  if ('voice_id' in persona && typeof persona.voice_id === 'string') {
+    return persona.voice_id;
+  }
+  
+  // For any object with voiceId property (frontend model)
+  if (persona && typeof persona === 'object' && 'voiceId' in persona && 
+      persona.voiceId && typeof persona.voiceId === 'string') {
+    return persona.voiceId;
+  }
+  
+  // Default voice ID if none found
+  return 'default';
+};
+
+// Adapter function to convert PersonaData to Persona or pass through Persona
+const adaptPersonaData = (personaData: PersonaData | Persona): Persona => {
+  // Check if personaData already has the necessary Persona properties
+  if ('id' in personaData && 
+      'description_narrative' in personaData && 
+      Array.isArray(personaData.personality_traits)) {
+    return personaData as unknown as Persona;
+  }
+  
+  // Handle personality_traits conversion from string to string[]
+  let personalityTraits: string[] = [];
+  
+  if (personaData.personality_traits) {
+    if (typeof personaData.personality_traits === 'string') {
+      // Split string by commas and trim whitespace
+      personalityTraits = personaData.personality_traits
+        .split(',')
+        .map(trait => trait.trim())
+        .filter(trait => trait.length > 0);
+    } else if (Array.isArray(personaData.personality_traits)) {
+      personalityTraits = personaData.personality_traits;
+    }
+  }
+  
+  // If no traits provided, add default lively traits
+  if (personalityTraits.length === 0) {
+    personalityTraits = ['curious', 'passionate', 'straightforward'];
+  }
+  
+  // Ensure all traits are strings before filtering
+  const stringTraits = personalityTraits.map(trait => String(trait));
+  
+  // Remove any "analytical" traits as per memory
+  const filteredTraits = stringTraits.filter(trait => 
+    !trait.toLowerCase().includes('analytical') &&
+    !trait.toLowerCase().includes('measured') && 
+    !trait.toLowerCase().includes('deliberate')
+  );
+  
+  // Replace "analytical" with "thoughtful" in traits
+  const transformedTraits = filteredTraits.map(trait => 
+    trait.toLowerCase().includes('analytical') ? 
+    trait.replace(/analytical/gi, 'thoughtful') : trait
+  );
+  
+  // Final sanitized personality traits array
+  personalityTraits = transformedTraits;
+  
+  // Create a compatible Persona object with default values for missing fields
+  const compatiblePersona: Persona = {
+    id: `persona_${Date.now()}`,
+    name: personaData.name || 'Unknown',
+    role: personaData.role || 'Unknown',
+    company: personaData.company || 'Unknown',
+    description_narrative: 'id' in personaData && 'description_narrative' in personaData 
+      ? (personaData as Persona).description_narrative 
+      : ((personaData as PersonaData).about_person || ''),
+    personality_traits: personalityTraits,
+    // Copy other fields that might be useful
+    base_reaction_style: 'communication_style' in personaData 
+      ? (typeof (personaData as PersonaData).communication_style === 'string' 
+        ? (personaData as PersonaData).communication_style as string 
+        : '') 
+      : '',
+    // Handle voice_id safely - use type assertion since we know it might exist
+    voice_id: 'voice_id' in personaData ? (personaData as Persona).voice_id : (personaData as any).voice_id
+  };
+  
+  return compatiblePersona;
+};
+
+// Define log level type
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+// Create context for call controller
+interface CallControllerContextValue {
+  state: ProspectCallState;
+  startCall: (persona: PersonaType, sessionId?: string) => Promise<void>;
+  endCall: () => void;
+  cleanup: () => void;
+  isConnected: boolean;
+  isConnecting: boolean;
+  callDuration: number;
+  transcript: string;
+  error: Error | null;
+}
+
+const CallControllerContext = createContext<CallControllerContextValue | null>(null);
+
+// Provider component props
+interface CallControllerProviderProps {
+  persona: PersonaType;
+  onTranscriptUpdate: (text: string) => void;
+  children: React.ReactNode;
+}
+
+// Define action type for reducer
+type CallAction =
+  | { type: 'CALL_STARTING' }
+  | { type: 'CALL_CONNECTED' }
+  | { type: 'CALL_DISCONNECTED' }
+  | { type: 'CALL_ENDING' }
+  | { type: 'RECONNECT_ATTEMPT' }
+  | { type: 'CALL_ERROR'; error: Error };
+
+// Main component implementation
+export function CallControllerProvider({ 
+  persona, 
+  onTranscriptUpdate,
+  children 
+}: CallControllerProviderProps): JSX.Element {
+  // State management using useState
+  const [state, dispatch] = useReducer(prospectCallReducer, initialCallState);
+  
+  // Refs for managers
+  const audioManager = useRef<AudioManager | null>(null);
+  const wsManager = useRef<WebSocketManager | null>(null);
+  const monitoring = useRef<CallMonitoring>(CallMonitoring.getInstance());
+  const eventBus = useRef<ProspectCallEventBus>(ProspectCallEventBus.getInstance());
+  
+  // Session tracking
+  const activeSessionId = useRef<string | null>(null);
+  
+  // Flag to track intentional termination to prevent reconnection cycles
+  const isIntentionalTermination = useRef<boolean>(false);
+  
+  // Call timing
+  const callStartTime = useRef<number>(0);
+  const durationInterval = useRef<number | null>(null);
+  
+  // Logging helper with log level and structured output
+  const log = useCallback((message: string, level: LogLevel = 'info') => {
+    const timestamp = new Date().toISOString();
+    const sessionId = activeSessionId.current || 'no_session';
+    const formattedMessage = `${timestamp} [${level.toUpperCase()}] [${sessionId}] ${message}`;
+    
+    console[level](formattedMessage);
+    
+    if (level === 'error' || level === 'warn') {
+      // Use public method to record error in monitoring
+      if (activeSessionId.current) {
+        monitoring.current?.recordWebSocketError(activeSessionId.current, `[${level.toUpperCase()}] ${message}`);
+      }
+    }
+  }, [activeSessionId]);
+  
+  // Create a reusable cleanup function to ensure consistent resource management
+  const createCleanupFunction = useCallback(() => {
+    return function cleanup() {
+      const currentSessionId = activeSessionId.current;
+      const isIntentional = isIntentionalTermination.current;
+      
+      log(`🧹 Running cleanup for session ${currentSessionId || 'unknown'} (${isIntentional ? 'intentional' : 'unintentional'} termination)`, 'info');
+      
+      // Clear duration interval if running
+      if (durationInterval.current) {
+        window.clearInterval(durationInterval.current);
+        durationInterval.current = null;
+      }
+      
+      // Clean up WebSocketManager with explicit session ID tracking
+      if (wsManager.current) {
+        try {
+          log(`🔌 Terminating WebSocket connection for session ${currentSessionId || 'unknown'}`, 'info');
+          
+          // Different cleanup approach based on termination type
+          if (isIntentional) {
+            // For intentional termination, use reset to avoid triggering onClose event handler
+            log(`🔌 Using reset for intentional termination`, 'info');
+            wsManager.current.reset();
+          } else {
+            // For unintentional termination, terminate normally
+            log(`🔌 Using terminate for unintentional termination`, 'info');
+            wsManager.current.terminate();
+          }
+          
+          // Clear WebSocketManager reference
+          wsManager.current = null;
+        } catch (error) {
+          log(`❌ Error during WebSocket cleanup: ${error}`, 'error');
+        }
+      }
+      
+      // Clean up AudioManager
+      if (audioManager.current) {
+        try {
+          log(`🎤 Cleaning up AudioManager for session ${currentSessionId || 'unknown'}`, 'info');
+          audioManager.current.cleanup();
+          audioManager.current = null;
+        } catch (error) {
+          log(`❌ Error during AudioManager cleanup: ${error}`, 'error');
+        }
+      }
+      
+      // Clear active session ID only if it matches the one being cleaned up
+      if (activeSessionId.current === currentSessionId) {
+        log(`🆔 Clearing session ID: ${currentSessionId}`, 'info');
+        activeSessionId.current = null;
+      } else if (currentSessionId && activeSessionId.current !== currentSessionId) {
+        log(`⚠️ Not clearing session ID ${activeSessionId.current} because it differs from cleanup session ${currentSessionId}`, 'warn');
+      }
+      
+      // Reset state to initial state
+      dispatch({ type: 'CALL_DISCONNECTED' }); // This will reset the connection status and sessionId
+      
+      // Reset intentional termination flag after cleanup
+      isIntentionalTermination.current = false;
+    };
+  }, [log, dispatch]);
+  
+  // Create the cleanup function once to use throughout the component
+  const cleanup = useCallback(createCleanupFunction(), [createCleanupFunction]);
+  
+  // Handle WebSocket messages and update transcript
+  const handleWebSocketMessage = useCallback((message: any) => {
+    if (message.type === 'transcript') {
+      const transcriptText = message.text || '';
+      dispatch({ type: 'UPDATE_TRANSCRIPT', text: transcriptText });
+      onTranscriptUpdate(transcriptText);
+    }
+  }, [onTranscriptUpdate, dispatch]);
+  
+  // Handle WebSocket errors
+  const handleWebSocketError = useCallback((error: Error) => {
+    log(`❌ WebSocket error: ${error.message}`, 'error');
+    dispatch({ type: 'CALL_ERROR', error });
+  }, [log, dispatch]);
+  
+  // End call function
+  const endCall = useCallback(() => {
+    log(`📞 Ending call`, 'info');
+    // Set intentional termination flag before cleanup to prevent reconnection cycles
+    isIntentionalTermination.current = true;
+    cleanup();
+  }, [cleanup, log]);
+  
+  // Start call function with session ID management
+  const startCall = useCallback(async (personaData: PersonaType, sessionId?: string) => {
+    let stableSessionId: string;
+    try {
+      log(`📞 Starting call with ${personaData.name}`, 'info');
+      
+      // Clean up any existing session first
+      cleanup();
+      
+      // Generate a stable session ID if not provided, and store it
+      stableSessionId = sessionId || generateSessionId(personaData);
+      activeSessionId.current = stableSessionId;
+      
+      log(`🆔 Using session ID: ${stableSessionId}`, 'info');
+      
+      // Update state
+      callStartTime.current = Date.now();
+      dispatch({ type: 'CALL_CONNECTING', sessionId: stableSessionId });
+      
+      // Adapt persona data if needed
+      const adaptedPersona = adaptPersonaData(personaData);
+      
+      // Initialize managers with the stable session ID
+      log(`🔊 Initializing AudioManager for session ${stableSessionId}`, 'info');
+      audioManager.current = new AudioManager({
+        sessionId: stableSessionId,
+        onAudioData: (data: Float32Array) => {
+          // Forward audio data to WebSocketManager when available
+          if (wsManager.current) {
+            wsManager.current.sendAudio(data);
+          }
+        },
+        log
+      });
+      
+      // Select voice for persona
+      const voiceSelector = new VoiceSelector();
+      const voiceId = getVoiceId(personaData);
+      
+      log(`🔊 Selected voice ID: ${voiceId} for persona ${adaptedPersona.name}`, 'info');
+      
+      log(`🔌 Initializing WebSocketManager for session ${stableSessionId}`, 'info');
+      
+      // Reset intentional termination flag before initializing new connection
+      isIntentionalTermination.current = false;
+      
+      // Initialize WebSocketManager with the stable session ID
+      wsManager.current = new WebSocketManager({
+        sessionId: stableSessionId, // Explicitly use stable ID
+        persona: personaData,
+        voiceId: getVoiceId(personaData),
+        onMessage: handleWebSocketMessage,
+        onError: handleWebSocketError,
+        onClose: (code, reason) => {
+          // Use the closure variable to ensure consistent session ID
+          log(`🔌 WebSocket closed for session ${stableSessionId} with code: ${code} ${reason ? `reason: ${reason}` : ''}`, 'info');
+          
+          // Check if the current active session ID matches the one being closed
+          if (activeSessionId.current !== stableSessionId) {
+            log(`⚠️ Ignoring WebSocket close event for old session ${stableSessionId}. Current active session is ${activeSessionId.current || 'none'}`, 'warn');
+            return; // Don't process close events for old sessions
+          }
+          
+          // Only handle as disconnection if it wasn't an intentional termination
+          if (!isIntentionalTermination.current) {
+            log(`🔌 Unintentional disconnect detected for session ${stableSessionId}`, 'warn');
+            dispatch({ type: 'CALL_DISCONNECTED' });
+          } else {
+            log(`✅ Clean termination confirmed for session ${stableSessionId}`, 'info');
+            // Reset the flag after handling the intentional termination
+            isIntentionalTermination.current = false;
+          }
+        },
+        onOpen: () => {
+          // Use the closure variable to ensure consistent session ID
+          log(`🔌 WebSocket opened for session ${stableSessionId}`, 'info');
+          dispatch({ type: 'CALL_CONNECTED' });
+          
+          // Reset the intentional termination flag on successful connection
+          isIntentionalTermination.current = false;
+          
+          // Start tracking call duration
+          durationInterval.current = window.setInterval(() => {
+            const duration = Math.floor((Date.now() - callStartTime.current) / 1000);
+            dispatch({ type: 'UPDATE_DURATION', duration });
+          }, 1000);
+        },
+        log
+      });
+      
+      // Explicitly verify session ID consistency before connecting
+      if (wsManager.current.getSessionId() !== stableSessionId) {
+        log(`⚠️ WebSocketManager session ID mismatch detected, fixing before connection`, 'warn');
+        wsManager.current.updateSessionId(stableSessionId);
+      }
+      
+      // Connect to Deepgram using the stable session ID
+      log(`🔌 Starting connection process for session ${stableSessionId}`, 'info');
+      await wsManager.current.connect();
+      
+      // Double-check that the session ID in the WebSocketManager matches our stable ID
+      if (wsManager.current && wsManager.current.getSessionId() !== stableSessionId) {
+        log(`⚠️ Session ID mismatch detected: expected ${stableSessionId}, got ${wsManager.current.getSessionId()}`, 'warn');
+        // Update the session ID in the WebSocketManager
+        wsManager.current.updateSessionId(stableSessionId);
+      }
+      
+      // Send an immediate greeting message to improve realism and engagement
+      setTimeout(() => {
+        if (wsManager.current && state.status === 'connected') {
+          log(`👋 Triggering AI greeting for ${personaData.name}`, 'info');
+          wsManager.current.sendTextMessage('Hello');
+        }
+      }, 500); // Short delay to ensure connection is fully established
+      
+    } catch (error) {
+      log(`❌ Error starting call: ${error}`, 'error');
+      dispatch({ type: 'CALL_ERROR', error: error as Error });
+      cleanup();
+      throw error;
+    }
+  }, [handleWebSocketMessage, handleWebSocketError, cleanup, dispatch, log, state]);
+  
+  // Clean up resources on component unmount
+  useEffect(() => {
+    return () => {
+      log(`🧹 Component unmounting, cleaning up resources`, 'info');
+      cleanup();
+    };
+  }, [cleanup, log]);
+  
+  // Listen for beforeunload event
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      cleanup();
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [cleanup]);
+  
+  // Automatic reconnection with enhanced session ID management
+  useEffect(() => {
+    // Only attempt reconnection if:
+    // 1. Status is error
+    // 2. We haven't exceeded max attempts
+    // 3. Termination wasn't intentional
+    // 4. We have an active persona
+    // 5. We have a valid session ID to reconnect from
+    const sessionId = activeSessionId.current;
+    const canReconnect = state.status === 'error' && 
+                         state.reconnectAttempts < 3 && 
+                         !isIntentionalTermination.current &&
+                         persona && 
+                         !!sessionId;
+    
+    if (canReconnect) {
+      const timer = setTimeout(() => {
+        // Log that we're attempting to reconnect with the current session ID
+        log(`🔄 Initiating reconnection (attempt ${state.reconnectAttempts + 1}/3) for session ${sessionId}`, 'info');
+        
+        dispatch({ type: 'RECONNECT_ATTEMPT' });
+        
+        // Store session ID before cleanup for logging
+        const reconnectingFromSession = sessionId;
+        
+        // Wait briefly to ensure cleanup completes before starting new connection
+        setTimeout(async () => {
+          try {
+            // Make sure we haven't already started a new session
+            if (activeSessionId.current && activeSessionId.current !== reconnectingFromSession) {
+              log(`⛔ Aborting reconnection for old session ${reconnectingFromSession} - a new session ${activeSessionId.current} is already active`, 'warn');
+              return;
+            }
+            
+            // Do cleanup first to ensure old resources are properly closed
+            log(`🧹 Running cleanup before reconnection for session ${reconnectingFromSession}`, 'info');
+            cleanup();
+            
+            // Make sure no new session was started during cleanup
+            if (activeSessionId.current && activeSessionId.current !== reconnectingFromSession) {
+              log(`⛔ Aborting reconnection after cleanup - a new session ${activeSessionId.current} was started`, 'warn');
+              return;
+            }
+            
+            // Generate a fresh session ID for the new connection
+            const newSessionId = generateSessionId(persona);
+            log(`🆔 Generated fresh session ID for reconnection: ${newSessionId} (old: ${reconnectingFromSession})`, 'info');
+            
+            // Wait a bit more for cleanup to fully complete
+            setTimeout(async () => {
+              try {
+                // Check one more time before starting new connection
+                if (activeSessionId.current && activeSessionId.current !== reconnectingFromSession) {
+                  log(`⛔ Aborting reconnection start - a new session ${activeSessionId.current} was started`, 'warn');
+                  return;
+                }
+                
+                // Start the call with the persona and new session ID
+                await startCall(persona, newSessionId);
+              } catch (error) {
+                log(`❌ Error during reconnection attempt: ${error}`, 'error');
+              }
+            }, 500); // Wait 500ms after cleanup before starting new connection
+          } catch (error) {
+            log(`❌ Reconnection failed: ${error}`, 'error');
+          }
+        }, 500); // Wait 500ms after cleanup before starting new connection
+      }, 1000 * (state.reconnectAttempts + 1));
+      
+      return () => clearTimeout(timer);
+    } else if (state.status === 'error' && isIntentionalTermination.current) {
+      // Log that we're skipping reconnection due to intentional termination
+      log(`ℹ️ Skipping reconnection because termination was intentional for session ${sessionId || 'unknown'}`, 'info');
+      
+      // Reset the intentional termination flag
+      isIntentionalTermination.current = false;
+    }
+  }, [state.status, state.reconnectAttempts, startCall, cleanup, log, dispatch, persona]);
+  
+  // Create context value
+  const contextValue: CallControllerContextValue = {
+    state,
+    startCall,
+    endCall,
+    cleanup,
+    isConnected: state.status === 'connected',
+    isConnecting: state.status === 'connecting',
+    callDuration: state.callDuration,
+    transcript: state.transcript,
+    error: state.lastError
+  };
+  
+  return (
+    <CallControllerContext.Provider value={contextValue}>
+      {children}
+    </CallControllerContext.Provider>
+  );
+}
+
+// Custom hook to use the call controller context
+export function useCallController() {
+  const context = useContext(CallControllerContext);
+  if (!context) {
+    throw new Error('useCallController must be used within a CallControllerProvider');
+  }
+  return context;
+}

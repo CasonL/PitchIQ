@@ -63,7 +63,7 @@ const FeatureShowcase: React.FC = () => {
   };
 
   return (
-    <section className="py-20 sm:py-28 bg-white">
+    <section className="py-20 sm:py-28 bg-background">
       <div className="container mx-auto px-6 lg:px-8">
         <div className="text-left lg:text-center sm:mr-24 md:mr-32 lg:mr-0">
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 font-outfit text-gray-900">

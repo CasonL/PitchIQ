@@ -104,8 +104,8 @@ const buyerPersonaTypes = {
             ]
         }
     },
-    analytical: {
-        name: "Analytical Buyer",
+    thoughtful: {
+        name: "Thoughtful Buyer",
         traitRanges: {
             trust: { min: 0.4, max: 0.6 },         // Moderate initial trust
             patience: { min: 0.6, max: 0.9 },      // High patience

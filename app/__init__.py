@@ -61,6 +61,10 @@ FLASK_ROUTE_PREFIXES = ('/auth', '/training', '/chat', '/voice', '/api', '/socke
 logger = logging.getLogger(__name__) # Setup logger for the app module
 
 def create_app(config_name='dev'):
+    # Configure smart logging FIRST, before any other logging happens
+    from app.utils.logger import setup_smart_logging
+    setup_smart_logging(level="INFO")
+    
     print("DEBUG: app/__init__.py - create_app() CALLED", flush=True)
     """Create and configure Flask application."""
     
@@ -72,6 +76,11 @@ def create_app(config_name='dev'):
     try:
         os.makedirs(instance_path, exist_ok=True)
         print(f"INIT: Instance path '{instance_path}' checked/created.", flush=True)
+        # ---- Load .env from instance folder if it exists ----
+        env_path = os.path.join(instance_path, '.env')
+        if os.path.exists(env_path):
+            load_dotenv(env_path, override=False)  # Do not override already-set vars
+            print(f"Loaded env vars from {env_path}", flush=True)
     except OSError as e:
         print(f"CRITICAL: Could not create instance path '{instance_path}'. Error: {e}", flush=True)
         # Depending on the desired behavior, you might want to exit or raise the exception
@@ -90,9 +99,6 @@ def create_app(config_name='dev'):
     flask_instance = Flask(__name__, 
                 instance_relative_config=True)
 
-    # Configure logging
-    logging.basicConfig(level=logging.INFO)
-    
     # Load configuration using the standard Flask method
     flask_instance.config.from_object(config_by_name[config_name])
     
@@ -108,9 +114,6 @@ def create_app(config_name='dev'):
     #     if request.path.startswith(('/api/', '/training/api/')): # Simplified condition
     #         setattr(request, '_csrf_exempt', True)
     # --- End EARLY CSRF Exemption ---
-    
-    # Configure CORS to allow frontend to make requests
-    logging.getLogger('flask_cors').level = logging.DEBUG
 
     # Restore the full list of allowed origins, ensuring it's used as a list
     allowed_origins = [
@@ -162,6 +165,9 @@ def create_app(config_name='dev'):
     from app.routes.api.seo_routes import seo_bp
     from app.routes.api.business_onboarding import business_onboarding_bp
 
+    # Import company API blueprint
+    from app.routes.api.company_routes import company_bp
+
     # Register API blueprints
     flask_instance.register_blueprint(api_main_bp, url_prefix='/api')
     flask_instance.register_blueprint(auth_api_bp, url_prefix='/api/auth')
@@ -176,10 +182,44 @@ def create_app(config_name='dev'):
     flask_instance.register_blueprint(dashboard_coach_bp, url_prefix='/api/dashboard-coach')
     flask_instance.register_blueprint(seo_bp)
     flask_instance.register_blueprint(business_onboarding_bp, url_prefix='/api/business-onboarding')
+    flask_instance.register_blueprint(company_bp, url_prefix='/api')
     
     # Deepgram Voice Agent API
     from app.routes.api.deepgram_routes import deepgram_bp
     flask_instance.register_blueprint(deepgram_bp, url_prefix='/api/deepgram')
+    
+    # Debug: Check company route registration
+    print("\n=== DEBUG: Checking company route registration ===")
+    try:
+        from app.routes.api.company_routes import company_bp
+        print("✓ Successfully imported company_bp")
+        print(f"  - Blueprint name: {company_bp.name}")
+        print(f"  - URL prefix: {getattr(company_bp, 'url_prefix', 'Not set')}")
+        print(f"  - Registered rules: {len(company_bp.deferred_functions) if hasattr(company_bp, 'deferred_functions') else 'N/A'}")
+        
+        # Check if blueprint is already registered
+        if 'company' not in flask_instance.blueprints:
+            # Register the company blueprint
+            flask_instance.register_blueprint(company_bp, url_prefix='/api')
+            print("✓ Successfully registered company_bp")
+        else:
+            print("ℹ️ company_bp is already registered")
+        
+        # Print all registered routes for this blueprint
+        print("\nRegistered routes:")
+        for rule in flask_instance.url_map.iter_rules():
+            if rule.endpoint.startswith(f"{company_bp.name}."):
+                print(f"  - {rule.endpoint}: {rule}")
+                
+    except Exception as e:
+        print(f"✗ Error with company routes: {str(e)}")
+        import traceback
+        traceback.print_exc()
+    
+    print("\n=== All registered blueprints ===")
+    for name, bp in flask_instance.blueprints.items():
+        print(f"- {name} (prefix: {getattr(bp, 'url_prefix', 'None')})")
+    print("================================\n")
     
     # Dual Voice Agent API
     from app.routes.api.dual_voice_routes import dual_voice_bp
@@ -188,6 +228,26 @@ def create_app(config_name='dev'):
     # Simple Voice Training API (using standard STT/TTS)
     from app.routes.api.simple_voice_routes import simple_voice_bp
     flask_instance.register_blueprint(simple_voice_bp, url_prefix='/api/voice')
+    
+    # Sam conversation analysis
+    from app.routes.api.sam_conversation_routes import sam_conversation_bp
+    flask_instance.register_blueprint(sam_conversation_bp, url_prefix='/api')
+    
+    # Bias Monitoring API
+    from app.routes.api.bias_monitoring import bias_monitoring_bp
+    flask_instance.register_blueprint(bias_monitoring_bp, url_prefix='/')
+    
+    # WebSocket Logging API
+    from app.routes.api.websocket_logging import websocket_logging_bp
+    flask_instance.register_blueprint(websocket_logging_bp, url_prefix='/api')
+    
+    # Call Metrics API
+    from app.routes.api.call_metrics import call_metrics_bp
+    flask_instance.register_blueprint(call_metrics_bp, url_prefix='/api')
+    
+    # Conversation Patterns API
+    from app.routes.api.conversation_patterns import conversation_patterns_bp
+    flask_instance.register_blueprint(conversation_patterns_bp, url_prefix='/api')
     
     # Register demo blueprint
     from app.demo import demo
@@ -218,6 +278,10 @@ def create_app(config_name='dev'):
     csrf.exempt(deepgram_bp)
     csrf.exempt(dual_voice_bp)
     csrf.exempt(simple_voice_bp)
+    csrf.exempt(sam_conversation_bp)
+    csrf.exempt(websocket_logging_bp)
+    csrf.exempt(company_bp)
+    csrf.exempt(conversation_patterns_bp)
     
     # --- Custom Error Handler for CSRF ---
     from flask_wtf.csrf import CSRFError

@@ -53,7 +53,7 @@ const DemoLandingPage = () => {
   };
 
   return (
-    <div className="flex flex-col justify-center items-center w-full h-screen bg-gray-50 relative overflow-hidden">
+    <div className="flex flex-col justify-center items-center w-full h-screen bg-background relative overflow-hidden">
       <AnimatePresence>
         {cardState === 'button' && showPrompt && (
           <motion.div

@@ -1,0 +1,146 @@
+/**
+ * Absolute White Override CSS
+ * Maximum priority overrides to ensure pure white backgrounds
+ */
+
+/* Force all CSS variables to white */
+:root {
+    --pitchiq-white: #FFFFFF !important;
+    --pitchiq-light-gray: #FFFFFF !important;
+    --background-color: #FFFFFF !important;
+    --bs-body-bg: #FFFFFF !important;
+    --bs-light-rgb: 255,255,255 !important;
+    --bs-gray-100: #FFFFFF !important;
+    --bs-gray-200: #FFFFFF !important;
+}
+
+/* Target body and html with maximum specificity */
+html, body, html body {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+    background-image: none !important;
+}
+
+/* Target all main containers */
+#main-content, 
+html body #main-content,
+main, 
+.container, 
+.container-fluid,
+div.container,
+div.container-fluid,
+section,
+article,
+aside,
+header,
+footer,
+nav {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+    background-image: none !important;
+}
+
+/* Target all row and column elements */
+.row,
+div.row,
+.col, 
+.col-1, .col-2, .col-3, .col-4, .col-5, .col-6, 
+.col-7, .col-8, .col-9, .col-10, .col-11, .col-12,
+.col-sm, .col-md, .col-lg, .col-xl {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+    background-image: none !important;
+}
+
+/* Target all card elements */
+.card,
+div.card,
+.card-body,
+div.card-body,
+.card-header,
+div.card-header,
+.card-footer,
+div.card-footer {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+    background-image: none !important;
+}
+
+/* Target all bootstrap and tailwind background classes */
+.bg-light,
+.bg-white,
+.bg-gray-50,
+.bg-gray-100,
+.bg-gray-200,
+div[class*="bg-"] {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+    background-image: none !important;
+}
+
+/* Target all voice and demo related elements */
+[id*="voice"],
+[class*="voice"],
+[id*="demo"],
+[class*="demo"],
+.transcript-display,
+.system-log,
+.status-badge {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+    background-image: none !important;
+}
+
+/* Target React related elements */
+[id*="react"],
+[class*="react"],
+div[id^="react-"],
+div[id*="-portal"],
+div[class*="ReactModal"] {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+    background-image: none !important;
+}
+
+/* Target spacing classes commonly used with backgrounds */
+.p-1, .p-2, .p-3, .p-4, .p-5,
+.py-1, .py-2, .py-3, .py-4, .py-5,
+.py-10,
+.px-1, .px-2, .px-3, .px-4, .px-5,
+.m-1, .m-2, .m-3, .m-4, .m-5 {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+    background-image: none !important;
+}
+
+/* Target absolutely everything as a last resort */
+* {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+    background-image: none !important;
+}
+
+/* Only exceptions for specific elements that need different backgrounds */
+.btn-primary {
+    background-color: #0d6efd !important;
+}
+
+.btn-secondary {
+    background-color: #6c757d !important;
+}
+
+.btn-success {
+    background-color: #28a745 !important;
+}
+
+.btn-danger {
+    background-color: #dc3545 !important;
+}
+
+.status-green {
+    background-color: #28a745 !important;
+}
+
+.status-red {
+    background-color: #dc3545 !important;
+}

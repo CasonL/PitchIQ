@@ -36,9 +36,99 @@ CHANCE_TO_USE_LEGENDARY_SHELL = 0.0 # Disabled for enterprise demos - enable via
 
 # Helper functions for AI generation and analysis
 def generate_buyer_persona(user_profile=None, use_previous_feedback=False, previous_feedback=None, session_id=None):
-    """Generate a buyer persona using behavioral shells. User profile is optional for testing."""
+    """Generate a buyer persona using comprehensive bias prevention system. User profile is optional for testing."""
     
     try:
+        # Try comprehensive bias prevention system first
+        try:
+            from app.services.comprehensive_bias_prevention import ComprehensiveBiasPrevention
+            
+            # Extract context from user profile or use defaults
+            if user_profile:
+                target_market = getattr(user_profile, 'target_market', '') or getattr(user_profile, 'p_audience', 'Business professionals')
+                product_service = getattr(user_profile, 'product_service', '') or getattr(user_profile, 'p_product', 'Business solutions')
+                industry_context = getattr(user_profile, 'industry', None)
+            else:
+                logger.info("No user profile provided to generate_buyer_persona, using defaults for comprehensive system.")
+                target_market = "B2B Small to Medium Businesses"
+                product_service = "General Software Solution"
+                industry_context = "Technology"
+            
+            logger.info(f"Using comprehensive bias prevention for persona generation: product='{product_service}', target='{target_market}'")
+            
+            # Generate bias-free persona framework
+            framework = ComprehensiveBiasPrevention.generate_bias_free_persona_framework(
+                industry_context=industry_context,
+                target_market=target_market,
+                complexity_level="intermediate",
+                product_service=product_service
+            )
+            
+            # Transform framework to BuyerPersona format
+            persona_data = {
+                "name": framework['name'],
+                "description": f"A {framework['cultural_background']} {framework['role']} with {', '.join(framework['personality_traits'][:2]).lower()} personality traits. {framework.get('contextual_fears', {}).get('authentic_objections', ['Looking for business solutions'])[0] if framework.get('contextual_fears') else 'Looking for business solutions'}",
+                "role": framework['role'],
+                "base_reaction_style": framework['communication_style']['tone'],
+                "personality_traits": {trait: 0.7 for trait in framework['personality_traits'][:3]},
+                "intelligence_level": "average",
+                "emotional_state": framework['communication_style']['emotional_expression'],
+                "buyer_type": framework['decision_authority'],
+                "decision_authority": framework['decision_authority'],
+                "pain_points": [fear['core_concern'] for fear in framework.get('contextual_fears', {}).get('contextual_fears', [])] or ['Efficiency challenges'],
+                "primary_concern": framework.get('contextual_fears', {}).get('authentic_objections', ['Looking for business solutions'])[0] if framework.get('contextual_fears') else 'Looking for business solutions',
+                "objections": framework.get('contextual_fears', {}).get('authentic_objections', ['Budget constraints']),
+                "cognitive_biases": {"Loss aversion": 0.6, "Status quo bias": 0.5},
+                "industry_context": framework['industry'],
+                "business_description": f"{framework['role']} at a {framework['industry']} organization",
+                "business_context": framework['business_context'],
+                "chattiness_level": framework['communication_style']['chattiness'],
+                "shell_id": f"comprehensive_bias_prevention_{session_id or 'default'}",
+                "is_legendary_shell": False  # Comprehensive system generates standard personas
+            }
+            
+            logger.info(f"Successfully generated persona using comprehensive bias prevention: {persona_data['name']}")
+            
+            # Create and save the persona
+            persona = BuyerPersona(
+                name=persona_data.get("name", "Alex Comprehensive"),
+                description=persona_data.get("description", "Generated using comprehensive bias prevention."),
+                base_reaction_style=persona_data.get("base_reaction_style"),
+                personality_traits=json.dumps(persona_data.get("personality_traits", {})), 
+                intelligence_level=persona_data.get("intelligence_level"),
+                emotional_state=persona_data.get("emotional_state", "Neutral"),
+                buyer_type=persona_data.get("buyer_type", "Thoughtful"),
+                decision_authority=persona_data.get("decision_authority", "Medium"),
+                pain_points=json.dumps(persona_data.get("pain_points", [])),
+                objections=json.dumps(persona_data.get("objections", [])),
+                cognitive_biases=json.dumps(persona_data.get("cognitive_biases", {})),
+                primary_concern=persona_data.get("primary_concern", "Efficiency"),
+                role=persona_data.get("role", "Business Professional"),
+                industry_context=persona_data.get("industry_context") or (user_profile.industry if user_profile else "Technology"),
+                business_description=persona_data.get("business_description"),
+                business_context=persona_data.get("business_context", "B2B"),
+                longterm_personal_description=json.dumps({}),
+                shortterm_personal_description=json.dumps({}),
+                demographic_description=json.dumps({}),
+                linguistic_style_cue=persona_data.get("chattiness_level", "medium"),
+                chattiness_level=persona_data.get("chattiness_level", "medium"),
+                is_legendary=False,  # Comprehensive system generates standard personas
+                is_cached=True,  # Mark for potential reuse
+                cached_at=datetime.utcnow()
+            )
+            
+            db.session.add(persona)
+            db.session.commit()
+            
+            logger.info(f"Successfully saved comprehensive bias prevention persona: {persona.name}")
+            return persona
+            
+        except Exception as comp_error:
+            logger.warning(f"Comprehensive bias prevention failed, falling back to shell system: {str(comp_error)}")
+            # Fall back to original shell system
+            pass
+        
+        # FALLBACK: Original shell-based system
         from app.services.gpt4o_service import get_gpt4o_service
         
         # If no user_profile is provided (e.g., for testing), create a mock one for context
@@ -77,19 +167,19 @@ def generate_buyer_persona(user_profile=None, use_previous_feedback=False, previ
                 if shell.get('shell_id') in ['emotionally_responsive_01', 'enthusiastic_early_adopter_01', 'busy_but_persuadable_01', 'standard_amiable_01']
             ]
             
-            # Exclude analytical shells from the fallback pool to reduce their frequency
-            non_analytical_shells = [
+            # Exclude thoughtful shells from the fallback pool to reduce their frequency
+            non_thoughtful_shells = [
                 shell for shell in BEHAVIORAL_SHELLS 
-                if shell.get('shell_id') not in ['standard_analytical_01']
+                if shell.get('shell_id') not in ['standard_thoughtful_01']
             ]
             
             if emotionally_responsive_shells and random.random() < 0.85:
                 selected_shell_data = random.choice(emotionally_responsive_shells)
                 logger.info(f"Selected an emotionally responsive shell: {selected_shell_data.get('shell_id')}")
             else:
-                # Use non-analytical shells for the remaining 15%
-                selected_shell_data = random.choice(non_analytical_shells if non_analytical_shells else BEHAVIORAL_SHELLS)
-                logger.info(f"Selected a non-analytical behavioral shell: {selected_shell_data.get('shell_id')}")
+                # Use non-thoughtful shells for the remaining 15%
+                selected_shell_data = random.choice(non_thoughtful_shells if non_thoughtful_shells else BEHAVIORAL_SHELLS)
+                logger.info(f"Selected a non-thoughtful behavioral shell: {selected_shell_data.get('shell_id')}")
         else:
             logger.warning("No behavioral shells (standard or legendary) are available. Proceeding with non-shell-guided generation.")
             # selected_shell_data will remain None, and gpt4o_service will generate a persona without a shell.
@@ -163,7 +253,7 @@ def generate_buyer_persona(user_profile=None, use_previous_feedback=False, previ
             personality_traits=json.dumps(persona_data.get("personality_traits", {})), 
             intelligence_level=persona_data.get("intelligence_level"),
             emotional_state=persona_data.get("emotional_state", "Neutral"),
-            buyer_type=persona_data.get("buyer_type", "Analytical"),
+            buyer_type=persona_data.get("buyer_type", "Thoughtful"),
             decision_authority=persona_data.get("decision_authority", "Medium"),
             pain_points=json.dumps(persona_data.get("pain_points", [])),
             objections=json.dumps(persona_data.get("objections", [])),
@@ -303,7 +393,7 @@ def _generate_backup_persona(user_profile, selected_shell_data=None): # Added sh
                     personality_traits=json.dumps(persona_data.get("personality_traits", {})),
                     intelligence_level=persona_data.get("intelligence_level"),
                     emotional_state=persona_data.get("emotional_state", "Neutral"),
-                    buyer_type=persona_data.get("buyer_type", "Analytical"),
+                    buyer_type=persona_data.get("buyer_type", "Thoughtful"),
                     decision_authority=persona_data.get("decision_authority", "Medium"),
                     pain_points=json.dumps(persona_data.get("pain_points", [])),
                     objections=json.dumps(persona_data.get("objections", [])),
@@ -351,10 +441,10 @@ def parse_persona_description(persona_input_string: str) -> dict:
                 "description": parsed_data.get("description_narrative", "Default description from JSON."), # This is the main narrative
                 "role": parsed_data.get("role", "Business Professional"),
                 "base_reaction_style": parsed_data.get("base_reaction_style", "Cautious_Pragmatist"),
-                "personality_traits": parsed_data.get("trait_metrics", {"Analytical": 0.7}), # This is the trait_metrics object
+                "personality_traits": parsed_data.get("trait_metrics", {"Thoughtful": 0.7}), # This is the trait_metrics object
                 "intelligence_level": parsed_data.get("intelligence_level_generated", "average"),
                 "emotional_state": parsed_data.get("emotional_state", "Neutral"),
-                "buyer_type": parsed_data.get("buyer_type", "Analytical"),
+                "buyer_type": parsed_data.get("buyer_type", "Thoughtful"),
                 "decision_authority": parsed_data.get("decision_authority", "Medium"),
                 "industry_context": parsed_data.get("industry_context", ""),
                 "pain_points": parsed_data.get("pain_points", []),
@@ -481,11 +571,11 @@ def parse_persona_description(persona_input_string: str) -> dict:
         "description": "Persona generation failed, using super fallback. Original input: " + persona_input_string[:200],
         "role": "Business Professional",
         "base_reaction_style": "Cautious_Pragmatist",
-        "personality_traits": {"Analytical": 0.7, "Decisive": 0.6},
+        "personality_traits": {"Thoughtful": 0.7, "Decisive": 0.6},
         "intelligence_level": "average",
         "chattiness_level": "medium", # Default for super fallback
         "emotional_state": "Neutral",
-        "buyer_type": "Analytical",
+        "buyer_type": "Thoughtful",
         "decision_authority": "Medium",
         "pain_points": ["Efficiency", "Cost Management"],
         "primary_concern": "Efficiency",
@@ -497,12 +587,23 @@ def parse_persona_description(persona_input_string: str) -> dict:
 
 def create_fallback_persona() -> BuyerPersona:
     """Create a fallback persona if AI generation fails."""
+    # Use diverse names instead of hardcoded "Alex Rodriguez"
+    from app.services.demographic_names import DemographicNameService
+    import random
+    
+    try:
+        first_name, last_name = DemographicNameService.get_name_by_demographics("mixed_american", random.choice(["male", "female"]))
+        fallback_name = f"{first_name} {last_name}"
+    except Exception as e:
+        logger.error(f"Error generating diverse fallback name: {str(e)}")
+        fallback_name = "Alex Morgan"
+    
     return BuyerPersona(
-        name="Alex Rodriguez",
+        name=fallback_name,
         description="A business professional evaluating solutions.",
-        personality_traits=json.dumps({"Analytical": 0.7, "Decisive": 0.6}),
+        personality_traits=json.dumps({"Thoughtful": 0.7, "Decisive": 0.6}),
         emotional_state="Neutral",
-        buyer_type="Analytical",
+        buyer_type="Thoughtful",
         decision_authority="Medium",
         pain_points=json.dumps(["Efficiency", "Cost Management"]),
         objections=json.dumps(["Price", "Implementation time", "ROI uncertainty"]),
@@ -598,9 +699,9 @@ def generate_ai_response(session_object, message, conversation_metadata=None):
                 # Create a default buyer persona for the session
                 buyer_persona = BuyerPersona(
                     name="Alex Rodriguez",
-                    description="Marketing Director at a mid-sized tech company looking for solutions to improve efficiency. Analytical, data-driven, and somewhat skeptical of new vendors. Needs clear ROI and proven results before making decisions.",
+                    description="Marketing Director at a mid-sized tech company looking for solutions to improve efficiency. Thoughtful, data-driven, and somewhat skeptical of new vendors. Needs clear ROI and proven results before making decisions.",
                     personality_traits=json.dumps({
-                        "analytical": 8,
+                        "thoughtful": 8,
                         "skeptical": 7,
                         "direct": 6
                     }),
@@ -1399,6 +1500,17 @@ def extract_pain_points(persona_description: str) -> list:
 
 def create_default_persona(user_profile=None):
     """Create a default persona if AI generation fails. User profile is optional."""
+    # Use diverse names instead of hardcoded "Alex Rodriguez"
+    from app.services.demographic_names import DemographicNameService
+    import random
+    
+    try:
+        first_name, last_name = DemographicNameService.get_name_by_demographics("mixed_american", random.choice(["male", "female"]))
+        fallback_name = f"{first_name} {last_name} (Default)"
+    except Exception as e:
+        logger.error(f"Error generating diverse default name: {str(e)}")
+        fallback_name = "Alex Morgan (Default)"
+    
     # If no user_profile, use very generic defaults
     persona_role = "Business Professional"
     if user_profile and hasattr(user_profile, 'target_market') and user_profile.target_market:
@@ -1408,11 +1520,11 @@ def create_default_persona(user_profile=None):
             persona_role = "Business Manager"
 
     return BuyerPersona(
-        name="Alex Rodriguez (Default)",
+        name=fallback_name,
         description="A business professional evaluating solutions. Default persona generated due to an issue.",
-        personality_traits=json.dumps({"Analytical": 0.7, "Decisive": 0.6}),
+        personality_traits=json.dumps({"Thoughtful": 0.7, "Decisive": 0.6}),
         emotional_state="Neutral",
-        buyer_type="Analytical",
+        buyer_type="Thoughtful",
         decision_authority="Medium",
         pain_points=json.dumps(["Efficiency", "Cost Management"]),
         objections=json.dumps(["Price", "Implementation time", "ROI uncertainty"]),
@@ -1424,15 +1536,15 @@ def create_default_persona(user_profile=None):
 
 def extract_traits(persona_description: str) -> dict:
     """Extract personality traits from persona description."""
-    traits = {"Analytical": 0.7}
+    traits = {"Thoughtful": 0.7}
     
     if "Communication Style:" in persona_description:
         comm_section = persona_description.split("Communication Style:")[1].split("\n\n")[0].strip().lower()
         
         if "direct" in comm_section:
             traits["Direct"] = 0.8
-        if "analytical" in comm_section:
-            traits["Analytical"] = 0.9
+        if "thoughtful" in comm_section:
+            traits["Thoughtful"] = 0.9
         if "detail" in comm_section:
             traits["Detail-oriented"] = 0.8
         if "question" in comm_section:
@@ -1459,8 +1571,8 @@ def extract_emotional_state(persona_description: str) -> str:
             return "Open"
         elif "resistant" in stance:
             return "Resistant"
-        elif "analytical" in stance:
-            return "Analytical"
+        elif "thoughtful" in stance:
+            return "Thoughtful"
         elif "friendly" in stance:
             return "Friendly"
     
@@ -1481,7 +1593,7 @@ def extract_buyer_type(persona_description: str) -> str:
     elif "user" in description_lower:
         return "End User"
     
-    return "Analytical"
+    return "Thoughtful"
 
 def extract_decision_authority(persona_description: str) -> str:
     """Extract decision authority from persona description."""
@@ -1742,8 +1854,8 @@ def generate_roleplay_response(user_message, conversation_history, conversation_
         # Create a default persona dictionary
         persona_dict = {
             "name": "Alex Rodriguez",
-            "description": "Marketing Director at a mid-sized tech company looking for solutions to improve efficiency. Analytical, data-driven, and somewhat skeptical of new vendors. Needs clear ROI and proven results before making decisions.",
-            "personality_traits": {"analytical": 8, "skeptical": 7, "direct": 6},
+            "description": "Marketing Director at a mid-sized tech company looking for solutions to improve efficiency. Thoughtful, data-driven, and somewhat skeptical of new vendors. Needs clear ROI and proven results before making decisions.",
+            "personality_traits": {"thoughtful": 8, "skeptical": 7, "direct": 6},
             "emotional_state": "neutral",
             "buyer_type": "economic",
             "decision_authority": "influencer",
@@ -1789,6 +1901,53 @@ def generate_roleplay_response(user_message, conversation_history, conversation_
             if not persona_dict["description"].endswith(formatting_instructions):
                 persona_dict["description"] += formatting_instructions
         
+        # ---- New rapport & passion handling ----
+        from app.utils.conversation_utils import passion_trigger, cooperation_factor, detect_outcome
+
+        # Detect if the user just mentioned a passion keyword
+        user_hit_passion = False
+        try:
+            passions = persona_dict.get("passions") or []
+            # Auto-generate passions if missing
+            if not passions:
+                GENERIC_PASSIONS = [
+                    "hiking", "photography", "cooking", "traveling", "yoga", "road cycling",
+                    "gardening", "sci-fi novels", "fantasy football", "snowboarding", "coffee roasting",
+                    "running", "concerts", "craft beer", "gaming", "painting", "sailing", "wine tasting",
+                    "kayaking", "basketball", "soccer"]
+                passions = random.sample(GENERIC_PASSIONS, k=3)
+                persona_dict["passions"] = passions
+            
+            user_hit_passion = passion_trigger(user_message or "", passions)
+        except Exception as _e:
+            user_hit_passion = False  # Fail-safe
+
+        # ---- Time management ----
+        MAX_CALL_MIN = 20
+        elapsed_min = 0
+        try:
+            if session_object.start_time:
+                elapsed_min = (datetime.utcnow() - session_object.start_time).total_seconds() / 60.0
+        except Exception:
+            pass
+        time_warning = elapsed_min >= (MAX_CALL_MIN - 2)
+        force_wrap_up = elapsed_min >= MAX_CALL_MIN
+        
+        # Retrieve previous rapport_score from metadata if provided
+        prev_state = conversation_metadata.get("conversation_state") if isinstance(conversation_metadata, dict) else None
+        rapport_score = prev_state.get("rapport_score", 0) if isinstance(prev_state, dict) else 0
+        passion_shared = prev_state.get("passion_shared", False) if isinstance(prev_state, dict) else False
+        # Decide if AI should hint passion this turn (20% chance)
+        should_hint_passion = False
+        # Determine call outcome using simple rules engine
+        outcome, outcome_conf = detect_outcome(conversation_history, rapport_score)
+        try:
+            if not passion_shared and random.random() < 0.2:
+                should_hint_passion = True
+        except Exception:
+            pass
+        coop_factor = cooperation_factor(rapport_score)
+
         # Create conversation state dictionary 
         conversation_state = {
             "likely_phase": "discovery",  # Default phase
@@ -1797,7 +1956,17 @@ def generate_roleplay_response(user_message, conversation_history, conversation_
             "objections_raised": [],
             "key_commitments": [],
             "salesperson_focus": None,
-            "sentiment": "neutral"
+            "sentiment": "neutral",
+            "rapport_score": rapport_score,
+            "coop_factor": coop_factor,
+            "user_hit_passion": user_hit_passion,
+            "passion_shared": passion_shared,
+            "should_hint_passion": should_hint_passion,
+            "outcome": outcome,
+            "outcome_confidence": outcome_conf,
+            "elapsed_minutes": round(elapsed_min, 1),
+            "time_warning": time_warning,
+            "force_wrap_up": force_wrap_up
         }
         
         # Log key information before calling the service

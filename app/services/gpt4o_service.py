@@ -19,6 +19,7 @@ from app.services.openai_service import OpenAIService, get_openai_service
 from app.services.conversation_state_manager import ConversationStateManager, ConversationPhase
 from app.services.industry_persona_templates import get_industry_context_prompt_addition, apply_industry_modifications
 from app.utils.logging_utils import setup_logger
+from app.utils.conversation_utils import allow_reciprocation
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -272,12 +273,19 @@ class GPT4oService:
         target_market = user_profile_context.get('target_market', 'Business professionals')
         industry = user_profile_context.get('industry', 'Various industries')
         
+        # Check if a specific gender is requested
+        forced_gender = user_profile_context.get('forced_gender', None)
+        gender_instruction = ""
+        if forced_gender:
+            logger.info(f"Using forced gender in persona generation: {forced_gender}")
+            gender_instruction = f"\nIMPORTANT: Create a {forced_gender} persona. Ensure the name, pronouns, and all references are appropriate for a {forced_gender} individual."
+        
         # Get industry-specific context
         industry_prompt_addition = get_industry_context_prompt_addition(industry)
         
         base_prompt = f"""You are an expert AI assistant that generates detailed and realistic customer personas for sales roleplay simulations.   
 
-CRITICAL INSTRUCTION: Create a HUMAN, EMOTIONALLY RESPONSIVE persona who can be genuinely convinced through skilled sales techniques. This persona should have realistic objections, concerns, and decision-making patterns.
+CRITICAL INSTRUCTION: Create a HUMAN, EMOTIONALLY RESPONSIVE persona who can be genuinely convinced through skilled sales techniques. This persona should have realistic objections, concerns, and decision-making patterns.{gender_instruction}
 
 CONVERSATION FLOW INSTRUCTION: When Sam (the AI sales coach) has gathered both the user's product/service information AND target market information, Sam should ALWAYS ask for explicit confirmation before generating the persona. Sam should say something like:
 
@@ -304,6 +312,10 @@ Create a JSON response with the following structure:
   "description_narrative": "[2-3 sentence personality description]",
   
   // SURFACE-LEVEL INFO (what they'd reveal initially - shown to user)
+  "company_overview": "[2 sentences on founding year, mission, market position]",
+  "recent_milestones": ["[2024 – Series B $40M]", "[2023 – Launched XYZ platform]"],
+  "strategic_priorities": ["[Expand LATAM market]", "[Cut onboarding cost 30%]"],
+  "public_challenges": ["[High churn of tele-nurses]", "[Rising compliance costs]"],
   "surface_business_info": "[Detailed company overview with specific details like company name, size, founding year, industry, locations, services]",
   "surface_pain_points": "[What they'd openly discuss about challenges]", 
   "surface_concern": "[Initial concern they'd share]",
@@ -324,6 +336,10 @@ Create a JSON response with the following structure:
     "filler_words": ["um", "uh", "well"],
     "regional_expressions": ["[any regional phrases]"]
   }},
+  
+  // FREQUENTLY USED LANGUAGE FOR PERSONALITY EXPRESSION
+  "signature_phrases": ["[phrase 1]", "[phrase 2]", "[phrase 3]", "[phrase 4]"],
+  "dialect_words": ["[word 1]", "[word 2]", "[word 3]", "[word 4]", "[word 5]", "[word 6]"] ,
   
   "conversation_dynamics": {{
     "comfort_with_silence": "[low/moderate/high]",
@@ -349,14 +365,16 @@ Create a JSON response with the following structure:
   "pain_points": ["[pain point 1]", "[pain point 2]", "[pain point 3]"],
   "objections": ["[likely objection 1]", "[likely objection 2]"],
   
-  // BEHAVIORAL TRAITS for realistic voice interaction
-  "personality_traits": {{
-    "openness": [0.1-0.9],
-    "conscientiousness": [0.1-0.9], 
-    "extraversion": [0.1-0.9],
-    "agreeableness": [0.1-0.9],
-    "neuroticism": [0.1-0.9]
-  }},
+  // PERSONALITY TRAITS for realistic voice interaction
+  "personality_traits": ["[trait 1]", "[trait 2]", "[trait 3]"],
+  
+  // IMPORTANT: Use lively, human-like traits such as:
+  // "Passionate", "Curious", "Assertive", "Reflective", "Spontaneous", "Witty",
+  // "Quirky", "Playful", "Straightforward", "Laid-back", "Authentic", "Energetic"
+  // DO NOT use "Thoughtful" or overly corporate traits like "Professional", "Measured", "Deliberate"
+  
+  // COMMUNICATION STYLE
+  "communication_style": "[descriptive communication style]",
   
   "conversation_guidelines": {{
     "initial_skepticism_level": "[low/medium/high]",
@@ -404,21 +422,48 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
             
             # Basic validation: does it look like JSON?
             if response_content and response_content.strip().startswith("{") and response_content.strip().endswith("}"):
-                # Apply industry-specific modifications if we have industry context
-                industry_context = user_profile_context.get("industry", "")
-                if industry_context:
-                    try:
-                        # Parse the JSON, apply modifications, and convert back to JSON string
-                        persona_dict = json.loads(response_content)
-                        modified_persona = apply_industry_modifications(persona_dict, industry_context)
-                        response_content = json.dumps(modified_persona, indent=2)
-                        logger.info(f"Applied industry modifications for: {industry_context}")
-                    except json.JSONDecodeError as e:
-                        logger.warning(f"Could not parse persona JSON for industry modifications: {e}")
-                        # Continue with original response_content
-                    except Exception as e:
-                        logger.warning(f"Error applying industry modifications: {e}")
-                        # Continue with original response_content
+                try:
+                    # Parse the JSON for modifications
+                    persona_dict = json.loads(response_content)
+                    
+                    # Apply industry-specific modifications if we have industry context
+                    industry_context = user_profile_context.get("industry", "")
+                    if industry_context:
+                        try:
+                            modified_persona = apply_industry_modifications(persona_dict, industry_context)
+                            persona_dict = modified_persona
+                            logger.info(f"Applied industry modifications for: {industry_context}")
+                        except Exception as e:
+                            logger.warning(f"Error applying industry modifications: {e}")
+                    
+                    # Apply gender enforcement if forced_gender is specified
+                    forced_gender = user_profile_context.get("forced_gender")
+                    if forced_gender:
+                        # Ensure gender is explicitly set in the persona
+                        persona_dict["gender"] = forced_gender
+                        
+                        # Import name validation from comprehensive bias prevention if needed
+                        try:
+                            from app.services.comprehensive_bias_prevention import ComprehensiveBiasPrevention
+                            bias_prevention = ComprehensiveBiasPrevention()
+                            
+                            # Check if name matches gender and fix if needed
+                            name = persona_dict.get("name", "")
+                            if forced_gender == "male" and bias_prevention.is_female_name(name):
+                                persona_dict["name"] = bias_prevention.get_random_name(gender="male")
+                                logger.info(f"Replaced female name '{name}' with male name '{persona_dict['name']}'")
+                            elif forced_gender == "female" and bias_prevention.is_male_name(name):
+                                persona_dict["name"] = bias_prevention.get_random_name(gender="female")
+                                logger.info(f"Replaced male name '{name}' with female name '{persona_dict['name']}'")
+                        except Exception as e:
+                            logger.warning(f"Error enforcing gender-appropriate name: {e}")
+                    
+                    # Convert back to JSON string
+                    response_content = json.dumps(persona_dict, indent=2)
+                    
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Could not parse persona JSON for modifications: {e}")
+                    # Continue with original response_content
                 
                 return response_content
             else:
@@ -444,8 +489,28 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
         """
         logger.warning(f"Generating fallback text persona. Error: {is_error}, Message: {error_message}")
         
+        # Check for forced gender
+        forced_gender = user_profile_context.get("forced_gender")
+        
         # Start with shell data if available, otherwise use defaults
-        name = "Alex Fallback"
+        # Use gender-appropriate name if forced gender is specified
+        if forced_gender:
+            try:
+                from app.services.comprehensive_bias_prevention import ComprehensiveBiasPrevention
+                bias_prevention = ComprehensiveBiasPrevention()
+                name = bias_prevention.get_random_name(gender=forced_gender)
+                logger.info(f"Using gender-specific fallback name for {forced_gender}: {name}")
+            except Exception:
+                # Fallback to gender-specific default names
+                if forced_gender == "male":
+                    name = "Michael Fallback"
+                elif forced_gender == "female":
+                    name = "Emily Fallback"
+                else:
+                    name = "Alex Fallback"
+        else:
+            name = "Alex Fallback"
+            
         # Role is generated contextually, so for fallback, it must be generic.
         role = "Business Professional (Fallback)" 
         base_reaction_style = behavioral_shell_data.get("base_reaction_style", "Cautious_Pragmatist") if behavioral_shell_data else "Cautious_Pragmatist"
@@ -457,7 +522,7 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
         chattiness = behavioral_shell_data.get("chattiness_level", "medium") if behavioral_shell_data else "medium"
         
         # Simplified trait metrics from shell's template or default
-        traits_dict = {"Analytical": 0.7, "Skeptical": 0.6}
+        traits_dict = {"Thoughtful": 0.7, "Skeptical": 0.6}
         if behavioral_shell_data and "trait_metrics_template" in behavioral_shell_data:
             traits_dict = behavioral_shell_data["trait_metrics_template"]
         
@@ -467,30 +532,39 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
         product = user_profile_context.get("product_service", "your product")
         industry_ctx = user_profile_context.get("industry", "their industry")
 
-        # Constructing a more structured text string that parse_persona_description can handle
-        # This aims to provide enough keywords for the existing extract_* functions to work.
-        fallback_persona_str = f"""Name: {name}
-Role: {role} in the {industry_ctx}
-Description Narrative: A fallback persona. Interested in {product} but needs more information.
-Base Reaction Style: {base_reaction_style}
-Intelligence Level Generated: {intelligence_level} 
-Chattiness Level: {chattiness}
-Trait Metrics: {trait_metrics_str}
-Emotional State: Neutral
-Buyer Type: Analytical
-Decision Authority: Medium
-Industry Context: {industry_ctx}
-Pain Points:
-- General efficiency concerns
-- Understanding the value of {product}
-Primary Concern: Making a good decision for their company.
-Objections:
-- "Is this the best option?"
-- "How does it compare to others?"
-Cognitive Biases: {{ "Status_Quo_Bias": 0.6 }}
-Shell ID: {behavioral_shell_data.get("shell_id", "N/A_fallback") if behavioral_shell_data else "N/A_fallback"}
-Is Legendary Shell: {behavioral_shell_data.get("is_legendary_shell", False) if behavioral_shell_data else False}
-"""
+        # Create a fallback persona in JSON format
+        fallback_persona_json = {
+            "name": name,
+            "role": role,
+            "gender": forced_gender if forced_gender else "neutral",  # Include gender in the JSON structure
+            "business_description": f"Works in {industry_ctx} and is interested in solutions like {product}.",
+            "base_reaction_style": base_reaction_style,
+            "intelligence_level": intelligence_level,
+            "chattiness_level": chattiness,
+            "personality_traits": traits_dict,
+            "emotional_state": "Neutral",
+            "buyer_type": "Thoughtful",
+            "decision_authority": "Medium",
+            "industry_context": industry_ctx,
+            "pain_points": [
+                "General efficiency concerns",
+                f"Understanding the value of {product}"
+            ],
+            "primary_concern": "Making a good decision for their company.",
+            "objections": [
+                "Is this the best option?",
+                "How does it compare to others?"
+            ],
+            "cognitive_biases": {"Status_Quo_Bias": 0.6},
+            "_meta": {
+                "is_fallback": True,
+                "error_info": error_message if is_error else "No error, using fallback as precaution",
+                "shell_id": behavioral_shell_data.get("shell_id", "N/A_fallback") if behavioral_shell_data else "N/A_fallback",
+                "is_legendary_shell": behavioral_shell_data.get("is_legendary_shell", False) if behavioral_shell_data else False
+            }
+        }
+        fallback_persona_str = json.dumps(fallback_persona_json, indent=2)
+        
         if is_error:
             logger.error(f"Fallback persona generated due to error: {error_message}")
             fallback_persona_str += f"\nError Info: Generation failed - {error_message}"
@@ -548,6 +622,13 @@ Is Legendary Shell: {behavioral_shell_data.get("is_legendary_shell", False) if b
                 temperature=0.8  # Slightly higher temperature for more creative roleplay responses
             )
             
+            # Apply rapport-phase question guardrail
+            try:
+                phase = conversation_state.get("likely_phase", "rapport").lower() if conversation_state else "rapport"
+                if phase == "rapport" and "?" in response and not allow_reciprocation(response, messages):
+                    response = response.replace("?", ".")
+            except Exception:
+                pass
             logger.info(f"Generated roleplay response: {response[:50]}...\" if response else \"None\"")
             return response or "I apologize, but I'm having trouble processing your request right now."
             
@@ -631,7 +712,7 @@ Is Legendary Shell: {behavioral_shell_data.get("is_legendary_shell", False) if b
         technical_comfort = conversation_dynamics.get("technical_comfort", "competent")
         
         # Personality Trait System (NEW)
-        core_trait = persona.get("core_personality_trait", "Analytical")
+        core_trait = persona.get("core_personality_trait", "Thoughtful")
         supporting_trait = persona.get("supporting_personality_trait", "Patient")
         personality_blend = persona.get("personality_blend_description", "Balanced professional approach")
         
@@ -642,6 +723,9 @@ Is Legendary Shell: {behavioral_shell_data.get("is_legendary_shell", False) if b
         # --- Conversation State Insights (if available) ---
         current_phase_val = "rapport" # Default if no state
         rapport_level = "Medium"
+        rapport_score = 0
+        coop_factor = 1.0
+        user_hit_passion = False
         if conversation_state:
             # Assuming conversation_state["likely_phase"] might be an Enum object or a string
             raw_phase = conversation_state.get("likely_phase", "rapport")
@@ -650,11 +734,23 @@ Is Legendary Shell: {behavioral_shell_data.get("is_legendary_shell", False) if b
             else: # Otherwise, assume it's already a string
                 current_phase_val = str(raw_phase) 
             rapport_level = conversation_state.get("rapport_level", "Medium")
+            rapport_score = conversation_state.get("rapport_score", 0)
+            coop_factor = conversation_state.get("coop_factor", 1.0)
+            user_hit_passion = conversation_state.get("user_hit_passion", False)
+            should_hint_passion = conversation_state.get("should_hint_passion", False)
+            outcome = conversation_state.get("outcome", "undecided")
+            outcome_conf = conversation_state.get("outcome_confidence", 0.0)
+            elapsed_min = conversation_state.get("elapsed_minutes", 0.0)
+            time_warning = conversation_state.get("time_warning", False)
+            time_cue_5min = conversation_state.get("time_cue_5min", False)
+            time_cue_3min = conversation_state.get("time_cue_3min", False)
+            time_cue_1min = conversation_state.get("time_cue_1min", False)
 
         # --- MVP Scenario Definition (Consistent) ---
         call_objective = "This is a 10-minute voice-to-voice discovery call. Your main goal is to understand the salesperson's offering and see if it addresses your primary concern. The salesperson (Cason) will likely try to build rapport and then uncover your needs."
         time_awareness_cue = "Be mindful that this is a relatively short call, so while natural conversation is good, discussions should be reasonably focused."
         voice_dynamics_cue = f"Communicate as if in a natural, real-time voice conversation. Use engaging language suitable for voice. Your linguistic style should be: {linguistic_style_cue}."
+
         
         # --- Enhanced Voice Dynamics Instructions ---
         speech_instructions = ""
@@ -769,6 +865,12 @@ The salesperson's name is {salesperson_name}.
 
 *   **Current Sales Phase:** The conversation is likely in the '{current_phase_val}' phase.
 *   **Rapport Level:** Your current rapport with {salesperson_name} is '{rapport_level}'.
+*   **Rapport Score:** {rapport_score}/5   |   **Cooperation Factor:** {coop_factor}
+*   Passion Flag: {user_hit_passion}. If this is True, respond with noticeable enthusiasm (one or two upbeat sentences) while staying on the current topic.
+*   If `should_hint_passion` is True, and you are still in the RAPPORT phase, naturally weave ONE of your passions (from PASSION LIST) into your reply once. Do not force it if awkward.
+*   **Outcome So Far:** {outcome} (confidence {outcome_conf:.0%}). If 'commit', you have decided to proceed; if 'follow_up', you plan a next meeting; if 'no_fit', you are politely declining. Tailor your responses appropriately.
+*   **Time Elapsed:** {elapsed_min:.1f} min of 20. {'ONLY 2 MINUTES LEFT—start wrapping up.' if time_warning and not force_wrap_up else ''}
+*   {'TIME IS UP—provide a clear next step or decision now.' if force_wrap_up else ''}
 
 *   **If Phase is 'Rapport' or 'rapport':**
     *   Focus on building a connection if the salesperson initiates it.

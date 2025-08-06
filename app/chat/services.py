@@ -380,7 +380,7 @@ def generate_fallback_persona(sales_info: Dict[str, Any]) -> str:
     if market == "B2B":
         role = "Business Buyer"
         needs.append("Proven ROI")
-        personality.append("Analytical")
+        personality.append("Thoughtful")
     elif market == "B2C":
         role = "Individual Consumer"
         needs.append("Ease of use")
@@ -1383,7 +1383,7 @@ def generate_buyer_persona(conversation: Conversation):
             # --- Using more dynamic defaults based on context ---
             name="Alex Buyer", # Placeholder
             description=f"A potential buyer for {conversation.product_service or 'the product'} targeting the {conversation.target_market or 'general'} market.",
-            personality_traits=json.dumps({"curious": 0.8, "cautious": 0.6} if conversation.target_market != 'B2B' else {"analytical": 0.8, "busy": 0.7}),
+            personality_traits=json.dumps({"curious": 0.8, "cautious": 0.6} if conversation.target_market != 'B2B' else {"thoughtful": 0.8, "busy": 0.7}),
             emotional_state="neutral",
             buyer_type="evaluator",
             decision_authority="influencer", # Default, could vary

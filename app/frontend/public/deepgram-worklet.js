@@ -6,27 +6,40 @@ class DeepgramWorklet extends AudioWorkletProcessor {
 
   process(inputs) {
     const input = inputs[0];
-    const mono = input[0];
-    
-    if (!mono || mono.length === 0) {
+    if (!input || !input[0] || input[0].length === 0) {
       return true;
     }
 
-    // Handle mono streams efficiently (most browsers provide mono when channelCount: 1 is requested)
-    const buffer = new Int16Array(mono.length);
+    const channelCount = input.length;
+    const frameCount = input[0].length;
     
-    for (let i = 0; i < mono.length; i++) {
-      // Apply gain and clamp to [-1, 1] range before converting to int16
-      const sample = Math.max(-1, Math.min(1, mono[i] * 1.4));
-      buffer[i] = Math.round(sample * 32767);
+    // Convert multi-channel float32 to mono int16
+    const buffer = new Int16Array(frameCount);
+    
+    for (let frame = 0; frame < frameCount; frame++) {
+      let sample = 0;
+      
+      // Mix all channels to mono
+      for (let channel = 0; channel < channelCount; channel++) {
+        sample += input[channel][frame];
+      }
+      
+      // Average channels and apply gain
+      sample = sample / channelCount;
+      
+      // Apply moderate gain (1.4x) and convert to int16
+      sample = sample * 1.4 * 32767;
+      
+      // Clamp to int16 range
+      buffer[frame] = Math.max(-32768, Math.min(32767, Math.round(sample)));
     }
 
     // Send the processed audio back to main thread
     this.port.postMessage(buffer.buffer, [buffer.buffer]);
     
-    this.sampleCount += mono.length;
+    this.sampleCount += frameCount;
     return true;
   }
 }
 
-registerProcessor('deepgram-processor', DeepgramWorklet); 
+registerProcessor('deepgram-worklet', DeepgramWorklet); 

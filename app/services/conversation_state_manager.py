@@ -8,6 +8,8 @@ contextual analysis based on conversation history.
 import logging
 import re
 import json
+from datetime import datetime
+from app.utils.conversation_utils import should_transition_to_business
 from enum import Enum
 from typing import Dict, Any, List, Optional, Set, Tuple
 from app.services.openai_service import get_openai_service
@@ -62,177 +64,104 @@ INTEREST_PATTERNS = [
 
 CLOSING_PATTERNS = [
     r'ready to (move forward|proceed|get started|buy|purchase)',
-    r'where do (we|I) sign', r'contract', r'agreement', r'payment', 
-    r'invoice', r'credit card', r'pricing plan', r'discount', 
-    r'when can (we|I) start', r'next steps', r'getting started',
-    r'decision maker', r'approval', r'management', r'team'
+    r'where do (we|I) sign', r'contract', r'agreement', r'payment',
+    r'invoice', r'credit card', r'pricing plan', r'discount',
+    r'when can (we|I) start', r'next steps', r'decision maker', r'approval', r'management', r'team'
 ]
 
-
 class ConversationStateManager:
-    """
-    Analyzes conversation history to determine the current state and context.
-    """
+    """Enhanced conversation state manager with improved phase detection."""
     
-    def __init__(self, conversation_history: List[Dict[str, str]] = None, business_context: Optional[str] = None):
-        """
-        Initialize the conversation state manager.
+    def __init__(self, conversation_history: List[Dict[str, str]] = None, business_context: str = "B2B"):
+        self.conversation_history = conversation_history if conversation_history is not None else []
+        self.business_context = business_context
+        self.current_state = self._initialize_state()
         
-        Args:
-            conversation_history: The initial conversation history (optional).
-            business_context: The business context (e.g., "B2B", "B2C") (optional).
-        """
-        self.conversation_history = conversation_history or []
-        self.business_context = business_context or "B2B" # Default to B2B if not provided
-        # Initialize state dictionary with default values
-        self.current_state = {
-            "likely_phase": ConversationPhase.UNKNOWN,
-            "rapport_level": "Medium", # Default rapport
-            "needs_identified": [],
-            "objections_raised": [],
-            "key_commitments": [],
-            "salesperson_focus": None,
-            "sentiment": "neutral",
-            "message_count": len(self.conversation_history)
+    def _initialize_state(self) -> Dict[str, Any]:
+        """Initialize the conversation state."""
+        return {
+            "likely_phase": ConversationPhase.RAPPORT,
+            "message_count": len(self.conversation_history),
+            "question_count": 0,
+            "topics": set(),
+            "last_phase_change": None,
+            "phase_history": [],
+            "metadata": {}
         }
-        logger.info(f"Initialized ConversationStateManager with business context: {self.business_context}")
-        # Perform initial analysis if history is provided
-        if self.conversation_history:
-            self.update_state(self.conversation_history, self.business_context)
-
-    def update_state(self, new_history: List[Dict[str, str]], business_context: Optional[str] = None):
-        """
-        Analyze the conversation history and update the internal state dictionary.
         
-        Args:
-            new_history: The complete, updated conversation history.
-            business_context: The business context for this analysis.
-        """
-        self.conversation_history = new_history
-        self.business_context = business_context or self.business_context # Use provided or existing
-        self.current_state["message_count"] = len(new_history)
+    def update_state(self, new_history: List[Dict[str, str]] = None) -> Dict[str, Any]:
+        """Update the conversation state based on new messages."""
+        if new_history is not None:
+            self.conversation_history = new_history
+            
+        self.current_state["message_count"] = len(self.conversation_history)
+        self._update_phase()
+        self._update_question_count()
+        self._update_topics()
         
-        logger.info(f"Updating state based on {len(new_history)} messages. Context: {self.business_context}")
-
-        # Get last user and AI message for analysis
-        last_user_message_content = None
-        last_ai_message_content = None
-        last_user_message = None
-        last_ai_message = None
-        
-        if len(new_history) > 0:
-            if new_history[-1].get("role") == "assistant":
-                last_ai_message = new_history[-1]
-                last_ai_message_content = last_ai_message.get("content")
-                if len(new_history) > 1 and new_history[-2].get("role") == "user":
-                    last_user_message = new_history[-2]
-                    last_user_message_content = last_user_message.get("content")
-            elif new_history[-1].get("role") == "user":
-                last_user_message = new_history[-1]
-                last_user_message_content = last_user_message.get("content")
-
-        # Try to use GPT-3.5-turbo for analysis if we have enough messages
-        if len(new_history) >= 2:
-            try:
-                # Use GPT-3.5-turbo for analysis
-                gpt_analysis = self._analyze_with_gpt(new_history, self.business_context)
-                if gpt_analysis:
-                    # If GPT analysis was successful, update the state with it
-                    logger.info("Successfully updated state using GPT-3.5-turbo analysis")
-                    return
-            except Exception as e:
-                logger.error(f"Error using GPT-3.5-turbo for conversation analysis: {str(e)}")
-                logger.info("Falling back to rule-based analysis")
-                
-        # --- Fallback to rule-based analysis ---
-        # 1. Calculate category scores for the last interaction
-        user_scores = self._calculate_message_category_scores(last_user_message_content or "")
-        ai_scores = self._calculate_message_category_scores(last_ai_message_content or "") 
-
-        # 2. Determine likely_phase based on scores and history context
-        self.current_state["likely_phase"] = self._determine_likely_phase(
-            user_scores, 
-            ai_scores, 
-            self.current_state["likely_phase"] # Pass previous phase
-        )
-        
-        # 3. Update rapport_level
-        self.current_state["rapport_level"] = self._update_rapport(user_scores, ai_scores)
-
-        # 4. Update needs_identified (Accumulates)
-        self.current_state["needs_identified"] = self._extract_needs(last_user_message_content or "")
-
-        # 5. Update objections_raised (Accumulates, checks AI msg)
-        self.current_state["objections_raised"] = self._extract_objections(last_ai_message_content or "")
-
-        # 6. Update key_commitments (placeholder)
-        # TODO: Implement logic to detect commitments like "Let's schedule a call", "Send me the proposal"
-        self.current_state["key_commitments"] = self._extract_commitments(last_user_message_content or "", last_ai_message_content or "")
-
-        # 7. Update salesperson_focus
-        self.current_state["salesperson_focus"] = self._determine_focus(last_user_message_content or "")
-        
-        # 8. Update sentiment
-        self.current_state["sentiment"] = self._update_sentiment(last_user_message_content or "", last_ai_message_content or "")
-        # --- End implemented analysis --- 
-        
-        logger.debug(f"Updated Conversation State: {self.current_state}")
-        
-    def get_conversation_state(self) -> Dict[str, Any]:
-        """
-        Return the current analyzed state of the conversation.
-        """
         return self.current_state
         
-    @property
-    def current_phase(self) -> ConversationPhase:
-        """Property that returns the current conversation phase."""
-        return self.current_state.get("likely_phase", ConversationPhase.UNKNOWN)
-
-    # --- Analysis Helper Methods (Placeholders/Simplified) ---
-
-    def _calculate_message_category_scores(self, message: str) -> Dict[str, float]:
-        """
-        Calculate scores (0-1 range) for message categories based on keywords/patterns.
-        """
-        scores = { # Initialize with 0.0
-            "rapport": 0.0,
-            "business": 0.0,
-            "needs": 0.0,
-            "objection": 0.0,
-            "interest": 0.0,
-            "closing": 0.0
-        }
-        if not message: return scores
+    def _update_phase(self) -> None:
+        """Update the conversation phase based on content."""
+        current_phase = self.current_state["likely_phase"]
         
-        message_lower = message.lower()
-        message_len = len(message.split()) # Basic length check
-        if message_len == 0: return scores
-
-        # Count occurrences and normalize by length (simple approach)
-        rapport_count = sum(1 for keyword in RAPPORT_KEYWORDS if keyword in message_lower)
-        business_count = sum(1 for keyword in BUSINESS_KEYWORDS if keyword in message_lower)
-        needs_count = sum(1 for keyword in NEEDS_KEYWORDS if keyword in message_lower)
-        objection_count = sum(1 for pattern in OBJECTION_PATTERNS if re.search(pattern, message_lower))
-        interest_count = sum(1 for pattern in INTEREST_PATTERNS if re.search(pattern, message_lower))
-        closing_count = sum(1 for pattern in CLOSING_PATTERNS if re.search(pattern, message_lower))
-
-        # Score calculation (simple normalization, capped at 1.0)
-        # Weights can be adjusted
-        scores["rapport"] = min(1.0, rapport_count * 0.5)
-        scores["business"] = min(1.0, business_count * 0.2)
-        scores["needs"] = min(1.0, needs_count * 0.4 + (1 if '?' in message else 0) * 0.3)
-        scores["objection"] = min(1.0, objection_count * 0.8) # Higher weight for objections
-        scores["interest"] = min(1.0, interest_count * 0.6)
-        scores["closing"] = min(1.0, closing_count * 0.7)
+        if current_phase == ConversationPhase.RAPPORT:
+            if should_transition_to_business(self.conversation_history):
+                self._set_phase(ConversationPhase.DISCOVERY)
+                
+        # Add more phase transition logic as needed (e.g., from DISCOVERY to PRESENTATION)
         
-        return scores
+    def _set_phase(self, new_phase: ConversationPhase) -> None:
+        """Safely transition to a new phase."""
+        old_phase = self.current_state["likely_phase"]
+        if old_phase != new_phase:
+            self.current_state["likely_phase"] = new_phase
+            now_iso = datetime.utcnow().isoformat()
+            self.current_state["last_phase_change"] = now_iso
+            self.current_state["phase_history"].append({
+                "from_phase": old_phase.value,
+                "to_phase": new_phase.value,
+                "timestamp": now_iso
+            })
+            logger.info(f"Phase transition: {old_phase.value} -> {new_phase.value}")
+            
+    def _update_question_count(self) -> None:
+        """Update the count of questions in the conversation."""
+        if not self.conversation_history:
+            return
+            
+        # Count questions from the assistant
+        assistant_questions = sum(
+            1 for msg in self.conversation_history 
+            if msg.get('role') == 'assistant' and '?' in str(msg.get('content', ''))
+        )
+        self.current_state["question_count"] = assistant_questions
+                
+    def _update_topics(self) -> None:
+        """Update the set of topics discussed in the conversation."""
+        if not self.conversation_history:
+            return
+        # Consolidate all message content and convert to lowercase for keyword checks
+        content = ' '.join(str(m.get('content', '')) for m in self.conversation_history).lower()
+        topics = set()
+        if any(term in content for term in ['business', 'company', 'solution']):
+            topics.add('business')
+        if any(term in content for term in ['product', 'service', 'feature']):
+            topics.add('product')
+        if any(term in content for term in ['price', 'cost', 'budget']):
+            topics.add('pricing')
+        self.current_state['topics'].update(topics)
+        return
 
-    def _determine_likely_phase(self, user_scores: Dict[str, float], ai_scores: Dict[str, float], previous_phase: ConversationPhase) -> ConversationPhase:
-        """Determine the most likely current phase based on scores and context."""
-        message_count = self.current_state["message_count"]
-
-        # --- Phase Logic ---
+    def get_state(self) -> Dict[str, Any]:
+        """Return the current conversation state in a JSON-serializable form."""
+        state_copy = self.current_state.copy()
+        # Convert Enum and set to primitive types
+        if isinstance(state_copy.get("likely_phase"), ConversationPhase):
+            state_copy["likely_phase"] = state_copy["likely_phase"].value
+        state_copy["topics"] = list(state_copy.get("topics", []))
+        return state_copy
+        # (legacy logic removed)
         # Closing has highest priority
         if user_scores["closing"] > 0.5 or ai_scores["closing"] > 0.5:
             return ConversationPhase.CLOSING

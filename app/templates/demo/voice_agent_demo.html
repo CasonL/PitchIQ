@@ -1,67 +1,339 @@
-{% extends "base.html" %}
+{% extends "demo/white_base.html" %}
+
+{% block head %}
+<!-- React dependencies for PersonaGenerationCard -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<!-- Load white background enforcer script at earliest possible moment -->
+<script src="{{ url_for('static', filename='js/white-background-enforcer.js') }}"></script>
+<!-- Load Tailwind theme override script to fix React components -->
+<script src="{{ url_for('static', filename='js/tailwind-theme-override.js') }}"></script>
+<style id="force-white-background">
+    /* Maximum override for white background */
+    html, body, #main-content, main, div, section, article, aside, header, footer, nav,
+    .container, .container-fluid, .row, .col, .card, .card-body, .card-header,
+    .bg-gray-50, .bg-gray-100, .bg-gray-200, .bg-light,
+    [class*="bg-"], [id*="voice"], [id*="demo"], [class*="voice"], [class*="demo"],
+    .transcript-display, .log-display {
+        background-color: white !important;
+        background-image: none !important;
+        background: white !important;
+    }
+    
+    /* Override CSS variables at the root */
+    :root {
+        --pitchiq-white: #FFFFFF !important;
+        --pitchiq-light-gray: #FFFFFF !important;
+        --background-color: #FFFFFF !important;
+        --bs-body-bg: #FFFFFF !important;
+        --bs-light-rgb: 255,255,255 !important;
+    }
+</style>
+
+<!-- Inject script into head for earliest possible execution -->
+<script>
+    // This script runs immediately when parsed
+    (function() {
+        // Create style tag with highest specificity overrides
+        var style = document.createElement('style');
+        style.type = 'text/css';
+        style.innerHTML = `
+            body { background: #FFFFFF !important; }
+            #main-content { background: #FFFFFF !important; }
+            .container, .container-fluid { background: #FFFFFF !important; }
+            * { background-color: #FFFFFF !important; }
+        `;
+        
+        // Insert at beginning of head for highest priority
+        var head = document.head || document.getElementsByTagName('head')[0];
+        if (head.firstChild) {
+            head.insertBefore(style, head.firstChild);
+        } else {
+            head.appendChild(style);
+        }
+        
+        // Set background image to pure white SVG
+        document.body.style.backgroundImage = 'url("{{ url_for(\'static\', filename=\'images/white-background.svg\') }}")' ;
+    })();
+</script>
+{% endblock %}
 
 {% block title %}Deepgram Voice Agent Demo{% endblock %}
 
+{% block extra_css %}
+<!-- White background override CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/voice-demo-white.css') }}">
+
+{% if force_white_background %}
+<!-- Force absolute white backgrounds when parameter is set -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/absolute-white-override.css') }}">
+{% endif %}
+
+<!-- Target Tailwind CSS classes in React components -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind-override.css') }}">
+
+<!-- Inline Tailwind CSS overrides for immediate effect -->
+<style>
+    /* Direct fix for the specific component with grey background */
+    .bg-background {
+        background-color: #FFFFFF !important;
+        background: #FFFFFF !important;
+    }
+    
+    .min-h-screen {
+        background-color: #FFFFFF !important;
+        background: #FFFFFF !important;
+    }
+    
+    /* Target React component wrappers */
+    [class*="deepgram-voice-agent"],
+    [class*="deepgram-voice-agent"] > div {
+        background-color: #FFFFFF !important;
+        background: #FFFFFF !important;
+    }
+</style>
+
+<style>
+    /* Global CSS variable overrides */
+    :root {
+        --pitchiq-white: #FFFFFF !important;
+        --pitchiq-light-gray: #FFFFFF !important;
+        --background-color: #FFFFFF !important;
+        --bs-body-bg: #FFFFFF !important;
+        --bs-light-rgb: 255,255,255 !important;
+        --bs-gray-100: #FFFFFF !important;
+        --bs-gray-200: #FFFFFF !important;
+    }
+    
+    /* Force white backgrounds on all elements */
+    html, body, #main-content, main, .container, .container-fluid, .row, .col, div,
+    section, article, header, footer, nav, aside, .card, .card-body, .card-header,
+    .py-10, .py-3, .py-5, [class*="bg-"], [class*="demo"], .transcript-display {
+        background-color: #FFFFFF !important;
+        background: #FFFFFF !important;
+    }
+</style>
+
+<script>
+    // Execute after DOM loads to force white backgrounds
+    document.addEventListener('DOMContentLoaded', function() {
+        // Function to force white backgrounds
+        function forceWhiteBackgrounds() {
+            // Apply to document and body
+            document.documentElement.style.backgroundColor = '#FFFFFF';
+            document.body.style.backgroundColor = '#FFFFFF';
+            
+            // Apply to main content
+            const mainContent = document.getElementById('main-content');
+            if (mainContent) mainContent.style.backgroundColor = '#FFFFFF';
+            
+            // Apply to all elements that might have backgrounds
+            document.querySelectorAll('div, main, section, .container, .container-fluid, .card, .card-body').forEach(el => {
+                el.style.backgroundColor = '#FFFFFF';
+            });
+        }
+        
+        // Run immediately and after a delay
+        forceWhiteBackgrounds();
+        setTimeout(forceWhiteBackgrounds, 500);
+        
+        // Run whenever voice session starts (when the gray background was appearing)
+        const startButton = document.getElementById('startButton');
+        if (startButton) {
+            startButton.addEventListener('click', function() {
+                setTimeout(forceWhiteBackgrounds, 100);
+                setTimeout(forceWhiteBackgrounds, 500);
+                setTimeout(forceWhiteBackgrounds, 1000);
+            });
+        }
+        
+        // Run periodically to catch dynamic elements
+        setInterval(forceWhiteBackgrounds, 2000);
+    });
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+    /* Force white backgrounds directly on the body and all content */
+    body {
+        background-color: #FFFFFF !important;
+        background: #FFFFFF !important;
+    }
+
+    body::before,
+    body::after {
+        background-color: #FFFFFF !important;
+        background: #FFFFFF !important;
+    }
+
+    /* Target elements inserted by React */
+    #root, #app, [id^="react"], [class^="react"] {
+        background-color: #FFFFFF !important;
+        background: #FFFFFF !important;
+    }
+    
+    /* Force white backgrounds everywhere */
+    body, html, main, #main-content {
+        background-color: #FFFFFF !important;
+    }
+    
+    .container, .container-fluid {
+        background-color: #FFFFFF !important;
+    }
+    
+    .py-10 {
+        background-color: #FFFFFF !important;
+    }
+    
+    /* Override any CSS variables that might be causing the grey background */
+    :root {
+        --background-color: #FFFFFF !important;
+        --pitchiq-white: #FFFFFF !important;
+        --pitchiq-light-gray: #FFFFFF !important;
+    }
+</style>
+{% endblock %}
+
+{% block styles %}
+<style>
+    /* Force white backgrounds everywhere */
+    html, body, #main-content, main, .container, .container-fluid, .row, .col, div {
+        background-color: #FFFFFF !important;
+    }
+    
+    /* Override CSS variables */
+    :root {
+        --background-color: #FFFFFF !important;
+        --pitchiq-white: #FFFFFF !important;
+        --pitchiq-light-gray: #FFFFFF !important;
+    }
+    
+    /* Target specific background classes */
+    .bg-gray-50, .bg-light, .bg-secondary {
+        background-color: #FFFFFF !important;
+    }
+    
+    /* Make sure parent elements don't have background images */
+    * {
+        background-image: none !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mx-auto py-10">
-    <h1 class="text-3xl font-bold mb-8 text-center">Deepgram Voice Agent Demo</h1>
+<div id="white-background-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; background: #FFFFFF; z-index: 9999; pointer-events: none;"></div>
+<script>
+// Force white background on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Create style element
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+        body, html, #main-content, .container, .container-fluid, div {
+            background-color: #FFFFFF !important;
+            background: #FFFFFF !important;
+        }
+        
+        :root {
+            --pitchiq-white: #FFFFFF !important;
+            --pitchiq-light-gray: #FFFFFF !important;
+            --background-color: #FFFFFF !important;
+        }
+    `;
+    document.head.appendChild(styleEl);
+    
+    // Update all elements recursively
+    function makeWhite() {
+        document.body.style.backgroundColor = '#FFFFFF';
+        document.body.style.background = '#FFFFFF';
+        
+        // Force all elements to have white background
+        document.querySelectorAll('*').forEach(el => {
+            const style = window.getComputedStyle(el);
+            const bg = style.backgroundColor;
+            
+            if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+                el.style.backgroundColor = '#FFFFFF';
+            }
+        });
+    }
+    
+    makeWhite();
+    setInterval(makeWhite, 1000); // Run every second to catch dynamic content
+    
+    // When voice session starts (original issue was when session starts)
+    setTimeout(() => {
+        const startButton = document.getElementById('startButton');
+        if (startButton) {
+            startButton.addEventListener('click', function() {
+                setTimeout(makeWhite, 100);
+                setTimeout(makeWhite, 500);
+                setTimeout(makeWhite, 1000);
+            });
+        }
+    }, 500);
+});
+</script>
+<!-- Outer white background wrapper -->
+<div id="demo-white-wrapper" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: #FFFFFF; z-index: 0;"></div>
+
+<!-- Main content with white background -->
+<div class="container mx-auto py-10" style="background-color: #FFFFFF; position: relative; z-index: 1;">
+    <h1 class="text-3xl font-bold mb-8 text-center" style="color: #FF0000;">PitchIQ Voice Demo</h1>
     
     <!-- Voice Agent Interface -->
     <div class="max-w-4xl mx-auto">
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6" style="border-radius: 16px;">
             <!-- Status and Controls -->
             <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-4 w-full">
                     <span id="statusBadge" class="status-badge status-disconnected">Disconnected</span>
-                    <div class="flex space-x-2">
-                        <button id="startBtn" class="btn btn-primary">🎤 Start Session</button>
-                        <button id="stopBtn" class="btn btn-secondary" disabled>⏹️ Stop</button>
-                        <button id="muteBtn" class="btn btn-secondary" disabled>🎤 Mute</button>
+                    <div class="flex space-x-3 ml-auto">
+                        <button id="startBtn" class="btn btn-primary" style="background-color: #FF0000; border-radius: 12px;">🎤 Start Conversation</button>
+                        <button id="stopBtn" class="btn btn-secondary" disabled style="border-radius: 12px;">⏹️ End Call</button>
+                        <button id="muteBtn" class="btn btn-secondary" disabled style="border-radius: 12px;">🎤 Mute</button>
                     </div>
                 </div>
             </div>
+            
+            <!-- Persona Generation React Component Mount Point -->
+            <div id="persona-generation-container" class="mb-4" style="display: none;"></div>
 
-            <!-- Transcript Display -->
-            <div class="mb-6">
-                <h3 class="text-lg font-semibold mb-2">Live Transcript</h3>
-                <div class="bg-gray-50 border rounded-lg p-4 h-32 overflow-y-auto">
-                    <pre id="transcript" class="text-sm whitespace-pre-wrap">Transcript will appear here...</pre>
-                </div>
-            </div>
+            <!-- Persona Info Banner -->
+            <div id="persona-info" class="mb-4 py-2 px-4 bg-gray-50 rounded-lg text-gray-800 font-medium" style="display: none; border-radius: 12px;">Speaking with: No persona yet</div>
+            
+            
 
-            <!-- Debug Logs -->
-            <div>
-                <h3 class="text-lg font-semibold mb-2">System Logs</h3>
-                <div class="bg-black text-green-400 rounded-lg p-4 h-48 overflow-y-auto font-mono text-xs">
-                    <pre id="logs">Ready to start voice session...</pre>
-                </div>
+            <!-- Hidden debug logs for development only -->
+            <div class="hidden">
+                <pre id="logs">Ready to start voice session...</pre>
             </div>
         </div>
 
         <!-- About Section -->
-        <div class="bg-gray-50 rounded-lg p-6">
-            <h2 class="text-xl font-bold mb-4">About This Voice Agent</h2>
+        <div class="bg-white rounded-lg shadow-sm p-6" style="border-radius: 16px;">
+            <h2 class="text-xl font-bold mb-4" style="color: #FF0000;">About This Demo</h2>
+            <p class="mb-4">PitchIQ's voice demo allows you to practice your sales skills with a dynamically generated persona. Simply start the conversation and begin speaking naturally.</p>
+            
             <div class="grid md:grid-cols-2 gap-6">
                 <div>
-                    <h3 class="font-semibold mb-2">🎯 Features</h3>
-                    <ul class="list-disc pl-5 space-y-1 text-sm">
-                        <li>Real-time speech-to-text with Deepgram Nova-2</li>
-                        <li>Natural text-to-speech with Aura-2-Asteria</li>
-                        <li>GPT-4o-mini for intelligent responses</li>
-                        <li>48kHz audio pipeline for crystal clear quality</li>
-                        <li>Smart logging with minimal noise</li>
-                        <li>Voice activity detection</li>
-                    </ul>
+                    <h3 class="font-semibold mb-2" style="color: #333333;">How It Works</h3>
+                    <ol class="list-decimal pl-5 space-y-1 text-sm">
+                        <li>Click <strong>Start Conversation</strong> to begin</li>
+                        <li>Describe your business when prompted</li>
+                        <li>A custom persona will be generated for you</li>
+                        <li>Practice your pitch with the AI prospect</li>
+                        <li>Click <strong>End Call</strong> when finished</li>
+                    </ol>
                 </div>
                 <div>
-                    <h3 class="font-semibold mb-2">⚙️ Technical Details</h3>
+                    <h3 class="font-semibold mb-2" style="color: #333333;">Tips</h3>
                     <ul class="list-disc pl-5 space-y-1 text-sm">
-                        <li>Direct WebSocket to Deepgram Voice Agent API</li>
-                        <li>Audio worklet for real-time processing</li>
-                        <li>Optimized microphone settings (AGC disabled)</li>
-                        <li>Low-pass filtering for natural sound</li>
-                        <li>Proper gain control and buffering</li>
-                        <li>Session management and error recovery</li>
+                        <li>Speak clearly and at a natural pace</li>
+                        <li>Allow brief pauses for the AI to respond</li>
+                        <li>Use the <strong>Mute</strong> button if needed during the call</li>
+                        <li>Try different approaches with the same persona</li>
+                        <li>The conversation transcript is available during the call</li>
                     </ul>
                 </div>
             </div>
@@ -81,8 +353,8 @@
     }
     
     .status-disconnected {
-        background-color: #fee2e2;
-        color: #dc2626;
+        background-color: #e5e7eb;
+        color: #4b5563;
     }
     
     .status-connecting {
@@ -110,12 +382,12 @@
     }
     
     .btn-primary {
-        background-color: #3b82f6;
+        background-color: #FF0000;
         color: white;
     }
     
     .btn-primary:hover:not(:disabled) {
-        background-color: #2563eb;
+        background-color: #cc0000;
     }
     
     .btn-secondary {
@@ -139,8 +411,16 @@
     let connected = false;
     let connecting = false;
     let muted = false;
-    let transcript = '';
-    let logs = [];
+        let logs = [];
+
+    // Persona generation variables
+    let userProductInfo = {
+        product: '',
+        target_market: ''
+    };
+    let currentPersona = null;
+    let isFirstInteraction = true;
+    let personaGenerationStarted = false;
 
     // Smart logging variables
     let audioChunkCount = 0;
@@ -166,7 +446,6 @@
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     const muteBtn = document.getElementById('muteBtn');
-    const transcriptArea = document.getElementById('transcript');
     const logsArea = document.getElementById('logs');
     
     function log(message) {
@@ -180,25 +459,20 @@
     }
     
     function updateUI() {
-        if (connecting) {
-            statusBadge.textContent = 'Connecting';
-            statusBadge.className = 'status-badge status-connecting';
-            startBtn.disabled = true;
-            stopBtn.disabled = true;
-            muteBtn.disabled = true;
-        } else if (connected) {
-            statusBadge.textContent = 'Connected';
+        startBtn.disabled = connected || connecting;
+        stopBtn.disabled = !connected;
+        muteBtn.disabled = !connected;
+        muteBtn.textContent = muted ? '🔇 Unmute' : '🎤 Mute';
+        
+        if (connected) {
             statusBadge.className = 'status-badge status-active';
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-            muteBtn.disabled = false;
-            muteBtn.textContent = muted ? '🔇 Un-mute' : '🎤 Mute';
+            statusBadge.textContent = 'Active Call';
+        } else if (connecting) {
+            statusBadge.className = 'status-badge status-connecting';
+            statusBadge.textContent = 'Starting call...';
         } else {
-            statusBadge.textContent = 'Disconnected';
             statusBadge.className = 'status-badge status-disconnected';
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-            muteBtn.disabled = true;
+            statusBadge.textContent = 'Ready';
         }
     }
     
@@ -360,199 +634,210 @@
             src.start(startAt);
             playHead = startAt + buf.duration;
             
-        } catch (error) {
-            log(`❌ TTS playback failed: ${error}`);
-        }
-    }
-    
-    async function startSession() {
-        log("▶️ Starting Voice Agent session");
-        if (connecting || connected) return;
         
-        connecting = true;
-        updateUI();
-
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
+        log("🔧 Fetching Deepgram API key...");
+        const tokenRes = await fetch("/api/deepgram/token", { credentials: "include" });
+        const tokenData = await tokenRes.json();
+        
+        if (!tokenData.success) {
+            throw new Error(tokenData.error || 'Failed to get API key');
+        }
+        
+        const wsUrl = `wss://agent.deepgram.com/v1/agent/converse`;
+        log("🌐 Connecting to Deepgram Voice Agent API...");
+        
+        voiceAgentWS = new WebSocket(wsUrl, ['token', tokenData.token]);
+        
+        voiceAgentWS.onopen = () => {
+            log("✅ WebSocket connected to Voice Agent");
+            
+            const config = {
+                type: "Settings",
                 audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: false,
-                    sampleRate: 48000,
-                    channelCount: 1,
-                    googEchoCancellation: true,
-                    googNoiseSuppression: true,
-                    googAutoGainControl: false,
-                    googHighpassFilter: false
-                }
-            });
-            
-            log("✅ Microphone access granted");
-            micStream = stream;
-            
-            log("🔧 Fetching Deepgram API key...");
-            const tokenRes = await fetch("/api/deepgram/token", { credentials: "include" });
-            const tokenData = await tokenRes.json();
-            
-            if (!tokenData.success) {
-                throw new Error(tokenData.error || 'Failed to get API key');
-            }
-            
-            const wsUrl = `wss://agent.deepgram.com/v1/agent/converse`;
-            log("🌐 Connecting to Deepgram Voice Agent API...");
-            
-            voiceAgentWS = new WebSocket(wsUrl, ['token', tokenData.token]);
-            
-            voiceAgentWS.onopen = () => {
-                log("✅ WebSocket connected to Voice Agent");
-                
-                const config = {
-                    type: "Settings",
-                    audio: {
-                        input: {
-                            encoding: "linear16",
-                            sample_rate: 48000
-                        },
-                        output: {
-                            encoding: "linear16",
-                            sample_rate: 48000,
-                            container: "none"
+                    input: {
+                        encoding: "linear16",
+                        sample_rate: 48000
+                    },
+                    output: {
+                        encoding: "linear16",
+                        sample_rate: 48000,
+                        container: "none"
+                    }
+                },
+                agent: {
+                    language: "en",
+                    listen: {
+                        provider: {
+                            type: "deepgram",
+                            model: "nova-2"
                         }
                     },
-                    agent: {
-                        language: "en",
-                        listen: {
-                            provider: {
-                                type: "deepgram",
-                                model: "nova-2"
-                            }
+                    think: {
+                        provider: {
+                            type: "open_ai",
+                            model: "gpt-4o-mini",
+                            temperature: 0.8
                         },
-                        think: {
-                            provider: {
-                                type: "open_ai",
-                                model: "gpt-4o-mini",
-                                temperature: 0.8
-                            },
-                            prompt: "You are a helpful AI assistant. Keep responses natural, conversational, and brief. Speak as if you're having a friendly conversation."
-                        },
-                        speak: {
-                            provider: {
-                                type: "deepgram",
-                                model: "aura-2-asteria-en"
-                            }
-                        },
-                        greeting: "Hello! I'm your AI assistant. How can I help you today?"
-                    }
-                };
-                
-                log("📤 Sending configuration to Voice Agent");
-                voiceAgentWS.send(JSON.stringify(config));
-                
-                initSpeaker();
-                startMicPump();
-                
-                connected = true;
-                connecting = false;
-                updateUI();
-            };
-            
-            voiceAgentWS.onmessage = (event) => {
-                try {
-                    if (typeof event.data === 'string') {
-                        const message = JSON.parse(event.data);
-                        
-                        if (message.type === 'ConversationText') {
-                            const text = message.text || '';
-                            const role = message.role || 'unknown';
-                            
-                            if (role === 'user') {
-                                transcript += `User: ${text}\n`;
-                                log(`🗣️ User: ${text}`);
-                            } else if (role === 'assistant') {
-                                transcript += `Agent: ${text}\n`;
-                                log(`🤖 Agent: ${text}`);
-                            }
-                            
-                            transcriptArea.textContent = transcript;
-                            transcriptArea.scrollTop = transcriptArea.scrollHeight;
-                            
-                        } else if (message.type === 'SettingsApplied') {
-                            log("⚙️ Voice Agent configured successfully");
-                        } else if (message.type === 'UserStartedSpeaking') {
-                            log("🗣️ User speaking detected");
-                        } else if (message.type === 'AgentThinking') {
-                            log("🤔 Agent processing...");
-                        } else if (message.type === 'Welcome') {
-                            log("👋 Agent ready");
-                        } else if (message.type === 'AgentAudioDone') {
-                            log('📡 AgentAudioDone');
-                            ttsStreamActive = false;
-                            
-                            if (ttsChunkCount > 0) {
-                                const durationMs = (ttsTotalBytes / 2 / TTS_RATE * 1000).toFixed(0);
-                                log(`🎵 TTS final: ${ttsChunkCount} chunks, ${(ttsTotalBytes / 1024).toFixed(1)}KB (${durationMs}ms audio)`);
-                                ttsChunkCount = 0;
-                                ttsTotalBytes = 0;
-                            }
-                        } else {
-                            if (message.type === 'Warning' || message.type === 'Error') {
-                                log(`⚠️ ${message.type}: ${JSON.stringify(message)}`);
-                            } else {
-                                log(`📡 ${message.type}`);
-                            }
+                        prompt: "You are a helpful AI assistant. Keep responses natural, conversational, and brief. Speak as if you're having a friendly conversation."
+                    },
+                    speak: {
+                        provider: {
+                            type: "deepgram",
+                            model: "aura-2-asteria-en"
                         }
-                    } else {
-                        const dataSize = event.data.byteLength || event.data.size || 0;
-                        
-                        if (dataSize > 0) {
-                            ttsChunkCount++;
-                            ttsTotalBytes += dataSize;
-                            const now = Date.now();
-                            
-                            if (!ttsStreamActive) {
-                                ttsStreamActive = true;
-                                lastTTSLogTime = now;
-                                log(`🔊 TTS stream started`);
-                            }
-                            
-                            if (now - lastTTSLogTime >= TTS_LOG_INTERVAL) {
-                                const durationMs = (ttsTotalBytes / 2 / TTS_RATE * 1000).toFixed(0);
-                                log(`🎵 TTS: ${ttsChunkCount} chunks, ${(ttsTotalBytes / 1024).toFixed(1)}KB (${durationMs}ms audio)`);
-                                
-                                ttsChunkCount = 0;
-                                ttsTotalBytes = 0;
-                                lastTTSLogTime = now;
-                            }
-                            
-                            playTTS(event.data);
-                        }
-                    }
-                } catch (error) {
-                    log(`❌ Error processing message: ${error}`);
+                    },
+                    greeting: "Hello! I'm your AI assistant. How can I help you today?"
                 }
             };
             
-            voiceAgentWS.onerror = (error) => {
-                log(`🚨 WebSocket error: ${error}`);
-            };
+            log("📤 Sending configuration to Voice Agent");
+            voiceAgentWS.send(JSON.stringify(config));
             
-            voiceAgentWS.onclose = (event) => {
-                log(`🌐 WebSocket closed: ${event.code} ${event.reason}`);
-                cleanup();
-            };
+            initSpeaker();
+            startMicPump();
             
-        } catch (e) {
-            log(`❌ Failed to start session: ${e}`);
+            connected = true;
             connecting = false;
             updateUI();
-        }
+        };
+        
+        voiceAgentWS.onmessage = (event) => {
+            try {
+                if (typeof event.data === 'string') {
+                    const message = JSON.parse(event.data);
+                    
+                    if (message.type === 'ConversationText') {
+                        const text = message.text || '';
+                        const role = message.role || 'unknown';
+                        
+                        if (role === 'user') {
+                            log(`🗣️ User: ${text}`);
+                            processTranscriptMessage(`User: ${text}`);
+                        } else if (role === 'assistant') {
+                            log(`🤖 Agent: ${text}`);
+                        }
+                    } else if (message.type === 'SettingsApplied') {
+                        log("⚙️ Voice Agent configured successfully");
+                    } else if (message.type === 'UserStartedSpeaking') {
+                        log("🗣️ User speaking detected");
+                    } else if (message.type === 'AgentThinking') {
+                        log("🤔 Agent processing...");
+                    } else if (message.type === 'Welcome') {
+                        log("👋 Agent ready");
+                    } else if (message.type === 'AgentAudioDone') {
+                        log('📡 AgentAudioDone');
+                        ttsStreamActive = false;
+                        
+                        if (ttsChunkCount > 0) {
+                            const durationMs = (ttsTotalBytes / 2 / TTS_RATE * 1000).toFixed(0);
+                            log(`🎵 TTS final: ${ttsChunkCount} chunks, ${(ttsTotalBytes / 1024).toFixed(1)}KB (${durationMs}ms audio)`);
+                            ttsChunkCount = 0;
+                            ttsTotalBytes = 0;
+                        }
+                    } else {
+                        if (message.type === 'Warning' || message.type === 'Error') {
+                            log(`⚠️ ${message.type}: ${JSON.stringify(message)}`);
+                        } else {
+                            log(`📡 ${message.type}`);
+                        }
+                    }
+                } else {
+                    const dataSize = event.data.byteLength || event.data.size || 0;
+                    
+                    if (dataSize > 0) {
+                        ttsChunkCount++;
+                        ttsTotalBytes += dataSize;
+                        const now = Date.now();
+                        
+                        if (!ttsStreamActive) {
+                            ttsStreamActive = true;
+                            lastTTSLogTime = now;
+                            log(`🔊 TTS stream started`);
+                        }
+                        
+                        if (now - lastTTSLogTime >= TTS_LOG_INTERVAL) {
+                            const durationMs = (ttsTotalBytes / 2 / TTS_RATE * 1000).toFixed(0);
+                            log(`🎵 TTS: ${ttsChunkCount} chunks, ${(ttsTotalBytes / 1024).toFixed(1)}KB (${durationMs}ms audio)`);
+                            
+                            ttsChunkCount = 0;
+                            ttsTotalBytes = 0;
+                            lastTTSLogTime = now;
+                        }
+                        
+                        playTTS(event.data);
+                    }
+                }
+            } catch (error) {
+                log(`❌ Error processing message: ${error}`);
+            }
+        };
+        
+        voiceAgentWS.onerror = (error) => {
+            log(`🚨 WebSocket error: ${error}`);
+        };
+        
+        voiceAgentWS.onclose = (event) => {
+            log(`🌐 WebSocket closed: ${event.code} ${event.reason}`);
+            cleanup();
+        };
+        
+    } catch (e) {
+        log(`❌ Failed to start session: ${e}`);
+        connecting = false;
+        updateUI();
+    }
+}
+    
+function handlePersonaGenerated(persona) {
+    currentPersona = persona;
+    log(`✅ Persona generated: ${persona.name} (${persona.role}) at ${persona.company}`);
+    
+    // Hide persona generation container
+    document.getElementById('persona-generation-container').style.display = 'none';
+    
+    // Send auto-greeting in persona voice
+    if (voiceAgentWS && voiceAgentWS.readyState === WebSocket.OPEN) {
+        voiceAgentWS.send(JSON.stringify({ text: 'hello?' }));
+    }
+
+    // Show persona banner
+    const banner = document.getElementById('persona-info');
+    if (banner) {
+        banner.textContent = `Speaking with: ${persona.name}, ${persona.role} at ${persona.company}`;
+        banner.style.display = 'block';
+    }
+}
+    
+function handlePersonaError(error) {
+    log(`❌ Persona generation error: ${error}`);
+    alert(`Sorry, there was an error generating your prospect persona. Please try again.\n\nError: ${error}`);
+    personaGenerationStarted = false;
+    document.getElementById('persona-generation-container').style.display = 'none';
+}
+
+function startPersonaGeneration() {
+    if (personaGenerationStarted || currentPersona) return;
+    
+    log("🧙 Starting persona generation process...");
+    personaGenerationStarted = true;
+    
+    // Show persona generation container
+    const container = document.getElementById('persona-generation-container');
+    if (container) {
+        container.style.display = 'block';
     }
     
-    function cleanup() {
-        log("🧹 Cleaning up voice session...");
-        
+    // Render the PersonaGenerationCard React component
+    renderPersonaGenerationComponent();
+}
+
+function cleanup() {
+    try {
         if (micStream) {
-            micStream.getTracks().forEach(t => t.stop());
+            // Stop all tracks
+            micStream.getTracks().forEach(track => {
+                track.stop();
+            });
             micStream = null;
         }
         if (micNode) {
@@ -571,7 +856,7 @@
             voiceAgentWS.close();
             voiceAgentWS = null;
         }
-
+    
         audioChunkCount = 0;
         lastAudioLogTime = 0;
         significantAudioEvents = 0;
@@ -579,40 +864,166 @@
         ttsTotalBytes = 0;
         lastTTSLogTime = 0;
         ttsStreamActive = false;
-
+    
         connected = false;
         connecting = false;
         updateUI();
         
         log("✅ Voice session ended");
+    } catch (error) {
+        console.error("Error during cleanup:", error);
+        // Show user-friendly error
+        alert("There was a problem ending the call. Please refresh the page to ensure all connections are closed properly.");
     }
-    
-    function stopSession() {
-        log("⏹️ Stopping Voice Agent session");
-        cleanup();
-    }
-    
-    function toggleMute() {
-        muted = !muted;
-        log(muted ? '🔇 Microphone muted' : '🔊 Microphone unmuted');
-        updateUI();
-    }
-    
-    document.addEventListener('DOMContentLoaded', function() {
-        log('🚀 Deepgram Voice Agent Demo loaded');
-        log('📋 Ready to start voice session');
-        
-        startBtn.addEventListener('click', startSession);
-        stopBtn.addEventListener('click', stopSession);
-        muteBtn.addEventListener('click', toggleMute);
-        
-        updateUI();
-    });
+}
     
     window.addEventListener('beforeunload', function() {
         if (connected) {
             stopSession();
         }
     });
+    
+    // Handle voice agent messages, including transcripts
+    function processTranscriptMessage(text) {
+        // Check for initial business information messages
+        if (isFirstInteraction && text.includes("tell me about your") && text.includes("business")) {
+            // This is likely the initial greeting asking about business
+            isFirstInteraction = false;
+        }
+        
+        // Look for business description in user's response
+        if (!personaGenerationStarted && !currentPersona && text.includes("User:")) {
+            const userMessage = text.split("User:").pop().trim();
+            
+            // If the user message is substantive (more than 20 characters), assume it's their business description
+            if (userMessage && userMessage.length > 20) {
+                // Extract product/service and target market from user's response
+                // This is a simple heuristic - in production, you'd want more sophisticated parsing
+                userProductInfo = {
+                    product: userMessage.substring(0, 100),  // Use first part as product description
+                    target_market: "businesses" // Default target market
+                };
+                
+                // Start persona generation after a short delay
+                setTimeout(() => {
+                    startPersonaGeneration();
+                }, 1000);
+            }
+        }
+        
+        
+    }
+    
+    // Function to render the React component
+    function renderPersonaGenerationComponent() {
+        const container = document.getElementById('persona-generation-container');
+        if (!container) return;
+        
+        const ProspectCallEventBus = {
+            _handlers: {},
+            _instance: null,
+            getInstance() {
+                if (!this._instance) {
+                    this._instance = this;
+                }
+                return this._instance;
+            },
+            on(event, handler) {
+                if (!this._handlers[event]) {
+                    this._handlers[event] = [];
+                }
+                this._handlers[event].push(handler);
+            },
+            off(event, handler) {
+                if (!this._handlers[event]) return;
+                this._handlers[event] = this._handlers[event].filter(h => h !== handler);
+            },
+            emit(event, data) {
+                if (!this._handlers[event]) return;
+                this._handlers[event].forEach(handler => handler(data));
+            }
+        };
+        
+        // Create a root element
+        const root = document.createElement('div');
+        container.appendChild(root);
+        
+        // Render the component
+        try {
+            // Mock React.createElement and ReactDOM.render for the PersonaGenerationCard
+            const personaGenElement = React.createElement('div', {className: 'persona-generation-card'},
+                React.createElement('div', {className: 'relative h-16 w-16 flex items-center justify-center my-2 mx-auto'},
+                    React.createElement('div', {className: 'absolute inset-0 flex items-center justify-center'},
+                        React.createElement('div', {className: 'h-16 w-16 rounded-full border-2 border-t-red-500 animate-spin'})
+                    ),
+                    React.createElement('div', {className: 'absolute inset-0 flex items-center justify-center'},
+                        React.createElement('span', {className: 'text-red-600'}, '✨')
+                    )
+                ),
+                React.createElement('div', {className: 'text-center w-full max-w-xs mx-auto'},
+                    React.createElement('p', {className: 'text-base font-medium text-gray-800'}, 'Creating your perfect prospect...'),
+                    React.createElement('div', {className: 'w-full bg-gray-100 rounded-full h-1 mt-2'},
+                        React.createElement('div', {id: 'progress-bar', className: 'bg-red-500 h-1 rounded-full transition-all duration-300', style: {width: '0%'}})
+                    )
+                )
+            );
+            
+            // Render to container
+            ReactDOM.render(personaGenElement, root);
+            
+            // Simulate progress updates
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += 2;
+                const progressBar = document.querySelector('#progress-bar');
+                if (progressBar) progressBar.style.width = `${progress}%`;
+                
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    // Generate mock persona after full progress
+                    setTimeout(() => generateMockPersona(), 500);
+                }
+            }, 100);
+            
+            // Mock persona generation
+            function generateMockPersona() {
+                // Create a realistic persona based on userProductInfo
+                const industries = ['Technology', 'Healthcare', 'Finance', 'Manufacturing', 'Retail', 'Education'];
+                const roles = ['Director of Operations', 'Chief Technology Officer', 'VP of Sales', 'Department Head', 'Senior Manager'];
+                const names = ['Alex Johnson', 'Morgan Smith', 'Jordan Williams', 'Taylor Davis', 'Casey Brown'];
+                const companies = ['Innovatech Solutions', 'Global Enterprises', 'Premier Services', 'NextGen Industries', 'Advance Systems'];
+                
+                const industry = industries[Math.floor(Math.random() * industries.length)];
+                const role = roles[Math.floor(Math.random() * roles.length)];
+                const name = names[Math.floor(Math.random() * names.length)];
+                const company = companies[Math.floor(Math.random() * companies.length)];
+                
+                const persona = {
+                    name,
+                    role,
+                    company,
+                    industry,
+                    primary_concern: 'Improving operational efficiency',
+                    business_details: `${company} is a growing business in the ${industry} sector looking to optimize their processes.`,
+                    about_person: `${name} is an experienced professional with over 10 years in the ${industry} industry.`,
+                    pain_points: ['Inefficient operational processes', 'Increasing competition in the market', 'Rising costs and resource constraints'],
+                    decision_factors: ['ROI', 'Implementation timeline', 'Integration with existing systems'],
+                    communication_style: 'Straightforward and data-driven',
+                    company_overview: `${company} specializes in providing solutions for the ${industry} industry with a focus on quality and innovation.`,
+                    recent_milestones: 'Recently expanded operations to new markets',
+                    strategic_priorities: 'Digital transformation and process optimization',
+                    public_challenges: 'Adapting to rapid market changes',
+                    surface_business_info: `A mid-sized company in the ${industry} sector with about 150 employees.`
+                };
+                
+                // Pass the generated persona to the handler
+                handlePersonaGenerated(persona);
+            }
+            
+        } catch (error) {
+            console.error('Error rendering PersonaGenerationCard:', error);
+            handlePersonaError('Failed to render persona generation component');
+        }
+    }
 </script>
 {% endblock %} 

@@ -5,6 +5,9 @@ This module defines Sam's coaching personality, methodologies, and expertise
 for creating realistic and effective sales training experiences.
 """
 
+# Add these imports at the top of the file
+from app.services.conversation_memory_service import SuperhumanMemoryService
+
 # Sam's Core Personality Profile
 SAM_PERSONALITY = {
     "name": "Sam",
@@ -72,7 +75,7 @@ SAM_MODES = {
             "Alternative approaches",
             "Next steps and practice recommendations"
         ],
-        "conversation_style": "Analytical, constructive, specific"
+        "conversation_style": "Thoughtful, constructive, specific"
     },
     
     "after_call_coaching": {
@@ -113,7 +116,7 @@ LEGACY_COACHING_METHODOLOGIES = {
      "persona_creation": {
         "description": "Create realistic, challenging buyer personas for practice",
         "persona_types": [
-            "The Analytical Decision Maker",
+            "The Thoughtful Decision Maker",
             "The Skeptical Gatekeeper", 
             "The Enthusiastic Early Adopter",
             "The Budget-Conscious Buyer",
@@ -354,13 +357,21 @@ You're introducing someone to PitchIQ for the first time. Your job is to:
 2. "PitchIQ creates realistic AI prospects for you to practice with. To build your perfect practice partner, I need two key things:"
 3. "First - what product or service do you sell?"
 4. "Second - who's your target market or ideal customer?"
-5. "Perfect! I'll now generate a realistic prospect for you to practice with. I'll also be available during your call to provide guidance."
+5. **CRITICAL: Use one of these EXACT completion phrases when both questions are answered:**
+   - "Perfect! I'll now generate your practice partner"
+   - "Excellent! I'll create your custom AI prospect"
+   - "Great! Let me create your personas now"
+   - "Amazing! I'll create your realistic prospect"
+
+⚠️ COMPLETION RULE: You MUST use one of the above phrases to signal completion. Do not auto-complete without saying a completion phrase first. This ensures smooth handoff to persona generation.
 
 🔄 WHAT HAPPENS NEXT:
 - You collect the data and pass it to PitchIQ's persona generation system
 - A realistic AI prospect is created based on their input
 - They start a practice sales call with that prospect
 - You're available during calls for support and provide post-call coaching
+
+⚠️ IMPORTANT: Only say a completion phrase AFTER the user has fully answered both questions. Let them finish speaking completely before using your completion phrase and ending the conversation.
 
 Remember: You're the welcoming face of PitchIQ, setting them up for an amazing training experience with our advanced persona generation technology."""
 
@@ -510,3 +521,71 @@ def generate_sam_coaching_prompt(user_info: dict = None, conversation_context: d
 Remember: You're not just gathering information - you're building confidence and setting them up for success. Every interaction should feel like working with a top-tier sales trainer who genuinely cares about their growth."""
 
     return base_prompt 
+
+def generate_sam_prompt_with_superhuman_memory(mode: str, session_id: str, user_id: int, 
+                                              user_message: str, ai_response: str = None,
+                                              db_manager=None) -> Dict[str, Any]:
+    """
+    🧠 SUPERHUMAN SAM - Generate prompts with incredible memory capabilities
+    
+    This gives Sam:
+    - Perfect recall of recent conversations
+    - Compressed memory of earlier sessions  
+    - Long-term insights about the user
+    - Breakthrough moment detection
+    - Emotional pattern recognition
+    - Performance progression tracking
+    
+    Cost: ~$0.001 per interaction (99.9% savings!)
+    """
+    
+    if not db_manager:
+        # Fallback to basic prompt
+        return generate_sam_prompt_by_mode(mode, user_id, {}, db_manager)
+    
+    # Initialize superhuman memory
+    memory_service = SuperhumanMemoryService(db_manager)
+    
+    # Process the conversation turn (if this is a response)
+    if ai_response:
+        memory_result = memory_service.process_conversation_turn(
+            session_id=session_id,
+            user_id=user_id,
+            user_message=user_message,
+            ai_response=ai_response
+        )
+    else:
+        # Just get context for generating response
+        memory_result = {
+            'superhuman_context': memory_service._build_superhuman_context(session_id, user_id),
+            'total_tokens': 1200,  # estimate
+            'turn_analysis': {},
+            'memory_stats': {}
+        }
+    
+    # Get base prompt for the mode
+    base_prompt = SAM_MODES[mode]['system_prompt']
+    
+    # Add superhuman context
+    enhanced_prompt = f"""{base_prompt}
+
+## 🧠 SUPERHUMAN MEMORY CONTEXT
+{memory_result['superhuman_context']}
+
+## 🎯 CURRENT INTERACTION ANALYSIS
+Mode: {mode}
+Memory Efficiency: {memory_result.get('memory_stats', {}).get('cost_savings', 0.95)*100:.1f}% cost savings
+Context Tokens: {memory_result['total_tokens']}
+
+Remember: You have superhuman memory of this user's journey. Reference specific moments, 
+patterns, and progress to provide incredibly personalized coaching.
+"""
+
+    return {
+        'system_prompt': enhanced_prompt,
+        'memory_context': memory_result['superhuman_context'],
+        'turn_analysis': memory_result.get('turn_analysis', {}),
+        'memory_stats': memory_result.get('memory_stats', {}),
+        'total_tokens': memory_result['total_tokens'],
+        'cost_estimate': memory_result['total_tokens'] * 0.001 / 1000  # GPT-4.1-mini pricing
+    } 

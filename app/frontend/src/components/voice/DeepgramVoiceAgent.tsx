@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Mic, MicOff, Phone, PhoneOff, Activity } from "lucide-react";
@@ -48,6 +48,10 @@ interface DeepgramVoiceAgentProps {
   className?: string;
   buttonVariant?: "default" | "outline" | "ghost";
   compact?: boolean; // For smaller UI in chat
+  systemPrompt?: string; // Custom system prompt for the AI
+  userName?: string; // User's name for personalized greeting
+  sessionId?: string; // External session ID for consistent tracking
+  personaName?: string; // For session ID generation if no external ID
 }
 
 export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
@@ -58,7 +62,11 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
   onConversationProgressed,
   className = "",
   buttonVariant = "default",
-  compact = false
+  compact = false,
+  systemPrompt,
+  userName,
+  sessionId: externalSessionId,
+  personaName = "AI Assistant"
 }) => {
   const { toast } = useToast();
   
@@ -88,6 +96,9 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
   
   // Prevent multiple simultaneous sessions
   const sessionActive = useRef<boolean>(false);
+  
+  // Stable session ID tracking
+  const activeSessionId = useRef<string | null>(null);
 
   /* ───────── misc */
   const log = (m: string) => {
@@ -119,20 +130,106 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
     }
   };
 
-  /* ───────── token */
+  /* ───────── utility functions */
+  const generateSessionId = () => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    // Use personaName to make sessions more identifiable and traceable
+    return `${personaName.replace(/\s+/g, '_')}_${timestamp}_${random}`;
+  };
+  
+  // Log WebSocket messages with session ID for debugging
+  const logWebSocketMessage = useCallback((message: any) => {
+    if (!activeSessionId.current) return;
+    
+    try {
+      fetch('/api/log-websocket-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          direction: 'AGENT_INTERNAL',
+          persona: personaName,
+          message: {
+            ...message,
+            _internal_session_id: activeSessionId.current
+          },
+          timestamp: new Date().toISOString()
+        })
+      }).catch(err => {
+        console.error('Failed to log WebSocket message:', err);
+      });
+    } catch (err) {
+      console.error('Error preparing WebSocket log:', err);
+    }
+  }, [personaName]);
+
+  /* ───────── setup */
   useEffect(() => {
-    (async () => {
+    // Initialize the Deepgram client
+    const initDeepgram = async () => {
       try {
-        smartLog('important', "🔧 Fetching DG token …");
-        const res = await fetch("/api/deepgram/token", { credentials: "include" });
-        const { token } = await res.json();
-        dgRef.current = createClient(token);
-        smartLog('important', "✅ SDK ready");
-      } catch (e) {
-        smartLog('important', `❌ token – ${e}`);
+        const response = await fetch('/api/deepgram/token');
+        const data = await response.json();
+        
+        if (!data.key) {
+          smartLog('important', "❌ No Deepgram key found");
+          return;
+        }
+        
+        dgRef.current = createClient(data.key);
+        smartLog('important', "✅ Deepgram client created");
+      } catch (error) {
+        smartLog('important', `❌ Deepgram init error: ${error}`);
       }
-    })();
-  }, []);
+    };
+
+    initDeepgram();
+    
+    // Use external session ID if provided, or generate one
+    if (externalSessionId) {
+      // If we already had a different session ID, log the change
+      if (activeSessionId.current && activeSessionId.current !== externalSessionId) {
+        smartLog('important', `⚠️ Switching session IDs from ${activeSessionId.current} to ${externalSessionId}`);
+        
+        // Log the session ID change event
+        fetch('/api/call-metrics', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'SESSION_ID_CHANGED',
+            oldSessionId: activeSessionId.current,
+            newSessionId: externalSessionId,
+            persona: personaName,
+            timestamp: new Date().toISOString()
+          })
+        }).catch(() => {});
+      }
+      
+      activeSessionId.current = externalSessionId;
+      smartLog('important', `📋 Using external session ID: ${externalSessionId}`);
+    }
+    
+    // Add window beforeunload listener to ensure cleanup
+    const handleBeforeUnload = () => {
+      if (activeSessionId.current && sessionActive.current) {
+        smartLog('important', `🚨 Page closing - cleaning up session ${activeSessionId.current}`);
+        stopSession();
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      // Ensure cleanup happens when component unmounts
+      if (activeSessionId.current) {
+        smartLog('important', `🧹 Cleaning up session ${activeSessionId.current} on unmount`);
+        cleanup();
+      }
+      
+      // Remove beforeunload listener
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [externalSessionId, personaName]);
 
   /* ───────── session */
   const startSession = async () => {
@@ -144,6 +241,12 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
     if (!dgRef.current) {
       smartLog('important', "🚫 Deepgram SDK not ready yet");
       return;
+    }
+    
+    // Generate new session ID if not provided externally
+    if (!activeSessionId.current) {
+      activeSessionId.current = generateSessionId();
+      smartLog('important', `🔑 Generated new session ID: ${activeSessionId.current}`);
     }
     
     // Mark session as active
@@ -184,8 +287,17 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
       agentRef.current = dgRef.current.agent();
       const a = agentRef.current;
 
+      const currentSessionId = activeSessionId.current;
+      
+      // Log connection attempt with session ID
+      smartLog('important', `🔌 Establishing Deepgram connection with session ID: ${currentSessionId}`);
+      logWebSocketMessage({ 
+        type: 'ConnectionAttempt', 
+        sessionId: currentSessionId 
+      });
+      
       a.on(AgentEvents.Open, () => {
-        smartLog('important', "🌐 WS open → settings");
+        smartLog('important', `🌐 WS open for session ${currentSessionId} → sending settings`);
         a.configure(buildSettings());
         smartLog('important', "✅ Settings sent - waiting for SettingsApplied...");
         
@@ -210,8 +322,20 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
       });
 
       a.on(AgentEvents.SettingsApplied, () => {
-        smartLog('important', "✅ Settings ACK - starting mic");
-        startMicPump();
+        // Verify session ID hasn't changed during setup
+        if (!activeSessionId.current) {
+          smartLog('important', "❌ Session ID missing during setup, aborting");
+          cleanup();
+          return;
+        }
+        
+        smartLog('important', `✅ Settings applied for session ${activeSessionId.current}`);
+        a.start();
+        setConnected(true);
+        setConnecting(false);
+        onConnectionChange?.(true, stopSession);
+        
+        smartLog('important', "✅ Agent ready");
       });
 
       a.on(AgentEvents.UserStartedSpeaking, () => {
@@ -280,40 +404,108 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
   };
 
   /* ───────── settings */
-  const buildSettings = () => ({
-    audio: {
-      input: {
-        encoding: "linear16",
-        sample_rate: 48000,
-      },
-      output: {
-        encoding: "linear16",
-        sample_rate: 48000,
-      },
-    },
-    agent: {
-      language: "en",
-      listen: {
-        provider: {
-          type: "deepgram",
-          model: "nova-2",
+  const buildSettings = () => {
+    console.error('🚨🚨🚨 DEEPGRAM BUILDSETTINGS CALLED 🚨🚨🚨');
+    console.error('🔍 DEBUG: buildSettings called with systemPrompt:', systemPrompt ? 'EXISTS' : 'MISSING');
+    console.error('🔍 DEBUG: systemPrompt type:', typeof systemPrompt);
+    console.error('🔍 DEBUG: systemPrompt length:', systemPrompt?.length || 0);
+    
+    const settings: any = {
+      audio: {
+        input: {
+          encoding: "linear16",
+          sample_rate: MIC_RATE,
+        },
+        output: {
+          encoding: "linear16",
+          sample_rate: TTS_RATE,
+          container: "none",
         },
       },
-      think: {
-        provider: {
-          type: "open_ai",
-          model: "gpt-4o-mini",
+      agent: {
+        language: "en",
+        listen: {
+          provider: {
+            type: "deepgram",
+            model: "nova-2",
+          },
+        },
+        think: {
+          provider: {
+            type: "open_ai",
+            model: "gpt-4o-mini",
+          },
+          // We'll conditionally add system_prompt below
+        },
+        speak: {
+          provider: {
+            type: "deepgram",
+            model: "aura-2-asteria-en",
+          },
         },
       },
-      speak: {
-        provider: {
-          type: "deepgram",
-          model: "aura-2-asteria-en",
-        },
-      },
-    },
-    experimental: false,
-  });
+      experimental: false,
+    };
+    
+    // CRITICAL FIX: Only add system_prompt if it's actually a string value
+    // This prevents sending 'undefined' which causes the UNPARSABLE_CLIENT_MESSAGE error
+    console.log('🔍 DEBUG: About to check systemPrompt condition...');
+    console.log('🔍 DEBUG: systemPrompt value preview:', systemPrompt?.substring(0, 100));
+    if (typeof systemPrompt === 'string' && systemPrompt.trim().length > 0) {
+      console.log('🔍 DEBUG: systemPrompt condition passed - processing greeting...');
+      // @ts-ignore - TypeScript doesn't recognize the dynamic property addition
+      settings.agent.think.system_prompt = systemPrompt;
+
+      /*
+       * Deepgram allows an optional `greeting` field to make the agent speak
+       * automatically as soon as the connection is ready. We want Sam to ask
+       * the initial product/service question right away, so we derive a
+       * greeting sentence from the first non-empty line of the systemPrompt.
+       */
+      const lines = systemPrompt.split("\n");
+      let collecting = false;
+      const collected: string[] = [];
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!collecting) {
+          if (/greeting/i.test(line)) {
+            collecting = true; // start after the GREETING label itself
+            continue;
+          }
+        } else {
+          // Stop collecting on blank line or next section heading (starts with emoji, bullet, or digit.)
+          if (line === '' || /^[\d]+\./.test(line) || /^[^a-z0-9]/i.test(line)) {
+            break;
+          }
+          collected.push(line);
+        }
+      }
+      let greetingText = collected.join(' ').trim();
+      console.log('🔍 DEBUG: Collected greeting lines:', collected);
+      console.log('🔍 DEBUG: Joined greeting text:', greetingText);
+      
+      if (!greetingText) {
+        greetingText = lines.find(l => l.trim().length > 0)?.trim() || '';
+        console.log('🔍 DEBUG: Fallback greeting text:', greetingText);
+      }
+      greetingText = greetingText.replace(/^[^A-Za-z0-9]+/u, '');
+      console.log('🔍 DEBUG: Final greeting text:', greetingText, 'Length:', greetingText.length);
+      
+      if (greetingText.length > 0) {
+        // @ts-ignore
+        settings.agent.greeting = greetingText;
+        // Force Deepgram to speak this greeting verbatim instead of letting the LLM decide
+        // See https://developers.deepgram.com/docs/agent-settings#greeting
+        // @ts-ignore
+        settings.agent.first_interaction = "agent";
+        console.log('🔍 DEBUG: Settings with greeting:', JSON.stringify({greeting: settings.agent.greeting, first_interaction: settings.agent.first_interaction}, null, 2));
+      } else {
+        console.log('🔍 DEBUG: No greeting text found - using default behavior');
+      }
+    }
+    
+    return settings;
+  };
 
   /* ───────── mic pump */
   const startMicPump = async () => {
@@ -436,7 +628,8 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
 
   /* ───────── cleanup */
   const cleanup = () => {
-    smartLog('important', "🧹 Cleaning up voice session...");
+    const currentSessionId = activeSessionId.current;
+    smartLog('important', `🧹 Starting cleanup for session ${currentSessionId || 'unknown'}`);
     
     // Stop microphone stream
     if (micStream.current) {
@@ -488,18 +681,67 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
     // Clear agent reference
     agentRef.current = null;
     
-    // Reset session flag
+    // Reset session flags
     sessionActive.current = false;
+    
+    // Log that we're clearing the session ID
+    if (activeSessionId.current) {
+      smartLog('important', `🗑️ Clearing session ID: ${activeSessionId.current}`);
+      activeSessionId.current = null;
+    }
     
     smartLog('important', "✅ Cleanup completed");
   };
 
   const stopSession = () => {
-    smartLog('important', "⏹️ Stopping session");
+    const currentSessionId = activeSessionId.current;
+    smartLog('important', `⏹️ Stopping session ${currentSessionId || 'unknown'}`);
     if (agentRef.current) {
-      agentRef.current.finish?.();
-      agentRef.current.close?.();
-      agentRef.current = null;
+      try {
+        // Send explicit termination message with session ID
+        if (currentSessionId) {
+          // Create a termination message with the session ID
+          const terminationMessage = { 
+            type: 'Terminate', 
+            reason: 'USER_REQUESTED_STOP',
+            _internal_session_id: currentSessionId,
+            timestamp: new Date().toISOString()
+          };
+          
+          // Log termination with session ID to improve tracking
+          fetch('/api/log-websocket-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              direction: 'SENT',
+              persona: personaName,
+              message: terminationMessage,
+              timestamp: new Date().toISOString()
+            })
+          }).catch((error) => {
+            smartLog('important', `⚠️ Failed to log termination message: ${error}`);
+          });
+          
+          // Also log to call metrics endpoint for better tracking
+          fetch('/api/call-metrics', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'SESSION_TERMINATED',
+              sessionId: currentSessionId,
+              persona: personaName,
+              metadata: terminationMessage
+            })
+          }).catch((error) => {
+            smartLog('important', `⚠️ Failed to log termination to call metrics: ${error}`);
+          });
+        }
+        agentRef.current.finish?.();
+        agentRef.current.close?.();
+        agentRef.current = null;
+      } catch (error) {
+        smartLog('important', `❌ Error during session termination: ${error}`);
+      }
     }
     cleanup();
     
@@ -522,9 +764,34 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
     smartLog('important', muted ? "🔊 Unmuted" : "🔇 Muted");
   };
 
-  // Cleanup on unmount
+  // Handle WebSocket errors more robustly
   useEffect(() => {
+    const handleWebSocketError = (event: Event) => {
+      if (event instanceof CloseEvent && activeSessionId.current) {
+        smartLog('important', `🔌 WebSocket closed unexpectedly for session ${activeSessionId.current}`);
+        fetch('/api/log-websocket-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            direction: 'ERROR',
+            persona: personaName,
+            message: { 
+              type: 'WebSocketClosed', 
+              code: event.code, 
+              reason: event.reason,
+              _internal_session_id: activeSessionId.current 
+            },
+            timestamp: new Date().toISOString()
+          })
+        }).catch(err => console.warn('Failed to log WS error:', err));
+      }
+    };
+    
+    // Listen for global WebSocket errors
+    window.addEventListener('websocketerror', handleWebSocketError);
+    
     return () => {
+      window.removeEventListener('websocketerror', handleWebSocketError);
       cleanup();
     };
   }, []);

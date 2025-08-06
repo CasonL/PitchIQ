@@ -339,10 +339,44 @@ def get_deepgram_token():
 
         key_options = {
             "comment": f"Temporary key for user {current_user.id}",
-            "scopes": ["usage:write"],
+            "scopes": ["usage:write", "agent:*"],
             "time_to_live_in_seconds": 600  # 10 minutes
         }
         
+        # ensure multiple voice agents exist (coach and prospect personas)
+        try:
+            import requests
+            api_base = "https://api.deepgram.com/v1"
+            headers = {"Authorization": f"token {current_app.config['DEEPGRAM_API_KEY']}", "Content-Type": "application/json"}
+            
+            # Define all required agents
+            required_agents = [
+                {"agent_id": "sam-coach", "name": "Sam Coach", "version": "1.0", "languages": ["en-US"]},
+                {"agent_id": "prospect-male", "name": "Male Prospect", "version": "1.0", "languages": ["en-US"]},
+                {"agent_id": "prospect-female", "name": "Female Prospect", "version": "1.0", "languages": ["en-US"]}
+            ]
+            
+            # list existing agents
+            list_resp = requests.get(f"{api_base}/projects/{project_id}/agents", headers=headers, timeout=10)
+            if list_resp.ok:
+                agents = list_resp.json().get("data", [] ) or list_resp.json().get("agents", [])
+                
+                # Create any missing agents
+                for agent_config in required_agents:
+                    agent_id = agent_config["agent_id"]
+                    if not any(a.get("agent_id") == agent_id for a in agents):
+                        logger.info(f"Creating new Deepgram agent: {agent_id}")
+                        create_body = {"agent_id": agent_id, "version": "1.0", "languages": ["en-US"]}
+                        create_resp = requests.post(f"{api_base}/projects/{project_id}/agents", headers=headers, json=create_body, timeout=10)
+                        if create_resp.ok:
+                            logger.info(f"Successfully created agent: {agent_id}")
+                        else:
+                            logger.warning(f"Failed to create agent {agent_id} - status {create_resp.status_code}")
+            else:
+                logger.warning("Could not list voice agents – status %s", list_resp.status_code)
+        except Exception as e_inner:
+            logger.exception("Error ensuring Deepgram voice agent exists: %s", e_inner)
+
         response = deepgram_client.manage.v("1").projects.create_key(project_id, key_options)
         
         logger.info(f"Successfully created temporary Deepgram key for user {current_user.id}")

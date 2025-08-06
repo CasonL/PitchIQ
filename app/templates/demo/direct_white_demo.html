@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pure White Voice Agent Demo</title>
+    
+    <style>
+        /* Reset all backgrounds to white */
+        * {
+            background-color: white !important;
+            background: white !important;
+        }
+        
+        body {
+            background-color: white !important;
+            background: white !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #212529;
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white !important;
+        }
+        
+        /* Voice Demo Specific Styles (with white backgrounds) */
+        .demo-header {
+            margin-bottom: 30px;
+            background-color: white !important;
+        }
+        
+        .voice-controls {
+            margin: 20px 0;
+            text-align: center;
+            background-color: white !important;
+        }
+        
+        .transcript-area {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 20px;
+            min-height: 300px;
+            margin-bottom: 20px;
+            background-color: white !important;
+        }
+        
+        .system-log {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+            background-color: white !important;
+        }
+        
+        .status-indicators {
+            margin-bottom: 20px;
+            background-color: white !important;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-right: 10px;
+            border: 1px solid #dee2e6;
+            background-color: white !important;
+        }
+        
+        .about-section {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 20px;
+            background-color: white !important;
+        }
+        
+        /* Button styles */
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            text-align: center;
+            vertical-align: middle;
+            border: 1px solid transparent;
+            margin: 0 5px;
+        }
+        
+        .btn-primary {
+            color: white;
+            background-color: #0d6efd !important;
+            border-color: #0d6efd;
+        }
+        
+        .btn-danger {
+            color: white;
+            background-color: #dc3545 !important;
+            border-color: #dc3545;
+        }
+        
+        /* Grid system */
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            margin-right: -15px;
+            margin-left: -15px;
+            background-color: white !important;
+        }
+        
+        .col-8 {
+            flex: 0 0 66.666667%;
+            max-width: 66.666667%;
+            padding-right: 15px;
+            padding-left: 15px;
+            background-color: white !important;
+        }
+        
+        .col-4 {
+            flex: 0 0 33.333333%;
+            max-width: 33.333333%;
+            padding-right: 15px;
+            padding-left: 15px;
+            background-color: white !important;
+        }
+        
+        /* Responsive adjustment */
+        @media (max-width: 768px) {
+            .col-8, .col-4 {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+        }
+    </style>
+    
+    <!-- Special white background enforcement -->
+    <script>
+        // Override createElement to force white backgrounds
+        const originalCreateElement = document.createElement;
+        document.createElement = function(tagName) {
+            const element = originalCreateElement.call(document, tagName);
+            if (element.style) {
+                element.style.backgroundColor = 'white';
+                element.style.background = 'white';
+            }
+            return element;
+        };
+    </script>
+</head>
+<body>
+    <!-- Pure white background container -->
+    <div class="container" style="background-color: white !important;">
+        <div class="demo-header" style="background-color: white !important;">
+            <h1>Deepgram Voice Agent Demo</h1>
+            <p>A demonstration of real-time voice agent capabilities with pure white background.</p>
+        </div>
+        
+        <div class="row" style="background-color: white !important;">
+            <div class="col-8" style="background-color: white !important;">
+                <div class="voice-controls" style="background-color: white !important;">
+                    <button id="startButton" class="btn btn-primary">Start Voice Session</button>
+                    <button id="stopButton" class="btn btn-danger" disabled>End Session</button>
+                </div>
+                
+                <div class="status-indicators" style="background-color: white !important;">
+                    <span id="connectionBadge" class="status-badge" style="background-color: white !important;">
+                        Connection: <span id="connectionStatus">Not Connected</span>
+                    </span>
+                    <span id="micBadge" class="status-badge" style="background-color: white !important;">
+                        Microphone: <span id="micStatus">Off</span>
+                    </span>
+                    <span id="speakerBadge" class="status-badge" style="background-color: white !important;">
+                        Speaker: <span id="speakerStatus">Off</span>
+                    </span>
+                </div>
+                
+                <div id="transcriptDisplay" class="transcript-area" style="background-color: white !important;">
+                    <p class="text-center">Your conversation transcript will appear here.</p>
+                </div>
+            </div>
+            
+            <div class="col-4" style="background-color: white !important;">
+                <div id="systemLog" class="system-log" style="background-color: white !important;">
+                    <p>System log initialized...</p>
+                </div>
+                
+                <div class="about-section" style="background-color: white !important;">
+                    <h4>About this Demo</h4>
+                    <p>This demo showcases the Deepgram Voice Agent API in a pure white background environment.</p>
+                    <p>Click "Start Voice Session" to begin a conversation with the AI voice agent.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Load React libraries (for actual implementation)
+        function loadScript(src, onLoad) {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = onLoad;
+            document.head.appendChild(script);
+        }
+        
+        // Load our scripts sequentially
+        loadScript("https://unpkg.com/react@17/umd/react.development.js", function() {
+            loadScript("https://unpkg.com/react-dom@17/umd/react-dom.development.js", function() {
+                // Monkey patch React DOM to force white backgrounds
+                if (window.ReactDOM) {
+                    const originalRender = ReactDOM.render;
+                    ReactDOM.render = function(element, container, callback) {
+                        if (container) {
+                            container.style.backgroundColor = 'white';
+                            container.style.background = 'white';
+                        }
+                        const result = originalRender.call(this, element, container, callback);
+                        
+                        // Force white backgrounds after render
+                        setTimeout(function() {
+                            forceWhiteBackgrounds();
+                        }, 0);
+                        
+                        return result;
+                    };
+                    
+                    console.log("ReactDOM patched to force white backgrounds");
+                }
+                
+                // Now load your actual application script
+                loadScript("{{ url_for('static', filename='js/force-white-background.js') }}", function() {
+                    console.log("All scripts loaded");
+                    
+                    // Initialize demo functionality
+                    initDemo();
+                });
+            });
+        });
+        
+        // Demo initialization
+        function initDemo() {
+            // Simple logging function
+            function log(message) {
+                const logElement = document.getElementById('systemLog');
+                const entry = document.createElement('p');
+                entry.innerHTML = `<small>${new Date().toLocaleTimeString()}</small> ${message}`;
+                logElement.appendChild(entry);
+                logElement.scrollTop = logElement.scrollHeight;
+            }
+            
+            // UI update function
+            function updateUI(connected) {
+                document.getElementById('startButton').disabled = connected;
+                document.getElementById('stopButton').disabled = !connected;
+                
+                document.getElementById('connectionStatus').textContent = connected ? 'Connected' : 'Not Connected';
+                document.getElementById('micStatus').textContent = connected ? 'Active' : 'Off';
+                document.getElementById('speakerStatus').textContent = connected ? 'Active' : 'Off';
+            }
+            
+            // Force white backgrounds
+            function forceWhiteBackgrounds() {
+                document.querySelectorAll('*').forEach(el => {
+                    if (el.tagName !== 'BUTTON') { // Don't change button colors
+                        el.style.backgroundColor = 'white';
+                        el.style.background = 'white';
+                    }
+                });
+            }
+            
+            // Start button functionality
+            document.getElementById('startButton').addEventListener('click', function() {
+                log("🎙️ Starting voice session...");
+                
+                // Simulate connection process
+                setTimeout(() => {
+                    log("🔌 Connecting to voice agent server...");
+                    
+                    setTimeout(() => {
+                        log("✅ Connection established!");
+                        updateUI(true);
+                        
+                        // Force white backgrounds again after UI update
+                        forceWhiteBackgrounds();
+                        
+                        // Mock conversation
+                        const transcriptDisplay = document.getElementById('transcriptDisplay');
+                        
+                        setTimeout(() => {
+                            transcriptDisplay.innerHTML = '<p><strong>You:</strong> Hello, how can I help you today?</p>';
+                            log("🗣️ User speech detected");
+                            
+                            setTimeout(() => {
+                                transcriptDisplay.innerHTML += '<p><strong>Agent:</strong> Hi there! I\'m an AI voice assistant. I can answer questions, provide information, or just chat. What would you like to talk about today?</p>';
+                                log("🔊 Agent response received");
+                                
+                                // Force white backgrounds again
+                                forceWhiteBackgrounds();
+                            }, 2000);
+                        }, 1500);
+                    }, 1000);
+                }, 500);
+            });
+            
+            // Stop button functionality
+            document.getElementById('stopButton').addEventListener('click', function() {
+                log("🛑 Stopping voice session...");
+                
+                setTimeout(() => {
+                    log("🧹 Cleaning up resources...");
+                    
+                    setTimeout(() => {
+                        log("👋 Session ended");
+                        updateUI(false);
+                        
+                        // Force white backgrounds again after UI update
+                        forceWhiteBackgrounds();
+                    }, 500);
+                }, 500);
+            });
+            
+            log("🚀 Voice agent demo initialized");
+            
+            // Run white background enforcement now and periodically
+            forceWhiteBackgrounds();
+            setInterval(forceWhiteBackgrounds, 1000);
+        }
+    </script>
+</body>
+</html>

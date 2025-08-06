@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # This is a temporary solution for demo purposes
 # In production, these would be stored in a database
 voice_conversations = {}
-voice_phase_managers = {}
+
 
 @voice.route('/chat')
 @login_required
@@ -283,11 +283,14 @@ def voice_roleplay_api():
         if user_conv_key not in voice_conversations:
             voice_conversations[user_conv_key] = {}
             
-        # Get or create a phase manager for this conversation
-        if conversation_id not in voice_phase_managers:
-            voice_phase_managers[conversation_id] = ConversationStateManager()
-            
-        phase_manager = voice_phase_managers[conversation_id]
+        # Use shared GPT service phase_managers store
+        gpt_service = get_gpt4o_service()
+        if not gpt_service:
+            logger.error("Could not initialize GPT4o service")
+            return jsonify({'error': 'AI service unavailable'}), 500
+        if conversation_id not in gpt_service.phase_managers:
+            gpt_service.phase_managers[conversation_id] = ConversationStateManager()
+        phase_manager = gpt_service.phase_managers[conversation_id]
         
         # Get the gpt4o service for persona generation and responses
         gpt4o_service = get_gpt4o_service()
@@ -325,7 +328,7 @@ def voice_roleplay_api():
                     "company": company_match.group(1).strip() if company_match else "Acme Corporation",
                     "description": persona_text,
                     "personality_traits": {
-                        "analytical": random.randint(3, 9),
+                        "thoughtful": random.randint(3, 9),
                         "professional": random.randint(5, 9),
                         "direct": random.randint(3, 8),
                         "skeptical": random.randint(3, 8)
@@ -354,13 +357,26 @@ IMPORTANT BEHAVIOR GUIDELINES:
                 voice_conversations[user_conv_key][persona_dict_key] = persona_dict
             except Exception as e:
                 logger.error(f"Error generating persona: {str(e)}")
-                # Fallback to default persona if generation fails
+                # Use diverse fallback persona if generation fails
+                from app.services.demographic_names import DemographicNameService
+                try:
+                    # Generate diverse name instead of hardcoded "Sarah Johnson"
+                    first_name, last_name = DemographicNameService.get_name_by_demographics("mixed_american", random.choice(["male", "female"]))
+                    fallback_name = f"{first_name} {last_name}"
+                    fallback_role = random.choice(["Marketing Director", "Sales Manager", "Operations Director", "Business Development Manager"])
+                    fallback_company = random.choice(["TechSolutions Inc.", "InnovateCorps", "BusinessFirst LLC", "ProActive Systems"])
+                except Exception as name_error:
+                    logger.error(f"Error generating diverse name: {str(name_error)}")
+                    fallback_name = "Alex Morgan"
+                    fallback_role = "Business Manager"
+                    fallback_company = "TechSolutions Inc."
+                
                 voice_conversations[user_conv_key][persona_dict_key] = {
-                    "name": "Sarah Johnson",
-                    "role": "Marketing Director",
-                    "company": "TechSolutions Inc.",
-                    "description": "Experienced marketing professional looking for sales training software to upskill her team.",
-                    "personality_traits": {"analytical": 7, "professional": 7, "direct": 6, "skeptical": 5},
+                    "name": fallback_name,
+                    "role": fallback_role,
+                    "company": fallback_company,
+                    "description": f"Experienced {fallback_role.lower()} looking for sales training software to upskill their team.",
+                    "personality_traits": {"thoughtful": 7, "professional": 7, "direct": 6, "skeptical": 5},
                     "emotional_state": "neutral",
                     "business_context": "B2B",
                     "decision_authority": "Decision Maker",
@@ -654,7 +670,7 @@ PERSONALITY:
 - Conversational but focused
 - Encouraging yet honest
 - Empathetic to sales challenges
-- Analytical about performance
+- Thoughtful about performance
 - Enthusiastic about improvement
 
 Avoid generic platitudes or overly theoretical advice - focus on practical, proven techniques that work in real sales situations."""
@@ -785,4 +801,95 @@ def voice_text_to_speech():
         })
     except Exception as e:
         logger.error(f"Error in text-to-speech API: {str(e)}")
-        return jsonify({'error': str(e)}), 500 
+        return jsonify({'error': str(e)}), 500
+
+
+@voice.route('/api/phase-update', methods=['POST'])
+@login_required
+def phase_update():
+    """Update conversation phase based on latest user utterance and return new prompt if phase changed."""
+    try:
+        data = request.get_json() or {}
+        conversation_id = data.get('conversation_id')
+        utterance = data.get('utterance', '')
+        persona = data.get('persona', 'Prospect')
+        sales_info = data.get('sales_info', {})
+        user_name = data.get('user_name', current_user.email if hasattr(current_user, 'email') else 'Seller')
+
+        if not conversation_id:
+            return jsonify({'error': 'conversation_id required'}), 400
+
+        gpt_service = get_gpt4o_service()
+        # Ensure singleton exists
+        if not gpt_service:
+            return jsonify({'error': 'AI service unavailable'}), 500
+
+        if conversation_id not in gpt_service.phase_managers:
+            gpt_service.phase_managers[conversation_id] = ConversationStateManager()
+        phase_manager = gpt_service.phase_managers[conversation_id]
+
+        phase_changed = phase_manager.update_phase(utterance)
+        current_phase = phase_manager.current_state.get('likely_phase', ConversationPhase.RAPPORT)
+        # --- Persona handling ---
+        # Attach a simple persona cache on the service
+        if not hasattr(gpt_service, 'personas'):
+            gpt_service.personas = {}
+
+        # Generate persona lazily if not cached
+        if conversation_id not in gpt_service.personas:
+            try:
+                # If caller sent persona dict/string use it; else autogenerate very lightweight placeholder
+                provided_persona = None
+                if isinstance(persona, dict):
+                    provided_persona = persona
+                elif isinstance(persona, str) and persona.strip() and persona.strip().upper() != 'AUTO':
+                    provided_persona = {"name": persona.strip(), "role": "Prospect"}
+
+                # Auto-generate rich persona if requested (persona == 'AUTO' or not provided)
+                if not provided_persona:
+                    try:
+                        sales_info_context = {
+                            "product_service": sales_info.get("product_service", "sales solution"),
+                            "industry": sales_info.get("industry", "Software"),
+                            "sales_experience": sales_info.get("sales_experience", "experienced"),
+                        }
+                        logger.info(f"Auto-generating persona for {conversation_id}")
+                        persona_json_str = gpt_service.generate_customer_persona(sales_info_context)
+                        # Parse JSON safely
+                        try:
+                            provided_persona = json.loads(persona_json_str)
+                        except Exception:
+                            # Fallback treat string as description
+                            provided_persona = {"name": "Prospect", "role": "Prospective Customer", "description": persona_json_str}
+                    except Exception as e:
+                        logger.error(f"Persona generation failed: {e}")
+                        provided_persona = {"name": "Prospect", "role": "Prospective Customer"}
+                if not provided_persona and isinstance(persona, str) and persona.strip():
+                    provided_persona = {"name": persona.strip(), "role": "Prospect"}
+
+                if not provided_persona:
+                    # Minimal placeholder without hitting API
+                    provided_persona = {"name": "Prospect", "role": "Prospective Customer"}
+                gpt_service.personas[conversation_id] = provided_persona
+            except Exception as e:
+                logger.error(f"Persona caching error: {e}")
+                gpt_service.personas[conversation_id] = {"name": "Prospect"}
+        persona_dict = gpt_service.personas[conversation_id]
+
+        # Build prompt using GPT service helper (single source of truth)
+        user_info = {"salesperson_name": user_name}
+        prompt = gpt_service._create_roleplay_system_prompt(
+            persona_dict,
+            user_info,
+            phase_manager.current_state
+        )
+
+        return jsonify({
+            'conversation_id': conversation_id,
+            'phase': current_phase.value if hasattr(current_phase, 'value') else str(current_phase),
+            'phase_changed': phase_changed,
+            'prompt': prompt
+        })
+    except Exception as e:
+        logger.error(f"phase_update error: {e}")
+        return jsonify({'error': 'internal server error'}), 500 

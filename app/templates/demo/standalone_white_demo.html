@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Agent Demo</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- React -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+    
+    <!-- Absolutely force white background -->
+    <style>
+        * {
+            background-color: white !important;
+            background-image: none !important;
+            background: white !important;
+        }
+        
+        html, body {
+            background-color: white !important;
+            background-image: none !important;
+            background: white !important;
+        }
+        
+        .container, .container-fluid, .row, .col, div {
+            background-color: white !important;
+            background-image: none !important;
+            background: white !important;
+        }
+        
+        /* Remove any background colors from Bootstrap components */
+        .bg-light, .bg-white, .bg-gray-100, .bg-gray-200 {
+            background-color: white !important;
+            background-image: none !important;
+            background: white !important;
+        }
+        
+        /* Voice UI specific styles */
+        .transcript-display, .system-log, .status-badge {
+            background-color: white !important;
+            background-image: none !important;
+            background: white !important;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .voice-controls {
+            margin: 20px 0;
+        }
+        
+        .system-log {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        
+        .status-green {
+            background-color: #28a745 !important;
+        }
+        
+        .status-red {
+            background-color: #dc3545 !important;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            margin-right: 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body style="background-color: white !important;">
+    <div class="container py-5" style="background-color: white !important;">
+        <h1 class="mb-4">Deepgram Voice Agent Demo</h1>
+        
+        <div class="row" style="background-color: white !important;">
+            <div class="col-md-8" style="background-color: white !important;">
+                <div class="card" style="background-color: white !important;">
+                    <div class="card-header" style="background-color: white !important;">
+                        <h5>Voice Conversation</h5>
+                    </div>
+                    <div class="card-body" style="background-color: white !important;">
+                        <div class="voice-controls text-center mb-4">
+                            <button id="startButton" class="btn btn-primary me-2">
+                                <i class="fas fa-microphone me-2"></i>Start Voice Session
+                            </button>
+                            <button id="stopButton" class="btn btn-danger" disabled>
+                                <i class="fas fa-stop me-2"></i>End Session
+                            </button>
+                        </div>
+                        
+                        <div class="status-indicators mb-3">
+                            <span class="status-badge" id="connectionBadge" style="background-color: white !important;">
+                                <i class="fas fa-plug me-1"></i>
+                                <span id="connectionStatus">Not Connected</span>
+                            </span>
+                            <span class="status-badge" id="micBadge" style="background-color: white !important;">
+                                <i class="fas fa-microphone me-1"></i>
+                                <span id="micStatus">Microphone Off</span>
+                            </span>
+                            <span class="status-badge" id="speakerBadge" style="background-color: white !important;">
+                                <i class="fas fa-volume-up me-1"></i>
+                                <span id="speakerStatus">Speaker Off</span>
+                            </span>
+                        </div>
+                        
+                        <div class="transcript-display p-3 mb-4" id="transcriptDisplay" style="background-color: white !important; min-height: 200px; border: 1px solid #dee2e6;">
+                            <div class="text-center text-muted">Conversation transcript will appear here.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4" style="background-color: white !important;">
+                <div class="card mb-4" style="background-color: white !important;">
+                    <div class="card-header" style="background-color: white !important;">
+                        <h5>System Log</h5>
+                    </div>
+                    <div class="card-body p-0" style="background-color: white !important;">
+                        <div class="system-log p-3" id="systemLog" style="background-color: white !important;">
+                            <div class="text-center text-muted">System logs will appear here.</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card" style="background-color: white !important;">
+                    <div class="card-header" style="background-color: white !important;">
+                        <h5>About this Demo</h5>
+                    </div>
+                    <div class="card-body" style="background-color: white !important;">
+                        <p>This demo showcases the Deepgram WebSocket Voice Agent API with real-time speech-to-text and TTS capabilities.</p>
+                        <p>Click the Start button to begin a conversation with the AI voice agent.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Placeholder for demo logic - you would replace this with your actual voice agent code -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // System log function
+            function log(message) {
+                const logElement = document.getElementById('systemLog');
+                const logEntry = document.createElement('div');
+                logEntry.innerHTML = `<small class="text-muted">${new Date().toLocaleTimeString()}</small> ${message}`;
+                logElement.appendChild(logEntry);
+                logElement.scrollTop = logElement.scrollHeight;
+            }
+            
+            // Simple UI update function - this would be replaced with your actual logic
+            function updateUI(connected = false) {
+                const startButton = document.getElementById('startButton');
+                const stopButton = document.getElementById('stopButton');
+                const connectionStatus = document.getElementById('connectionStatus');
+                const micStatus = document.getElementById('micStatus');
+                const speakerStatus = document.getElementById('speakerStatus');
+                const connectionBadge = document.getElementById('connectionBadge');
+                const micBadge = document.getElementById('micBadge');
+                const speakerBadge = document.getElementById('speakerBadge');
+                
+                if (connected) {
+                    startButton.disabled = true;
+                    stopButton.disabled = false;
+                    connectionStatus.textContent = 'Connected';
+                    micStatus.textContent = 'Microphone Active';
+                    speakerStatus.textContent = 'Speaker Active';
+                    connectionBadge.classList.add('bg-success', 'text-white');
+                    micBadge.classList.add('bg-success', 'text-white');
+                    speakerBadge.classList.add('bg-success', 'text-white');
+                } else {
+                    startButton.disabled = false;
+                    stopButton.disabled = true;
+                    connectionStatus.textContent = 'Not Connected';
+                    micStatus.textContent = 'Microphone Off';
+                    speakerStatus.textContent = 'Speaker Off';
+                    connectionBadge.classList.remove('bg-success', 'text-white');
+                    micBadge.classList.remove('bg-success', 'text-white');
+                    speakerBadge.classList.remove('bg-success', 'text-white');
+                }
+            }
+            
+            // Mock start voice session
+            document.getElementById('startButton').addEventListener('click', function() {
+                log('🎤 Starting voice session...');
+                setTimeout(() => {
+                    log('🔌 Connecting to voice agent...');
+                    setTimeout(() => {
+                        log('✅ Connection established!');
+                        updateUI(true);
+                        
+                        // Mock transcript update
+                        setTimeout(() => {
+                            const transcriptDisplay = document.getElementById('transcriptDisplay');
+                            transcriptDisplay.innerHTML = '<div class="mb-2"><strong>You:</strong> Hello, how can you help me today?</div>';
+                            
+                            setTimeout(() => {
+                                transcriptDisplay.innerHTML += '<div class="mb-2"><strong>Agent:</strong> Hi there! I\'m an AI assistant designed to answer your questions and help with various tasks. What can I assist you with today?</div>';
+                                log('🔊 Agent responded to user query');
+                            }, 2000);
+                        }, 1500);
+                    }, 1000);
+                }, 500);
+            });
+            
+            // Mock stop voice session
+            document.getElementById('stopButton').addEventListener('click', function() {
+                log('🛑 Stopping voice session...');
+                setTimeout(() => {
+                    log('🧹 Cleaning up resources...');
+                    setTimeout(() => {
+                        log('👋 Session ended successfully');
+                        updateUI(false);
+                    }, 500);
+                }, 500);
+            });
+            
+            log('🚀 Voice agent demo loaded');
+        });
+    </script>
+</body>
+</html>

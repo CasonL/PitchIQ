@@ -34,7 +34,13 @@ interface DeepgramClient {
   agent: () => DeepgramAgent;
 }
 
-const SamCoachAgent = () => {
+interface SamCoachAgentProps {
+  onDataCollected?: (data: { product_service: string; target_market: string }) => void;
+  onConnectionStateChange?: (state: { connected: boolean; connecting: boolean }) => void;
+  autoStart?: boolean;
+}
+
+const SamCoachAgent: React.FC<SamCoachAgentProps> = ({ onDataCollected, onConnectionStateChange, autoStart }) => {
   /* ───────── state */
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -61,6 +67,7 @@ const SamCoachAgent = () => {
   const autoStarted = useRef<boolean>(false);
   const inactivityTimer = useRef<number | null>(null);
   const mutedRef = useRef<boolean>(false);
+  const conversationHistoryRef = useRef<string[]>([]);
 
   const { toast } = useToast();
   const { messages, log, clearMessages } = useSimpleLog(`SamCoach#${instanceId}`);
@@ -99,6 +106,8 @@ const SamCoachAgent = () => {
   /* ───────── session management */
   const startSession = useCallback(async () => {
     log("▶️ startSession invoked");
+    
+    // Strong session lock check - prevent any overlapping sessions
     if (connecting || connected || globalSessionActive) {
       log("⚠️ Session already active or connecting, skipping");
       return;
@@ -108,9 +117,16 @@ const SamCoachAgent = () => {
       return;
     }
     
-    // Set global lock
+    // Immediate global lock to prevent race conditions
     globalSessionActive = true;
     log(`🔒 Global session lock acquired by instance #${instanceId}`);
+    
+    // Double-check after acquiring lock
+    if (connecting || connected) {
+      log("⚠️ Another session started while acquiring lock, releasing and aborting");
+      globalSessionActive = false;
+      return;
+    }
     
     // Force cleanup any existing agent
     if (agentRef.current) {
@@ -125,8 +141,9 @@ const SamCoachAgent = () => {
     }
     
     // Reset states
-    setConnected(false);
+    // Set connecting state immediately after lock
     setConnecting(true);
+    setConnected(false);
     setSessionEnded(false);
 
     try {
@@ -198,6 +215,57 @@ const SamCoachAgent = () => {
         log(`📡 DG → ConversationText: "${msg.content}"`);
         setTranscript(msg.content);
         resetInactivityTimer();
+        
+        const lowerText = msg.content.toLowerCase().trim();
+        
+        // Store all conversation messages for context
+        conversationHistoryRef.current.push(msg.content);
+        
+        // Keep only last 10 messages to avoid memory bloat
+        if (conversationHistoryRef.current.length > 10) {
+          conversationHistoryRef.current = conversationHistoryRef.current.slice(-10);
+        }
+        
+        // Check for persona generation trigger phrase
+        const keyTriggerPhrase = "give me a moment while i generate your persona";
+        
+        log(`🔍 DEBUG: Checking for trigger phrase in: ${lowerText}`);
+        log(`🔍 DEBUG: Looking for: ${keyTriggerPhrase}`);
+        
+        // Check if the key trigger phrase was said by Sam
+        if (lowerText.includes(keyTriggerPhrase)) {
+          log(`🎭 Detected persona generation trigger from Sam`);
+          
+          if (onDataCollected) {
+            // Extract only the user's business description (not Sam's messages)
+            const userMessages = conversationHistoryRef.current.filter(msg => {
+              const lowerMsg = msg.toLowerCase();
+              // Filter out Sam's messages and greetings
+              return !lowerMsg.includes('welcome to pitchiq') && 
+                     !lowerMsg.includes('i\'m sam') &&
+                     !lowerMsg.includes('what product') &&
+                     !lowerMsg.includes('great,') &&
+                     !lowerMsg.includes('give me a moment') &&
+                     msg.length > 10; // Only substantial user responses
+            });
+            
+            // Use the most recent substantial user message as the product description
+            const productInfo = userMessages.length > 0 ? userMessages[userMessages.length - 1].trim() : '';
+            
+            if (productInfo) {
+              log(`🎮 Triggering persona generation with conversation context: ${productInfo}`);
+              onDataCollected({
+                product_service: productInfo,
+                target_market: "" // Will be determined by persona generation
+              });
+            } else {
+              log(`⚠️ No product information found in conversation history`);
+              log(`⚠️ Conversation history: ${JSON.stringify(conversationHistoryRef.current)}`);
+            }
+          } else {
+            log(`⚠️ Cannot trigger persona generation - missing callback`);
+          }
+        }
       });
       
       a.on(AgentEvents.Audio, (payload) => {
@@ -252,45 +320,22 @@ const SamCoachAgent = () => {
           type: "open_ai",
           model: "gpt-4o-mini",
         },
-        instructions: `You are Sam, PitchIQ's AI assistant and onboarding specialist. You're here to welcome users to PitchIQ and set them up for success with our advanced sales training platform.
+        prompt: `You are Sam, PitchIQ's AI assistant. Welcome users and collect their product/service info.
 
-🎯 YOUR PERSONALITY:
-- Friendly and welcoming - you're their first impression of PitchIQ
-- Knowledgeable guide - you understand how PitchIQ works and can explain it clearly
-- Efficient facilitator - you gather what's needed and move them forward
-- Supportive companion - you'll be there to help during their training journey
-- Professional but personable - approachable yet competent
+STYLE: Friendly, encouraging, conversational (under 30 words per response).
 
-🗣️ VOICE CONVERSATION STYLE:
-- Keep responses conversational and natural (under 25 words unless explaining something)
-- Use welcoming language: "Welcome to PitchIQ!", "I'm here to help", "Let's get you set up"
-- Be encouraging: "Perfect!", "That's exactly what I need", "Great choice!"
-- Ask clear, direct questions: "What do you sell?", "Who's your target market?"
-- Explain what happens next so they know what to expect
+FLOW:
+1. Welcome them to PitchIQ
+2. Ask what product/service they sell
+3. If they give a DETAILED description (who they serve, what problem they solve, or specific details), say: "Great, give me a moment while I generate your persona!"
+4. If they give a VAGUE answer (just "consulting", "apps", "coaching"), ask for more specifics
+5. Stop talking after saying the trigger phrase
 
-🎯 DEMO MODE - YOUR CURRENT ROLE:
-You're introducing someone to PitchIQ for the first time. Your job is to:
+EXAMPLES:
+- VAGUE (ask for more): "consulting", "apps", "coaching", "software"
+- DETAILED (trigger): "sales training for entrepreneurs", "mobile apps for restaurants", "executive coaching for tech leaders"
 
-1. **Welcome them** - Explain you're Sam, their PitchIQ assistant
-2. **Explain the process** - They'll practice with realistic AI prospects
-3. **Collect required data** - Product/service and target market (mandatory)
-4. **Set expectations** - Let them know you'll help during calls and provide coaching
-5. **Hand off smoothly** - Once you have the data, explain the persona generation process
-
-💬 CONVERSATION FLOW:
-1. "Welcome to PitchIQ! I'm Sam, your AI assistant. I'll help you get set up and support you during your training."
-2. "PitchIQ creates realistic AI prospects for you to practice with. To build your perfect practice partner, I need two key things:"
-3. "First - what product or service do you sell?"
-4. "Second - who's your target market or ideal customer?"
-5. "Perfect! I'll now generate a realistic prospect for you to practice with. I'll also be available during your call to provide guidance."
-
-🔄 WHAT HAPPENS NEXT:
-- You collect the data and pass it to PitchIQ's persona generation system
-- A realistic AI prospect is created based on their input
-- They start a practice sales call with that prospect
-- You're available during calls for support and provide post-call coaching
-
-Remember: You're the welcoming face of PitchIQ, setting them up for an amazing training experience with our advanced persona generation technology.`
+IMPORTANT: Use the EXACT phrase "Great, give me a moment while I generate your persona!" to trigger persona generation`
       },
       speak: {
         provider: {
@@ -568,6 +613,22 @@ Remember: You're the welcoming face of PitchIQ, setting them up for an amazing t
     return () => {
       componentInstanceCount--;
       log(`🧹 Component instance #${instanceId} unmounting (remaining: ${componentInstanceCount})`);
+      
+      // Force immediate cleanup to prevent overlapping sessions
+      if (agentRef.current) {
+        try {
+          agentRef.current?.finish?.();
+          agentRef.current?.close?.();
+        } catch (e) {
+          log(`⚠️ Error during unmount cleanup: ${e}`);
+        }
+        agentRef.current = null;
+      }
+      
+      // Force release global lock
+      globalSessionActive = false;
+      log(`🔓 Global session lock released by instance #${instanceId}`);
+      
       stopSession();
     };
   }, [stopSession, log, instanceId]);

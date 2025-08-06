@@ -13,7 +13,7 @@ INDUSTRY_TEMPLATES = {
     "healthcare": {
         "description": "Healthcare professionals focus on compliance, patient outcomes, and evidence-based solutions",
         "trait_modifiers": {
-            "Analytical": 0.1,  # Higher analytical thinking
+            "Thoughtful": 0.1,  # Higher thoughtful thinking
             "Skeptical": 0.1,   # More skeptical of new solutions
             "Empathy_Sensitivity": 0.2,  # Higher empathy
             "Risk_Aversion": 0.2  # More risk-averse
@@ -51,7 +51,7 @@ INDUSTRY_TEMPLATES = {
     "technology": {
         "description": "Tech professionals are innovation-driven, efficiency-focused, and data-oriented",
         "trait_modifiers": {
-            "Analytical": 0.2,
+            "Thoughtful": 0.2,
             "Innovation_Appreciation": 0.2,
             "Openness_to_New_Ideas": 0.1,
             "Impatience": 0.1
@@ -204,7 +204,7 @@ INDUSTRY_TEMPLATES = {
         "description": "Financial professionals focus on compliance, risk management, and regulatory requirements",
         "trait_modifiers": {
             "Risk_Aversion": 0.3,
-            "Analytical": 0.2,
+            "Thoughtful": 0.2,
             "Skeptical": 0.2,
             "Compliance_Focused": 0.2
         },

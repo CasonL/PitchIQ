@@ -30,7 +30,7 @@ const LandingPage = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar preRelease={false} onOpenEmailModal={openEmailSignupModal} />
       <main className="flex-grow">
         <HeroSection onOpenEmailModal={openEmailSignupModal} />

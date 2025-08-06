@@ -1,0 +1,61 @@
+/**
+ * Tailwind CSS Override for React Components
+ * Specifically targets the bg-background class and other Tailwind classes
+ */
+
+/* Direct override for the bg-background Tailwind class */
+.bg-background {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}
+
+/* Override other Tailwind background classes */
+.bg-card {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}
+
+/* Target common Tailwind flex container classes */
+.flex, 
+.flex-col, 
+.flex-row,
+.items-center,
+.justify-center,
+.min-h-screen,
+.w-full,
+.relative {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}
+
+/* Target the exact component structure we identified */
+.flex.flex-col.justify-center.items-center.w-full.min-h-screen.bg-background,
+.bg-card.text-card-foreground,
+.deepgram-voice-agent {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}
+
+/* Handle any nested elements */
+.flex.flex-col.justify-center.items-center.w-full.min-h-screen.bg-background *,
+.bg-card.text-card-foreground *,
+.deepgram-voice-agent * {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}
+
+/* Preserve button styling */
+button, 
+button.inline-flex,
+[class*="btn-"],
+.bg-green-500,
+.bg-green-600 {
+    background-color: inherit;
+    background: inherit;
+}
+
+/* Preserve badge styling */
+.inline-flex.items-center.rounded-full.border.px-2\.5.py-0\.5.text-xs.font-semibold.transition-colors.focus\:outline-none.focus\:ring-2.focus\:ring-ring.focus\:ring-offset-2.border-transparent.bg-secondary.text-secondary-foreground.hover\:bg-secondary\/80 {
+    background-color: inherit;
+    background: inherit;
+}

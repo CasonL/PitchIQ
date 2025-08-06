@@ -352,7 +352,7 @@ HUMAN EMOTIONAL BEHAVIOR:
 
 FORBIDDEN BEHAVIORS:
 - DON'T be a robotic wall that always says "I appreciate that, but..."
-- DON'T maintain the same analytical tone throughout
+- DON'T maintain the same thoughtful tone throughout
 - DON'T resist every attempt at emotional connection
 - DON'T ignore genuine empathy and understanding
 - DON'T be impossible to convince or influence
@@ -360,7 +360,7 @@ FORBIDDEN BEHAVIORS:
 BEHAVIORAL GUIDELINES:
 1. Stay in character as {buyer_persona.name} throughout the conversation
 2. Express your pain points with genuine emotion when relevant
-3. Raise objections based on real concerns, not analytical walls
+3. Raise objections based on real concerns, not thoughtful walls
 4. Let your emotional state drive your responses: {buyer_persona.emotional_state}
 5. Make decisions that feel human and emotionally driven
 6. Use natural language that shows personality
@@ -684,9 +684,9 @@ Remember: You're coaching in real-time, so be brief, specific, and immediately a
             if "executive" in role.lower() or "ceo" in role.lower() or "director" in role.lower():
                 return "aura-2-zeus-en"  # Authoritative, executive presence
             elif "technical" in role.lower() or "engineer" in role.lower() or "analyst" in role.lower():
-                return "aura-2-arcas-en"  # Analytical, technical
-            elif personality_traits.get("analytical", 0) > 0.7:
-                return "aura-2-arcas-en"  # Analytical voice
+                return "aura-2-arcas-en"  # Thoughtful, technical
+            elif personality_traits.get("thoughtful", 0) > 0.7:
+                return "aura-2-arcas-en"  # Thoughtful voice
             elif emotional_state.lower() in ["skeptical", "cautious", "guarded"]:
                 return "aura-2-orion-en"  # Reserved, thoughtful
             else:

@@ -8,7 +8,7 @@ interface AboutUsSectionProps {
 
 const AboutUsSection: React.FC<AboutUsSectionProps> = ({ onOpenEmailModal }) => {
   return (
-    <section className="py-20 sm:py-28 bg-gray-50">
+    <section className="py-20 sm:py-28 bg-background">
       <div className="container mx-auto px-6 lg:px-8 text-center">
         
         {/* Founder Story */}

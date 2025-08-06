@@ -627,7 +627,7 @@ Palette: Calm blues, grays, whites, subtle accents.
 body {
     font-family: 'Inter', sans-serif; /* Assuming Inter is loaded in base.html */
     color: #34495E; /* Wet Asphalt - Dark Gray Text */
-    background-color: #ECF0F1; /* Clouds - Light Gray Background */
+    background-color: #F0F2F4 !important; /* Slightly darker off-white for depth */
     line-height: 1.6;
 }
 

@@ -1,0 +1,61 @@
+{
+  "schema_version": "0.3",
+  "company_id": "cloudlift_saas_mm_01",
+  "industry_archetype": "Mid-market SaaS",
+  "micro_segment": ["VC_backed", "PLG_motion"],
+  "locale": "en-US",
+  "kpi_pack": "growth",
+  "firmographics": {
+    "hq_city": "Austin",
+    "founded": 2017,
+    "employee_band": "200-500",
+    "arr_band_musd": "20-50",
+    "funding_stage": "Series B"
+  },
+  "metrics": {
+    "yoy_growth_pct": 38,
+    "nrr_pct": 116,
+    "ltv_to_cac": 4.1
+  },
+  "live_data_url": "",
+  "sources": ["synthetic"],
+  "deal_seed": {
+    "initiative": "Project Horizon 2.1",
+    "pain_points": ["Churn creeping toward 9 %"],
+    "short_term_goal": "Cut churn to 6 % before FY-end",
+    "long_term_goal": "Reach $50 M ARR by 2027"
+  },
+  "personas": [
+    {
+      "persona_id": "cfo_megan_li",
+      "title": "Chief Financial Officer",
+      "meeting_mood": "cautious",
+      "personal_kpis": ["CAC payback < 14 mo"],
+      "communication_style": "numbers first, brief answers",
+      "memory": [
+        { "fact": "Previous vendor churned last year", "locked": true }
+      ],
+      "objection_storyboards": [
+        {
+          "thread_id": "roi_pushback",
+          "min_gap_sec": 60,
+          "turns": [
+            { "persona": "Megan", "text": "We’ve already invested in two tools this quarter—why another?" },
+            { "expected_rep": "Highlight quantified ROI within 6 months" },
+            { "persona": "Megan", "text": "Show me the math on CAC reduction." }
+          ]
+        }
+      ]
+    }
+  ],
+  "curveballs": [
+    {
+      "event": "Budget Freeze",
+      "trigger": "timer>240s",
+      "text": "Breaking news: CFO just announced a hiring & spend freeze."
+    }
+  ],
+  "scoring_flags": {
+    "critical_fact_called": false
+  }
+}

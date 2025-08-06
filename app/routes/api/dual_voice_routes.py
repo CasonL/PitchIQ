@@ -11,6 +11,8 @@ import logging
 import json
 from app.services.dual_voice_agent_service import get_dual_voice_service
 from app.models import UserProfile, db
+from app.services.demographic_names import DemographicNameService
+from app.services.comprehensive_bias_prevention import ComprehensiveBiasPrevention
 
 logger = logging.getLogger(__name__)
 
@@ -173,6 +175,99 @@ def generate_voice_persona():
         
         logger.info(f"✅ Generating enhanced persona for product: '{product_service}', target: '{target_market}'")
         
+        # Use our comprehensive bias prevention system first
+        from app.services.comprehensive_bias_prevention import ComprehensiveBiasPrevention
+        
+        try:
+            # Generate bias-free persona with contextual fears
+            logger.info("🔧 Using comprehensive bias prevention system...")
+            framework = ComprehensiveBiasPrevention.generate_bias_free_persona_framework(
+                industry_context=None,
+                target_market=target_market,
+                complexity_level="intermediate",
+                product_service=product_service  # This triggers contextual fear generation
+            )
+            
+            # Transform framework to enhanced persona format
+            enhanced_persona = {
+                'name': framework['name'],
+                'role': framework['role'],
+                'primary_concern': framework.get('contextual_fears', {}).get('authentic_objections', ['Looking for effective business solutions'])[0] if framework.get('contextual_fears') else 'Looking for effective business solutions',
+                'business_details': f"{framework['role']} at a {framework['industry']} organization, {framework['age_range']} years old, with {framework['decision_authority'].lower()} decision authority",
+                'about_person': f"A {framework['cultural_background']} professional with {', '.join(framework['personality_traits'][:2]).lower()} personality traits",
+                'business_context': framework['business_context'],
+                'emotional_state': f"Professional with {framework['communication_style']['emotional_expression'].lower()} emotional expression",
+                'pain_points': [fear['core_concern'] for fear in framework.get('contextual_fears', {}).get('contextual_fears', [])] or ['Efficiency challenges', 'Decision-making pressure'],
+                'decision_authority': framework['decision_authority'],
+                'personality_traits': {trait: 0.7 for trait in framework['personality_traits']},  # Convert to numeric format
+                'objections': framework.get('contextual_fears', {}).get('authentic_objections', ['Budget constraints', 'Implementation concerns']),
+                'industry_context': framework['industry'],
+                
+                # Enhanced voice-specific fields for realistic conversation
+                'speech_patterns': {
+                    'pace': framework['communication_style']['chattiness_level'],
+                    'interruption_style': 'polite' if framework['communication_style']['formality_level'] == 'formal' else 'casual',
+                    'filler_words': ['um', 'uh'] if framework['communication_style']['emotional_expression'] == 'hesitant' else [],
+                    'regional_expressions': []
+                },
+                'conversation_dynamics': {
+                    'comfort_with_silence': framework['communication_style']['emotional_expression'],
+                    'question_asking_tendency': 'high' if 'Thoughtful' in framework['personality_traits'] else 'medium',
+                    'story_sharing_level': framework['communication_style']['chattiness_level'],
+                    'technical_comfort': 'high' if framework['role_level'] in ['executive', 'management'] else 'medium'
+                },
+                'emotional_responsiveness': {
+                    'excitement_triggers': ['innovation', 'results'],
+                    'frustration_triggers': ['complexity', 'delays'],
+                    'trust_building_factors': ['expertise', 'transparency'],
+                    'skepticism_reducers': ['proof', 'references']
+                },
+                'persuasion_psychology': {
+                    'responds_to_authority': True,
+                    'influenced_by_social_proof': True,
+                    'motivated_by_urgency': False,
+                    'values_relationship_over_features': True
+                },
+                
+                # Include the advanced contextual fear data
+                'contextual_fears': framework.get('contextual_fears', {}),
+                'conversation_flow_guidance': framework.get('conversation_flow_guidance', ''),
+                
+                # Include human authenticity data
+                'emotional_authenticity': framework.get('emotional_authenticity', {}),
+                'communication_struggles': framework.get('communication_struggles', {}),
+                'vulnerability_areas': framework.get('vulnerability_areas', {}),
+                
+                # Include cultural and demographic diversity
+                'cultural_background': framework['cultural_background'],
+                'gender': framework['gender'],
+                'age_range': framework['age_range'],
+                'communication_style': framework['communication_style']
+            }
+            
+            # Calculate generation time
+            generation_time = time.time() - start_time
+            logger.info(f"✅ Successfully generated comprehensive persona: {enhanced_persona['name']} ({framework['cultural_background']}, {framework['gender']}) (took {generation_time:.2f}s)")
+            
+            return jsonify({
+                'success': True,
+                'persona': enhanced_persona,
+                'context': context,
+                'generation_time': generation_time,
+                'diversity_info': {
+                    'cultural_background': framework['cultural_background'],
+                    'gender': framework['gender'],
+                    'age_range': framework['age_range'],
+                    'role_level': framework['role_level']
+                },
+                'note': 'Generated using comprehensive bias prevention system with contextual fears'
+            })
+            
+        except Exception as bias_error:
+            logger.error(f"❌ Comprehensive bias prevention failed: {str(bias_error)}")
+            logger.info("🔄 Falling back to GPT-4o generation...")
+            
+        # Fallback to GPT-4o if comprehensive system fails
         # Create context for persona generation
         context = {
             "product_service": product_service,
@@ -630,30 +725,71 @@ def get_working_implementation():
             'error': 'Failed to access working implementation'
         }), 500
 
-@dual_voice_bp.route('/working-demo', methods=['GET'])
+@dual_voice_bp.route('/demo-working-implementation', methods=['GET'])
 def demo_working_implementation():
     """Demo page for the working dual voice agent implementation (no auth required for demo)"""
+    return render_template('working_implementation.html')
+    
+@dual_voice_bp.route('/name-gender-detection', methods=['POST'])
+def detect_gender_from_name():
+    """Detect gender from name using unbiased demographic name service
+    
+    This endpoint uses the existing unbiased name-to-gender infrastructure to
+    provide gender detection for the frontend, especially for voice selection.
+    """
     try:
+        data = request.get_json() or {}
+        
+        # Get name from request
+        full_name = data.get('name', '').strip()
+        
+        if not full_name:
+            return jsonify({
+                'success': False,
+                'error': 'Name is required'
+            }), 400
+        
+        # Parse first and last name (simple split)
+        name_parts = full_name.split(' ')
+        first_name = name_parts[0] if len(name_parts) > 0 else full_name
+        
+        # Use unbiased demographic name service to detect gender
+        # First check if the first name exists in our database
+        gender = None
+        
+        # Check across different cultural backgrounds
+        for culture in DemographicNameService.NAME_POOLS:
+            # Check female names
+            if first_name in DemographicNameService.NAME_POOLS[culture]['female']['first']:
+                gender = 'female'
+                break
+                
+            # Check male names
+            if first_name in DemographicNameService.NAME_POOLS[culture]['male']['first']:
+                gender = 'male'
+                break
+                
+        # If gender not found in database, use comprehensive bias prevention system
+        if not gender:
+            # Use equal probability as a fallback (unbiased approach)
+            gender = ComprehensiveBiasPrevention._weighted_random_choice({
+                'male': {'weight': 0.5},
+                'female': {'weight': 0.5}
+            })
+            
+        logger.info(f"✅ Detected gender for name '{full_name}': {gender}")
+        
         return jsonify({
             'success': True,
-            'demo_available': True,
-            'demo_url': '/api/dual-voice/working-implementation',
-            'note': 'Login required for full access',
-            'backup_location': 'deepgram_voice_agent_backup_working/',
-            'files': [
-                'DeepgramVoiceAgentCard_WORKING.tsx',
-                'deepgram_routes_WORKING.py', 
-                'deepgram-worklet_WORKING.js',
-                'vite.config_WORKING.ts',
-                'WORKING_IMPLEMENTATION_NOTES.md'
-            ]
+            'name': full_name,
+            'gender': gender
         })
         
     except Exception as e:
-        logger.error(f"Error in demo working implementation: {str(e)}")
+        logger.error(f"Error detecting gender from name: {str(e)}")
         return jsonify({
             'success': False,
-            'error': 'Failed to load demo'
+            'error': 'Failed to detect gender from name'
         }), 500
 
 @dual_voice_bp.route('/working-page', methods=['GET'])

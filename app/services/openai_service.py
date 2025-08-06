@@ -30,7 +30,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Constants
-MODEL_NAME = "gpt-4.1-mini"  # Changed from gpt-3.5-turbo
+MODEL_NAME = "gpt-4o-mini"  # Changed from gpt-3.5-turbo
 MAX_TOKENS_RESPONSE = 2000 # Max tokens for the completion response
 DEFAULT_TEMPERATURE = 0.5
 
@@ -656,6 +656,27 @@ class OpenAIService:
         return self.generate_response(
             messages=messages,
             system_prompt=system_prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            model=model
+        )
+
+    def chat_completion(self, messages: List[Dict[str, str]], max_tokens: int = 500, 
+                       temperature: float = 0.7, model: str = None) -> Optional[str]:
+        """
+        Chat completion method for message-based requests.
+        
+        Args:
+            messages: List of message dictionaries with 'role' and 'content'
+            max_tokens: Maximum tokens to generate
+            temperature: Temperature parameter for controlling randomness
+            model: Optional override for the default model
+            
+        Returns:
+            String containing the generated text or None if failed
+        """
+        return self.generate_response(
+            messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
             model=model

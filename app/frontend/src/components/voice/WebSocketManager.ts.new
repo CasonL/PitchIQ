@@ -1,0 +1,498 @@
+/**
+ * WebSocketManager.ts - Deepgram WebSocket manager using SDK approach
+ * Based on successful DeepgramVoiceAgent SDK implementation pattern
+ */
+
+import { createClient, AgentEvents } from "@deepgram/sdk";
+import { Buffer } from "buffer";
+import { AudioManager } from "./AudioManager";
+
+// Poly-fill for Buffer (DG browser SDK expects Node.Buffer in the global scope)
+if (typeof window !== "undefined" && !(window as any).Buffer) {
+  (window as any).Buffer = Buffer;
+}
+
+// Constants
+const MIC_RATE = 48_000; // True browser native rate
+const TTS_RATE = 48_000; // Keep aligned - fix sample rate mismatch
+const KEEPALIVE_MS = 5_000; // Send keepalive every 5 seconds
+
+export interface WebSocketConfig {
+  token: string;
+  log: (message: string, level?: string) => void;
+  onOpen?: () => void;
+  onClose?: (wasClean: boolean, code: number, reason: string) => void;
+  onError?: (error: any) => void;
+  onTranscript?: (text: string, isFinal: boolean) => void;
+  onAudio?: (audioData: ArrayBuffer) => void;
+  sessionId?: string;
+  personaName?: string;
+  personaData?: any;
+  userName?: string;
+}
+
+interface DeepgramAgent {
+  configure: (settings: any) => void;
+  start: () => void;
+  send: (data: ArrayBuffer) => void;
+  keepAlive: () => void;
+  finish: () => void;
+  close: () => void;
+  on: (event: string, callback: (data?: any) => void) => void;
+}
+
+export class WebSocketManager {
+  private config: WebSocketConfig;
+  private agent: DeepgramAgent | null = null;
+  private dgClient: any = null;
+  private micStream: MediaStream | null = null;
+  private micCtx: AudioContext | null = null;
+  private micNode: AudioWorkletNode | null = null;
+  private keepaliveInterval: number | null = null;
+  private isConnected: boolean = false;
+  private isConnecting: boolean = false;
+  private _stableSessionId: string;
+  private intentionalTermination: boolean = false;
+  
+  // Statistics for logging
+  private audioPacketCount: number = 0;
+  private micChunkCount: number = 0;
+  private lastLogTime: number = Date.now();
+
+  constructor(config: WebSocketConfig) {
+    this.config = config;
+    
+    // Use provided session ID or generate a stable one
+    this._stableSessionId = config.sessionId || this.generateSessionId();
+    
+    this.config.log(`🆔 Using stable session ID: ${this._stableSessionId}`);
+  }
+
+  // Generate a stable session ID
+  private generateSessionId(): string {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    const personaIdentifier = this.config.personaName ? 
+      this.config.personaName.replace(/\s+/g, '_') : 'AI_Persona';
+      
+    return `${personaIdentifier}_${timestamp}_${random}`;
+  }
+
+  // Smart logging function
+  private smartLog(type: 'audio' | 'mic' | 'important', message: string, data?: any) {
+    const now = Date.now();
+    
+    if (type === 'important') {
+      this.config.log(message);
+      return;
+    }
+    
+    if (type === 'audio') {
+      this.audioPacketCount++;
+      if (this.audioPacketCount % 50 === 0 || now - this.lastLogTime > 5000) {
+        this.config.log(`🔊 Audio packets: ${this.audioPacketCount} ${data?.rms ? `(RMS: ${data.rms})` : ''}`);
+        this.lastLogTime = now;
+      }
+    } else if (type === 'mic') {
+      this.micChunkCount++;
+      if (this.micChunkCount % 100 === 0 || now - this.lastLogTime > 3000) {
+        this.config.log(`🎙️ Mic chunks: ${this.micChunkCount} ${data?.rms ? `(RMS: ${data.rms})` : ''}`);
+        this.lastLogTime = now;
+      }
+    }
+  }
+
+  // Start the WebSocket connection
+  async connect(): Promise<void> {
+    if (this.isConnected || this.isConnecting) {
+      this.config.log("⚠️ Already connecting or connected");
+      return;
+    }
+
+    this.isConnecting = true;
+    this.intentionalTermination = false;
+
+    try {
+      // Initialize the Deepgram client
+      this.dgClient = createClient(this.config.token);
+      this.agent = this.dgClient.agent();
+      
+      this.smartLog('important', `✅ Deepgram client created`);
+      
+      // Setup event listeners
+      this.setupEventListeners();
+      
+      // Request microphone access
+      await this.setupMicrophone();
+      
+      // Configure and start the agent
+      this.agent.configure(this.buildSettings());
+      this.smartLog('important', "✅ Settings sent - waiting for SettingsApplied...");
+      
+      // Start keepalive
+      this.startKeepalive();
+      
+    } catch (error) {
+      this.smartLog('important', `❌ Connection error: ${error}`);
+      this.isConnecting = false;
+      this.cleanup();
+    }
+  }
+
+  // Setup all event listeners
+  private setupEventListeners(): void {
+    if (!this.agent) return;
+    
+    this.agent.on(AgentEvents.Open, () => {
+      this.smartLog('important', `🌐 WebSocket opened for session ${this._stableSessionId}`);
+      this.isConnected = true;
+      this.isConnecting = false;
+      this.config.onOpen?.();
+    });
+
+    this.agent.on(AgentEvents.SettingsApplied, () => {
+      this.smartLog('important', `✅ Settings applied for session ${this._stableSessionId} - starting agent`);
+      
+      // CRITICAL: Start the agent AFTER settings are applied
+      // This is the key difference from the old implementation
+      if (this.agent) {
+        this.agent.start();
+        this.smartLog('important', "✅ Agent started - AI should initiate conversation");
+      }
+    });
+
+    this.agent.on(AgentEvents.UserStartedSpeaking, () => {
+      this.smartLog('important', "🎤 User started speaking");
+    });
+
+    this.agent.on(AgentEvents.AgentAudioDone, () => {
+      this.smartLog('important', "🔇 Agent finished speaking");
+    });
+
+    this.agent.on(AgentEvents.AgentThinking, () => {
+      this.smartLog('important', "🤔 Agent thinking...");
+    });
+
+    this.agent.on(AgentEvents.AgentStartedSpeaking, () => {
+      this.smartLog('important', "🗣️ Agent started speaking");
+    });
+
+    this.agent.on(AgentEvents.ConversationText, (msg: any) => {
+      this.smartLog('important', `💬 "${msg.content}"`);
+      this.config.onTranscript?.(msg.content, true);
+    });
+    
+    this.agent.on(AgentEvents.Audio, (payload: any) => {
+      // Forward audio to AudioManager
+      if (this.config.onAudio) {
+        this.config.onAudio(payload);
+      }
+    });
+
+    this.agent.on(AgentEvents.Error, (e: any) => {
+      this.smartLog('important', `🚨 Deepgram error ${JSON.stringify(e)}`);
+      
+      // Handle different error types
+      if (e.code === "CLIENT_MESSAGE_TIMEOUT") {
+        this.smartLog('important', "⏰ Client message timeout - stopping session");
+      }
+      
+      this.cleanup();
+    });
+
+    this.agent.on(AgentEvents.Close, () => {
+      this.smartLog('important', "🌐 WebSocket closed");
+      const wasClean = this.intentionalTermination;
+      this.cleanup();
+      this.config.onClose?.(wasClean, wasClean ? 1000 : 1006, wasClean ? "Intentional termination" : "Connection closed");
+    });
+  }
+
+  // Build agent settings
+  private buildSettings(): any {
+    // Base settings
+    const settings = {
+      audio: {
+        input: {
+          encoding: "linear16",
+          sample_rate: MIC_RATE,
+        },
+        output: {
+          encoding: "linear16",
+          sample_rate: TTS_RATE,
+        },
+      },
+      agent: {
+        language: "en",
+        listen: {
+          provider: {
+            type: "deepgram",
+            model: "nova-2",
+          },
+        },
+        think: {
+          provider: {
+            type: "open_ai",
+            model: "gpt-4o-mini",
+          },
+          system_prompt: this.generateProspectPrompt(),
+        },
+        speak: {
+          provider: {
+            type: "deepgram",
+            model: "aura-2-asteria-en",
+          },
+        },
+      },
+      experimental: false,
+    };
+    
+    return settings;
+  }
+
+  // Set up microphone
+  private async setupMicrophone(): Promise<void> {
+    try {
+      // Request microphone access
+      this.micStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { 
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: MIC_RATE 
+        } 
+      });
+      
+      this.smartLog('important', `✅ Microphone access granted`);
+      
+      // Setup audio context and worklet
+      this.micCtx = new AudioContext({ sampleRate: MIC_RATE });
+      await this.micCtx.audioWorklet.addModule("/deepgram-worklet.js");
+      
+      if (this.micCtx.state === "closed") {
+        this.smartLog('important', "❌ Audio context closed during worklet load - aborting mic setup");
+        return;
+      }
+      
+      this.micNode = new AudioWorkletNode(this.micCtx, "deepgram-worklet");
+
+      // Connect microphone to the audio processing node
+      const source = this.micCtx.createMediaStreamSource(this.micStream);
+      source.connect(this.micNode);
+      
+      // Process audio from the worklet
+      let hold = new Int16Array(0);
+      this.micNode.port.onmessage = (e) => {
+        const data = e.data;
+        
+        // Skip if no agent or data
+        if (!this.agent || !data) return;
+        
+        const in16 = new Int16Array(data);
+        let cat = new Int16Array(hold.length + in16.length);
+        cat.set(hold);
+        cat.set(in16, hold.length);
+
+        const TARGET_SAMPLES = (MIC_RATE * 30) / 1000; // 30ms chunks
+        while (cat.length >= TARGET_SAMPLES) {
+          const chunk = cat.slice(0, TARGET_SAMPLES);
+          
+          // Calculate RMS to detect audio levels
+          const rms = Math.sqrt(chunk.reduce((sum, sample) => sum + sample * sample, 0) / chunk.length);
+          const hasAudio = rms > 100;
+          
+          this.smartLog('mic', '', { rms: Math.round(rms), hasAudio });
+          
+          // Send audio to Deepgram
+          if (this.agent && this.isConnected) {
+            const buffer = chunk.buffer.slice(0, TARGET_SAMPLES * 2);
+            this.agent.send(buffer);
+          }
+          
+          cat = cat.slice(TARGET_SAMPLES);
+        }
+        
+        hold = cat;
+      };
+
+      this.smartLog('important', `🎙️ Microphone setup complete - streaming to Deepgram @${MIC_RATE}Hz`);
+      
+    } catch (error) {
+      this.smartLog('important', `❌ Microphone error: ${error}`);
+      throw error;
+    }
+  }
+
+  // Start keepalive mechanism
+  private startKeepalive(): void {
+    this.config.log(`❤️ Starting Deepgram keepalive for session ${this._stableSessionId} (interval: ${KEEPALIVE_MS}ms)`);
+    
+    if (this.keepaliveInterval) {
+      clearInterval(this.keepaliveInterval);
+    }
+    
+    this.keepaliveInterval = window.setInterval(() => {
+      if (this.agent && this.isConnected) {
+        this.agent.keepAlive();
+        this.config.log(`❤️ Sent Deepgram KeepAlive for session ${this._stableSessionId}`, "debug");
+      }
+    }, KEEPALIVE_MS);
+  }
+
+  // Stop keepalive
+  private stopKeepalive(): void {
+    if (this.keepaliveInterval) {
+      clearInterval(this.keepaliveInterval);
+      this.keepaliveInterval = null;
+    }
+  }
+
+  // Send a text message (manual trigger)
+  sendTextMessage(text: string): void {
+    if (!this.agent || !this.isConnected) {
+      this.config.log('⚠️ Cannot send text: Agent not connected', 'warn');
+      return;
+    }
+    
+    const textMessage = {
+      type: 'Text',
+      text: text,
+      source: 'user'
+    };
+    
+    try {
+      // Send the text message using SDK (serialize to string first)
+      if (this.agent) {
+        // Use any available SDK method for text or simulate via websocket
+        this.config.log(`📝 Sending text message: "${text}"`);
+        
+        // Note: SDK doesn't directly expose text sending method
+        // In WebSocketManager implementation, you'd need to find the right SDK approach
+        // or implement a text sending mechanism through the agent
+        
+        // For now, logging this as a limitation that requires manual voice input
+        this.config.log('⚠️ SDK text message not implemented - use voice input');
+      }
+    } catch (error) {
+      this.config.log(`❌ Error sending text: ${error}`, 'error');
+    }
+  }
+
+  // Generate prospect prompt for AI
+  generateProspectPrompt(): string {
+    const { personaName, personaData, userName } = this.config;
+    
+    // Basic prompt if no persona data
+    if (!personaData) {
+      return `You are ${personaName || 'an AI assistant'}.
+      You are on a phone call with ${userName || 'a sales representative'}.
+      IMPORTANT: YOU MUST START THE CONVERSATION FIRST with a greeting as soon as the call connects.
+      Begin by introducing yourself and asking how you can help the sales representative today.
+      Your conversation should be natural and conversational.
+      Session ID: ${this._stableSessionId}`;
+    }
+    
+    // Detailed prompt with persona data
+    const {
+      name = personaName,
+      role = 'a potential customer',
+      company = 'a company',
+      industry = '',
+      pain_points = [],
+    } = personaData;
+
+    return `You are ${name}, ${role} at ${company}${industry ? ` in the ${industry} industry` : ''}.
+    
+    You're on a sales call with ${userName || 'a sales representative'}.
+    
+    ${pain_points.length > 0 ? `Your main pain points or challenges are: ${pain_points.join(', ')}` : ''}
+    
+    IMPORTANT: YOU MUST START THE CONVERSATION FIRST with a greeting as soon as the call connects.
+    Begin by introducing yourself briefly, mentioning your role at ${company}.
+    Speak naturally and conversationally, as if on a real phone call.
+    
+    If they introduce themselves as a sales representative or ask about your needs, show mild interest but don't be too eager to buy.
+    Ask questions about their product or service to understand if it meets your needs.
+    Be professional but somewhat guarded, as you would with any sales call.
+    
+    Session ID: ${this._stableSessionId}`;
+  }
+
+  // Properly clean up resources
+  cleanup(): void {
+    this.config.log(`🧹 Cleaning up resources for session ${this._stableSessionId}`);
+    
+    this.stopKeepalive();
+    
+    // Close the agent
+    if (this.agent) {
+      try {
+        if (this.isConnected) {
+          this.agent.finish();
+          this.agent.close();
+        }
+        this.agent = null;
+      } catch (e) {
+        this.config.log(`⚠️ Error closing agent: ${e}`, 'warn');
+      }
+    }
+    
+    // Cleanup microphone
+    if (this.micStream) {
+      try {
+        this.micStream.getTracks().forEach(track => {
+          track.stop();
+          this.config.log(`🎤 Stopped audio track: ${track.label}`);
+        });
+        this.micStream = null;
+      } catch (e) {
+        this.config.log(`⚠️ Error closing mic stream: ${e}`, 'warn');
+      }
+    }
+    
+    // Cleanup audio worklet and context
+    if (this.micNode) {
+      try {
+        this.micNode.disconnect();
+        this.micNode = null;
+      } catch (e) {
+        this.config.log(`⚠️ Error disconnecting mic node: ${e}`, 'warn');
+      }
+    }
+    
+    if (this.micCtx && this.micCtx.state !== 'closed') {
+      try {
+        this.micCtx.close();
+        this.micCtx = null;
+      } catch (e) {
+        this.config.log(`⚠️ Error closing audio context: ${e}`, 'warn');
+      }
+    }
+    
+    this.isConnected = false;
+    this.isConnecting = false;
+    
+    this.config.log(`✅ Cleanup completed for session ${this._stableSessionId}`);
+  }
+
+  // Terminate the connection
+  terminate(intentional: boolean = true): void {
+    this.intentionalTermination = intentional;
+    
+    if (intentional) {
+      this.config.log(`🛑 Intentionally terminating session ${this._stableSessionId}`);
+    }
+    
+    this.cleanup();
+  }
+
+  // Check if connected
+  isActive(): boolean {
+    return this.isConnected;
+  }
+
+  // Get the stable session ID
+  getSessionId(): string {
+    return this._stableSessionId;
+  }
+}

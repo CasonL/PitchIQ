@@ -1,0 +1,35 @@
+/* Voice Demo White Background Override
+ * This file directly overrides the CSS variables in main.css that cause the grey background
+ */
+
+:root {
+    /* Override PitchIQ Colors */
+    --pitchiq-white: #FFFFFF !important; /* Force true white instead of #EEF0F3 */
+    --pitchiq-light-gray: #FFFFFF !important; /* Force white instead of #f8f9fa */
+    
+    /* Override Neutral Colors */
+    --background-color: #FFFFFF !important; /* Force white background */
+    
+    /* Override Bootstrap variables */
+    --bs-body-bg: #FFFFFF !important;
+    --bs-light-rgb: 255,255,255 !important;
+    --bs-gray-100: #FFFFFF !important;
+    --bs-gray-200: #FFFFFF !important;
+}
+
+/* Force white background on key elements */
+html, 
+body, 
+main, 
+#main-content,
+.container, 
+.container-fluid,
+.card,
+.card-body,
+.card-header,
+[class*="bg-gray"],
+.transcript-display,
+.log-display {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+}

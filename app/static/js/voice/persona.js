@@ -49,8 +49,8 @@ class PersonaManager {
           formality: 0.6
         }
       },
-      analytical: {
-        name: 'Analytical Buyer',
+      thoughtful: {
+        name: 'Thoughtful Buyer',
         traits: {
           hesitancy: 0.5,
           interruption: 0.3,
@@ -87,7 +87,7 @@ class PersonaManager {
       aggressive: { rate: 1.1, pitch: 1.1, volume: 1.0 },
       curious: { rate: 1.0, pitch: 1.05, volume: 0.9 },
       friendly: { rate: 1.0, pitch: 1.0, volume: 0.9 },
-      analytical: { rate: 0.95, pitch: 0.9, volume: 0.8 },
+      thoughtful: { rate: 0.95, pitch: 0.9, volume: 0.8 },
       impulsive: { rate: 1.2, pitch: 1.1, volume: 1.0 },
       indecisive: { rate: 0.85, pitch: 0.95, volume: 0.7 }
     };
@@ -98,7 +98,7 @@ class PersonaManager {
       aggressive: ['Look,', 'Listen,', 'Frankly,', 'To be honest,', 'Let me be clear,'],
       curious: ['I wonder,', 'I\'m curious about...', 'That\'s interesting,', 'Tell me more about...'],
       friendly: ['You know,', 'I feel like...', 'I think...', 'Maybe...'],
-      analytical: ['Considering the facts,', 'Based on what I understand,', 'From my analysis,'],
+      thoughtful: ['Considering the facts,', 'Based on what I understand,', 'From my analysis,'],
       impulsive: ['Wait!', 'Oh!', 'I just realized!', 'Actually,'],
       indecisive: ['On one hand...', 'But then again...', 'I\'m torn between...', 'It\'s hard to decide...']
     };
@@ -110,7 +110,7 @@ class PersonaManager {
         aggressive: ['Hey.', 'Alright, let\'s get started.', 'What do you have for me?'],
         curious: ['Hi there! What are we discussing today?', 'Hello! I\'m eager to learn more.'],
         friendly: ['Hi! Nice to meet you!', 'Hello there! How are you?'],
-        analytical: ['Greetings. I\'m ready to evaluate the information.', 'Hello. Please proceed with your presentation.'],
+        thoughtful: ['Greetings. I\'m ready to evaluate the information.', 'Hello. Please proceed with your presentation.'],
         impulsive: ['Hi! Let\'s do this!', 'Hey! I\'m ready to go!'],
         indecisive: ['Hello... I think.', 'Hi there... if that\'s okay.']
       },
@@ -119,7 +119,7 @@ class PersonaManager {
         aggressive: ['That doesn\'t work for me.', 'I completely disagree.', 'That\'s not acceptable.'],
         curious: ['I\'m wondering about...', 'Could you explain how...', 'I\'d like to understand...'],
         friendly: ['I see your point, but...', 'I appreciate that, however...'],
-        analytical: ['The data suggests otherwise because...', 'I\'m not seeing evidence for...'],
+        thoughtful: ['The data suggests otherwise because...', 'I\'m not seeing evidence for...'],
         impulsive: ['No way!', 'That\'s not what I want!', 'I need something different!'],
         indecisive: ['I\'m torn about this...', 'On one hand yes, but on the other...']
       }
@@ -136,7 +136,7 @@ class PersonaManager {
     this.traitPool = {
       personality: [
         'serious', 'casual', 'professional', 'friendly', 'formal', 'direct',
-        'verbose', 'concise', 'enthusiastic', 'reserved', 'analytical', 'emotional'
+        'verbose', 'concise', 'enthusiastic', 'reserved', 'thoughtful', 'emotional'
       ],
       communication: [
         'visual', 'auditory', 'kinesthetic', 'detailed', 'big-picture', 

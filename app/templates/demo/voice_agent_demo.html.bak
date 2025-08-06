@@ -1,0 +1,618 @@
+{% extends "base.html" %}
+
+{% block title %}Deepgram Voice Agent Demo{% endblock %}
+
+{% block styles %}
+<style>
+    /* Override background colors */
+    body, html, main, #main-content {
+        background-color: #FFFFFF !important;
+    }
+    
+    .container, .container-fluid {
+        background-color: #FFFFFF !important;
+    }
+    
+    .py-10 {
+        background-color: #FFFFFF !important;
+    }
+    
+    /* Override any CSS variables that might be causing the grey background */
+    :root {
+        --background-color: #FFFFFF !important;
+        --pitchiq-white: #FFFFFF !important;
+        --pitchiq-light-gray: #FFFFFF !important;
+    }
+</style>
+{% endblock %}
+
+{% block styles %}
+<style>
+    /* Force white backgrounds everywhere */
+    html, body, #main-content, main, .container, .container-fluid, .row, .col, div {
+        background-color: #FFFFFF !important;
+    }
+    
+    /* Override CSS variables */
+    :root {
+        --background-color: #FFFFFF !important;
+        --pitchiq-white: #FFFFFF !important;
+        --pitchiq-light-gray: #FFFFFF !important;
+    }
+    
+    /* Target specific background classes */
+    .bg-gray-50, .bg-light, .bg-secondary {
+        background-color: #FFFFFF !important;
+    }
+    
+    /* Make sure parent elements don't have background images */
+    * {
+        background-image: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto py-10" style="background-color: white;">
+    <h1 class="text-3xl font-bold mb-8 text-center">Deepgram Voice Agent Demo</h1>
+    
+    <!-- Voice Agent Interface -->
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <!-- Status and Controls -->
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center space-x-4">
+                    <span id="statusBadge" class="status-badge status-disconnected">Disconnected</span>
+                    <div class="flex space-x-2">
+                        <button id="startBtn" class="btn btn-primary">🎤 Start Session</button>
+                        <button id="stopBtn" class="btn btn-secondary" disabled>⏹️ Stop</button>
+                        <button id="muteBtn" class="btn btn-secondary" disabled>🎤 Mute</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transcript Display -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-2">Live Transcript</h3>
+                <div class="bg-white border rounded-lg p-4 h-32 overflow-y-auto">
+                    <pre id="transcript" class="text-sm whitespace-pre-wrap">Transcript will appear here...</pre>
+                </div>
+            </div>
+
+            <!-- Debug Logs -->
+            <div>
+                <h3 class="text-lg font-semibold mb-2">System Logs</h3>
+                <div class="bg-black text-green-400 rounded-lg p-4 h-48 overflow-y-auto font-mono text-xs">
+                    <pre id="logs">Ready to start voice session...</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Section -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-xl font-bold mb-4">About This Voice Agent</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-semibold mb-2">🎯 Features</h3>
+                    <ul class="list-disc pl-5 space-y-1 text-sm">
+                        <li>Real-time speech-to-text with Deepgram Nova-2</li>
+                        <li>Natural text-to-speech with Aura-2-Asteria</li>
+                        <li>GPT-4o-mini for intelligent responses</li>
+                        <li>48kHz audio pipeline for crystal clear quality</li>
+                        <li>Smart logging with minimal noise</li>
+                        <li>Voice activity detection</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold mb-2">⚙️ Technical Details</h3>
+                    <ul class="list-disc pl-5 space-y-1 text-sm">
+                        <li>Direct WebSocket to Deepgram Voice Agent API</li>
+                        <li>Audio worklet for real-time processing</li>
+                        <li>Optimized microphone settings (AGC disabled)</li>
+                        <li>Low-pass filtering for natural sound</li>
+                        <li>Proper gain control and buffering</li>
+                        <li>Session management and error recovery</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer_scripts %}
+<style>
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    
+    .status-disconnected {
+        background-color: #fee2e2;
+        color: #dc2626;
+    }
+    
+    .status-connecting {
+        background-color: #fef3c7;
+        color: #d97706;
+    }
+    
+    .status-active {
+        background-color: #dcfce7;
+        color: #16a34a;
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .btn-primary {
+        background-color: #3b82f6;
+        color: white;
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+        background-color: #2563eb;
+    }
+    
+    .btn-secondary {
+        background-color: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover:not(:disabled) {
+        background-color: #4b5563;
+    }
+</style>
+
+<script>
+    // Voice Agent Implementation - Copied from working implementation
+    let voiceAgentWS = null;
+    let micStream = null;
+    let micCtx = null;
+    let micNode = null;
+    let spkCtx = null;
+    let playHead = 0;
+    let connected = false;
+    let connecting = false;
+    let muted = false;
+    let transcript = '';
+    let logs = [];
+
+    // Smart logging variables
+    let audioChunkCount = 0;
+    let lastAudioLogTime = 0;
+    let lastRMSValue = 0;
+    let significantAudioEvents = 0;
+    
+    // TTS audio logging variables
+    let ttsChunkCount = 0;
+    let ttsTotalBytes = 0;
+    let lastTTSLogTime = 0;
+    let ttsStreamActive = false;
+    
+    // Constants
+    const MIC_RATE = 48000;
+    const TTS_RATE = 48000;
+    const AUDIO_LOG_INTERVAL = 2000;
+    const RMS_THRESHOLD = 100;
+    const TTS_LOG_INTERVAL = 1000;
+
+    // UI elements
+    const statusBadge = document.getElementById('statusBadge');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const muteBtn = document.getElementById('muteBtn');
+    const transcriptArea = document.getElementById('transcript');
+    const logsArea = document.getElementById('logs');
+    
+    function log(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        const logMessage = `${timestamp}  ${message}`;
+        console.debug(logMessage);
+        logs.push(logMessage);
+        if (logs.length > 200) logs.shift();
+        logsArea.textContent = logs.join('\n');
+        logsArea.scrollTop = logsArea.scrollHeight;
+    }
+    
+    function updateUI() {
+        if (connecting) {
+            statusBadge.textContent = 'Connecting';
+            statusBadge.className = 'status-badge status-connecting';
+            startBtn.disabled = true;
+            stopBtn.disabled = true;
+            muteBtn.disabled = true;
+        } else if (connected) {
+            statusBadge.textContent = 'Connected';
+            statusBadge.className = 'status-badge status-active';
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            muteBtn.disabled = false;
+            muteBtn.textContent = muted ? '🔇 Un-mute' : '🎤 Mute';
+        } else {
+            statusBadge.textContent = 'Disconnected';
+            statusBadge.className = 'status-badge status-disconnected';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            muteBtn.disabled = true;
+        }
+    }
+    
+    // Audio worklet code (inline)
+    const workletCode = `
+        class DeepgramWorklet extends AudioWorkletProcessor {
+            constructor() {
+                super();
+                this.sampleCount = 0;
+            }
+
+            process(inputs) {
+                const input = inputs[0];
+                if (!input || !input[0] || input[0].length === 0) {
+                    return true;
+                }
+
+                const channelCount = input.length;
+                const frameCount = input[0].length;
+                
+                const buffer = new Int16Array(frameCount);
+                
+                for (let frame = 0; frame < frameCount; frame++) {
+                    let sample = 0;
+                    
+                    for (let channel = 0; channel < channelCount; channel++) {
+                        sample += input[channel][frame];
+                    }
+                    
+                    sample = sample / channelCount;
+                    sample = sample * 1.4 * 32767;
+                    buffer[frame] = Math.max(-32768, Math.min(32767, Math.round(sample)));
+                }
+
+                this.port.postMessage(buffer.buffer, [buffer.buffer]);
+                this.sampleCount += frameCount;
+                return true;
+            }
+        }
+        registerProcessor('deepgram-worklet', DeepgramWorklet);
+    `;
+    
+    async function startMicPump() {
+        if (!micStream) return;
+
+        micCtx = new AudioContext({ sampleRate: MIC_RATE });
+        
+        const blob = new Blob([workletCode], { type: 'application/javascript' });
+        const workletUrl = URL.createObjectURL(blob);
+        await micCtx.audioWorklet.addModule(workletUrl);
+        
+        if (!micCtx || micCtx.state === "closed") {
+            log("❌ Audio context closed during worklet load - aborting mic setup");
+            return;
+        }
+        
+        micNode = new AudioWorkletNode(micCtx, "deepgram-worklet");
+
+        let hold = new Int16Array(0);
+
+        micNode.port.onmessage = (e) => {
+            const data = e.data;
+            if (muted || !voiceAgentWS || voiceAgentWS.readyState !== WebSocket.OPEN) return;
+
+            const in16 = new Int16Array(data);
+            let cat = new Int16Array(hold.length + in16.length);
+            cat.set(hold);
+            cat.set(in16, hold.length);
+
+            const TARGET_SAMPLES = (MIC_RATE * 30) / 1000;
+            while (cat.length >= TARGET_SAMPLES) {
+                const chunk = cat.slice(0, TARGET_SAMPLES);
+                
+                const rms = Math.sqrt(chunk.reduce((sum, sample) => sum + sample * sample, 0) / chunk.length);
+                const hasAudio = rms > RMS_THRESHOLD;
+                
+                audioChunkCount++;
+                const now = Date.now();
+                
+                if (hasAudio) significantAudioEvents++;
+                
+                if (now - lastAudioLogTime >= AUDIO_LOG_INTERVAL) {
+                    const avgRMS = Math.round(lastRMSValue);
+                    const voiceActivity = significantAudioEvents > 0 ? '🔊 VOICE' : '🔇 quiet';
+                    log(`🎙️ Audio: ${audioChunkCount} chunks (${(audioChunkCount * 30)}ms) | RMS: ${avgRMS} | ${voiceActivity} (${significantAudioEvents} active)`);
+                    
+                    audioChunkCount = 0;
+                    significantAudioEvents = 0;
+                    lastAudioLogTime = now;
+                }
+                
+                lastRMSValue = rms;
+                voiceAgentWS.send(chunk.buffer);
+                cat = cat.slice(TARGET_SAMPLES);
+            }
+            hold = cat;
+        };
+        
+        micCtx.createMediaStreamSource(micStream).connect(micNode);
+        log(`🎙️ Mic → DG Voice Agent @${MIC_RATE} Hz`);
+        lastAudioLogTime = Date.now();
+    }
+    
+    function initSpeaker() {
+        spkCtx = new AudioContext({ 
+            sampleRate: TTS_RATE,
+            latencyHint: 'interactive'
+        });
+        playHead = spkCtx.currentTime + 0.1;
+        spkCtx.resume().catch(() => {});
+        log(`🔈 Speaker ready @${TTS_RATE}Hz`);
+    }
+    
+    async function playTTS(payload) {
+        if (!spkCtx) {
+            log("❌ No speaker context for TTS playback");
+            return;
+        }
+
+        let pcmBuf = null;
+        
+        if (payload instanceof ArrayBuffer) {
+            pcmBuf = payload;
+        } else if (ArrayBuffer.isView(payload)) {
+            pcmBuf = payload.buffer;
+        } else if (payload instanceof Blob) {
+            pcmBuf = await payload.arrayBuffer();
+        } else {
+            return;
+        }
+
+        if (!pcmBuf || pcmBuf.byteLength === 0) {
+            return;
+        }
+
+        try {
+            const i16 = new Int16Array(pcmBuf);
+            const f32 = new Float32Array(i16.length);
+            
+            for (let i = 0; i < i16.length; i++) {
+                f32[i] = (i16[i] / 32768) * 0.8;
+            }
+            
+            const buf = spkCtx.createBuffer(1, f32.length, TTS_RATE);
+            buf.copyToChannel(f32, 0);
+
+            const src = spkCtx.createBufferSource();
+            src.buffer = buf;
+            
+            const filter = spkCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 8000;
+            filter.Q.value = 0.7;
+            
+            src.connect(filter);
+            filter.connect(spkCtx.destination);
+
+            const startAt = Math.max(playHead, spkCtx.currentTime + 0.05);
+            src.start(startAt);
+            playHead = startAt + buf.duration;
+            
+        
+        log("🔧 Fetching Deepgram API key...");
+        const tokenRes = await fetch("/api/deepgram/token", { credentials: "include" });
+        const tokenData = await tokenRes.json();
+        
+        if (!tokenData.success) {
+            throw new Error(tokenData.error || 'Failed to get API key');
+        }
+        
+        const wsUrl = `wss://agent.deepgram.com/v1/agent/converse`;
+        log("🌐 Connecting to Deepgram Voice Agent API...");
+        
+        voiceAgentWS = new WebSocket(wsUrl, ['token', tokenData.token]);
+        
+        voiceAgentWS.onopen = () => {
+            log("✅ WebSocket connected to Voice Agent");
+            
+            const config = {
+                type: "Settings",
+                audio: {
+                    input: {
+                        encoding: "linear16",
+                        sample_rate: 48000
+                    },
+                    output: {
+                        encoding: "linear16",
+                        sample_rate: 48000,
+                        container: "none"
+                    }
+                },
+                agent: {
+                    language: "en",
+                    listen: {
+                        provider: {
+                            type: "deepgram",
+                            model: "nova-2"
+                        }
+                    },
+                    think: {
+                        provider: {
+                            type: "open_ai",
+                            model: "gpt-4o-mini",
+                            temperature: 0.8
+                        },
+                        prompt: "You are a helpful AI assistant. Keep responses natural, conversational, and brief. Speak as if you're having a friendly conversation."
+                    },
+                    speak: {
+                        provider: {
+                            type: "deepgram",
+                            model: "aura-2-asteria-en"
+                        }
+                    },
+                    greeting: "Hello! I'm your AI assistant. How can I help you today?"
+                }
+            };
+            
+            log("📤 Sending configuration to Voice Agent");
+            voiceAgentWS.send(JSON.stringify(config));
+            
+            initSpeaker();
+            startMicPump();
+            
+            connected = true;
+            connecting = false;
+            updateUI();
+        };
+        
+        voiceAgentWS.onmessage = (event) => {
+            try {
+                if (typeof event.data === 'string') {
+                    const message = JSON.parse(event.data);
+                    
+                    if (message.type === 'ConversationText') {
+                        const text = message.text || '';
+                        const role = message.role || 'unknown';
+                        
+                        if (role === 'user') {
+                            transcript += `User: ${text}\n`;
+                            log(`🗣️ User: ${text}`);
+                        } else if (role === 'assistant') {
+                            transcript += `Agent: ${text}\n`;
+                            log(`🤖 Agent: ${text}`);
+                        }
+                        
+                        transcriptArea.textContent = transcript;
+                        transcriptArea.scrollTop = transcriptArea.scrollHeight;
+                        
+                    } else if (message.type === 'SettingsApplied') {
+                        log("⚙️ Voice Agent configured successfully");
+                    } else if (message.type === 'UserStartedSpeaking') {
+                        log("🗣️ User speaking detected");
+                    } else if (message.type === 'AgentThinking') {
+                        log("🤔 Agent processing...");
+                    } else if (message.type === 'Welcome') {
+                        log("👋 Agent ready");
+                    } else if (message.type === 'AgentAudioDone') {
+                        log('📡 AgentAudioDone');
+                        ttsStreamActive = false;
+                        
+                        if (ttsChunkCount > 0) {
+                            const durationMs = (ttsTotalBytes / 2 / TTS_RATE * 1000).toFixed(0);
+                            log(`🎵 TTS final: ${ttsChunkCount} chunks, ${(ttsTotalBytes / 1024).toFixed(1)}KB (${durationMs}ms audio)`);
+                            ttsChunkCount = 0;
+                            ttsTotalBytes = 0;
+                        }
+                    } else {
+                        if (message.type === 'Warning' || message.type === 'Error') {
+                            log(`⚠️ ${message.type}: ${JSON.stringify(message)}`);
+                        } else {
+                            log(`📡 ${message.type}`);
+                        }
+                    }
+                } else {
+                    const dataSize = event.data.byteLength || event.data.size || 0;
+                    
+                    if (dataSize > 0) {
+                        ttsChunkCount++;
+                        ttsTotalBytes += dataSize;
+                        const now = Date.now();
+                        
+                        if (!ttsStreamActive) {
+                            ttsStreamActive = true;
+                            lastTTSLogTime = now;
+                            log(`🔊 TTS stream started`);
+                        }
+                        
+                        if (now - lastTTSLogTime >= TTS_LOG_INTERVAL) {
+                            const durationMs = (ttsTotalBytes / 2 / TTS_RATE * 1000).toFixed(0);
+                            log(`🎵 TTS: ${ttsChunkCount} chunks, ${(ttsTotalBytes / 1024).toFixed(1)}KB (${durationMs}ms audio)`);
+                            
+                            ttsChunkCount = 0;
+                            ttsTotalBytes = 0;
+                            lastTTSLogTime = now;
+                        }
+                        
+                        playTTS(event.data);
+                    }
+                }
+            } catch (error) {
+                log(`❌ Error processing message: ${error}`);
+            }
+        };
+        
+        voiceAgentWS.onerror = (error) => {
+            log(`🚨 WebSocket error: ${error}`);
+        };
+        
+        voiceAgentWS.onclose = (event) => {
+            log(`🌐 WebSocket closed: ${event.code} ${event.reason}`);
+            cleanup();
+        };
+        
+    } catch (e) {
+        log(`❌ Failed to start session: ${e}`);
+        connecting = false;
+        updateUI();
+    }
+}
+    
+function cleanup() {
+    log("🧹 Cleaning up voice session...");
+    
+    if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
+    }
+    if (micNode) {
+        micNode.disconnect();
+        micNode = null;
+    }
+    if (micCtx) {
+        micCtx.close();
+        micCtx = null;
+    }
+    if (spkCtx) {
+        spkCtx.close();
+        spkCtx = null;
+    }
+    if (voiceAgentWS) {
+        voiceAgentWS.close();
+        voiceAgentWS = null;
+    }
+
+    audioChunkCount = 0;
+    lastAudioLogTime = 0;
+    significantAudioEvents = 0;
+    ttsChunkCount = 0;
+    ttsTotalBytes = 0;
+    lastTTSLogTime = 0;
+    ttsStreamActive = false;
+
+    connected = false;
+    connecting = false;
+    updateUI();
+    
+    log("✅ Voice session ended");
+}
+    });
+    
+    window.addEventListener('beforeunload', function() {
+        if (connected) {
+            stopSession();
+        }
+    });
+</script>
+{% endblock %} 

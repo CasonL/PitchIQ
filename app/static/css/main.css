@@ -14,8 +14,8 @@ html, body {
     /* PitchIQ Colors */
     --pitchiq-black: #212529; /* Dark grey/black for primary elements and text */
     --pitchiq-red: #E63946;   /* Accent red */
-    --pitchiq-white: #F8F8F8; /* Off-white, potentially for backgrounds or cards */
-    --pitchiq-light-gray: #f8f9fa; /* Light background */
+    --pitchiq-white: #FFFFFF; /* TRUE WHITE - changed from #EEF0F3 for cleaner backgrounds */
+    --pitchiq-light-gray: #FFFFFF; /* TRUE WHITE - changed from #f8f9fa for cleaner backgrounds */
     
     /* Base Colors Mapped */
     --primary-color: var(--pitchiq-black); 
@@ -38,8 +38,8 @@ html, body {
     --info-color-dark: #0a9ebf;
     
     /* Neutral Colors */
-    --background-color: var(--pitchiq-white); /* Using off-white as main background */
-    --surface-color: #ffffff; /* White for cards/surfaces */
+    --background-color: var(--pitchiq-white); /* Off-white page background for depth */
+    --surface-color: #FFFFFF; /* Cards remain bright white */
     --text-color: var(--pitchiq-black);
     --text-color-light: #6c757d;
     --text-color-lighter: #adb5bd;
@@ -471,7 +471,10 @@ a:hover {
 
 /* Tooltip styles */
 .tippy-box[data-theme~='light'] {
-    /* Customize base theme if needed */
+    background-color: #FFFFFF;
+    color: #212529;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .tooltip-link {

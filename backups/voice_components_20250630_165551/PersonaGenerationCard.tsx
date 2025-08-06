@@ -81,7 +81,7 @@ export const PersonaGenerationCard: React.FC<PersonaGenerationCardProps> = ({
           about_person: data.persona.about_person || 'Experienced professional',
           pain_points: data.persona.pain_points || ['Budget constraints', 'Time limitations'],
           decision_factors: data.persona.decision_factors || ['ROI', 'Ease of use'],
-          communication_style: data.persona.communication_style || 'Direct and analytical'
+          communication_style: data.persona.communication_style || 'Direct and thoughtful'
         };
 
         console.log('✅ Persona generated:', persona);

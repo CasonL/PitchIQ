@@ -402,7 +402,7 @@ def generate_coach_persona(form_data: dict) -> str:
             logger.warning("Invalid coaching_focus, using default")
             coaching_focus = {
                 'focus': 'sales excellence',
-                'coaching_style': 'analytical and strategic',
+                'coaching_style': 'thoughtful and strategic',
                 'expertise_areas': ['strategic selling', 'client relationship building'],
                 'practice_scenarios': 'comprehensive sales simulations'
             }
@@ -414,7 +414,7 @@ def generate_coach_persona(form_data: dict) -> str:
         audience_profile = get_enhanced_fallback_for_audience(audience)  # 🎯 Use smart fallback instead!
         coaching_focus = {
             'focus': 'sales excellence',
-            'coaching_style': 'analytical and strategic',
+            'coaching_style': 'thoughtful and strategic',
             'expertise_areas': ['strategic selling', 'client relationship building'],
             'practice_scenarios': 'comprehensive sales simulations'
         }

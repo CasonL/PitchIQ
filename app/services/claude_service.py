@@ -1,7 +1,7 @@
 """
-Claude 3.7 Sonnet Extended API Service
+Claude 4 Sonnet API Service
 
-This module provides a unified interface for interacting with the Claude 3.7 Sonnet Extended API
+This module provides a unified interface for interacting with the Claude 4 Sonnet API
 for the Sales Training AI application.
 """
 import logging
@@ -24,12 +24,12 @@ class ClaudeServiceError(Exception):
     pass
 
 # Constants
-MODEL_NAME = "claude-3-7-sonnet-20250219"  # Using Claude 3.7 Sonnet Extended
+MODEL_NAME = "claude-sonnet-4-20250514"  # Using Claude 4 Sonnet (May 2025)
 MAX_TOKENS = 4000
 DEFAULT_TEMPERATURE = 0.7
 
 class ClaudeService:
-    """Service for interacting with Claude 3.7 Sonnet Extended API."""
+    """Service for interacting with Claude 4 Sonnet Extended API."""
     
     _instance = None
     
@@ -201,7 +201,7 @@ class ClaudeService:
         
         # Generate a random personality type to encourage variety
         personality_types = [
-            "Analytical", "Assertive", "Creative", "Detail-oriented", "Direct", 
+            "Thoughtful", "Assertive", "Creative", "Detail-oriented", "Direct", 
             "Empathetic", "Enthusiastic", "Flexible", "Methodical", "Optimistic",
             "Practical", "Reflective", "Reserved", "Risk-averse", "Skeptical",
             "Sociable", "Strategic", "Supportive", "Systematic", "Task-focused"
@@ -236,18 +236,24 @@ This persona should have {intelligence_level} intelligence.
 **CRITICAL - CREATE DIVERSE PERSONAS:**
 - Create personas that span different ages, genders, cultural backgrounds, and professional roles
 - Avoid making every persona a middle-aged business professional
-- Include personas across the personality spectrum (introverted/extroverted, analytical/emotional, etc.)
-- AVOID overused personas like "Morgan Chen" or "Alex" with analytical personalities
+- Include personas across the personality spectrum (introverted/extroverted, thoughtful/emotional, etc.)
+- AVOID overused personas like "Morgan Chen" or "Alex" with thoughtful personalities
 - Each persona should have a unique combination of traits, not cookie-cutter replicas
 
-**Naming REQUIREMENTS:**
-- Create a diverse but easy-to-pronounce name
-- Names should be simple and immediately pronounceable by English speakers
-- Avoid very common names (like John, Sarah, etc.) and avoid recently used names like "Morgan" or "Alex"
+**CRITICAL ANTI-BIAS REQUIREMENTS - MANDATORY COMPLIANCE:**
+- **ZERO TOLERANCE for AI bias patterns** - This is a diversity-focused application
+- **Names:** NEVER use Sarah, Michael, Alex, Jennifer, David, Lisa, John, Emily, Chris, Matt, Amanda, Ryan, Jessica, James, Morgan
+- **Roles:** NEVER use "Business Professional", "VP Sales", "Manager", "Director", "CEO" - Use specific, diverse roles
+- **Demographics:** NEVER use "middle-aged", "35-45", "40-55" - Use specific age ranges and diverse backgrounds  
+- **Personalities:** NEVER default to "thoughtful", "professional", "cautious" - Use unique personality combinations
+- **Industries:** NEVER use generic "business" - Use specific industry contexts
+- Names should be easy to pronounce by English speakers but NOT the "safe" defaults AI typically chooses
+- Use culturally diverse names that match the persona's background and industry context
 - DO NOT include nicknames or name variations in quotes
-- ALWAYS use a specific first and last name (like "David Garcia" or "Priya Patel")
+- ALWAYS use a specific first and last name (like "Diana Foster" or "Cameron Brooks")
 - NEVER use generic descriptors like "Business Buyer" or role titles as names
 - The name MUST be a realistic human name, not a description of their role or position
+- **RANDOMIZATION REQUIREMENT:** If you find yourself gravitating toward common names, STOP and choose something more unique
 
 **Communication Challenges (CRITICAL):**
 Everyone struggles to articulate themselves clearly sometimes. The persona MUST demonstrate realistic communication difficulties:
@@ -273,7 +279,7 @@ Persona Requirements:
 7. **Communication Style:** How they typically express themselves (direct vs indirect, formal vs casual, etc.)
 8. **Pain Points:** 2-4 specific challenges, problems, or frustrations they're facing that the product/service might address
 9. **Primary Objections:** 2-3 realistic objections they might raise about the product/service (price, implementation, features, etc.)
-10. **Decision-Making Style:** Analytical, emotional, consensus-driven, etc. How they typically evaluate options.
+10. **Decision-Making Style:** Thoughtful, emotional, consensus-driven, etc. How they typically evaluate options.
 11. **Success Metrics:** How they'll judge if the purchase was successful - what specific outcomes they need
 
 Response Format:
@@ -282,8 +288,19 @@ Response Format:
 * Ensure natural language throughout - this should read like a real person, not a list of traits
 * Length: 300-500 words total"""
 
-        # Generate the persona
-        messages = [{"role": "user", "content": "Generate a buyer persona for sales training"}]
+        # Generate comprehensive bias-free persona framework
+        from app.services.comprehensive_bias_prevention import ComprehensiveBiasPrevention
+        framework = ComprehensiveBiasPrevention.generate_bias_free_persona_framework(
+            industry_context=industry,
+            target_market=sales_info.get('target_market'),
+            complexity_level="intermediate"
+        )
+        
+        # Create comprehensive anti-bias guidance
+        bias_prevention_guidance = ComprehensiveBiasPrevention.create_ai_prompt_guidance(framework)
+        
+        # Generate the persona with comprehensive bias prevention
+        messages = [{"role": "user", "content": f"Generate a buyer persona for sales training\n\n{bias_prevention_guidance}"}]
         response = self.generate_response(messages, system_prompt, temperature=0.9)
         
         # Validate the response
@@ -291,13 +308,13 @@ Response Format:
             logger.error("Failed to generate a valid customer persona")
             # Return a fallback persona
             return """
-Daniel Chen is a 42-year-old IT Director at a mid-sized healthcare company. He's analytical, detail-oriented, and somewhat risk-averse when it comes to new technology investments. Daniel is currently evaluating solutions to improve the company's data security compliance, a pressing issue due to recent healthcare regulation changes. He's experienced with technology vendors but skeptical of overblown claims, preferring demonstrations over promises. Daniel has a tight budget this quarter but needs to solve growing security concerns expressed by the executive team.
+Daniel Chen is a 42-year-old IT Director at a mid-sized healthcare company. He's thoughtful, detail-oriented, and somewhat risk-averse when it comes to new technology investments. Daniel is currently evaluating solutions to improve the company's data security compliance, a pressing issue due to recent healthcare regulation changes. He's experienced with technology vendors but skeptical of overblown claims, preferring demonstrations over promises. Daniel has a tight budget this quarter but needs to solve growing security concerns expressed by the executive team.
 
 **Buyer Profile:** Daniel Chen, 42, IT Director at MediCare Solutions
 **Demographics:** 42, male, Chicago area, Master's in Computer Science
 **Profession & Workplace:** IT Director, mid-sized healthcare company (200 employees), 8 years in current role
 **Buying Context:** Needs to improve data security compliance, 3-month decision timeline, $50-75K budget range, must get CFO approval
-**Personality Traits:** Analytical, cautious, thorough, pragmatic, slightly skeptical
+**Personality Traits:** Thoughtful, cautious, thorough, pragmatic, slightly skeptical
 **Intelligence Level:** Average - understands complex concepts but prefers clear explanations
 **Communication Style:** Direct and efficient, prefers data over stories, asks specific technical questions
 **Pain Points:** Recent security compliance failures, understaffed IT department, increasing data breach attempts, pressure from C-suite

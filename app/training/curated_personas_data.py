@@ -9,37 +9,37 @@ the user's product/service information and this chosen shell.
 # --- STANDARD BEHAVIORAL SHELLS ---
 BEHAVIORAL_SHELLS = [
     {
-        "shell_id": "standard_analytical_01",
+        "shell_id": "standard_thoughtful_01",
         "is_legendary_shell": False,
         "special_rules_identifier": "None",
-        "description_shell_narrative": "A typical analytical buyer, focused on details and data. Medium chattiness.",
+        "description_shell_narrative": "A thoughtful, reflective buyer who considers how solutions fit into their bigger picture. Engages in meaningful conversation.",
         "demographic_description_cues": {
             "age_group_suggestion_cue": "35-45",
-            "cultural_background_cue": "prefers structured conversation, values punctuality",
-            "communication_style_preference_cue": "responds well to clear data, likes facts over fluff, appreciates well-thought-out questions"
+            "cultural_background_cue": "values authentic conversation, appreciates genuine insights",
+            "communication_style_preference_cue": "responds well to real-world examples, likes meaningful context, appreciates questions that show understanding"
         },
-        "linguistic_style_cue": "Professional, articulate, and somewhat formal. Avoids slang. Uses precise language.",
-        "chattiness_level": "medium",
-        "base_reaction_style": "Cautious_Pragmatist",
+        "linguistic_style_cue": "Conversational, authentic, and thoughtful. Uses occasional metaphors. Speaks with natural rhythm and pauses.",
+        "chattiness_level": "medium-high",
+        "base_reaction_style": "Reflective_Explorer",
         "intelligence_level_cue": "high",
         "trait_metrics_template": {
-            "Analytical": 0.8,
-            "Skeptical": 0.6,
-            "Detail_Oriented": 0.9,
-            "Risk_Aversion": 0.7,
-            "Patience": 0.5,
-            "Openness_to_New_Ideas": 0.4,
-            "Decisiveness": 0.6 # Can make decisions if data supports it
+            "Thoughtful": 0.8,
+            "Curious": 0.7,
+            "Reflective": 0.8,
+            "Practical": 0.6,
+            "Patience": 0.6,
+            "Openness_to_New_Ideas": 0.6,
+            "Decisiveness": 0.5 # Makes decisions after thoughtful consideration
         },
         "cognitive_biases_suggestions": {
             "Anchoring": True,
             "Status_Quo_Bias": False,
             "Confirmation_Bias": True,
-            "Information_Bias": True # Tendency to seek information even when it cannot affect action.
+            "Narrative_Fallacy": True # Tendency to create explanatory stories that connect dots
         },
-        "buyer_type_archetype_cue": "Economic buyer elements - interested in ROI, efficiency gains, data-backed value.",
+        "buyer_type_archetype_cue": "Value buyer elements - interested in meaningful impact, real-world applications, and how solutions fit their context.",
         "decision_authority_style_cue": "Influencer with strong recommendation power, or final decision-maker for their department.",
-        "initial_emotional_state_range": ["Neutral", "Focused", "Slightly_Reserved"]
+        "initial_emotional_state_range": ["Engaged", "Curious", "Thoughtfully_Reserved"]
     },
     {
         "shell_id": "standard_amiable_01",
@@ -92,7 +92,7 @@ BEHAVIORAL_SHELLS = [
             "Trust_Building_Speed": 0.7,
             "Openness_to_New_Ideas": 0.8,
             "Enthusiasm_When_Understood": 0.9,
-            "Analytical": 0.4,  # Emotional decisions over analytical
+            "Thoughtful": 0.4,  # Emotional decisions over thoughtful
             "Skeptical": 0.3,   # Low baseline skepticism
             "Confidence_Influenced": 0.7  # Responds to expertise
         },
@@ -128,7 +128,7 @@ BEHAVIORAL_SHELLS = [
             "Openness_to_New_Ideas": 0.6,
             "Efficiency_Valued": 0.9,
             "Trust_Building_Speed": 0.5,  # Takes time but possible
-            "Analytical": 0.7
+            "Thoughtful": 0.7
         },
         "cognitive_biases_suggestions": {
             "Authority_Bias": True,
@@ -161,7 +161,7 @@ BEHAVIORAL_SHELLS = [
             "Risk_Taking": 0.7,
             "Innovation_Appreciation": 0.9,
             "Skeptical": 0.2,  # Very low skepticism
-            "Analytical": 0.6,
+            "Thoughtful": 0.6,
             "Impulsiveness": 0.6  # Can make quick decisions when excited
         },
         "cognitive_biases_suggestions": {
@@ -196,7 +196,7 @@ LEGENDARY_BEHAVIORAL_SHELLS = [
             "Openness_to_New_Ideas": 0.9, # Very open, but also quick to discard
             "Impulsiveness": 0.8,
             "Skeptical": 0.5, # Can be skeptical one moment, overly trusting the next
-            "Analytical": 0.3, # Not deeply analytical in a consistent way
+            "Thoughtful": 0.3, # Not deeply thoughtful in a consistent way
             "Consistency_of_Behavior": 0.1, # Core legendary trait - LOW consistency
             "Risk_Taking": 0.8 
         },
@@ -231,7 +231,7 @@ if __name__ == '__main__':
             print(f"  Chattiness: {shell.get('chattiness_level', 'N/A')}")
             print(f"  Intelligence Cue: {shell.get('intelligence_level_cue', 'N/A')}")
             # Example trait check - you might want to iterate all traits or pick specific ones
-            print(f"  Trait Template Example (Analytical): {shell.get('trait_metrics_template', {}).get('Analytical', 'N/A')}") 
+            print(f"  Trait Template Example (Thoughtful): {shell.get('trait_metrics_template', {}).get('Thoughtful', 'N/A')}") 
             print(f"  Cognitive Bias Example (Anchoring): {shell.get('cognitive_biases_suggestions', {}).get('Anchoring', 'N/A')}")
             print("-" * 20)
 

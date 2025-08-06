@@ -244,7 +244,7 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
     <>
     {/* Removed the local scroll anchor div */}
     {/* <div ref={emailSignupAnchorRef} style={{ position: 'relative', top: '-80px', height: '1px' }} data-purpose="email-signup-scroll-anchor" /> */}
-    <section className="h-auto flex flex-col justify-start items-center pt-32 sm:pt-36 md:pt-40 lg:pt-44 pb-0 px-4 sm:px-6 lg:px-8 overflow-hidden bg-white">
+    <section className="h-auto flex flex-col justify-start items-center pt-32 sm:pt-36 md:pt-40 lg:pt-44 pb-0 px-4 sm:px-6 lg:px-8 overflow-hidden bg-background">
       <div className="max-w-7xl mx-auto w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-10 lg:gap-16 items-center">
           {/* Left Column: Text Content */}
@@ -479,7 +479,7 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
     </section>
 
     {/* Mobile Visual Section - Only visible on small screens */}
-    <section className="block sm:hidden bg-white pt-16 sm:pt-20 md:pt-24 pb-4 px-4">
+    <section className="block sm:hidden bg-background pt-16 sm:pt-20 md:pt-24 pb-4 px-4">
       <div className="max-w-sm mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

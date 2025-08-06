@@ -22,7 +22,7 @@ class AITrainingService:
         
         # Predefined personality traits and emotional states
         self.personality_traits = [
-            "analytical", "skeptical", "expressive", "logical", "emotional",
+            "thoughtful", "skeptical", "expressive", "logical", "emotional",
             "practical", "innovative", "conservative", "open-minded", "detail-oriented"
         ]
         

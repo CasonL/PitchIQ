@@ -1,164 +1,319 @@
-import React, { useEffect, useState } from 'react';
-import { Loader2, Sparkles, User, Building, Target } from 'lucide-react';
-import { PersonaData, UserProductInfo } from './DualVoiceAgentFlow';
+import React, { useState, useEffect, useRef } from 'react';
+import { Sparkles } from 'lucide-react';
+import { PersonaData } from './DualVoiceAgentFlow';
+import { ProspectCallEventBus } from './ProspectCallEventBus';
 
 interface PersonaGenerationCardProps {
-  userProductInfo: UserProductInfo;
+  userProductInfo: {
+    product: string;
+    target_market: string;
+  };
   onPersonaGenerated: (persona: PersonaData) => void;
-  onError: (error: string) => void;
+  onError?: (error: string) => void;
+  autoStart?: boolean;
 }
 
-export const PersonaGenerationCard: React.FC<PersonaGenerationCardProps> = ({
+const PersonaGenerationCard: React.FC<PersonaGenerationCardProps> = ({
   userProductInfo,
   onPersonaGenerated,
-  onError
+  onError,
+  autoStart = false
 }) => {
-  const [loadingStage, setLoadingStage] = useState<'analyzing' | 'generating' | 'finalizing'>('analyzing');
+  console.log('🎨 PersonaGenerationCard component rendered with props:', {
+    userProductInfo,
+    autoStart,
+    hasOnPersonaGenerated: !!onPersonaGenerated,
+    hasOnError: !!onError
+  });
+
+  // Simplified state - single progress indicator instead of multiple stages
   const [progress, setProgress] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [message, setMessage] = useState<string>('Creating your perfect prospect...');
+  const hasGeneratedRef = useRef(false);
+  const eventBusRef = useRef(ProspectCallEventBus.getInstance());
+  const autoStartInitialized = useRef(false);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const apiCallRef = useRef<boolean>(false);
+  
+  // Start generation when triggered by user
+  const startGeneration = () => {
+    if (hasGeneratedRef.current || isGenerating) return;
+    setIsGenerating(true);
+    setProgress(0);
+  };
 
-  const loadingStages = [
-    { key: 'analyzing', label: 'Analyzing your product...', icon: Target, duration: 2000 },
-    { key: 'generating', label: 'Creating perfect prospect...', icon: User, duration: 3000 },
-    { key: 'finalizing', label: 'Finalizing persona details...', icon: Building, duration: 2000 }
-  ];
-
+  // Register to global event bus for persona status updates
   useEffect(() => {
-    const generatePersona = async () => {
-      try {
-        // Simulate loading stages
-        for (let i = 0; i < loadingStages.length; i++) {
-          const stage = loadingStages[i];
-          setLoadingStage(stage.key as any);
-          
-          // Animate progress for this stage
-          const startProgress = (i / loadingStages.length) * 100;
-          const endProgress = ((i + 1) / loadingStages.length) * 100;
-          
-          const progressInterval = setInterval(() => {
-            setProgress(prev => {
-              const newProgress = prev + 2;
-              return newProgress >= endProgress ? endProgress : newProgress;
-            });
-          }, stage.duration / 50);
-          
-          await new Promise(resolve => setTimeout(resolve, stage.duration));
-          clearInterval(progressInterval);
-        }
-
-        // Actually generate the persona
-        const response = await fetch('/api/training/generate-persona', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            product: userProductInfo.product,
-            target_market: userProductInfo.target_market,
-            key_benefits: userProductInfo.key_benefits,
-            pricing_model: userProductInfo.pricing_model
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to generate persona: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        if (!data.success) {
-          throw new Error(data.error || 'Persona generation failed');
-        }
-
-        // Transform the response to match our PersonaData interface
-        const persona: PersonaData = {
-          name: data.persona.name || 'Alex Johnson',
-          role: data.persona.role || 'Decision Maker',
-          company: data.persona.company || 'TechCorp Inc.',
-          industry: data.persona.industry || 'Technology',
-          primary_concern: data.persona.primary_concern || 'Improving efficiency',
-          business_details: data.persona.business_details || 'Growing company',
-          about_person: data.persona.about_person || 'Experienced professional',
-          pain_points: data.persona.pain_points || ['Budget constraints', 'Time limitations'],
-          decision_factors: data.persona.decision_factors || ['ROI', 'Ease of use'],
-          communication_style: data.persona.communication_style || 'Direct and analytical'
-        };
-
-        console.log('✅ Persona generated:', persona);
-        setProgress(100);
-        
-        // Brief pause to show completion
-        setTimeout(() => {
-          onPersonaGenerated(persona);
-        }, 500);
-
-      } catch (error) {
-        console.error('❌ Persona generation failed:', error);
-        onError(error instanceof Error ? error.message : 'Unknown error');
+    const eventBus = eventBusRef.current;
+    const handleProgressUpdate = (data: any) => {
+      console.log('📊 Progress update received:', data);
+      if (data.progress !== undefined) {
+        setProgress(data.progress);
+      }
+      if (data.message) {
+        setMessage(data.message);
       }
     };
 
-    generatePersona();
-  }, [userProductInfo, onPersonaGenerated, onError]);
+    eventBus.on('persona-progress', handleProgressUpdate);
+    return () => {
+      eventBus.off('persona-progress', handleProgressUpdate);
+    };
+  }, []);
 
-  const currentStageInfo = loadingStages.find(s => s.key === loadingStage);
-  const CurrentIcon = currentStageInfo?.icon || Sparkles;
+  // Auto-start generation when autoStart is true
+  useEffect(() => {
+    if (!autoStart || autoStartInitialized.current || hasGeneratedRef.current) return;
+    
+    console.log('🚀 Sophisticated persona generation check:', {
+      autoStart,
+      hasGenerated: hasGeneratedRef.current
+    });
+
+    if (userProductInfo.product) {
+      autoStartInitialized.current = true;
+      console.log('🎯 Starting sophisticated AI persona generation...');
+      generateSophisticatedPersona();
+    } else {
+      console.log('⚠️ Missing product info, cannot start persona generation:', userProductInfo);
+    }
+  }, [autoStart, userProductInfo.product, userProductInfo.target_market, onPersonaGenerated]);
+
+  const generateSophisticatedPersona = async () => {
+    if (hasGeneratedRef.current) return;
+    
+    try {
+      // Reset progress and start generation
+      setProgress(0);
+      setMessage('Initializing AI persona generation...');
+      setIsGenerating(true);
+      hasGeneratedRef.current = true;
+      apiCallRef.current = false;
+      console.log('🚀 Starting persona generation - Progress reset to 0%');
+
+      // Start smooth progress animation that runs independently
+      startProgressAnimation();
+
+      // Start API call after a short delay
+      setTimeout(() => {
+        makeAPICall();
+      }, 500);
+
+    } catch (error) {
+      console.error('❌ Error in persona generation:', error);
+      setMessage('Failed to generate persona. Please try again.');
+      setIsGenerating(false);
+      hasGeneratedRef.current = false;
+    }
+  };
+
+  const startProgressAnimation = () => {
+    // Clear any existing interval
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+
+    const steps = [
+      { progress: 15, message: 'Analyzing your business...', delay: 800 },
+      { progress: 30, message: 'Understanding your market...', delay: 1600 },
+      { progress: 50, message: 'AI crafting detailed persona...', delay: 2400 },
+      { progress: 70, message: 'Generating personality traits...', delay: 3200 },
+      { progress: 85, message: 'Finalizing behavioral patterns...', delay: 4000 },
+      { progress: 95, message: 'Almost ready...', delay: 4800 }
+    ];
+
+    steps.forEach(({ progress: targetProgress, message: stepMessage, delay }) => {
+      setTimeout(() => {
+        // Only update if API hasn't completed yet
+        if (!apiCallRef.current) {
+          console.log(`🔄 Progress update: ${targetProgress}% - ${stepMessage}`);
+          setProgress(targetProgress);
+          setMessage(stepMessage);
+        }
+      }, delay);
+    });
+  };
+
+  const makeAPICall = async () => {
+    try {
+      console.log('🤖 Calling sophisticated persona generation API...');
+      console.log('📝 Request payload:', {
+        product_service: userProductInfo.product,
+        target_market: userProductInfo.target_market || 'Business professionals'
+      });
+
+      const response = await fetch('/api/demo/generate-persona', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          product_service: userProductInfo.product,
+          target_market: userProductInfo.target_market || 'Business professionals'
+        })
+      });
+
+      console.log('📞 API response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('📦 Sophisticated persona data received:', data);
+      console.log('🔍 Full API response details:');
+      console.log('  - Success:', data.success);
+      console.log('  - Has persona:', !!data.persona);
+      console.log('  - Persona keys:', data.persona ? Object.keys(data.persona) : 'none');
+
+      if (!data.success || !data.persona) {
+        throw new Error(data.error || 'Failed to generate persona');
+      }
+
+      // Mark API as completed
+      apiCallRef.current = true;
+
+      // Complete progress to 100%
+      setProgress(100);
+      setMessage('Persona generated successfully!');
+      console.log('✅ Progress completed: 100%');
+
+      // Brief delay to show completion
+      setTimeout(() => {
+        // Transform the sophisticated API response to our PersonaData format
+        const apiPersona = data.persona;
+        const persona: PersonaData = {
+          name: apiPersona.name || 'Alex Johnson',
+          role: apiPersona.role || apiPersona.occupation || 'Decision Maker',
+          company: apiPersona.company || apiPersona.company_name || 'TechCorp Inc.',
+          industry: apiPersona.industry || 'Technology',
+          primary_concern: apiPersona.primary_concern || apiPersona.main_challenge || 'Improving efficiency',
+          business_details: apiPersona.business_details || apiPersona.background || 'Growing company',
+          about_person: apiPersona.about_person || apiPersona.description || 'Experienced professional',
+          pain_points: Array.isArray(apiPersona.pain_points) ? apiPersona.pain_points : 
+                      (apiPersona.pain_points ? [apiPersona.pain_points] : ['Efficiency challenges', 'Growth constraints']),
+          decision_factors: Array.isArray(apiPersona.decision_factors) ? apiPersona.decision_factors :
+                           (apiPersona.decision_factors ? [apiPersona.decision_factors] : ['ROI', 'Ease of use']),
+          communication_style: typeof apiPersona.communication_style === 'string' ? apiPersona.communication_style :
+                              (apiPersona.communication_style?.formality_description || 'Professional and direct'),
+          company_overview: apiPersona.company_overview || apiPersona.company_context || undefined,
+          recent_milestones: Array.isArray(apiPersona.recent_milestones) ? apiPersona.recent_milestones : undefined,
+          strategic_priorities: Array.isArray(apiPersona.strategic_priorities) ? apiPersona.strategic_priorities : undefined,
+          public_challenges: Array.isArray(apiPersona.public_challenges) ? apiPersona.public_challenges : undefined,
+          surface_business_info: userProductInfo.product,
+          // Include additional sophisticated fields if present
+          gender: apiPersona.gender,
+          age_range: apiPersona.age_range || apiPersona.age,
+          cultural_background: apiPersona.cultural_background,
+          personality_traits: Array.isArray(apiPersona.personality_traits) ? apiPersona.personality_traits : undefined,
+          emotional_state: apiPersona.emotional_state,
+          decision_authority: apiPersona.decision_authority
+        };
+
+        console.log('✅ Sophisticated persona generation complete:', persona);
+
+        setTimeout(() => {
+          setIsGenerating(false);
+          onPersonaGenerated(persona);
+        }, 500);
+      }, 1000);
+
+    } catch (error) {
+      console.error('❌ API call failed:', error);
+      apiCallRef.current = true; // Mark as completed to stop progress animation
+      
+      setProgress(100);
+      setMessage('Error - using fallback persona');
+
+      // Fallback to a basic persona if API fails
+      const fallbackPersona: PersonaData = {
+        name: 'Alex Johnson',
+        role: 'Decision Maker',
+        company: 'TechCorp Inc.',
+        industry: 'Technology',
+        primary_concern: 'Improving efficiency',
+        business_details: 'Growing company seeking solutions',
+        about_person: 'Experienced professional',
+        pain_points: ['Efficiency challenges', 'Growth constraints'],
+        decision_factors: ['ROI', 'Ease of use'],
+        communication_style: 'Professional and direct',
+        surface_business_info: userProductInfo.product
+      };
+
+      setTimeout(() => {
+        setIsGenerating(false);
+        onPersonaGenerated(fallbackPersona);
+      }, 1000);
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, []);
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center text-center space-y-8">
-      {/* Main loading animation */}
-      <div className="relative">
-        <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center animate-pulse">
-          <CurrentIcon className="w-12 h-12 text-white" />
-        </div>
-        
-        {/* Animated rings */}
-        <div className="absolute inset-0 w-24 h-24 border-4 border-blue-200 rounded-full animate-ping opacity-20"></div>
-        <div className="absolute inset-2 w-20 h-20 border-2 border-purple-200 rounded-full animate-ping opacity-30 animation-delay-1000"></div>
-      </div>
-
-      {/* Loading text */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-gray-800">
-          Creating Your AI Prospect
-        </h2>
-        
-        <div className="flex items-center justify-center space-x-2 text-lg text-gray-600">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span>{currentStageInfo?.label}</span>
-        </div>
-      </div>
-
-      {/* Progress bar */}
-      <div className="w-full max-w-md">
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div 
-            className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300 ease-out"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <div className="text-sm text-gray-500 mt-2">
-          {Math.round(progress)}% complete
-        </div>
-      </div>
-
-      {/* Product info recap */}
-      <div className="bg-gray-50 rounded-lg p-4 max-w-md">
-        <h3 className="font-medium text-gray-800 mb-2">Generating prospect for:</h3>
-        <div className="text-sm text-gray-600 space-y-1">
-          <div><strong>Product:</strong> {userProductInfo.product}</div>
-          <div><strong>Target Market:</strong> {userProductInfo.target_market}</div>
-        </div>
-      </div>
-
-      {/* Fun loading messages */}
-      <div className="text-sm text-gray-500 italic">
-        {loadingStage === 'analyzing' && "🔍 Understanding your unique value proposition..."}
-        {loadingStage === 'generating' && "🎭 Crafting a realistic prospect persona..."}
-        {loadingStage === 'finalizing' && "✨ Adding the finishing touches..."}
-      </div>
+    <div className="flex flex-col items-center gap-3 py-2">
+      {isGenerating ? (
+        <>
+          {/* Simple spinner with progress */}
+          <div className="relative h-16 w-16 flex items-center justify-center my-2">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-16 w-16 rounded-full border-2 border-primary-100 border-t-primary-500 animate-spin" />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Sparkles className="h-6 w-6 text-primary-600 animate-pulse" />
+            </div>
+          </div>
+          
+          {/* Enhanced progress display */}
+          <div className="text-center w-full max-w-sm">
+            <p className="text-lg font-semibold text-primary-800 mb-2">
+              {message}
+            </p>
+            
+            {/* Enhanced progress bar with debug info */}
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-2 shadow-inner">
+              <div 
+                className="bg-gradient-to-r from-primary-500 to-primary-600 h-3 rounded-full transition-all duration-500 ease-out shadow-sm" 
+                style={{ 
+                  width: `${progress}%`,
+                  minWidth: progress > 0 ? '8px' : '0px'
+                }}
+                data-progress={progress}
+              />
+            </div>
+            
+            {/* Debug info - remove this later */}
+            <div className="text-xs text-gray-500 mb-1">
+              Debug: Progress = {progress}%, Width = {progress}%
+            </div>
+            
+            {/* Progress percentage */}
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-600">Generating persona...</span>
+              <span className="font-semibold text-primary-700">{progress}%</span>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* Show start button only if not auto-started */
+        !autoStart && (
+          <button 
+            onClick={startGeneration}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-md transition-colors"
+          >
+            <Sparkles className="h-4 w-4" /> Create Prospect
+          </button>
+        )
+      )}
     </div>
   );
 };
 
-export default PersonaGenerationCard; 
+export default PersonaGenerationCard;

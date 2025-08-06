@@ -10,29 +10,29 @@ import random
 
 # Advanced Persona Archetypes
 ADVANCED_PERSONA_ARCHETYPES = {
-    "the_analytical_decision_maker": {
+    "the_thoughtful_decision_maker": {
         "name_templates": ["Dr. {first_name} {last_name}", "Prof. {first_name} {last_name}", "{first_name} {last_name}, CPA"],
         "personality_profile": {
-            "decision_style": "Data-driven and methodical",
-            "communication_preference": "Facts, figures, and detailed analysis",
-            "trust_building": "Proven track record and credible references",
-            "objection_style": "Questions assumptions and demands proof",
-            "closing_signals": "Asks for detailed implementation timelines and ROI calculations"
+            "decision_style": "Reflective and insightful",
+            "communication_preference": "Meaningful conversations with real-world context",
+            "trust_building": "Authentic exchanges and understanding their unique situation",
+            "objection_style": "Asks thoughtful questions to explore implications",
+            "closing_signals": "Starts discussing how it would fit into their world"
         },
         "typical_phrases": [
-            "I need to see the numbers on this",
-            "What's your evidence for that claim?",
-            "How does this compare to the alternatives?",
-            "I'll need to analyze this thoroughly before deciding",
-            "Can you provide case studies with similar companies?"
+            "That's interesting, how would that work in our context?",
+            "I'm curious about the real-world impact of this",
+            "How have other people in my position approached this?",
+            "I need to think about how this fits our bigger picture",
+            "Tell me about a time when this really made a difference"
         ],
         "pain_points_templates": [
-            "Current solution lacks detailed reporting capabilities",
-            "Difficulty getting actionable insights from existing data",
-            "Need better forecasting and predictive analytics",
-            "Compliance and audit trail requirements not met"
+            "Current solution doesn't adapt to our unique needs",
+            "Team is frustrated with the limitations of what we have",
+            "Need something that actually works for real people",
+            "Looking for a partner who understands our challenges"
         ],
-        "coaching_notes": "This persona rewards thorough preparation and data-backed presentations. Great for teaching evidence-based selling."
+        "coaching_notes": "This persona rewards authentic conversation and real-world examples. Great for teaching consultative selling and building genuine connections."
     },
     
     "the_skeptical_gatekeeper": {
@@ -237,14 +237,14 @@ def generate_realistic_persona(
     template = ADVANCED_PERSONA_ARCHETYPES[archetype]
     complexity = PERSONA_COMPLEXITY_LEVELS[complexity_level]
     
-    # Generate name
-    first_names = ["Sarah", "Michael", "Jennifer", "David", "Lisa", "Robert", "Maria", "James", "Amanda", "Christopher"]
-    last_names = ["Johnson", "Williams", "Brown", "Davis", "Miller", "Wilson", "Moore", "Taylor", "Anderson", "Thomas"]
+    # Generate name - using diverse names to avoid AI bias
+    from app.services.demographic_names import DemographicNameService
+    first_name, last_name = DemographicNameService.get_name_by_demographics("american_professional", random.choice(["male", "female"]))
     
     name_template = random.choice(template["name_templates"])
     name = name_template.format(
-        first_name=random.choice(first_names),
-        last_name=random.choice(last_names)
+        first_name=first_name,
+        last_name=last_name
     )
     
     # Generate persona details

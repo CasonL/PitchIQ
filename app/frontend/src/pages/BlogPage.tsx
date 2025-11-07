@@ -6,77 +6,78 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import Navbar from '@/components/Navbar';
 import EmailSignupModal from '@/components/EmailSignupModal';
+import { SEO } from '@/components/SEO';
 
 const blogPosts = [
   {
-    title: "10 AI Sales Training Techniques That Boost Close Rates by 40%",
-    excerpt: "Discover how enterprise sales teams are using AI-powered training to dramatically improve their performance and revenue outcomes. Learn the specific techniques that top-performing organizations implement.",
+    title: "Why You Freeze When a Prospect Says 'No' (And How to Fix It)",
+    excerpt: "That moment when your mind goes blank after an objection? You're not alone. Here's why it happens and what to say instead of panicking.",
     author: "Cason Lamothe",
     date: "June 15, 2025",
-    readTime: "8 min read",
-    category: "Sales Training",
-    tags: ["AI Training", "Close Rates", "Performance"],
-    slug: "ai-sales-training-techniques-boost-close-rates",
+    readTime: "5 min read",
+    category: "Objection Handling",
+    tags: ["Objections", "Confidence", "Practical Tips"],
+    slug: "why-you-freeze-when-prospect-says-no",
     featured: true
   },
   {
-    title: "Enterprise Sales Coaching: The Complete Guide for 2024",
-    excerpt: "Everything you need to know about implementing scalable sales coaching programs that deliver measurable ROI for large organizations. From setup to execution.",
+    title: "5 Objections That Kill Deals—And What to Say Instead",
+    excerpt: "\"I need to think about it.\" \"It's too expensive.\" \"Send me some info.\" Learn the real responses that keep conversations alive.",
     author: "Cason Lamothe",
     date: "June 12, 2025",
-    readTime: "12 min read",
-    category: "Enterprise",
-    tags: ["Enterprise", "Coaching", "ROI"],
-    slug: "enterprise-sales-coaching-complete-guide-2024",
+    readTime: "6 min read",
+    category: "Practical Tips",
+    tags: ["Objections", "Scripts", "Closing"],
+    slug: "five-objections-that-kill-deals",
     featured: true
   },
   {
-    title: "B2B Sales Training vs Traditional Methods: ROI Comparison",
-    excerpt: "A comprehensive analysis of AI-powered sales training platforms versus traditional coaching methods, with real performance data from 500+ organizations.",
+    title: "How to Practice Sales Calls When You're Flying Solo",
+    excerpt: "No team, no manager, no problem. Here's how to get real practice and build confidence when you're on your own.",
     author: "Cason Lamothe",
     date: "June 8, 2025",
-    readTime: "6 min read",
-    category: "Analysis",
-    tags: ["B2B", "ROI", "Comparison"],
-    slug: "b2b-sales-training-vs-traditional-methods-roi",
+    readTime: "4 min read",
+    category: "Solo Sellers",
+    tags: ["Practice", "Solo", "Confidence"],
+    slug: "practice-sales-calls-flying-solo",
     featured: false
   },
   {
-    title: "How to Scale Sales Training for Remote Teams",
-    excerpt: "Master the art of training distributed sales teams with AI-powered coaching. Learn best practices for maintaining consistency and quality across locations.",
+    title: "What to Do When You Blank Out Mid-Pitch",
+    excerpt: "Lost your train of thought during a call? Here's how to recover gracefully and get back on track without looking like you're scrambling.",
     author: "Cason Lamothe",
     date: "May 28, 2025",
-    readTime: "10 min read",
-    category: "Remote Work",
-    tags: ["Remote", "Scaling", "Team Management"],
-    slug: "scale-sales-training-remote-teams",
+    readTime: "4 min read",
+    category: "Confidence",
+    tags: ["Recovery", "Mindset", "Practical Tips"],
+    slug: "what-to-do-when-you-blank-out",
     featured: false
   },
   {
-    title: "The Psychology of Sales Objections: AI-Powered Insights",
-    excerpt: "Understanding buyer psychology through AI analysis. Discover how machine learning reveals patterns in objection handling that human coaches miss.",
+    title: "The Real Reason You're Losing Deals (It's Not Your Product)",
+    excerpt: "Spoiler: Most deals aren't lost because of price or features. They're lost in the first 60 seconds. Here's what's actually happening.",
     author: "Cason Lamothe",
     date: "May 22, 2025",
-    readTime: "9 min read",
-    category: "Psychology",
-    tags: ["Psychology", "Objections", "AI Insights"],
-    slug: "psychology-sales-objections-ai-insights",
+    readTime: "5 min read",
+    category: "Mindset",
+    tags: ["Discovery", "Rapport", "First Impressions"],
+    slug: "real-reason-youre-losing-deals",
     featured: false
   },
   {
-    title: "Building a Sales Training ROI Dashboard: Essential Metrics",
-    excerpt: "Track what matters most in sales training. Learn how to build comprehensive dashboards that prove training impact and guide strategic decisions.",
+    title: "Solo Seller's Guide: Building Confidence Without a Sales Manager",
+    excerpt: "No one to role-play with? No feedback loop? Here's how to improve your sales skills when you're the only person on your team.",
     author: "Cason Lamothe",
     date: "May 18, 2025",
-    readTime: "7 min read",
-    category: "Analytics",
-    tags: ["ROI", "Metrics", "Dashboard"],
-    slug: "sales-training-roi-dashboard-metrics",
+    readTime: "6 min read",
+    category: "Solo Sellers",
+    tags: ["Solo", "Self-Improvement", "Confidence"],
+    slug: "solo-seller-guide-building-confidence",
     featured: false
   }
 ];
 
-const categories = ["All", "Sales Training", "Enterprise", "Analysis", "Remote Work", "Psychology", "Analytics"];
+const categories = ["All", "Objection Handling", "Practical Tips", "Solo Sellers", "Confidence", "Mindset"];
 
 const BlogPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -117,6 +118,11 @@ const BlogPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
+      <SEO 
+        title="Real Talk About Selling - Sales Tips for Solo Sellers"
+        description="Practical sales advice for solo sellers and small business owners. Learn how to handle objections, build confidence, and close more deals. No corporate jargon, just what actually works."
+        url="https://pitchiq.com/blog"
+      />
       <Navbar onOpenEmailModal={() => setIsEmailModalOpen(true)} />
       
       {/* Header */}
@@ -129,10 +135,10 @@ const BlogPage: React.FC = () => {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 font-outfit text-gray-900">
-              Sales Training <span className="text-pitchiq-red">Insights</span>
+              Real Talk About <span className="text-pitchiq-red">Selling</span>
             </h1>
             <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Expert insights, proven strategies, and actionable advice to transform your sales training programs and drive measurable results.
+              Practical advice for solo sellers and small business owners. No corporate jargon, just what actually works when you're on a call.
             </p>
             
             {/* Search and Filter */}
@@ -354,10 +360,10 @@ const BlogPage: React.FC = () => {
             transition={{ duration: 0.6 }}
           >
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
-              Ready to Transform Your Sales Training?
+              Ready to Stop Freezing on Sales Calls?
             </h2>
             <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
-              Get started with PitchIQ's AI-powered sales training platform and see results in weeks, not months.
+              Practice with AI prospects that feel real. Build your confidence and close more deals.
             </p>
             <Button 
               size="lg"

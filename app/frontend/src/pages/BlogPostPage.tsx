@@ -4,15 +4,18 @@ import { Calendar, User, Clock, ArrowLeft, ArrowRight, Tag, Share2, BookOpen } f
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useParams, Link } from 'react-router-dom';
+import { blogPostsContent } from '@/data/blogContent';
+import { SEO, BlogPostStructuredData } from '@/components/SEO';
 
-// Blog post content database
-const blogPostsContent = {
-  "ai-sales-training-techniques-boost-close-rates": {
-    title: "10 AI Sales Training Techniques That Boost Close Rates by 40%",
+const oldBlogPostsContent = {
+  "why-you-freeze-when-prospect-says-no": {
+    title: "Why You Freeze When a Prospect Says No (And How to Fix It)",
     author: "Cason Lamothe",
     date: "June 15, 2025",
     readTime: "8 min read",
     category: "Sales Training",
+    tags: ["Sales Training", "Objection Handling", "Confidence"],
+    excerpt: "Discover the root cause of why you freeze when a prospect says no and learn how to overcome it with these simple yet effective techniques.",
     tags: ["AI Training", "Close Rates", "Performance"],
     excerpt: "Discover how enterprise sales teams are using AI-powered training to dramatically improve their performance and revenue outcomes.",
     content: `
@@ -451,9 +454,26 @@ const BlogPostPage: React.FC = () => {
   }
 
   const post = blogPostsContent[slug as keyof typeof blogPostsContent];
+  const postUrl = `https://pitchiq.com/blog/${slug}`;
 
   return (
     <div className="min-h-screen bg-white">
+      <SEO 
+        title={post.title}
+        description={post.excerpt}
+        type="article"
+        author={post.author}
+        publishedTime={new Date(post.date).toISOString()}
+        tags={post.tags}
+        url={postUrl}
+      />
+      <BlogPostStructuredData
+        title={post.title}
+        description={post.excerpt}
+        author={post.author}
+        publishedDate={new Date(post.date).toISOString()}
+        url={postUrl}
+      />
       {/* Header */}
       <section className="py-8 bg-gray-50 border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Routes, Route } from "react-router-dom";
+import { HelmetProvider } from 'react-helmet-async';
 import ScrollToTop from "./utils/ScrollToTop";
 import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
@@ -33,13 +34,16 @@ import DemoSessionPage from './pages/DemoSessionPage';
 import VoiceDebugPage from './pages/VoiceDebugPage';
 
 import AnimatedLandingPage from './pages/AnimatedLandingPage';
+import SamOrchestratorPage from './pages/SamOrchestratorPage';
+import MarcusDemoPage from './pages/MarcusDemoPage';
 
 const App = () => (
-  <TooltipProvider>
-    <ScrollToTop />
-    <Toaster />
-    <Sonner />
-    <Routes>
+  <HelmetProvider>
+    <TooltipProvider>
+      <ScrollToTop />
+      <Toaster />
+      <Sonner />
+      <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/demo" element={<AnimatedLandingPage />} />
 
@@ -70,6 +74,8 @@ const App = () => (
       <Route path="/select-plan" element={<AuthGuard><OnboardingTierSelectionPage /></AuthGuard>} />
       <Route path="/chat-test" element={<ChatTestPage />} />
       <Route path="/voice-debug" element={<VoiceDebugPage />} />
+      <Route path="/sam-orchestrator" element={<SamOrchestratorPage />} />
+      <Route path="/demo/marcus" element={<MarcusDemoPage />} />
       <Route path="/how-it-works" element={<HowItWorksPage />} />
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogPostPage />} />
@@ -83,7 +89,8 @@ const App = () => (
       <Route path="/resend-verification-request" element={<ResendVerificationRequestPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
-  </TooltipProvider>
+    </TooltipProvider>
+  </HelmetProvider>
 );
 
 export default App;

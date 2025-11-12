@@ -43,6 +43,25 @@ export class DirectAudioManager {
     this.spkCtx.resume().catch(() => {});
     this.log("🔈 Speaker ready", 'info');
   }
+
+  /**
+   * Unlock speaker AudioContext after a user gesture. Some browsers block
+   * audio until a gesture occurs. Call this from a pointer/keyboard handler.
+   */
+  public async unlockAudio(): Promise<void> {
+    try {
+      if (!this.spkCtx || this.spkCtx.state === 'closed') {
+        this.initSpeaker();
+        return;
+      }
+      if (this.spkCtx.state === 'suspended') {
+        await this.spkCtx.resume();
+        this.log('✅ Speaker AudioContext resumed (gesture)', 'info');
+      }
+    } catch (e) {
+      this.log(`❌ Failed to unlock speaker audio: ${e}`, 'error');
+    }
+  }
   
   /**
    * Request microphone access with retries
@@ -158,7 +177,7 @@ export class DirectAudioManager {
     const audioSamples = new Int16Array(pcmBuf);
     const rms = Math.sqrt(audioSamples.reduce((sum, sample) => sum + sample * sample, 0) / audioSamples.length);
     
-    this.log(`🔊 Audio RMS: ${Math.round(rms)}`, 'debug');
+    // Audio RMS calculation for quality monitoring (removed debug log to reduce console noise)
     
     // Resume audio context if suspended
     if (this.spkCtx.state === "suspended") {

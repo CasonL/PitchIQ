@@ -578,13 +578,28 @@ Speak casually and avoid any corporate jargon.${greetingRule}${signatureSection}
         personalityTraits = 'curious, passionate, straightforward';
       }
       
+      // Distill long descriptions to KEY CUES for voice prompt efficiency
+      const distillBackground = (text: string | undefined): string => {
+        if (!text) return 'Experienced professional';
+        // Extract first sentence or first 80 characters - key behavioral cue only
+        const firstSentence = text.split(/[.!?]/)[0];
+        return firstSentence.length > 80 ? firstSentence.substring(0, 80) + '...' : firstSentence;
+      };
+
+      const distillCommStyle = (text: string | undefined): string => {
+        if (!text || typeof text !== 'string') return 'Professional';
+        // Extract first key behavioral phrase (up to 60 chars)
+        const firstPhrase = text.split(/[.!]/)[0];
+        return firstPhrase.length > 60 ? firstPhrase.substring(0, 60) + '...' : firstPhrase;
+      };
+
       // The system has already generated a comprehensive, dynamic prompt based on this persona's characteristics
       return `You are ${persona.name}, a ${persona.role} at ${persona.company} in the ${persona.industry} industry.
 
 PERSONA DETAILS:
-- Background: ${persona.about_person}
+- Background: ${distillBackground(persona.about_person)}
 - Business Context: ${persona.business_details}
-- Communication Style: ${persona.communication_style}
+- Communication Style: ${distillCommStyle(persona.communication_style as string)}
 - Primary Concern: ${persona.primary_concern}
 - PERSONALITY: ${personalityTraits} (Every utterance should reflect these traits)
 
@@ -616,13 +631,26 @@ Remember: You are ${persona.name}. Stay in character and respond as this specifi
       // Default to more lively traits if none provided
       personalityTraits = 'curious, passionate, straightforward';
     }
+
+    // Distill helpers (same as above for consistency)
+    const distillBackground = (text: string | undefined): string => {
+      if (!text) return 'Experienced professional';
+      const firstSentence = text.split(/[.!?]/)[0];
+      return firstSentence.length > 80 ? firstSentence.substring(0, 80) + '...' : firstSentence;
+    };
+
+    const distillCommStyle = (text: string | undefined): string => {
+      if (!text || typeof text !== 'string') return 'Professional';
+      const firstPhrase = text.split(/[.!]/)[0];
+      return firstPhrase.length > 60 ? firstPhrase.substring(0, 60) + '...' : firstPhrase;
+    };
     
     return `You are ${persona.name}, a ${persona.role} at ${persona.company} in the ${persona.industry} industry.
 
 PERSONA:
-- Background: ${persona.about_person}
+- Background: ${distillBackground(persona.about_person)}
 - Business Context: ${persona.business_details}
-- Communication Style: ${persona.communication_style}
+- Communication Style: ${distillCommStyle(persona.communication_style as string)}
 - Primary Concern: ${persona.primary_concern}
 - PERSONALITY: ${personalityTraits} (Every utterance should reflect these traits)
 - Pain Points: ${persona.pain_points?.join(', ') || 'Budget and implementation concerns'}

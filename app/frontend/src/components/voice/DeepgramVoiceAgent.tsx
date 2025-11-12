@@ -6,6 +6,8 @@ import { createClient, AgentEvents } from "@deepgram/sdk";
 import { Buffer } from "buffer";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CallMonitoring } from './CallMonitoring';
+import { sanitizeForDeepgramText, hardenSettings } from "../../utils/deepgramSanitizer";
 
 /**********************************************************************
  * Modular Deepgram Voice‑to‑Voice Component (React 18 + Vite/SWC)
@@ -171,12 +173,13 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
         const response = await fetch('/api/deepgram/token');
         const data = await response.json();
         
-        if (!data.key) {
-          smartLog('important', "❌ No Deepgram key found");
+        const token = data?.token || data?.key;
+        if (!token) {
+          smartLog('important', "❌ No Deepgram token found");
           return;
         }
         
-        dgRef.current = createClient(data.key);
+        dgRef.current = createClient(token);
         smartLog('important', "✅ Deepgram client created");
       } catch (error) {
         smartLog('important', `❌ Deepgram init error: ${error}`);
@@ -248,6 +251,18 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
       activeSessionId.current = generateSessionId();
       smartLog('important', `🔑 Generated new session ID: ${activeSessionId.current}`);
     }
+    // Start call monitoring for standalone debug component
+    try {
+      if (activeSessionId.current) {
+        CallMonitoring.getInstance().startCall(
+          activeSessionId.current,
+          { name: personaName } as any,
+          'aura-asteria-en'
+        );
+      }
+    } catch (err) {
+      smartLog('important', `metrics: startCall failed: ${String(err)}`);
+    }
     
     // Mark session as active
     sessionActive.current = true;
@@ -298,7 +313,9 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
       
       a.on(AgentEvents.Open, () => {
         smartLog('important', `🌐 WS open for session ${currentSessionId} → sending settings`);
-        a.configure(buildSettings());
+        const settings = buildSettings();
+        smartLog('important', "🛠 Settings payload → " + JSON.stringify(settings, null, 2));
+        a.configure(settings);
         smartLog('important', "✅ Settings sent - waiting for SettingsApplied...");
         
         if (agentRef.current && !((a as any).__send)) {
@@ -331,6 +348,8 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
         
         smartLog('important', `✅ Settings applied for session ${activeSessionId.current}`);
         a.start();
+        // Start microphone pump only after settings are applied (gated start)
+        startMicPump().catch((err) => smartLog('important', `🎙️ Mic pump failed: ${String(err)}`));
         setConnected(true);
         setConnecting(false);
         onConnectionChange?.(true, stopSession);
@@ -340,6 +359,13 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
 
       a.on(AgentEvents.UserStartedSpeaking, () => {
         smartLog('important', "🎤 User started speaking");
+        try {
+          if (activeSessionId.current) {
+            CallMonitoring.getInstance().markFirstUserSpeech(activeSessionId.current);
+          }
+        } catch (err) {
+          smartLog('important', `metrics: markFirstUserSpeech failed: ${String(err)}`);
+        }
       });
 
       a.on(AgentEvents.AgentAudioDone, () => {
@@ -352,12 +378,24 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
 
       a.on(AgentEvents.AgentStartedSpeaking, () => {
         smartLog('important', "🗣️ Agent started speaking");
+        try {
+          if (activeSessionId.current) {
+            CallMonitoring.getInstance().markAgentGreetingStart(activeSessionId.current);
+          }
+        } catch (err) {
+          smartLog('important', `metrics: markAgentGreetingStart failed: ${String(err)}`);
+        }
       });
 
       a.on(AgentEvents.ConversationText, (msg) => {
         smartLog('important', `💬 "${msg.content}"`);
         setTranscript(msg.content);
         onTranscriptUpdate?.(msg.content);
+        try {
+          if (activeSessionId.current && typeof msg?.content === 'string') {
+            CallMonitoring.getInstance().recordSentence(activeSessionId.current, msg.content);
+          }
+        } catch (_) {}
       });
       
       a.on(AgentEvents.Audio, (payload) => {
@@ -370,6 +408,13 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
         // Handle different error types
         if (e.code === "CLIENT_MESSAGE_TIMEOUT") {
           smartLog('important', "⏰ Client message timeout - stopping session");
+          try {
+            if (activeSessionId.current) {
+              // Increment websocket error metric
+              CallMonitoring.getInstance().recordWebSocketError(activeSessionId.current, String(e?.message || e));
+              CallMonitoring.getInstance().endCall(activeSessionId.current, 'CLIENT_MESSAGE_TIMEOUT');
+            }
+          } catch (_) {}
           cleanup();
           toast({
             title: "Voice Timeout",
@@ -377,6 +422,12 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
             variant: "destructive",
           });
         } else {
+          try {
+            if (activeSessionId.current) {
+              CallMonitoring.getInstance().recordWebSocketError(activeSessionId.current, String(e?.message || e));
+              CallMonitoring.getInstance().endCall(activeSessionId.current, 'ERROR');
+            }
+          } catch (_) {}
           cleanup();
           toast({
             title: "Voice Error",
@@ -386,9 +437,21 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
         }
       });
 
-      a.on(AgentEvents.Close, () => {
-        smartLog('important', "🌐 WS closed");
+      a.on(AgentEvents.Close, (evt?: any) => {
+        const code = (evt?.code ?? evt?.data?.code ?? 'unknown');
+        const reason = (evt?.reason ?? evt?.data?.reason ?? '');
+        smartLog('important', `🌐 WS closed code=${code} reason=${reason}`);
+        try {
+          if (activeSessionId.current) {
+            logWebSocketMessage({ type: 'Close', code, reason, sessionId: activeSessionId.current });
+          }
+        } catch (_) {}
         // Don't automatically restart - let user manually restart if needed
+        try {
+          if (activeSessionId.current && sessionActive.current) {
+            CallMonitoring.getInstance().endCall(activeSessionId.current, `CLOSED_${code}`);
+          }
+        } catch (_) {}
         cleanup();
       });
 
@@ -405,106 +468,64 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
 
   /* ───────── settings */
   const buildSettings = () => {
-    console.error('🚨🚨🚨 DEEPGRAM BUILDSETTINGS CALLED 🚨🚨🚨');
-    console.error('🔍 DEBUG: buildSettings called with systemPrompt:', systemPrompt ? 'EXISTS' : 'MISSING');
-    console.error('🔍 DEBUG: systemPrompt type:', typeof systemPrompt);
-    console.error('🔍 DEBUG: systemPrompt length:', systemPrompt?.length || 0);
-    
-    const settings: any = {
-      audio: {
-        input: {
-          encoding: "linear16",
-          sample_rate: MIC_RATE,
-        },
-        output: {
-          encoding: "linear16",
-          sample_rate: TTS_RATE,
-          container: "none",
-        },
-      },
-      agent: {
-        language: "en",
-        listen: {
-          provider: {
-            type: "deepgram",
-            model: "nova-2",
-          },
-        },
-        think: {
-          provider: {
-            type: "open_ai",
-            model: "gpt-4o-mini",
-          },
-          // We'll conditionally add system_prompt below
-        },
-        speak: {
-          provider: {
-            type: "deepgram",
-            model: "aura-2-asteria-en",
-          },
-        },
-      },
-      experimental: false,
-    };
-    
-    // CRITICAL FIX: Only add system_prompt if it's actually a string value
-    // This prevents sending 'undefined' which causes the UNPARSABLE_CLIENT_MESSAGE error
-    console.log('🔍 DEBUG: About to check systemPrompt condition...');
-    console.log('🔍 DEBUG: systemPrompt value preview:', systemPrompt?.substring(0, 100));
-    if (typeof systemPrompt === 'string' && systemPrompt.trim().length > 0) {
-      console.log('🔍 DEBUG: systemPrompt condition passed - processing greeting...');
-      // @ts-ignore - TypeScript doesn't recognize the dynamic property addition
-      settings.agent.think.system_prompt = systemPrompt;
+    // Build settings natively matching AgentLiveSchema and sanitize text
+    const hasPrompt = typeof systemPrompt === 'string' && systemPrompt.trim().length > 0;
+    const instructions = hasPrompt ? sanitizeForDeepgramText(systemPrompt, 1200) : '';
 
-      /*
-       * Deepgram allows an optional `greeting` field to make the agent speak
-       * automatically as soon as the connection is ready. We want Sam to ask
-       * the initial product/service question right away, so we derive a
-       * greeting sentence from the first non-empty line of the systemPrompt.
-       */
-      const lines = systemPrompt.split("\n");
+    // Optional greeting derivation from prompt first non-empty line or GREETING section
+    let context: any | undefined = undefined;
+    if (hasPrompt) {
+      const lines = systemPrompt!.split("\n");
       let collecting = false;
       const collected: string[] = [];
       for (const raw of lines) {
         const line = raw.trim();
         if (!collecting) {
           if (/greeting/i.test(line)) {
-            collecting = true; // start after the GREETING label itself
+            collecting = true;
             continue;
           }
         } else {
-          // Stop collecting on blank line or next section heading (starts with emoji, bullet, or digit.)
-          if (line === '' || /^[\d]+\./.test(line) || /^[^a-z0-9]/i.test(line)) {
-            break;
-          }
+          if (line === '' || /^[\d]+\./.test(line) || /^[^a-z0-9]/i.test(line)) break;
           collected.push(line);
         }
       }
       let greetingText = collected.join(' ').trim();
-      console.log('🔍 DEBUG: Collected greeting lines:', collected);
-      console.log('🔍 DEBUG: Joined greeting text:', greetingText);
-      
-      if (!greetingText) {
-        greetingText = lines.find(l => l.trim().length > 0)?.trim() || '';
-        console.log('🔍 DEBUG: Fallback greeting text:', greetingText);
-      }
-      greetingText = greetingText.replace(/^[^A-Za-z0-9]+/u, '');
-      console.log('🔍 DEBUG: Final greeting text:', greetingText, 'Length:', greetingText.length);
-      
-      if (greetingText.length > 0) {
-        // @ts-ignore
-        settings.agent.greeting = greetingText;
-        // Force Deepgram to speak this greeting verbatim instead of letting the LLM decide
-        // See https://developers.deepgram.com/docs/agent-settings#greeting
-        // @ts-ignore
-        settings.agent.first_interaction = "agent";
-        console.log('🔍 DEBUG: Settings with greeting:', JSON.stringify({greeting: settings.agent.greeting, first_interaction: settings.agent.first_interaction}, null, 2));
-      } else {
-        console.log('🔍 DEBUG: No greeting text found - using default behavior');
+      if (!greetingText) greetingText = (lines.find(l => l.trim().length > 0) || '').trim();
+      greetingText = sanitizeForDeepgramText(greetingText, 160);
+      if (greetingText) {
+        context = {
+          messages: [{ role: 'assistant', content: greetingText }],
+          replay: true,
+        };
       }
     }
-    
-    return settings;
+
+    const settings: any = {
+      audio: {
+        input: {
+          encoding: "linear16",
+          sampleRate: MIC_RATE,
+        },
+        output: {
+          encoding: "linear16",
+          sampleRate: TTS_RATE,
+          container: "none",
+        },
+      },
+      agent: {
+        listen: { model: "nova-2" },
+        think: {
+          provider: { type: "openai", model: "gpt-4o-mini" },
+          instructions,
+        },
+        speak: { model: "aura-asteria-en" },
+      },
+      ...(context ? { context } : {}),
+    };
+
+    // Return hardened settings (idempotent if already compliant)
+    return hardenSettings(settings);
   };
 
   /* ───────── mic pump */
@@ -743,6 +764,11 @@ export const DeepgramVoiceAgent: React.FC<DeepgramVoiceAgentProps> = ({
         smartLog('important', `❌ Error during session termination: ${error}`);
       }
     }
+    try {
+      if (currentSessionId) {
+        CallMonitoring.getInstance().endCall(currentSessionId, 'USER_STOP');
+      }
+    } catch (_) {}
     cleanup();
     
     toast({

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo, useRef } from 'react';
+import React, { useState, useCallback, memo, useRef, useEffect } from 'react';
 import { Box, Button, Typography, CircularProgress, Paper } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { PersonaData } from './DualVoiceAgentFlow';
@@ -7,6 +7,8 @@ import { CallControllerProvider, useCallController } from './CallControllerProvi
 import { VoiceSelector } from './VoiceSelector';
 import { CallMonitoring } from './CallMonitoring';
 import { Phone as CallIcon, PhoneOff as EndCallIcon } from 'lucide-react';
+import { prospectScoringService, BehaviorUpdate } from '../../services/ProspectScoringService';
+import TerminationIndicators from './TerminationIndicators';
 
 // Adapter function to handle both Persona and PersonaData types
 const adaptPersonaData = (personaInput: PersonaData | Persona): Persona => {
@@ -158,6 +160,8 @@ const ProspectAgentContent = memo(({
   onCallComplete,
   autoStart = false
 }: ProspectAgentProps) => {
+  // Use CallControllerProvider context to access call functions
+  const { startCall: contextStartCall, isConnecting: contextIsConnecting, isConnected: contextIsConnected } = useCallController();
   // Use our call controller hook - this must be used inside a component that is a child of CallControllerProvider
   const {
     state,
@@ -172,6 +176,45 @@ const ProspectAgentContent = memo(({
   
   // Adapt the persona to ensure type compatibility within the component
   const adaptedPersona = adaptPersonaData(persona);
+  
+  // Track transcript changes for prospect scoring
+  const lastTranscriptRef = useRef<string>('');
+  
+  useEffect(() => {
+    if (transcript && transcript !== lastTranscriptRef.current && prospectScoringService.isSessionActive()) {
+      // Extract new message from transcript
+      const newContent = transcript.replace(lastTranscriptRef.current, '').trim();
+      
+      if (newContent) {
+        // Determine sender based on content patterns (this is a simple heuristic)
+        const isUserMessage = newContent.includes('You:') || newContent.includes('User:');
+        const isAIMessage = newContent.includes(adaptedPersona.name + ':') || newContent.includes('AI:');
+        
+        let sender: 'user' | 'ai' = 'user';
+        let content = newContent;
+        
+        if (isAIMessage) {
+          sender = 'ai';
+          content = newContent.replace(new RegExp(`^${adaptedPersona.name}:\s*`, 'i'), '').trim();
+        } else if (isUserMessage) {
+          sender = 'user';
+          content = newContent.replace(/^(You|User):\s*/i, '').trim();
+        }
+        
+        // Add message to prospect scoring analysis
+        prospectScoringService.addMessage({
+          sender,
+          content,
+          timestamp: Date.now() / 1000,
+          persona_name: adaptedPersona.name
+        });
+        
+        console.log(`📝 Added message to scoring analysis: [${sender}] ${content.substring(0, 50)}...`);
+      }
+      
+      lastTranscriptRef.current = transcript;
+    }
+  }, [transcript, adaptedPersona.name]);
   
   // Format call duration
   const formatDuration = (seconds: number): string => {
@@ -189,6 +232,11 @@ const ProspectAgentContent = memo(({
   
   // Track the active session ID for consistent reference
   const activeSessionId = useRef<string | null>(null);
+  
+  // ProspectAgent no longer registers a behavior update callback directly.
+  // The CallControllerProvider owns the singleton's callback and applies
+  // behavior hints to the WebSocketManager. This prevents callback conflicts
+  // with the Prospect Scoring Debug Panel and ensures a single source of truth.
   
   // Handle call end with proper cleanup
   const handleCallEnd = useCallback(() => {
@@ -230,99 +278,88 @@ const ProspectAgentContent = memo(({
   // Use ref to track if auto-start has been attempted
   const hasAutoStartedRef = useRef(false);
   
-  // Auto-start call when component mounts if autoStart is true
+  // Auto-start call when component mounts if autoStart is true (no delay) + simple retry
   React.useEffect(() => {
     // Only attempt auto-start if it's enabled, not already connected, not connecting, and hasn't been attempted yet
     if (autoStart && !isConnected && !isConnecting && !hasAutoStartedRef.current) {
       console.log('🎯 Auto-starting call for', persona.name);
-      
-      // Mark that we've attempted an auto-start immediately to prevent duplicate calls
-      hasAutoStartedRef.current = true;
-      
-      // Longer delay (2000ms) before auto-starting to ensure no race conditions with manual clicks
-      // and to allow the component to fully render and stabilize
-      const timer = setTimeout(() => {
-        // Double check we're still not connected before proceeding
-        if (!isConnected && !isConnecting) {
-          // Generate a new session ID for this call
-          const newSessionId = generateSessionId();
-          activeSessionId.current = newSessionId;
-          console.log(`🔑 Generated session ID for auto-start: ${newSessionId}`);
-          
-          // Log call start to metrics with error handling
-          fetch('/api/call-metrics', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              event: 'CALL_STARTING',
-              sessionId: newSessionId,
-              personaName: adaptedPersona.name, // Fix key name to match backend expectation
-              timestamp: new Date().toISOString()
-            })
-          }).catch((error) => {
-            console.warn(`⚠️ Metrics API error (non-critical): ${error.message}`);
-            // Continue with call despite metrics errors
-          });
-          
-          // Start the call with our adapted persona and the generated session ID
-          console.log(`📞 Initiating auto-started call with session ID: ${newSessionId}`);
-          startCall(adaptedPersona, newSessionId);
-        } else {
-          console.log('⛔ Aborting auto-start as call is already in progress');
+      hasAutoStartedRef.current = true; // prevent duplicate attempts on this mount
+
+      const doStart = () => {
+        if (isConnected || isConnecting) return;
+        const newSessionId = generateSessionId();
+        activeSessionId.current = newSessionId;
+        console.log(`🔑 Generated session ID for auto-start: ${newSessionId}`);
+
+        // Log call start to metrics with error handling
+        fetch('/api/call-metrics', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'CALL_STARTING',
+            sessionId: newSessionId,
+            personaName: adaptedPersona.name,
+            timestamp: new Date().toISOString()
+          })
+        }).catch((error) => {
+          console.warn(`⚠️ Metrics API error (non-critical): ${error.message}`);
+        });
+
+        // Start the call using the provider context API
+        console.log(`📞 Initiating auto-started call with session ID: ${newSessionId}`);
+        contextStartCall(adaptedPersona, newSessionId);
+      };
+
+      // Start immediately
+      doStart();
+
+      // Retry once after 1.5s if we still aren't connecting or connected
+      const retryTimer = setTimeout(() => {
+        if (autoStart && !isConnected && !isConnecting) {
+          console.log('↻ Retrying auto-start (not connecting yet)');
+          doStart();
         }
-      }, 2000); // Increased delay to 2 seconds
-      return () => clearTimeout(timer);
+      }, 1500);
+
+      return () => clearTimeout(retryTimer);
     }
-  }, [autoStart, isConnected, isConnecting, startCall, persona.name, adaptedPersona, generateSessionId]);
+  }, [autoStart, isConnected, isConnecting, contextStartCall, persona.name, adaptedPersona, generateSessionId]);
+
+  // Manual retry handler (used when autoStart didn't kick off a connection)
+  const handleRetryStart = useCallback(() => {
+    if (isConnected || isConnecting) return;
+    const newSessionId = generateSessionId();
+    activeSessionId.current = newSessionId;
+    console.log(`🔁 Retry start with session ID: ${newSessionId}`);
+    fetch('/api/call-metrics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: 'CALL_STARTING',
+        sessionId: newSessionId,
+        personaName: adaptedPersona.name,
+        timestamp: new Date().toISOString()
+      })
+    }).catch(() => {});
+    contextStartCall(adaptedPersona, newSessionId);
+  }, [isConnected, isConnecting, contextStartCall, adaptedPersona, generateSessionId]);
   
   return (
-    <Paper elevation={3} sx={{ p: 3, borderRadius: 2, maxWidth: '800px', margin: '0 auto' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5" component="h2">
-          {persona.name} - {persona.role}
-        </Typography>
-        
-        {isConnected && (
-          <Typography variant="body2" color="text.secondary">
-            Call time: {formatDuration(callDuration)}
-          </Typography>
-        )}
-      </Box>
-      
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          Company: {persona.company}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          Voice: {state.selectedVoice}
-        </Typography>
-      </Box>
-      
-      {/* Transcript area */}
-      <Box 
-        sx={{ 
-          height: '200px', 
-          overflowY: 'auto', 
-          p: 2, 
-          bgcolor: 'background.default',
-          borderRadius: 1,
-          mb: 3
-        }}
-      >
-        {transcript ? (
-          <Typography variant="body1">{transcript}</Typography>
-        ) : (
-          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-            {isConnected ? 'Listening...' : 'Transcript will appear here during the call'}
-          </Typography>
-        )}
-      </Box>
+    <div className="w-full">
+      {/* Termination guardrail indicators */}
+      <TerminationIndicators />
       
       {/* Call controls */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
+      <div className="flex justify-center gap-3 mt-6">
         {!isConnected && !isConnecting ? (
-          <StartCallButton 
-            onClick={() => {
+          autoStart ? (
+            // When autoStart is enabled, show a small Retry button if not connecting
+            <Button variant="outlined" onClick={handleRetryStart} disabled={isConnecting}>
+              Retry Call
+            </Button>
+          ) : (
+            <StartCallButton 
+              onClick={() => {
               // Prevent duplicate calls if already connecting
               if (isConnecting) {
                 console.log('⛔ Ignoring click - call already connecting');
@@ -400,34 +437,36 @@ const ProspectAgentContent = memo(({
               
               // Start call with adapted persona and explicitly pass the session ID
               console.log(`📞 Initiating manually started call with session ID: ${newSessionId}`);
-              startCall(adaptedPersona, newSessionId);
-            }} 
-            disabled={isConnecting} 
-          />
+              // Use the CallControllerProvider context to start the call properly
+              contextStartCall(adaptedPersona, newSessionId);
+              }} 
+              disabled={isConnecting} 
+            />
+          )
         ) : (
           <EndCallButton onClick={handleCallEnd} />
         )}
-      </Box>
+      </div>
       
-      {/* Show loading indicator when connecting */}
-      {isConnecting && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+      {/* Show loading indicator only when actually connecting */}
+      {(!isConnected && isConnecting) && (
+        <div className="flex justify-center items-center gap-2 mt-4">
           <CircularProgress size={24} />
-          <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+          <span className="text-sm text-gray-600">
             Connecting...
-          </Typography>
-        </Box>
+          </span>
+        </div>
       )}
       
       {/* Show error if any */}
       {error && (
-        <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
-          <Typography color="error" variant="body2">
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-900">
             Error: {error.message}
-          </Typography>
-        </Box>
+          </p>
+        </div>
       )}
-    </Paper>
+    </div>
   );
 });
 

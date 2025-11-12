@@ -1,13 +1,26 @@
+const DEBUG = false;
+
 class DeepgramWorklet extends AudioWorkletProcessor {
   constructor() {
     super();
     this.sampleCount = 0;
+    this.debugCount = 0;
   }
 
   process(inputs) {
     const input = inputs[0];
     if (!input || !input[0] || input[0].length === 0) {
       return true;
+    }
+
+    // Debug: Log every 100th frame to see if we're getting audio
+    if (DEBUG) {
+      this.debugCount++;
+      if (this.debugCount % 100 === 0) {
+        const maxSample = Math.max(...input[0].map(Math.abs));
+        // eslint-disable-next-line no-console
+        console.log(`🎤 Worklet processing audio - max sample: ${maxSample.toFixed(4)}`);
+      }
     }
 
     const channelCount = input.length;

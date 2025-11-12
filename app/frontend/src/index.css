@@ -7,7 +7,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 94%; /* Neutral light grey for dimmed background */
+    --background: 0 0% 91%; /* Slightly darker background for better contrast */
     --foreground: 222.2 47.4% 11.2%;
 
     --card: 0 0% 98%; /* Cards remain bright white */

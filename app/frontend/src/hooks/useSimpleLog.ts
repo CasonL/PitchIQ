@@ -9,10 +9,15 @@ interface LogMessage {
 const NOISY_PATTERNS = [
   /🔉.*DG audio/,
   /🔊.*TTS/,
-  /📡.*DG.*AgentAudio/,
+  /📡.*DG/,
   /DG audio.*samples/,
   /TTS.*playback/,
   /AgentAudio.*event/,
+  /AgentAudio chunk/i,
+  /silence chunk/i,
+  /Blocking AI audio/i,
+  /Filtering non-injection AI audio/i,
+  /post-speak spontaneous AI audio/i,
 ];
 
 const IMPORTANT_PATTERNS = [
@@ -61,7 +66,10 @@ export const useSimpleLog = (source: string) => {
       
       const fullMessage = `[${source}] ${message}`;
       console[type](fullMessage, ...args);
-      setMessages((prev) => [...prev, { content: fullMessage, type }]);
+      setMessages((prev) => {
+        const next = [...prev, { content: fullMessage, type }];
+        return next.length > 300 ? next.slice(-300) : next; // cap to last 300 messages
+      });
     },
     [source, shouldLog]
   );

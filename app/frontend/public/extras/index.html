@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extras</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Password Screen */
+        .password-screen {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .password-card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .password-card h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+        }
+
+        .password-card p {
+            color: #666;
+            margin-bottom: 24px;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .password-input:focus {
+            outline: none;
+            border-color: #dc2626;
+        }
+
+        .password-btn {
+            width: 100%;
+            padding: 12px;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .password-btn:hover {
+            background: #b91c1c;
+        }
+
+        .error-message {
+            color: #dc2626;
+            font-size: 14px;
+            margin-top: 8px;
+            display: none;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: none;
+            flex: 1;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 36px;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 18px;
+        }
+
+        /* Card Grid */
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 24px;
+        }
+
+        .project-card {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        .project-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .project-card h2 {
+            font-size: 24px;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+        }
+
+        .project-card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .project-status {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #dc2626;
+            color: white;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* Footer */
+        footer {
+            background: #1a1a1a;
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+
+        footer a {
+            color: #dc2626;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        footer a:hover {
+            color: #b91c1c;
+        }
+    </style>
+</head>
+<body>
+    <!-- Password Screen -->
+    <div class="password-screen" id="passwordScreen">
+        <div class="password-card">
+            <h1>Enter Password</h1>
+            <p>This area is protected. Please enter the password to continue.</p>
+            <input 
+                type="password" 
+                id="passwordInput" 
+                class="password-input" 
+                placeholder="Enter password"
+                autocomplete="off"
+            >
+            <button class="password-btn" onclick="checkPassword()">Access</button>
+            <div class="error-message" id="errorMessage">Incorrect password. Please try again.</div>
+        </div>
+    </div>
+
+    <!-- Main Content (hidden by default) -->
+    <div class="main-content" id="mainContent">
+        <div class="container">
+            <div class="header">
+                <h1>Extras</h1>
+                <p>A collection of custom projects and experiments</p>
+            </div>
+
+            <div class="projects-grid">
+                <!-- Project Card 1: Custom Form -->
+                <div class="project-card" onclick="openProject('form')">
+                    <h2>Custom Form</h2>
+                    <p>A tailored form solution built for client requirements. Features include validation, conditional fields, and clean data submission.</p>
+                    <span class="project-status">Active</span>
+                </div>
+
+                <!-- Placeholder for future projects -->
+                <div class="project-card" style="opacity: 0.6; cursor: default;" onclick="event.stopPropagation()">
+                    <h2>Coming Soon</h2>
+                    <p>More projects will be added here as they're developed.</p>
+                    <span class="project-status" style="background: #666;">Upcoming</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2025 - <a href="#" id="extrasLink">extras</a></p>
+    </footer>
+
+    <script>
+        // Check if already authenticated
+        if (sessionStorage.getItem('authenticated') === 'true') {
+            showMainContent();
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkPassword();
+            }
+        });
+
+        // Password check
+        function checkPassword() {
+            const input = document.getElementById('passwordInput');
+            const errorMsg = document.getElementById('errorMessage');
+            
+            if (input.value === 'timbit') {
+                sessionStorage.setItem('authenticated', 'true');
+                showMainContent();
+            } else {
+                errorMsg.style.display = 'block';
+                input.value = '';
+                input.focus();
+                
+                // Shake animation
+                input.style.animation = 'shake 0.3s';
+                setTimeout(() => {
+                    input.style.animation = '';
+                }, 300);
+            }
+        }
+
+        function showMainContent() {
+            document.getElementById('passwordScreen').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'flex';
+        }
+
+        // Footer link
+        document.getElementById('extrasLink').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (sessionStorage.getItem('authenticated') !== 'true') {
+                // Scroll to password if not authenticated
+                window.scrollTo(0, 0);
+            }
+        });
+
+        // Project navigation
+        function openProject(projectName) {
+            if (projectName === 'form') {
+                window.location.href = './form.html';
+            }
+        }
+
+        // Add shake animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-10px); }
+                75% { transform: translateX(10px); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

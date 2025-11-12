@@ -35,7 +35,8 @@ export type ProspectCallAction =
   | { type: 'CALL_RECONNECTING' }
   | { type: 'CALL_RECONNECTED' }
   | { type: 'PERSONA_SWITCHING', newPersona: Persona }
-  | { type: 'PERSONA_SWITCHED', newPersona: Persona };
+  | { type: 'PERSONA_SWITCHED', newPersona: Persona }
+  | { type: 'RESET' };
 
 export const initialCallState: ProspectCallState = {
   status: 'idle',
@@ -138,27 +139,9 @@ export function prospectCallReducer(state: ProspectCallState, action: ProspectCa
         isPlayingSentence: false,
         currentSentence: ''
       };
-    case 'RECONNECT_ATTEMPT':
+    case 'RESET':
       return {
-        ...state,
-        reconnectAttempts: state.reconnectAttempts + 1
-      };
-    case 'RECONNECT_RESET':
-      return {
-        ...state,
-        reconnectAttempts: 0
-      };
-    case 'CALL_RECONNECTING':
-      return {
-        ...state,
-        status: 'reconnecting',
-        isReconnecting: true
-      };
-    case 'CALL_RECONNECTED':
-      return {
-        ...state,
-        status: 'connected',
-        isReconnecting: false
+        ...initialCallState
       };
     case 'SET_VOICE':
       return {

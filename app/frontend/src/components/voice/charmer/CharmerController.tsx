@@ -1,0 +1,722 @@
+/**
+ * CharmerController.tsx
+ * Main controller component for Marcus Stindle demo experience
+ * Now using AssemblyAI + Cartesia for 100% control and 50% cost savings
+ */
+
+import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
+import { Button, CircularProgress } from '@mui/material';
+import { Phone as CallIcon, PhoneOff as EndCallIcon } from 'lucide-react';
+import { MarcusVoiceProvider, useMarcusVoice } from './MarcusVoiceAdapter';
+import { CharmerPhaseManager, CharmerPhase } from './CharmerPhaseManager';
+import { CharmerContextExtractor } from './CharmerContextExtractor';
+import { CharmerAIService } from './CharmerAIService';
+import { CHARMER_PERSONA } from '../../../data/staticPersonas/theCharmer';
+
+interface CharmerControllerProps {
+  onCallEnd?: () => void;
+  onCallComplete?: (callData: any) => void;
+  autoStart?: boolean;
+}
+
+/**
+ * CharmerControllerContent - Inner component using MarcusVoice context
+ */
+const CharmerControllerContent = memo(({ 
+  onCallEnd, 
+  onCallComplete,
+  autoStart = false 
+}: CharmerControllerProps) => {
+  const { 
+    startCall, 
+    endCall, 
+    isConnected, 
+    isConnecting,
+    transcript,
+    error,
+    speakAsMarcus,
+    isSpeaking
+  } = useMarcusVoice();
+  
+  // Phase management
+  const phaseManagerRef = useRef(new CharmerPhaseManager());
+  const [currentPhase, setCurrentPhase] = useState<CharmerPhase>(1);
+  const [phaseContext, setPhaseContext] = useState(phaseManagerRef.current.getContext());
+  // AI service
+  const aiServiceRef = useRef(new CharmerAIService());
+  
+  // Conversation state
+  const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const lastTranscriptRef = useRef('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const incompleteUtteranceRef = useRef('');
+  const lastMarcusSpeakTimeRef = useRef(0);
+  
+  // Refs for tracking
+  const sessionIdRef = useRef<string | null>(null);
+  const nameMentionCountRef = useRef<{[key: string]: number}>({});
+  /**
+   * Generate session ID
+   */
+  const generateSessionId = useCallback(() => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    return `charmer_${timestamp}_${random}`;
+  }, []);
+  
+  /**
+   * Handle phase transitions
+   */
+  const transitionToPhase = useCallback((nextPhase: CharmerPhase) => {
+    console.log(`🔄 Transitioning to Phase ${nextPhase}`);
+    phaseManagerRef.current.transitionToPhase(nextPhase);
+    setCurrentPhase(nextPhase);
+    setPhaseContext(phaseManagerRef.current.getContext());
+  }, []);
+  
+  // Greeting now handled by Deepgram Agent API automatically
+  
+  /**
+   * Process user's speech input
+   */
+  const processUserInput = useCallback(async (userText: string) => {
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    console.log(`📝 Processing user input: "${userText.substring(0, 50)}..."`);
+    
+    try {
+      const phaseManager = phaseManagerRef.current;
+      const currentPhaseNum = phaseManager.getCurrentPhase();
+      const context = phaseManager.getContext();
+      
+      // Add user input to conversation history
+      setConversationHistory(prev => [...prev, { role: 'user', content: userText }]);
+      
+      // Extract information from user's speech
+      // Pass current name to allow corrections
+      const extracted = CharmerContextExtractor.extractAll(userText, context.userName);
+      
+      // Update context with extracted info (allow name updates for corrections)
+      if (extracted.name) {
+        if (context.userName && extracted.name !== context.userName) {
+          // Name correction detected - reset counts and use corrected name immediately
+          nameMentionCountRef.current = { [extracted.name]: 1 };
+          phaseManager.updateContext({ userName: extracted.name });
+          console.log(`🔄 Name corrected: ${context.userName} → ${extracted.name}`);
+        } else if (!context.userName) {
+          // First time seeing this name - track it but require 2 mentions to confirm
+          if (!nameMentionCountRef.current[extracted.name]) {
+            nameMentionCountRef.current[extracted.name] = 0;
+          }
+          nameMentionCountRef.current[extracted.name]++;
+          
+          console.log(`📊 Name mention count for "${extracted.name}": ${nameMentionCountRef.current[extracted.name]}`);
+          
+          // Only set name after 2 mentions
+          if (nameMentionCountRef.current[extracted.name] >= 2) {
+            phaseManager.updateContext({ userName: extracted.name });
+            console.log(`✅ Captured user name: ${extracted.name} (confirmed after ${nameMentionCountRef.current[extracted.name]} mentions)`);
+          } else {
+            console.log(`⏳ Waiting for confirmation... (need 1 more mention of "${extracted.name}")`);
+          }
+        }
+      }
+      
+      if (extracted.product && !context.product) {
+        phaseManager.updateContext({ product: extracted.product });
+        console.log(`✅ Captured product: ${extracted.product}`);
+      }
+      
+      // In Phase 2, extract pitch analysis
+      let forcePhase3Transition = false;
+      if (currentPhaseNum === 2) {
+        // Accumulate pitch transcript
+        const updatedPitchTranscript = context.userPitchTranscript + ' ' + userText;
+        phaseManager.updateContext({ userPitchTranscript: updatedPitchTranscript });
+        
+        // Detect if user is trying to end the call early (Marcus should intercept!)
+        const userTryingToEnd = /\b(save you|save your time|let you go|gotta run|have a great day|hope you|thanks for your time|i'll let you|not a fit|wrong fit|different issue|completely different)\b/i.test(userText);
+        
+        if (userTryingToEnd) {
+          console.log('🚨 User trying to end call - Marcus will intercept and transition to Phase 3!');
+          forcePhase3Transition = true;
+        }
+        
+        // If user has finished pitching (detected by length or pause), analyze
+        if (updatedPitchTranscript.length > 150) {
+          // Detect issues and strengths
+          const issue = CharmerContextExtractor.pickOneIssue(extracted.detectedIssues);
+          const strength = CharmerContextExtractor.pickOneStrength(extracted.strengths, updatedPitchTranscript);
+          
+          if (issue) {
+            phaseManager.updateContext({ 
+              identifiedIssue: issue.type,
+              whatWorked: strength || 'You got through the core idea clearly'
+            });
+            console.log(`🎯 Analysis: Issue=${issue.type}, Strength=${strength}`);
+          }
+        }
+      }
+      
+      // Generate Marcus's response using AI
+      const aiResponse = await aiServiceRef.current.generateResponse({
+        phase: currentPhaseNum,
+        conversationContext: phaseManager.getContext(),
+        userInput: userText,
+        phasePromptContext: phaseManager.getPhasePromptContext(),
+        conversationHistory: conversationHistory
+      });
+      
+      // If user tried to end call, force Phase 3 transition
+      if (forcePhase3Transition) {
+        aiResponse.shouldTransitionPhase = true;
+        aiResponse.nextPhase = 3;
+      }
+      
+      // Add Marcus's response to history
+      setConversationHistory(prev => [...prev, { role: 'assistant', content: aiResponse.content }]);
+      console.log(`🎤 Marcus [${aiResponse.emotion}]: "${aiResponse.content}"`);
+      
+      // Smart delay: wait if user's sentence seems incomplete
+      const endsWithComma = /,\s*$/.test(userText.trim());
+      const endsWithTrailingWord = /\b(how|what|when|where|why|because|so|and|or|but|that|if|to|with|for|about|like)\s*$/i.test(userText.trim());
+      const hasNoPunctuation = !/[.!?]\s*$/.test(userText.trim());
+      const seemsIncomplete = endsWithComma || endsWithTrailingWord || (hasNoPunctuation && userText.trim().length > 10);
+      
+      if (seemsIncomplete) {
+        console.log('🤔 User sentence seems incomplete, waiting to see if they continue...');
+        
+        // Capture transcript state at start of wait
+        const transcriptBeforeWait = transcript || '';
+        
+        await new Promise(resolve => setTimeout(resolve, 2500)); // Wait 2.5 seconds for continuation
+        
+        // Check if user spoke more during the wait
+        const transcriptAfterWait = transcript || '';
+        const didUserContinue = transcriptAfterWait.length > transcriptBeforeWait.length;
+        
+        if (didUserContinue) {
+          console.log('✋ User continued speaking, canceling response');
+          setIsProcessing(false);
+          return; // Don't respond, user is still talking
+        }
+        
+        // User didn't continue - fill the silence naturally
+        console.log('👂 No continuation detected, filling the pause with filler');
+        const fillerMessages = [
+          "Uhh, yeah, so...",
+          "Right, so...",
+          "Okay, so...",
+          "Yeah...",
+          "Hmm..."
+        ];
+        const fillerMessage = fillerMessages[Math.floor(Math.random() * fillerMessages.length)];
+        
+        // Override response to fill the pause naturally
+        aiResponse.content = fillerMessage;
+        aiResponse.emotion = 'neutral';
+        // Update history with the filler message
+        setConversationHistory(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: fillerMessage };
+          return updated;
+        });
+      }
+      
+      // Dynamic speed based on phase (Phase 3 is more energetic)
+      const speed = currentPhase === 3 ? 0.95 : 0.75;
+      
+      // Speak Marcus's response using Cartesia TTS with dynamic emotion
+      await speakAsMarcus(aiResponse.content, {
+        voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
+        emotion: aiResponse.emotion, // Dynamic based on phase & content
+        speed: speed
+      });
+      
+      // Track when Marcus finishes speaking (to filter echo)
+      lastMarcusSpeakTimeRef.current = Date.now();
+      console.log('✅ Marcus finished speaking');
+      
+      // Handle phase transitions (NOW happens after Marcus actually finishes)
+      if (aiResponse.shouldTransitionPhase && aiResponse.nextPhase) {
+        // Natural pause before transitioning
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        transitionToPhase(aiResponse.nextPhase!);
+        
+        // Auto-speak Phase 3 opening line after transition from Phase 2
+        if (currentPhaseNum === 2 && aiResponse.nextPhase === 3) {
+          // Brief pause after transition
+          await new Promise(resolve => setTimeout(resolve, 800));
+          
+          console.log('🎬 Auto-generating Phase 3 opening line');
+          const phase3Opening = await aiServiceRef.current.generateResponse({
+            phase: 3,
+            conversationContext: phaseManagerRef.current.getContext(),
+            userInput: '', // No user input, just opening
+            phasePromptContext: phaseManagerRef.current.getPhasePromptContext(),
+            conversationHistory: conversationHistory
+          });
+          
+          setConversationHistory(prev => [...prev, { role: 'assistant', content: phase3Opening.content }]);
+          console.log(`🎤 Marcus [${phase3Opening.emotion}]: "${phase3Opening.content}"`);
+          
+          await speakAsMarcus(phase3Opening.content, {
+            voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
+            emotion: phase3Opening.emotion,
+            speed: 0.95 // Phase 3 is more energetic
+          });
+          
+          lastMarcusSpeakTimeRef.current = Date.now();
+        }
+      }
+      
+      // Check for automatic phase transitions (NOW happens after Marcus actually finishes)
+      const autoTransition = phaseManager.shouldAutoTransition();
+      if (autoTransition.should && autoTransition.nextPhase) {
+        console.log(`⏰ Auto-transitioning due to time`);
+        
+        // Natural pause before transitioning
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        transitionToPhase(autoTransition.nextPhase!);
+        
+        // Auto-speak Phase 3 opening line after auto-transition from Phase 2
+        if (currentPhaseNum === 2 && autoTransition.nextPhase === 3) {
+          // Brief pause after transition
+          await new Promise(resolve => setTimeout(resolve, 800));
+          
+          console.log('🎬 Auto-generating Phase 3 opening line (auto-transition)');
+          const phase3Opening = await aiServiceRef.current.generateResponse({
+            phase: 3,
+            conversationContext: phaseManagerRef.current.getContext(),
+            userInput: '', // No user input, just opening
+            phasePromptContext: phaseManagerRef.current.getPhasePromptContext(),
+            conversationHistory: conversationHistory
+          });
+          
+          setConversationHistory(prev => [...prev, { role: 'assistant', content: phase3Opening.content }]);
+          console.log(`🎤 Marcus [${phase3Opening.emotion}]: "${phase3Opening.content}"`);
+          
+          await speakAsMarcus(phase3Opening.content, {
+            voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
+            emotion: phase3Opening.emotion,
+            speed: 0.95
+          });
+          
+          lastMarcusSpeakTimeRef.current = Date.now();
+        }
+      }
+      
+      // Update context state
+      setPhaseContext(phaseManager.getContext());
+      
+    } catch (error) {
+      console.error('❌ Error processing user input:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [isProcessing, conversationHistory, transitionToPhase]);
+  
+  /**
+   * Monitor transcript for user speech and process with Marcus AI
+   * Deepgram's speech_final events provide better turn detection
+   * NOW SUPPORTS INTERRUPTIONS: User can speak while Marcus is talking
+   */
+  useEffect(() => {
+    if (!transcript || transcript === lastTranscriptRef.current) return;
+    
+    // Don't process user speech while Marcus is thinking (prevents queuing)
+    // BUT ALLOW processing while Marcus is speaking (enables interruptions!)
+    if (isProcessing) {
+      console.log(`⏸️ Ignoring transcript while Marcus is thinking`);
+      // Mark this transcript as seen so it doesn't get processed later
+      lastTranscriptRef.current = transcript;
+      return;
+    }
+    
+    // If Marcus is speaking and user speaks, this is an interruption
+    // The MarcusVoiceManager will automatically stop Marcus
+    // We'll process the user's input normally
+    if (isSpeaking) {
+      console.log(`🛑 User interrupted Marcus - processing interruption`);
+    }
+    
+    // Get new content
+    const newContent = transcript.replace(lastTranscriptRef.current, '').trim();
+    if (newContent && newContent.length > 3) {
+      // Parse words for analysis
+      const words = newContent.split(/\s+/);
+      const wordCount = words.length;
+      const lastWord = words[words.length - 1]?.toLowerCase().replace(/[.,!?;:]/g, '');
+      
+      // Filter out likely echo (short phrases right after Marcus speaks)
+      const timeSinceMarcusSpoke = Date.now() - lastMarcusSpeakTimeRef.current;
+      if (timeSinceMarcusSpoke < 2000 && wordCount < 5) {
+        console.log(`🔇 Filtering likely echo: "${newContent}" (${timeSinceMarcusSpoke}ms after Marcus, ${wordCount} words)`);
+        lastTranscriptRef.current = transcript;
+        return;
+      }
+      
+      // Skip incomplete detection for complete questions (end with ?)
+      const endsWithQuestionMark = /\?$/.test(newContent.trim());
+      
+      let seemsIncomplete = false;
+      
+      if (endsWithQuestionMark) {
+        console.log(`✅ Complete question detected: "${newContent}"`);
+      } else {
+        // Check for complete sentence patterns that override incomplete word detection
+        const completePatterns = [
+          /\bif\s+\w+\s+(have|has|had|can|could|would|will|need|want)\s+(that|this|it|them|those|these)[\.\!]?\s*$/i, // "if you have that"
+          /\bwhen\s+\w+\s+\w+\s+(that|this|it)[\.\!]?\s*$/i, // "when you get that"
+          /\b(give|gave|take|took|make|made|get|got)\s+(that|this|it|them)[\.\!]?\s*$/i, // "take that", "get this"
+          /\b(need|want|have)\s+(some|any|that|this)[\.\!]?\s*$/i, // "need that", "want some"
+          /\bat\s+all[\.\!]?\s*$/i, // "at all", "not at all"
+          /\bthat'?s\s+all[\.\!]?\s*$/i, // "that's all", "thats all"
+          /\bnot\s+at\s+all[\.\!]?\s*$/i, // "not at all"
+          /\bafter\s+all[\.\!]?\s*$/i // "after all"
+        ];
+        
+        const isCompletePattern = completePatterns.some(pattern => pattern.test(newContent));
+        
+        if (isCompletePattern) {
+          console.log(`✅ Complete sentence pattern detected: "${newContent}"`);
+          seemsIncomplete = false;
+        } else {
+          // Check if sentence seems incomplete using grammatical signals
+          const incompleteWords = {
+            prepositions: ['to', 'with', 'of', 'for', 'from', 'about', 'at', 'in', 'on', 'by', 'into', 'onto', 'upon', 'without', 'within', 'through', 'over', 'under', 'between', 'among'],
+            conjunctions: ['and', 'but', 'or', 'because', 'since', 'when', 'while', 'although', 'though', 'unless', 'until', 'whereas', 'whether'],
+            auxiliaries: ['do', 'does', 'did', 'have', 'has', 'had', 'can', 'could', 'will', 'would', 'should', 'shall', 'may', 'might', 'must'],
+            articles: ['a', 'an', 'the'],
+            fillers: ['like', 'um', 'uh', 'er', 'ah'],
+            possessives: ['your', 'my', 'his', 'her', 'their', 'our', 'its'],
+            quantifiers: ['some', 'any', 'many', 'much', 'few', 'several', 'each', 'every', 'both', 'all', 'most'],
+            negations: ['not', 'no', 'never', 'neither', 'nor'],
+            comparatives: ['more', 'less', 'most', 'least', 'better', 'worse', 'than'],
+            intensifiers: ['just', 'really', 'very', 'quite', 'almost', 'nearly', 'so']
+          };
+          
+          // Check if sentence has proper ending punctuation FIRST
+          const hasEndingPunctuation = /[.!?]\s*$/.test(newContent);
+          
+          // If sentence has proper ending punctuation, it's COMPLETE regardless of trailing words
+          if (hasEndingPunctuation) {
+            seemsIncomplete = false;
+          } else {
+            // Only check for incomplete patterns if NO ending punctuation
+            const allIncompleteWords = Object.values(incompleteWords).flat();
+            const endsWithIncompleteWord = lastWord && allIncompleteWords.includes(lastWord);
+            
+            // Only treat trailing comma as incomplete if followed by filler words
+            // (Deepgram often adds commas incorrectly based on prosody)
+            const endsWithFillerPhrase = /,\s*(like|um|uh|you know|so)\s*,?\s*$/i.test(newContent);
+            const endsWithComma = /,\s*$/.test(newContent) && wordCount < 8; // Short fragments with comma = incomplete
+            
+            // Only flag short sentences as incomplete if they DON'T have proper punctuation
+            const tooShort = wordCount <= 2 && 
+                             !['yes', 'no', 'okay', 'ok', 'sure', 'right', 'thanks', 'hello', 'hi', 'hey', 'great', 'good', 'fine', 'perfect'].includes(lastWord || '');
+            
+            // Semantic checks: verbs/copulas that need objects/complements
+            const needsComplement = /\b(is|are|was|were|be|been|wondering|struggle|struggling|thinking|asking|looking|trying|going|wanting|needing)\s*$/i.test(newContent);
+            const incompleteQuestion = /^(do|does|did|can|could|will|would|should|may|might)\s+\w+\s*$/i.test(newContent) || /\b(what|where|when|why|how)\s+\w+\s*$/i.test(newContent);
+            
+            seemsIncomplete = endsWithIncompleteWord || endsWithComma || endsWithFillerPhrase || tooShort || needsComplement || incompleteQuestion;
+          }
+        }
+      }
+      
+      if (seemsIncomplete) {
+        console.log(`⏸️ Incomplete sentence detected: "${newContent}" - accumulating...`);
+        // Store incomplete utterance, wait for continuation
+        incompleteUtteranceRef.current = newContent;
+        lastTranscriptRef.current = transcript; // CRITICAL: Update ref to prevent duplication
+        return;
+      }
+      
+      // Check if we have an incomplete utterance to prepend
+      const completeUtterance = incompleteUtteranceRef.current
+        ? `${incompleteUtteranceRef.current} ${newContent}`
+        : newContent;
+      
+      console.log(`🎙️ User speech: "${completeUtterance}"`);
+      
+      // Process complete utterance
+      processUserInput(completeUtterance);
+      
+      // Reset incomplete buffer
+      incompleteUtteranceRef.current = '';
+      lastTranscriptRef.current = transcript;
+    } else {
+      // No new content, just update ref
+      lastTranscriptRef.current = transcript;
+    }
+  }, [transcript, processUserInput, isSpeaking, isProcessing]);
+  
+  /**
+   * Handle Marcus's greeting when call connects
+   */
+  const hasGreetedRef = useRef(false);
+  useEffect(() => {
+    if (isConnected && !hasGreetedRef.current && conversationHistory.length === 0) {
+      hasGreetedRef.current = true;
+      console.log('👋 Marcus greeting: sending opening line');
+      
+      // Marcus's Phase 1 opening line (as if answering his phone)
+      setTimeout(async () => {
+        const greeting = "Marcus's Phone!!";
+        console.log(`🎤 Marcus [happy]: "${greeting}"`);
+        await speakAsMarcus(greeting, { 
+          voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
+          emotion: 'happy', // Upbeat, answering the phone
+          speed: 0.75  // Slower, more deliberate delivery
+        });
+        lastMarcusSpeakTimeRef.current = Date.now(); // Track for echo filtering
+        setConversationHistory([{ role: 'assistant', content: greeting }]);
+      }, 500);
+    }
+    
+    // Reset greeting flag when disconnected
+    if (!isConnected) {
+      hasGreetedRef.current = false;
+    }
+  }, [isConnected, conversationHistory.length, speakAsMarcus]);
+  
+  /**
+   * Handle call start
+   */
+  const handleStartCall = useCallback(async () => {
+    if (isConnecting) return;
+    
+    const sessionId = generateSessionId();
+    sessionIdRef.current = sessionId;
+    console.log(`📞 Starting Marcus call with session: ${sessionId}`);
+    
+    // Reset phase manager
+    phaseManagerRef.current.reset();
+    setCurrentPhase(1);
+    setPhaseContext(phaseManagerRef.current.getContext());
+    setConversationHistory([]);
+    
+    // Start the call (no persona parameter needed for new voice system)
+    await startCall();
+  }, [isConnecting, startCall, generateSessionId]);
+  
+  /**
+   * Handle call end
+   */
+  const handleEndCall = useCallback(() => {
+    console.log('📵 Ending Marcus call');
+    
+    // Get final call data
+    const callData = {
+      sessionId: sessionIdRef.current,
+      duration: phaseManagerRef.current.getTotalDuration(),
+      phaseSummary: phaseManagerRef.current.getPhaseSummary(),
+      finalContext: phaseManagerRef.current.getContext(),
+      conversationHistory
+    };
+    
+    endCall();
+    
+    if (onCallComplete) {
+      onCallComplete(callData);
+    }
+    
+    if (onCallEnd) {
+      onCallEnd();
+    }
+  }, [endCall, onCallEnd, onCallComplete, conversationHistory]);
+  
+  /**
+   * Auto-start call if enabled
+   */
+  const hasAutoStartedRef = useRef(false);
+  useEffect(() => {
+    if (autoStart && !isConnected && !isConnecting && !hasAutoStartedRef.current) {
+      hasAutoStartedRef.current = true;
+      console.log('🎯 Auto-starting Marcus call');
+      setTimeout(() => {
+        handleStartCall();
+      }, 500);
+    }
+  }, [autoStart, isConnected, isConnecting, handleStartCall]);
+  
+  return (
+    <div className="min-h-screen bg-white flex items-center justify-center p-6">
+      <div className="w-full max-w-3xl">
+        {/* Header with Profile */}
+        <div className="text-center mb-8">
+          <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg border-2 border-black">
+            <img 
+              src="/charmer-portrait.png" 
+              alt="Marcus Stindle"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            Marcus Stindle
+          </h1>
+          <p className="text-xl text-red-600 font-medium">
+            The Charmer
+          </p>
+        </div>
+        
+        {/* Phase indicator */}
+        {isConnected && (
+          <div className="mb-8 p-6 bg-white rounded-xl shadow-sm border-2 border-gray-300">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-base font-semibold text-gray-900">
+                Phase {currentPhase} of 5
+              </span>
+              <span className="text-sm text-gray-500">
+                {phaseManagerRef.current.getTimeInCurrentPhase()}s
+              </span>
+            </div>
+            
+            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-3">
+              <div 
+                className="bg-red-600 h-2.5 rounded-full transition-all duration-300"
+                style={{ width: `${(currentPhase / 5) * 100}%` }}
+              />
+            </div>
+            
+            <div className="text-sm text-gray-600 font-medium">
+              {currentPhase === 1 && '🤝 Building Connection...'}
+              {currentPhase === 2 && '👂 Listening & Observing...'}
+              {currentPhase === 3 && '✨ Painting the Vision...'}
+              {currentPhase === 4 && '🎯 Modeling Detachment...'}
+              {currentPhase === 5 && '👋 Graceful Exit...'}
+            </div>
+          </div>
+        )}
+        
+        {/* Call controls */}
+        <div className="flex justify-center items-center gap-3 mb-8">
+          {!isConnected && !isConnecting ? (
+            <Button
+              variant="outlined"
+              onClick={handleStartCall}
+              disabled={isConnecting}
+              startIcon={<CallIcon />}
+              sx={{
+                bgcolor: 'white',
+                border: '2px solid black',
+                '&:hover': {
+                  bgcolor: 'white',
+                  border: '2px solid black',
+                  transform: 'translateY(-2px)',
+                },
+                color: 'black',
+                fontWeight: '600',
+                fontSize: '1rem',
+                py: 1.5,
+                px: 5,
+                borderRadius: 2,
+                textTransform: 'none',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                transition: 'all 0.3s ease',
+              }}
+            >
+              Start Call with Marcus
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outlined"
+                onClick={handleEndCall}
+                startIcon={<EndCallIcon />}
+                sx={{
+                  bgcolor: 'white',
+                  border: '1px solid #dc2626',
+                  '&:hover': {
+                    bgcolor: '#fef2f2',
+                    border: '1px solid #dc2626',
+                  },
+                  color: '#dc2626',
+                  fontWeight: '500',
+                  fontSize: '0.875rem',
+                  py: 0.75,
+                  px: 3,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                End Call
+              </Button>
+              
+              {/* Processing indicator beside button */}
+              {isProcessing && (
+                <CircularProgress size={20} sx={{ color: '#dc2626' }} />
+              )}
+            </>
+          )}
+        </div>
+        
+        {/* Loading indicator */}
+        {isConnecting && (
+          <div className="flex justify-center items-center gap-3 mb-6 p-6 bg-white rounded-xl border-2 border-gray-300">
+            <CircularProgress size={24} sx={{ color: '#dc2626' }} />
+            <span className="text-base text-gray-700 font-medium">
+              Connecting to Marcus...
+            </span>
+          </div>
+        )}
+        
+        {/* Connected - waiting for user */}
+        {isConnected && conversationHistory.length === 0 && !isProcessing && (
+          <div className="mb-6 p-6 bg-white rounded-xl border-2 border-gray-300 text-center">
+            <p className="text-lg text-gray-900 font-semibold mb-2">
+              🎤 Connected! Start the conversation
+            </p>
+            <p className="text-sm text-gray-600">
+              Introduce yourself and your product to Marcus
+            </p>
+          </div>
+        )}
+        
+        {/* Error display */}
+        {error && (
+          <div className="mb-6 p-6 bg-red-50 border-2 border-red-300 rounded-xl">
+            <p className="text-base text-red-900 font-medium">
+              Error: {error.message}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+/**
+ * CharmerController - Main export with MarcusVoiceProvider wrapper
+ */
+export const CharmerController = memo((props: CharmerControllerProps) => {
+  // Transcript update handler for voice adapter
+  const handleTranscriptUpdate = useCallback((text: string, isFinal: boolean) => {
+    // Transcript updates are handled internally by CharmerControllerContent
+    // via the useMarcusVoice hook's transcript state
+    console.log(`[CharmerController] Transcript update: ${text} (final: ${isFinal})`);
+  }, []);
+  
+  // Interruption handler - called when user speaks while Marcus is talking
+  const handleInterruption = useCallback((interruptedText: string) => {
+    console.log(`🛑 [CharmerController] User interrupted Marcus with: "${interruptedText}"`);
+    // Marcus will automatically stop speaking (handled in MarcusVoiceManager)
+    // The interrupted text will be processed normally through transcript flow
+  }, []);
+  
+  return (
+    <MarcusVoiceProvider 
+      onTranscriptUpdate={handleTranscriptUpdate}
+      onInterruption={handleInterruption}
+    >
+      <CharmerControllerContent {...props} />
+    </MarcusVoiceProvider>
+  );
+});
+
+export default CharmerController;

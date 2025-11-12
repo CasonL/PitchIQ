@@ -13,16 +13,16 @@ interface VoiceProfile {
 
 // Available Deepgram voices with enhanced metadata
 const AVAILABLE_VOICES: VoiceProfile[] = [
-  // Male voices with different characteristics - prioritizing dynamic voices for demos
+  // Male voices with different characteristics - using valid Deepgram models
   {
-    id: 'aura-2-blaze-en',
+    id: 'aura-2-apollo-en',
     gender: 'male',
     characteristics: ['dynamic', 'energetic', 'engaging', 'charismatic'],
     energyLevel: 'high',
     suitableFor: ['sales', 'marketing', 'presentations', 'demo']
   },
   {
-    id: 'aura-2-titan-en',
+    id: 'aura-2-zeus-en',
     gender: 'male',
     characteristics: ['powerful', 'assertive', 'confident', 'bold'],
     energyLevel: 'high',
@@ -36,7 +36,7 @@ const AVAILABLE_VOICES: VoiceProfile[] = [
     suitableFor: ['executive', 'leadership', 'finance', 'demo']
   },
   {
-    id: 'aura-2-nova-en',
+    id: 'aura-2-atlas-en',
     gender: 'male',
     characteristics: ['warm', 'friendly', 'conversational', 'personable'],
     energyLevel: 'medium-high',
@@ -50,9 +50,9 @@ const AVAILABLE_VOICES: VoiceProfile[] = [
     suitableFor: ['technical', 'academic', 'formal']
   },
   
-  // Female voices with different characteristics
+  // Female voices with different characteristics - using valid Deepgram models
   {
-    id: 'aura-2-shimmer-en',
+    id: 'aura-2-thalia-en',
     gender: 'female',
     characteristics: ['clear', 'professional', 'articulate'],
     energyLevel: 'medium',
@@ -66,16 +66,16 @@ const AVAILABLE_VOICES: VoiceProfile[] = [
     suitableFor: ['customer service', 'healthcare', 'education']
   },
   {
-    id: 'aura-2-ember-en',
+    id: 'aura-2-helena-en',
     gender: 'female',
     characteristics: ['energetic', 'enthusiastic', 'dynamic'],
     energyLevel: 'high',
     suitableFor: ['sales', 'marketing', 'entertainment']
   },
   
-  // Neutral voices
+  // Neutral voices - using valid male voice as fallback since no true neutral exists
   {
-    id: 'aura-2-onyx-en',
+    id: 'aura-2-atlas-en',
     gender: 'neutral',
     characteristics: ['balanced', 'clear', 'versatile'],
     energyLevel: 'medium',
@@ -83,89 +83,22 @@ const AVAILABLE_VOICES: VoiceProfile[] = [
   }
 ];
 
-// Default voices by gender
-const DEFAULT_MALE_VOICE = 'aura-2-nova-en'; // Warm, friendly, conversational tone male voice
+// Default voices by gender - using valid Deepgram models
+const DEFAULT_MALE_VOICE = 'aura-2-atlas-en'; // Warm, friendly, conversational tone male voice
 const DEFAULT_FEMALE_VOICE = 'aura-2-aurora-en'; // Warm, friendly, approachable female voice
-const DEFAULT_NEUTRAL_VOICE = 'aura-2-onyx-en';
+const DEFAULT_NEUTRAL_VOICE = 'aura-2-atlas-en'; // Using atlas as neutral fallback
 
 export class VoiceSelector {
   /**
    * Select the most appropriate voice based on persona characteristics
-   * Accept both PersonaData and the internal Persona type
-   * This is the main entry point for voice selection that handles both async and sync scenarios
-   * 
-   * @returns Either a string voice ID directly (sync mode) or a Promise resolving to a voice ID (async mode)
+   * Now simplified to use explicit gender field from persona generation
    */
-  static selectVoiceForPersona(persona: any): string | Promise<string> {
-    // Try to detect if the calling context can handle a Promise
-    // We do this by checking if we're in an async context or if there's an await expression
-    try {
-      // If we're in an async function that awaits this call, try to use the async version
-      const asyncDetectionSupported = this.isAsyncContext();
-      
-      if (asyncDetectionSupported) {
-        console.log(`🔄 Using async gender detection API for ${persona.name}`);
-        return this.selectVoiceForPersonaAsync(persona);
-      }
-    } catch (error) {
-      console.log(`ℹ️ Falling back to sync detection: ${error.message}`);
-      // Continue to synchronous version
-    }
+  static selectVoiceForPersona(persona: any): string {
+    console.log(`🎙️ Selecting voice for persona: ${persona.name}`);
     
-    // Use synchronous fallback for immediate response
-    // This ensures we always have a voice, even if the API call is slow or fails
-    console.log(`📋 Using synchronous gender detection for ${persona.name}`);
-    return this.selectVoiceForPersonaSync(persona);
-  }
-  
-  /**
-   * Attempt to detect if we're in an async context
-   * This is a heuristic - it checks the call stack for async function signatures
-   */
-  private static isAsyncContext(): boolean {
-    // Check if we have async/await in the call stack
-    const stack = new Error().stack || '';
-    const hasAsyncKeywords = stack.includes('async') || stack.includes('await');
-    
-    // Check if promises are being used in the caller
-    const callerIsUsingPromises = stack.includes('Promise') || stack.includes('then');
-    
-    return hasAsyncKeywords || callerIsUsingPromises;
-  }
-  
-  /**
-   * Select voice asynchronously with API-based gender detection
-   * Use this method when you can handle a Promise-based response
-   */
-  static async selectVoiceForPersonaAsync(persona: any): Promise<string> {
-    // Add debug logging to trace selection process
-    console.log(`🔄 Selecting voice asynchronously for persona: ${persona.name}`);
-    
-    // Determine gender from persona using async method with API integration
-    const gender = await this.determineGender(persona);
-    console.log(`👤 Async determined gender for ${persona.name}: ${gender}`);
-    
-    // Extract relevant characteristics from persona
-    const traits = this.extractTraits(persona);
-    
-    // Find matching voice based on characteristics
-    const matchedVoice = this.findMatchingVoice(gender, traits, persona);
-    console.log(`🎙️ Async selected ${gender} voice: ${matchedVoice} for ${persona.name}`);
-    
-    return matchedVoice;
-  }
-  
-  /**
-   * Synchronous version of selectVoiceForPersona for backward compatibility
-   * Uses only local heuristics for gender detection
-   */
-  static selectVoiceForPersonaSync(persona: any): string {
-    // Add debug logging to trace selection process
-    console.log(`🔍 Selecting voice synchronously for persona: ${persona.name}`);
-    
-    // Determine gender from persona using synchronous method
-    const gender = this.determineGenderSync(persona);
-    console.log(`👤 Determined gender for ${persona.name}: ${gender}`);
+    // Determine gender from explicit field (should always be present now)
+    const gender = this.getGenderFromPersona(persona);
+    console.log(`👤 Gender for ${persona.name}: ${gender}`);
     
     // Extract relevant characteristics from persona
     const traits = this.extractTraits(persona);
@@ -178,297 +111,21 @@ export class VoiceSelector {
   }
   
   /**
-   * Get gender information from backend API using unbiased demographic name service
-   * This uses the /name-gender-detection endpoint for more accurate gender detection
-   * @param name Full name to check
-   * @returns Promise resolving to gender or null if API call fails
+   * Simple gender extraction from persona (no complex detection needed)
    */
-  static async fetchGenderFromAPI(name: string): Promise<'male' | 'female' | null> {
-    try {
-      console.log(`🔄 Fetching gender from API for name: ${name}`);
-      
-      const response = await fetch('/api/dual-voice/name-gender-detection', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name }),
-      });
-      
-      if (!response.ok) {
-        console.error(`❌ Error fetching gender from API: ${response.statusText}`);
-        return null;
-      }
-      
-      const data = await response.json();
-      
-      if (data.success && data.gender) {
-        console.log(`✅ API returned gender for ${name}: ${data.gender}`);
-        return data.gender as 'male' | 'female';
-      }
-      
-      console.warn(`⚠️ API call successful but no gender returned for ${name}`);
-      return null;
-    } catch (error) {
-      console.error(`❌ Exception fetching gender from API:`, error);
-      return null;
-    }
-  }
-
-  /**
-   * Determine gender from persona information
-   * Uses a combination of API calls and local heuristics for maximum accuracy
-   */
-  private static async determineGender(persona: Persona): Promise<'male' | 'female' | 'neutral'> {
-    // Add debug logging to trace persona data
-    console.log(`🔍 Determining gender for persona: ${persona.name}`, { 
-      hasGender: !!persona.gender,
-      gender: persona.gender || 'not specified'
-    });
-    
-    // Check if gender is explicitly specified
+  private static getGenderFromPersona(persona: any): 'male' | 'female' | 'neutral' {
     if (persona.gender) {
       if (persona.gender.toLowerCase().includes('male')) {
-        console.log(`✅ Gender explicitly specified as male for ${persona.name}`);
         return 'male';
       }
       if (persona.gender.toLowerCase().includes('female')) {
-        console.log(`✅ Gender explicitly specified as female for ${persona.name}`);
         return 'female';
       }
     }
     
-    // If no explicit gender is provided, try using the unbiased API
-    if (persona.name) {
-      try {
-        const apiGender = await this.fetchGenderFromAPI(persona.name);
-        if (apiGender) {
-          console.log(`✅ API detected gender as ${apiGender} for ${persona.name}`);
-          return apiGender;
-        }
-      } catch (error) {
-        console.error(`❌ Error using API gender detection for ${persona.name}:`, error);
-        // Continue with fallback methods
-      }
-    }
-    
-    // Fall back to synchronous gender detection if API call fails
-    return this.determineGenderSync(persona);
-  }
-  
-  /**
-   * Synchronous version of determineGender that only uses local heuristics
-   * This is used as a fallback when API calls fail or for backward compatibility
-   */
-  /**
-   * Synchronous version of determineGender that only uses local heuristics
-   * This is used as a fallback when API calls fail or for backward compatibility
-   */
-  private static determineGenderSync(persona: Persona): 'male' | 'female' | 'neutral' {
-    // Add debug logging to trace persona data
-    console.log(`🔍 Determining gender synchronously for persona: ${persona.name}`);
-    
-    // Check if gender is explicitly specified
-    if (persona.gender) {
-      if (persona.gender.toLowerCase().includes('male')) {
-        console.log(`✅ Gender explicitly specified as male for ${persona.name}`);
-        return 'male';
-      }
-      if (persona.gender.toLowerCase().includes('female')) {
-        console.log(`✅ Gender explicitly specified as female for ${persona.name}`);
-        return 'female';
-      }
-    }
-    
-    // From this point forward, implement the same logic as in the original code,
-    // without duplicating variable declarations
-    
-    // Extract the first name for better matching
-    const fullName = persona.name.toLowerCase().trim();
-    const nameParts = fullName.split(' ');
-    const firstName = nameParts[0];
-    
-    // Check for gender indicators in name and about_person
-    const about = persona.about_person ? persona.about_person.toLowerCase() : '';
-    
-    // Check common indicators
-    const maleIndicators = ['mr.', 'mr ', 'sir', 'he', 'his', 'him', ' male', 'man', 'father', 'brother', 'son'];
-    for (const indicator of maleIndicators) {
-      if (fullName.includes(indicator) || about.includes(indicator)) {
-        console.log(`✅ Found male indicator "${indicator}" for ${persona.name}`);
-        return 'male';
-      }
-    }
-    
-    const femaleIndicators = ['mrs.', 'mrs ', 'miss', 'ms.', 'ms ', 'she', 'her', ' female', 'woman', 'mother', 'sister', 'daughter'];
-    for (const indicator of femaleIndicators) {
-      if (fullName.includes(indicator) || about.includes(indicator)) {
-        console.log(`✅ Found female indicator "${indicator}" for ${persona.name}`);
-        return 'female';
-      }
-    }
-    
-    // Check common female first names
-    const commonFemaleNames = [
-      'mary', 'patricia', 'jennifer', 'linda', 'elizabeth', 'barbara', 'susan', 'jessica', 'sarah',
-      'nancy', 'lisa', 'margaret', 'betty', 'sandra', 'ashley', 'dorothy', 'kimberly', 'emily',
-      'michelle', 'carol', 'amanda', 'melissa', 'deborah', 'stephanie', 'rebecca', 'laura', 
-      'cynthia', 'amy', 'angela', 'anna', 'ruth', 'brenda', 'pamela', 'nicole', 'katherine',
-      'samantha', 'christine', 'catherine', 'virginia', 'rachel', 'janet', 'emma', 'maria',
-      'heather', 'diane', 'julie', 'joyce', 'victoria', 'kelly', 'christina', 'lauren',
-      'olivia', 'judith', 'megan', 'martha', 'andrea', 'frances', 'hannah', 'jacqueline',
-      'gloria', 'jean', 'alice', 'teresa', 'sara', 'janice', 'madison', 'julia', 'grace',
-      'judy', 'abigail', 'sophia', 'isabella', 'ava', 'camila', 'charlotte', 'amelia',
-      'mila', 'lucy', 'sofia', 'elena', 'maya', 'zoe', 'leah', 'stella', 'hazel', 'eliana'
-    ];
-    
-    if (commonFemaleNames.includes(firstName)) {
-      console.log(`✅ Found female first name match for ${firstName} (${persona.name})`);
-      return 'female';
-    }
-    
-    // Female name pattern heuristics
-    if (firstName.endsWith('a') || firstName.endsWith('ia') || firstName.endsWith('ina') || 
-        firstName.endsWith('elle') || firstName.endsWith('ey') || firstName.endsWith('ie') ||
-        firstName.endsWith('y') && firstName.length > 3) {
-      console.log(`✅ Female name pattern match for ${firstName} (${persona.name})`);
-      return 'female';
-    }
-    
-    // Check common male first names
-    const commonMaleNames = [
-      'james', 'john', 'robert', 'michael', 'william', 'david', 'richard', 'joseph', 'thomas',
-      'christopher', 'daniel', 'matthew', 'anthony', 'mark', 'donald', 'steven', 'paul', 'andrew',
-      'kenneth', 'kevin', 'brian', 'george', 'timothy', 'ronald', 'edward', 'jason', 'jeffrey',
-      'jacob', 'gary', 'nicholas', 'eric', 'jonathan', 'stephen', 'larry', 'justin', 'scott',
-      'benjamin', 'samuel', 'gregory', 'alexander', 'patrick', 'frank', 'raymond', 'jack', 'dennis',
-      'tyler', 'aaron', 'jose', 'adam', 'nathan', 'henry', 'douglas', 'zachary', 'peter',
-      'ethan', 'walter', 'noah', 'jeremy', 'christian', 'keith', 'roger', 'terry', 'harold',
-      'sean', 'austin', 'carl', 'arthur', 'lawrence', 'dylan', 'jesse', 'jordan', 'bryan',
-      'bruce', 'gabriel', 'joe', 'logan', 'alan', 'juan', 'albert', 'willie', 'elijah', 'wayne',
-      'liam', 'oliver', 'william', 'james', 'benjamin', 'lucas', 'henry'
-    ];
-    
-    if (commonMaleNames.includes(firstName)) {
-      console.log(`✅ Found male first name match for ${firstName} (${persona.name})`);
-      return 'male';
-    }
-    
-    // If we've made it here, we need to guess - examine content clues
-    if (about) {
-      // Count male vs female pronouns
-      const malePronouns = ['he', 'him', 'his', 'himself'];
-      const femalePronouns = ['she', 'her', 'hers', 'herself'];
-      
-      let maleCount = 0;
-      let femaleCount = 0;
-      
-      // Simple word-boundary check using regex
-      malePronouns.forEach(pronoun => {
-        const regex = new RegExp(`\\b${pronoun}\\b`, 'gi');
-        const matches = about.match(regex);
-        if (matches) maleCount += matches.length;
-      });
-      
-      femalePronouns.forEach(pronoun => {
-        const regex = new RegExp(`\\b${pronoun}\\b`, 'gi');
-        const matches = about.match(regex);
-        if (matches) femaleCount += matches.length;
-      });
-      
-      if (maleCount > femaleCount && maleCount > 0) {
-        console.log(`✅ Found ${maleCount} male pronouns vs ${femaleCount} female pronouns for ${persona.name}`);
-        return 'male';
-      }
-      
-      if (femaleCount > maleCount && femaleCount > 0) {
-        console.log(`✅ Found ${femaleCount} female pronouns vs ${maleCount} male pronouns for ${persona.name}`);
-        return 'female';
-      }
-    }
-    
-    // If still unsure, use statistical probability (55/45 split male/female in business contexts)
-    // but with a slight preference toward female to balance historic bias
-    const randomFallback = Math.random();
-    if (randomFallback < 0.55) {
-      console.log(`⚠️ Using random assignment (55% probability) for ${persona.name}: female`);
-      return 'female';
-    } else {
-      console.log(`⚠️ Using random assignment (45% probability) for ${persona.name}: male`);
-      return 'male';
-    }
-    
-    // Female name pattern heuristics
-    if (firstName.endsWith('a') || firstName.endsWith('ia') || firstName.endsWith('ina') || 
-        firstName.endsWith('elle') || firstName.endsWith('ey') || firstName.endsWith('ie') ||
-        firstName.endsWith('y') && firstName.length > 3) {
-      console.log(`✅ Female name pattern match for ${firstName} (${persona.name})`);
-      return 'female';
-    }
-    
-    // Common male first names (add more as needed)
-    const maleFirstNames = [
-      'james', 'john', 'robert', 'michael', 'william', 'david', 'richard', 'joseph', 'thomas', 'charles',
-      'christopher', 'daniel', 'matthew', 'anthony', 'mark', 'donald', 'steven', 'paul', 'andrew', 'joshua',
-      'kenneth', 'kevin', 'brian', 'george', 'timothy', 'ronald', 'edward', 'jason', 'jeffrey', 'ryan',
-      'jacob', 'gary', 'nicholas', 'eric', 'jonathan', 'stephen', 'larry', 'justin', 'scott', 'brandon',
-      'benjamin', 'samuel', 'gregory', 'alexander', 'patrick', 'frank', 'raymond', 'jack', 'dennis', 'jerry',
-      'tyler', 'aaron', 'jose', 'adam', 'nathan', 'henry', 'douglas', 'zachary', 'peter', 'kyle',
-      'ethan', 'walter', 'noah', 'jeremy', 'christian', 'keith', 'roger', 'terry', 'gerald', 'harold',
-      'sean', 'austin', 'carl', 'arthur', 'lawrence', 'dylan', 'jesse', 'jordan', 'bryan', 'billy',
-      'bruce', 'gabriel', 'joe', 'logan', 'alan', 'juan', 'albert', 'willie', 'elijah', 'wayne',
-      'liam', 'noah', 'oliver', 'elijah', 'william', 'james', 'benjamin', 'lucas', 'henry', 'alexander'
-    ];
-    
-    if (maleFirstNames.includes(firstName)) {
-      console.log(`✅ Found male first name match for ${firstName} (${persona.name})`);
-      return 'male';
-    }
-    
-    // If we've made it here, we need to guess - examine content clues
-    // Check if 'about_person' contains gender clues
-    if (about) {
-      // Count male vs female pronouns
-      const malePronouns = ['he', 'him', 'his', 'himself'];
-      const femalePronouns = ['she', 'her', 'hers', 'herself'];
-      
-      let maleCount = 0;
-      let femaleCount = 0;
-      
-      // Simple word-boundary check using regex
-      malePronouns.forEach(pronoun => {
-        const regex = new RegExp(`\\b${pronoun}\\b`, 'gi');
-        const matches = about.match(regex);
-        if (matches) maleCount += matches.length;
-      });
-      
-      femalePronouns.forEach(pronoun => {
-        const regex = new RegExp(`\\b${pronoun}\\b`, 'gi');
-        const matches = about.match(regex);
-        if (matches) femaleCount += matches.length;
-      });
-      
-      if (maleCount > femaleCount && maleCount > 0) {
-        console.log(`✅ Found ${maleCount} male pronouns vs ${femaleCount} female pronouns for ${persona.name}`);
-        return 'male';
-      }
-      
-      if (femaleCount > maleCount && femaleCount > 0) {
-        console.log(`✅ Found ${femaleCount} female pronouns vs ${maleCount} male pronouns for ${persona.name}`);
-        return 'female';
-      }
-    }
-    
-    // If still unsure, use statistical probability (55/45 split male/female in business contexts)
-    // but with a slight preference toward female to balance historic bias
-    const randomChoice = Math.random();
-    if (randomChoice < 0.55) {
-      console.log(`⚠️ Using random assignment (55% probability) for ${persona.name}: female`);
-      return 'female';
-    } else {
-      console.log(`⚠️ Using random assignment (45% probability) for ${persona.name}: male`);
-      return 'male';
-    }
+    // Fallback to neutral if no gender specified (shouldn't happen with new persona generation)
+    console.log(`⚠️ No gender specified for ${persona.name}, defaulting to neutral`);
+    return 'neutral';
   }
 
   /**

@@ -36,6 +36,7 @@ import VoiceDebugPage from './pages/VoiceDebugPage';
 import AnimatedLandingPage from './pages/AnimatedLandingPage';
 import SamOrchestratorPage from './pages/SamOrchestratorPage';
 import MarcusDemoPage from './pages/MarcusDemoPage';
+import ProposalPage from './pages/ProposalPage';
 
 const App = () => (
   <HelmetProvider>
@@ -79,6 +80,9 @@ const App = () => (
       <Route path="/how-it-works" element={<HowItWorksPage />} />
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogPostPage />} />
+
+      {/* Unlisted proposal page - accessible only via direct URL */}
+      <Route path="/proposal/:proposalId?" element={<ProposalPage />} />
 
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />

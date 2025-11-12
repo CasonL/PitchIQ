@@ -5,31 +5,31 @@ import { Button } from '@/components/ui/button';
 
 const blogPosts = [
   {
-    title: "10 AI Sales Training Techniques That Boost Close Rates by 40%",
-    excerpt: "Discover how enterprise sales teams are using AI-powered training to dramatically improve their performance and revenue outcomes.",
+    title: "Why You Freeze When a Prospect Says 'No' (And How to Fix It)",
+    excerpt: "That moment when your mind goes blank after an objection? You're not alone. Here's why it happens and what to say instead of panicking.",
     author: "Cason Lamothe",
     date: "June 15, 2025",
-    readTime: "8 min read",
-    category: "Sales Training",
-    slug: "ai-sales-training-techniques-boost-close-rates"
+    readTime: "5 min read",
+    category: "Objection Handling",
+    slug: "why-you-freeze-when-prospect-says-no"
   },
   {
-    title: "Enterprise Sales Coaching: The Complete Guide for 2024",
-    excerpt: "Everything you need to know about implementing scalable sales coaching programs that deliver measurable ROI for large organizations.",
+    title: "5 Objections That Kill Deals—And What to Say Instead",
+    excerpt: "\"I need to think about it.\" \"It's too expensive.\" \"Send me some info.\" Learn the real responses that keep conversations alive.",
     author: "Cason Lamothe",
     date: "June 12, 2025",
-    readTime: "12 min read",
-    category: "Enterprise",
-    slug: "enterprise-sales-coaching-complete-guide-2024"
+    readTime: "6 min read",
+    category: "Practical Tips",
+    slug: "five-objections-that-kill-deals"
   },
   {
-    title: "B2B Sales Training vs Traditional Methods: ROI Comparison",
-    excerpt: "A comprehensive analysis of AI-powered sales training platforms versus traditional coaching methods, with real performance data.",
+    title: "How to Practice Sales Calls When You're Flying Solo",
+    excerpt: "No team, no manager, no problem. Here's how to get real practice and build confidence when you're on your own.",
     author: "Cason Lamothe",
     date: "June 8, 2025",
-    readTime: "6 min read",
-    category: "Analysis",
-    slug: "b2b-sales-training-vs-traditional-methods-roi"
+    readTime: "4 min read",
+    category: "Solo Sellers",
+    slug: "practice-sales-calls-flying-solo"
   }
 ];
 
@@ -66,10 +66,10 @@ const SEOBlogSection: React.FC = () => {
           viewport={{ once: true, amount: 0.2 }}
         >
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 font-outfit text-gray-900">
-            Sales Training Insights & Best Practices
+            Real Talk About Selling
           </h2>
           <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
-            Expert insights on AI sales training, enterprise coaching strategies, and proven techniques to maximize your team's performance.
+            Practical advice for solo sellers and small business owners. No corporate jargon, just what actually works.
           </p>
         </motion.div>
 

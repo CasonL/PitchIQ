@@ -3,6 +3,7 @@ import { createClient } from "@deepgram/sdk";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthContext } from "@/context/AuthContext";
 import { useUser } from "@/components/common/UserDetailsGate";
+import { useSamCoachAgent, SamCoachDataPayload } from "./samcoach/useSamCoachAgent";
 
 // Polyfill for Deepgram SDK
 if (typeof window !== "undefined" && !(window as any).Buffer) {
@@ -111,6 +112,48 @@ export const DualVoiceAgentInterface: React.FC<Props> = ({
   const [currentUserResponse, setCurrentUserResponse] = useState('');
   const [cleanupInProgress, setCleanupInProgress] = useState(false);
   const [muted, setMuted] = useState(false);
+
+  // USE THE WORKING SAM COACH AGENT HOOK
+  const { 
+    messages: samMessages,
+    transcript: samTranscript,
+    connected: samConnected,
+    connecting: samConnecting 
+  } = useSamCoachAgent({
+    onDataCollected: (data: SamCoachDataPayload) => {
+      console.log("✅ Sam collected data:", data);
+      setConversationData({
+        product_service: data.product_service,
+        target_market: data.target_market,
+        persona_generated: false,
+        conversation_stage: 'persona_generation'
+      });
+      
+      // Generate persona
+      setIsGeneratingPersona(true);
+      fetch("/api/personas/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_or_service: data.product_service,
+          target_market: data.target_market
+        })
+      }).then(res => res.json())
+        .then((result) => {
+          if (result.persona) {
+            onConversationProgressed?.("Persona Generated", result.persona);
+          }
+        })
+        .finally(() => setIsGeneratingPersona(false));
+    },
+    onConnectionStateChange: (state) => {
+      setConnected(state.connected);
+      setConnecting(state.connecting);
+      onConnectionChange?.(state.connected);
+    },
+    autoStart: true,
+    logPrefix: "Sam"
+  });
 
   /* ––––– REFS ––––– */
   const dgClientRef = useRef<ReturnType<typeof createClient> | null>(null);
@@ -404,8 +447,14 @@ export const DualVoiceAgentInterface: React.FC<Props> = ({
     }
   }, [conversationData, connected, completeCleanup, onConversationProgressed, toast]);
 
-  // Initialize Deepgram SDK
+  // Initialize Deepgram SDK (ONLY for persona mode - coach uses useSamCoachAgent hook)
   useEffect(() => {
+    // Skip if using the working SamCoach hook
+    if (activeAgent === 'coach') {
+      log("ℹ️ Using SamCoach hook - skipping old SDK init");
+      return;
+    }
+    
     (async () => {
       try {
         log("🔧 Fetching Deepgram token...");
@@ -434,7 +483,7 @@ export const DualVoiceAgentInterface: React.FC<Props> = ({
         });
       }
     })();
-  }, [toast]);
+  }, [toast, activeAgent]);
 
   // Build agent settings based on active agent type
   const buildSettings = useMemo(() => {
@@ -444,16 +493,17 @@ export const DualVoiceAgentInterface: React.FC<Props> = ({
       return {
         audio: {
           input: { encoding: "linear16", sample_rate: SAMPLE_RATE },
-          output: { encoding: "linear16", sample_rate: SAMPLE_RATE }
+          output: { encoding: "linear16", sample_rate: SAMPLE_RATE, container: "none" }
         },
         agent: {
           language: "en",
           listen: { 
             provider: { 
               type: "deepgram", 
-              model: "nova-2"
-            },
-            endpointing_ms: 600
+              model: "nova-3",
+              smart_format: false,
+              keyterms: ["PitchIQ", "sales training", "roleplay", "AI coach", "discovery call"]
+            }
           },
           think: {
             provider: { type: "open_ai", model: "gpt-4o-mini" },
@@ -487,23 +537,25 @@ CONVERSATION APPROACH:
 Remember: This is a realistic business conversation. Be professional but human, skeptical but fair.`
           },
           speak: { provider: { type: "deepgram", model: "aura-2-asteria-en" } }
-        }
+        },
+        experimental: false
       };
     } else {
       // Coach agent (Sam)
       return {
         audio: {
           input: { encoding: "linear16", sample_rate: SAMPLE_RATE },
-          output: { encoding: "linear16", sample_rate: SAMPLE_RATE }
+          output: { encoding: "linear16", sample_rate: SAMPLE_RATE, container: "none" }
         },
         agent: {
           language: "en",
           listen: { 
             provider: { 
               type: "deepgram", 
-              model: "nova-2"
-            },
-            endpointing_ms: 600
+              model: "nova-3",
+              smart_format: false,
+              keyterms: ["PitchIQ", "sales training", "roleplay", "AI coach", "discovery call"]
+            }
           },
           think: {
             provider: { type: "open_ai", model: "gpt-4o" },
@@ -535,7 +587,8 @@ Remember: You're building trust and gathering quality information to create the 
           },
           speak: { provider: { type: "deepgram", model: "aura-2-asteria-en" } },
           greeting: `Hey ${userName}! I'm Sam, your AI sales coach. Let's create a buyer persona for your sales training. What's your primary product or service?`
-        }
+        },
+        experimental: false
       };
     }
   }, [activeAgent, generatedPersona, getUserName]);
@@ -621,6 +674,14 @@ Remember: You're building trust and gathering quality information to create the 
       agent.on("SettingsApplied", () => {
         log("✅ Settings applied, starting microphone...");
         startMicrophonePump();
+        
+        // Start the agent streaming (required for Agent API)
+        try {
+          log("▶️ Calling agent.start() to begin streaming");
+          (agent as any).start();
+        } catch (e) {
+          log(`⚠️ agent.start() failed: ${e}`);
+        }
       });
 
       // Add comprehensive event handlers from working implementation
@@ -783,9 +844,21 @@ Remember: You're building trust and gathering quality information to create the 
       let loggedSamples = false;
       let messageCount = 0;
       
+      let lastMessageTime = Date.now();
+      
       workletNodeRef.current.port.onmessage = (e) => {
+        lastMessageTime = Date.now(); // Track when we receive messages
         const data = e.data;
-        if (muted) return;
+        
+        // Log every 100th message to confirm handler is being called
+        if (messageCount > 0 && messageCount % 100 === 0) {
+          log(`🔵 Worklet onmessage still firing - message #${messageCount}`);
+        }
+        
+        if (muted) {
+          log("🔇 Audio muted, skipping processing");
+          return;
+        }
 
         // Debug what we're actually receiving - log first few messages regardless of size
         if (!loggedSamples) {
@@ -826,6 +899,11 @@ Remember: You're building trust and gathering quality information to create the 
             log(`🔊 Speech detected! RMS: ${Math.round(rms)}`);
           }
           
+          // Log periodically to show audio is flowing
+          if (messageCount % 100 === 0) {
+            log(`📊 Audio stats - Message ${messageCount}: RMS: ${Math.round(rms)} ${hasAudio ? '🔊' : '🔇'}`);
+          }
+          
           if (rms < 50 && messageCount % 500 === 0) {
             const min = Math.min(...chunk);
             const max = Math.max(...chunk);
@@ -834,6 +912,10 @@ Remember: You're building trust and gathering quality information to create the 
           
           if (agentRef.current && connected) {
             agentRef.current.send(chunk.buffer);
+            // Log every 50th send to confirm data is flowing to Deepgram
+            if (messageCount % 50 === 0) {
+              log(`📤 Sent audio chunk #${messageCount} to Deepgram (${chunk.buffer.byteLength} bytes, RMS: ${Math.round(rms)})`);
+            }
           }
           cat = cat.slice(TARGET_SAMPLES);
         }
@@ -841,8 +923,25 @@ Remember: You're building trust and gathering quality information to create the 
       };
       
       // Connect microphone stream to worklet
-      micCtx.createMediaStreamSource(micStreamRef.current).connect(workletNodeRef.current);
+      const sourceNode = micCtx.createMediaStreamSource(micStreamRef.current);
+      sourceNode.connect(workletNodeRef.current);
       log(`🎙️ Mic → DG @${SAMPLE_RATE} Hz`);
+      
+      // Monitor worklet messages
+      const monitorInterval = window.setInterval(() => {
+        const timeSince = Date.now() - lastMessageTime;
+        console.log(`🔍 Time since last worklet message: ${timeSince}ms, Total messages: ${messageCount}`);
+        
+        if (timeSince > 2000) {
+          console.log(`⚠️ WARNING: Worklet stopped sending messages!`);
+          console.log(`🔍 Stream active: ${micStreamRef.current?.active}`);
+          console.log(`🔍 Stream tracks: ${micStreamRef.current?.getTracks().length}`);
+          console.log(`🔍 Context state: ${micCtx.state}`);
+          console.log(`🔍 Worklet outputs: ${workletNodeRef.current?.numberOfOutputs}`);
+        }
+      }, 2000);
+      
+      log(`✅ Monitor interval registered: ${monitorInterval}`);
       
       // Check if microphone is working
       setTimeout(() => {
@@ -851,7 +950,27 @@ Remember: You're building trust and gathering quality information to create the 
         } else {
           log(`✅ Microphone is working - received ${messageCount} audio messages`);
         }
+        
+        // Check audio context state
+        if (micCtx.state !== 'running') {
+          log(`❌ CRITICAL: Microphone AudioContext is ${micCtx.state} (should be 'running')`);
+          log(`🔧 Attempting to resume microphone context...`);
+          micCtx.resume().then(() => {
+            log(`✅ Microphone context resumed successfully`);
+          }).catch((err) => {
+            log(`❌ Failed to resume microphone context: ${err}`);
+          });
+        } else {
+          log(`✅ Microphone AudioContext state: ${micCtx.state}`);
+        }
       }, 3000);
+      
+      // Monitor context state changes
+      setInterval(() => {
+        if (micCtx.state !== 'running') {
+          log(`⚠️ Microphone context changed to: ${micCtx.state} - Messages received: ${messageCount}`);
+        }
+      }, 1000);
       
     } catch (error) {
       log("❌ Microphone pump failed:", error);

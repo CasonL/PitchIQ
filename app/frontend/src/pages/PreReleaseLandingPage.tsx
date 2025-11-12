@@ -6,6 +6,7 @@ import AboutUsSection from "@/components/AboutUsSection";
 import FeatureShowcase from "@/components/FeatureShowcase";
 // import PersonaShowcaseSection from "@/components/PersonaShowcaseSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
+import ComparisonSection from "@/components/ComparisonSection";
 // import TestimonialsSection from "@/components/TestimonialsSection";
 import Footer from "@/components/Footer";
 // import TestimonialTicker from "@/components/TestimonialTicker";
@@ -34,6 +35,7 @@ const PreReleaseLandingPage = () => {
         <InteractiveDemoSection onSignupClick={openEmailSignupModal} />
         <HowItWorksSection onOpenEmailModal={openEmailSignupModal} />
         <FeatureShowcase />
+        <ComparisonSection />
         <AboutUsSection onOpenEmailModal={openEmailSignupModal} />
         {/* <FundingSection /> */}
         {/* <PersonaShowcaseSection onOpenEmailModal={openEmailSignupModal} /> */}

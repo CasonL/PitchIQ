@@ -108,7 +108,7 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
       }, 9750);
       timeoutIds.push(timer1);
 
-      // Phase 2: Text sequence (8 seconds total)
+      // Phase 2: Text sequence (faster first 3 lines, longer tagline hold)
       const timer2 = setTimeout(() => {
         if (!isActive) return;
         setVisibleExamples(1); // "Financial services" appears
@@ -117,20 +117,20 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
 
       const timer3 = setTimeout(() => {
         if (!isActive) return;
-        setVisibleExamples(2); // "AI SaaS" appears
-      }, 11750);
+        setVisibleExamples(2); // "AI SaaS" appears (1s later - FASTER)
+      }, 10750);
       timeoutIds.push(timer3);
 
       const timer4 = setTimeout(() => {
         if (!isActive) return;
-        setVisibleExamples(3); // "You name it." appears
-      }, 13750);
+        setVisibleExamples(3); // "You name it." appears (1s later - FASTER)
+      }, 11750);
       timeoutIds.push(timer4);
 
       const timer5 = setTimeout(() => {
         if (!isActive) return;
-        setAnimationPhase('tagline'); // "Your business, your world." appears
-      }, 15750);
+        setAnimationPhase('tagline'); // "More practice. More deals." appears (2s later)
+      }, 13750);
       timeoutIds.push(timer5);
 
       // Phase 3: Clear everything for white screen gap
@@ -235,50 +235,166 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
   };
 
   const examples = [
-    "Compliance ready",
-    "Measurable ROI", 
-    "Enterprise grade"
+    "Handle objections.",
+    "Close more deals.", 
+    "Find your confidence."
   ];
 
   return (
     <>
     {/* Removed the local scroll anchor div */}
     {/* <div ref={emailSignupAnchorRef} style={{ position: 'relative', top: '-80px', height: '1px' }} data-purpose="email-signup-scroll-anchor" /> */}
-    <section className="h-auto flex flex-col justify-start items-center pt-32 sm:pt-36 md:pt-40 lg:pt-44 pb-0 px-4 sm:px-6 lg:px-8 overflow-hidden bg-background">
+    <section className="min-h-[85vh] flex flex-col justify-center items-center pt-20 pb-12 sm:pt-24 sm:pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden bg-white relative">
+      {/* Diagonal Maze Pattern - Top Right */}
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] opacity-[0.09] pointer-events-none" style={{ transform: 'rotate(-45deg)', transformOrigin: 'top right' }}>
+        <svg viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Maze grid pattern - extended coverage */}
+          {/* Top edge paths */}
+          <path d="M 50 0 L 50 80 L 100 80" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 100 0 L 100 40 L 150 40" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 150 0 L 150 120 L 200 120" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 200 0 L 200 80 L 250 80" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 250 0 L 250 60 L 300 60" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 300 0 L 300 100 L 350 100" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 350 0 L 350 40 L 400 40" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 400 0 L 400 120 L 450 120" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 450 0 L 450 80 L 500 80" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 500 0 L 500 60 L 550 60" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 550 0 L 550 90" stroke="#DC2626" strokeWidth="0.5"/>
+          
+          {/* Left edge paths */}
+          <path d="M 0 50 L 80 50 L 80 100" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 100 L 40 100 L 40 150" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 150 L 120 150 L 120 200" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 200 L 60 200 L 60 250" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 250 L 100 250 L 100 300" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 300 L 80 300 L 80 350" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 350 L 120 350 L 120 400" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 400 L 60 400 L 60 450" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 450 L 80 450 L 80 500" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 500 L 90 500 L 90 550" stroke="#DC2626" strokeWidth="0.5"/>
+          
+          {/* Interior connecting paths */}
+          <path d="M 100 80 L 100 120 L 150 120" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 150 40 L 150 80 L 200 80" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 200 120 L 200 160 L 250 160" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 250 60 L 250 100 L 300 100" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 300 100 L 300 140 L 350 140" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 350 40 L 350 80 L 400 80" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 400 120 L 400 160 L 450 160" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 450 80 L 450 120 L 500 120" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 500 60 L 500 100 L 550 100" stroke="#DC2626" strokeWidth="0.5"/>
+          
+          <path d="M 80 100 L 120 100 L 120 150" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 40 150 L 80 150 L 80 200" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 120 200 L 160 200 L 160 250" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 60 250 L 100 250 L 100 300" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 80 300 L 120 300 L 120 350" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 120 350 L 160 350 L 160 400" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 80 450 L 120 450 L 120 500" stroke="#DC2626" strokeWidth="0.5"/>
+          
+          <path d="M 200 160 L 200 200 L 240 200" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 250 120 L 250 160 L 290 160" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 300 140 L 300 180 L 340 180" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 350 100 L 350 140 L 390 140" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 400 80 L 400 120" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 450 160 L 450 200 L 490 200" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 500 120 L 500 160 L 540 160" stroke="#DC2626" strokeWidth="0.5"/>
+        </svg>
+      </div>
+      
+      {/* Diagonal Maze Pattern - Bottom Left */}
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] opacity-[0.09] pointer-events-none" style={{ transform: 'rotate(-45deg)', transformOrigin: 'bottom left' }}>
+        <svg viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Maze grid pattern - extended coverage */}
+          {/* Bottom edge paths */}
+          <path d="M 50 600 L 50 520 L 100 520" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 100 600 L 100 560 L 150 560" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 150 600 L 150 480 L 200 480" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 200 600 L 200 520 L 250 520" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 250 600 L 250 540 L 300 540" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 300 600 L 300 500 L 350 500" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 350 600 L 350 560 L 400 560" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 400 600 L 400 480 L 450 480" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 450 600 L 450 520 L 500 520" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 500 600 L 500 540 L 550 540" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 550 600 L 550 510" stroke="#DC2626" strokeWidth="0.5"/>
+          
+          {/* Left edge paths */}
+          <path d="M 0 550 L 80 550 L 80 500" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 500 L 40 500 L 40 450" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 450 L 120 450 L 120 400" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 400 L 60 400 L 60 350" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 350 L 100 350 L 100 300" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 300 L 80 300 L 80 250" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 250 L 120 250 L 120 200" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 200 L 60 200 L 60 150" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 150 L 80 150 L 80 100" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 0 100 L 90 100 L 90 50" stroke="#DC2626" strokeWidth="0.5"/>
+          
+          {/* Interior connecting paths */}
+          <path d="M 100 520 L 100 480 L 150 480" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 150 560 L 150 520 L 200 520" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 200 480 L 200 440 L 250 440" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 250 540 L 250 500 L 300 500" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 300 500 L 300 460 L 350 460" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 350 560 L 350 520 L 400 520" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 400 480 L 400 440 L 450 440" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 450 520 L 450 480 L 500 480" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 500 540 L 500 500 L 550 500" stroke="#DC2626" strokeWidth="0.5"/>
+          
+          <path d="M 80 500 L 120 500 L 120 450" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 40 450 L 80 450 L 80 400" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 120 400 L 160 400 L 160 350" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 60 350 L 100 350 L 100 300" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 80 300 L 120 300 L 120 250" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 120 250 L 160 250 L 160 200" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 80 150 L 120 150 L 120 100" stroke="#DC2626" strokeWidth="0.5"/>
+          
+          <path d="M 200 440 L 200 400 L 240 400" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 250 480 L 250 440 L 290 440" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 300 460 L 300 420 L 340 420" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 350 500 L 350 460 L 390 460" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 400 520 L 400 480" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 450 440 L 450 400 L 490 400" stroke="#DC2626" strokeWidth="0.5"/>
+          <path d="M 500 480 L 500 440 L 540 440" stroke="#DC2626" strokeWidth="0.5"/>
+        </svg>
+      </div>
+      
       <div className="max-w-7xl mx-auto w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-10 lg:gap-16 items-center">
           {/* Left Column: Text Content */}
           <div className="order-1 lg:order-1 text-left">
-                         <motion.h1 
-               className="font-outfit font-bold text-gray-900 leading-tight mb-6"
-               variants={textVariants}
-               initial="hidden"
-               animate="visible"
-               custom={0} // Stagger delay index
-             >
-                               <span className="block text-4xl sm:text-5xl lg:text-6xl font-outfit font-bold text-gray-900 leading-tight">
-                  Never Lose<br/>
-                  <span className="text-pitchiq-red">Million-Dollar Deals</span>
-                </span>
-             </motion.h1>
+            <h1 
+              className="font-outfit font-bold text-gray-900 mb-8 sm:mb-10"
+            >
+              <span className="block text-[1.9rem] sm:text-4xl lg:text-5xl font-outfit font-bold leading-[1.05]">
+                <span className="text-pitchiq-red">Stop Guessing.</span>
+              </span>
+              <span className="block text-[1.45rem] sm:text-[2rem] lg:text-[2.625rem] font-outfit font-bold text-gray-900 leading-tight mt-[0.35rem]">
+                Get Clarity on<br/>Every Sales Call.
+              </span>
+            </h1>
              
-                           <motion.p 
-                className="text-lg sm:text-xl md:text-lg text-gray-700 max-w-2xl lg:mx-0 leading-relaxed mb-8"
-                variants={textVariants}
-                initial="hidden"
-                animate="visible"
-                custom={1} // Stagger delay index
-              >
-                <span className="block sm:hidden">PitchIQ's AI role-plays turn every rep into revenue-ready closers. Slash onboarding time and defend margins.</span>
-                <span className="hidden sm:block">PitchIQ's AI role-plays turn every rep into revenue-ready closers. Slash onboarding from six months to six weeks, fix objections in real time, and defend margins, whether you manage ten sellers or ten thousand.</span>
-              </motion.p>
+            <div 
+              className="text-lg sm:text-xl md:text-lg text-gray-700 max-w-2xl lg:mx-0 leading-relaxed mb-10 sm:mb-12 space-y-2"
+            >
+              <div className="flex items-start">
+                <span className="text-pitchiq-red mr-3 mt-1">•</span>
+                <span>Practice real conversations.</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-pitchiq-red mr-3 mt-1">•</span>
+                <span>Replay them.</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-pitchiq-red mr-3 mt-1">•</span>
+                <span>Actually learn.</span>
+              </div>
+            </div>
             
-            <motion.div
-              variants={textVariants} // Can use the same or a new variant for button
-              initial="hidden"
-              animate="visible"
-              custom={2} // Stagger delay index
-              className="flex flex-col sm:flex-row gap-4 justify-start mb-8"
+            <div
+              className="flex flex-col sm:flex-row gap-4 justify-start mb-10 sm:mb-12"
             >
               <Button 
                 size="lg" 
@@ -288,31 +404,62 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
                 Get Early Access
                 <ArrowRight className="ml-2 -mr-1 h-5 w-5 sm:h-4 sm:w-4 transform transition-transform duration-150 group-hover:translate-x-1" />
               </Button>
+            </div>
+
+            {/* Sam - The Coach */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.5, duration: 0.8 }}
+              className="flex items-start gap-3 mb-8 sm:mb-10"
+            >
+              {/* Sam's portrait - small, subtle */}
+              <div className="relative flex-shrink-0">
+                <img 
+                  src="/sam-coach-new.png" 
+                  alt="Sam"
+                  className="w-12 h-12 rounded-full object-cover opacity-90"
+                />
+              </div>
+              
+              {/* Sam's message with typing animation */}
+              <div className="flex-1 max-w-xs">
+                <motion.div
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 2, duration: 0.5 }}
+                  className="text-xs text-gray-600 mb-1 font-medium"
+                >
+                  Meet Sam, your sales coach.
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 2.5, duration: 0.5 }}
+                  className="text-sm text-gray-700 leading-relaxed"
+                >
+                  <span className="inline-block">
+                    I'll break down your calls after.
+                  </span>
+                </motion.div>
+              </div>
             </motion.div>
 
             {/* Simple feature highlight */}
-            <motion.div 
-              className="flex items-center justify-start pt-2 mb-8"
-              variants={textVariants}
-              initial="hidden"
-              animate="visible"
-              custom={3} // Stagger delay index
+            <div 
+              className="flex items-center justify-start"
             >
-              <div className="flex items-center space-x-4 text-xs sm:text-sm text-gray-600">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-gray-600">
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                  <span>40% faster ramp</span>
+                  <span>Real voice conversations</span>
                 </div>
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                  <span>Enterprise ready</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                  <span>Bank-grade security</span>
+                  <span>Built for solo sellers</span>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
           
 
@@ -362,12 +509,26 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
                     transition={animationPhase === 'gap' ? { duration: 0.5, ease: "easeOut" } : undefined}
                     className="text-center"
                   >
-                    <div className="text-lg md:text-xl font-medium text-gray-900">
+                    <div className="text-lg md:text-xl font-medium text-pitchiq-red">
                       {example}
                     </div>
                   </motion.div>
                 ))}
               </div>
+
+              {/* Separator - appears with tagline */}
+              <motion.div
+                variants={animationPhase === 'gap' ? {} : taglineVariants}
+                initial={animationPhase === 'gap' ? false : "hidden"}
+                animate={animationPhase === 'gap' ? false : (animationPhase === 'tagline' ? "visible" : "hidden")}
+                style={{
+                  opacity: animationPhase === 'gap' ? 0 : (animationPhase === 'tagline' ? 1 : 0)
+                }}
+                transition={animationPhase === 'gap' ? { duration: 0.5, ease: "easeOut" } : undefined}
+                className="flex justify-center my-4"
+              >
+                <div className="w-12 h-px bg-gray-300"></div>
+              </motion.div>
 
               {/* Tagline - appears below examples */}
               <motion.div
@@ -380,192 +541,16 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
                 transition={animationPhase === 'gap' ? { duration: 0.5, ease: "easeOut" } : undefined}
                 className="text-center"
               >
-                <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-pitchiq-red">
-                  Where compliance meets results.
+                <h3 className="text-xl md:text-2xl font-semibold text-gray-900">
+                  That's where we come in.
                 </h3>
               </motion.div>
             </motion.div>
           </motion.div>
         </div>
-        
-        {/* Floating Dashboard Visual for Medium Screens */}
-        <div className="hidden sm:block lg:hidden absolute right-4 md:right-8 -bottom-20 md:-bottom-32 z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 30, x: 20 }}
-            animate={{ opacity: 1, y: 0, x: 0 }}
-            transition={{ duration: 1.0, delay: 0.6, ease: "easeOut" }}
-            className="w-80 md:w-96"
-          >
-                         {/* Dashboard Preview - Floating */}
-             <div className="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
-              {/* Dashboard Header */}
-              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                    <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                    <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                  </div>
-                  <div className="text-xs text-gray-500 font-medium">Sales Training Dashboard</div>
-                </div>
-              </div>
-              
-              {/* Dashboard Content */}
-              <div className="p-6">
-                {/* Progress Overview */}
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Team Performance</h3>
-                  <div className="space-y-3">
-                    {/* Sales Rep Progress */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                        </div>
-                        <span className="text-sm text-gray-700">Sarah Martinez</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-gray-500">Progress</div>
-                        <div className="text-sm font-semibold text-green-600">92%</div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                        </div>
-                        <span className="text-sm text-gray-700">Mike Chen</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-gray-500">Progress</div>
-                        <div className="text-sm font-semibold text-blue-600">78%</div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                          <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                        </div>
-                        <span className="text-sm text-gray-700">Alex Johnson</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-gray-500">Progress</div>
-                        <div className="text-sm font-semibold text-yellow-600">45%</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Metrics */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-pitchiq-red/5 rounded-lg p-3">
-                    <div className="text-xs text-gray-500 mb-1">Avg. Ramp Time</div>
-                    <div className="text-lg font-bold text-pitchiq-red">3.2 weeks</div>
-                    <div className="text-xs text-green-600">↓ 40% faster</div>
-                  </div>
-                  <div className="bg-green-50 rounded-lg p-3">
-                    <div className="text-xs text-gray-500 mb-1">Compliance</div>
-                    <div className="text-lg font-bold text-green-600">98%</div>
-                    <div className="text-xs text-green-600">✓ Enterprise ready</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
       </div>
     </section>
 
-    {/* Mobile Visual Section - Only visible on small screens */}
-    <section className="block sm:hidden bg-background pt-16 sm:pt-20 md:pt-24 pb-4 px-4">
-      <div className="max-w-sm mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
-        >
-          {/* Mobile Dashboard Preview */}
-          <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-            {/* Dashboard Header */}
-            <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                </div>
-                <div className="text-xs text-gray-500 font-medium">Sales Dashboard</div>
-              </div>
-            </div>
-            
-            {/* Dashboard Content */}
-            <div className="p-4">
-              {/* Progress Overview */}
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Team Performance</h3>
-                <div className="space-y-2">
-                  {/* Sales Rep Progress */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      </div>
-                      <span className="text-xs text-gray-700">Sarah M.</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-gray-500">Progress</div>
-                      <div className="text-sm font-semibold text-green-600">92%</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      </div>
-                      <span className="text-xs text-gray-700">Mike C.</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-gray-500">Progress</div>
-                      <div className="text-sm font-semibold text-blue-600">78%</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center">
-                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                      </div>
-                      <span className="text-xs text-gray-700">Alex J.</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-gray-500">Progress</div>
-                      <div className="text-sm font-semibold text-yellow-600">45%</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Metrics */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-pitchiq-red/5 rounded-lg p-2">
-                  <div className="text-xs text-gray-500 mb-1">Avg. Ramp Time</div>
-                  <div className="text-sm font-bold text-pitchiq-red">3.2 weeks</div>
-                  <div className="text-xs text-green-600">↓ 40% faster</div>
-                </div>
-                <div className="bg-green-50 rounded-lg p-2">
-                  <div className="text-xs text-gray-500 mb-1">Compliance</div>
-                  <div className="text-sm font-bold text-green-600">98%</div>
-                  <div className="text-xs text-green-600">✓ Ready</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </section>
 
     {/* Contact Modal */}
     <ContactModal 

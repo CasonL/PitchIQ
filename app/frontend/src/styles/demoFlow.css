@@ -1,0 +1,310 @@
+/**
+ * Demo Flow Visual Effects
+ * Styles for Sam's guided tour experience
+ */
+
+/* Blur background when demo is active */
+body.demo-blur-background::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+  pointer-events: none;
+  animation: fadeInBlur 0.5s ease-in-out;
+}
+
+@keyframes fadeInBlur {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(4px);
+  }
+}
+
+/* Sam's dialogue overlay */
+.sam-dialogue-container {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 600px;
+  width: 90%;
+  z-index: 50;
+  animation: slideInFromBottom 0.4s ease-out;
+}
+
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.sam-dialogue-card {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border: 2px solid #e63946;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(230, 57, 70, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.sam-dialogue-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(230, 57, 70, 0.1) 0%, transparent 70%);
+  animation: pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.sam-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e63946 0%, #ff6b7a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-right: 1rem;
+  box-shadow: 0 4px 12px rgba(230, 57, 70, 0.4);
+  animation: bobble 2s ease-in-out infinite;
+}
+
+@keyframes bobble {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.sam-dialogue-content {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.sam-dialogue-text {
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+
+.sam-is-listening {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #e63946;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+}
+
+.listening-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e63946;
+  animation: listening-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes listening-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+/* Highlighted persona cards */
+.persona-card.demo-highlighted {
+  animation: cardHighlight 1.5s ease-in-out;
+  box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.4), 0 8px 24px rgba(230, 57, 70, 0.3);
+  transform: scale(1.02);
+  transition: all 0.3s ease;
+}
+
+@keyframes cardHighlight {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.4), 0 8px 24px rgba(230, 57, 70, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(230, 57, 70, 0.6), 0 12px 32px rgba(230, 57, 70, 0.5);
+  }
+}
+
+/* Start Demo Button */
+.start-demo-button {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #e63946 0%, #ff6b7a 100%);
+  border: none;
+  color: white;
+  font-size: 1.25rem;
+  font-weight: bold;
+  padding: 1rem 2.5rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(230, 57, 70, 0.4);
+}
+
+.start-demo-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(230, 57, 70, 0.6);
+}
+
+.start-demo-button:active {
+  transform: translateY(0);
+}
+
+.start-demo-button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.start-demo-button:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* Customization dropdown slide-in */
+.customization-dropdown {
+  animation: slideInFromBottom 0.4s ease-out;
+  background: #1a1a1a;
+  border: 2px solid #e63946;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.customization-dropdown-title {
+  color: #e63946;
+  font-size: 1.125rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.customization-option {
+  margin-bottom: 1rem;
+}
+
+.customization-option label {
+  display: block;
+  color: #ffffff;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.customization-option select {
+  width: 100%;
+  background: #2d2d2d;
+  color: #ffffff;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+.customization-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.skip-button,
+.apply-button {
+  flex: 1;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.skip-button {
+  background: transparent;
+  border: 1px solid #666;
+  color: #ffffff;
+}
+
+.skip-button:hover {
+  border-color: #999;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.apply-button {
+  background: #e63946;
+  border: none;
+  color: white;
+}
+
+.apply-button:hover {
+  background: #ff6b7a;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sam-dialogue-container {
+    bottom: 1rem;
+    width: 95%;
+  }
+  
+  .sam-dialogue-card {
+    padding: 1rem;
+  }
+  
+  .sam-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+  
+  .sam-dialogue-text {
+    font-size: 0.9rem;
+  }
+  
+  .start-demo-button {
+    font-size: 1rem;
+    padding: 0.875rem 2rem;
+  }
+}

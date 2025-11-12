@@ -1,11 +1,14 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { createClient, AgentEvents } from "@deepgram/sdk";
-import { Buffer } from "buffer";
-import { useSimpleLog } from "@/hooks/useSimpleLog";
-import { playHaptic } from "@/utils/haptics";
 import { Mic, MicOff } from "lucide-react";
+import { playHaptic } from "@/utils/haptics";
+import { useSamCoachAgent } from "./samcoach/useSamCoachAgent";
+import PersonaGenerationCard from "./PersonaGenerationCard";
+import { useSamScoring } from "@/hooks/useSamScoring";
+import { useToast } from "@/hooks/use-toast";
+import { useSimpleLog } from "@/hooks/useSimpleLog";
+import { sanitizeGreeting } from "@/utils/deepgramSanitizer";
+import { createClient } from "@deepgram/sdk";
 
 // Polyfill: DG browser SDK expects Node.Buffer in the global scope
 if (typeof window !== "undefined" && !(window as any).Buffer) {
@@ -15,6 +18,7 @@ if (typeof window !== "undefined" && !(window as any).Buffer) {
 const MIC_RATE = 48000; // Browser native rate
 const TTS_RATE = 48000; // Keep aligned
 const KEEPALIVE_MS = 8000; // ping to keep WS alive
+const PACING_DELAY_MS = 4000; // Static 4s delay for coach pacing
 
 // Global counter to track component instances
 let componentInstanceCount = 0;
@@ -68,9 +72,31 @@ const SamCoachAgent: React.FC<SamCoachAgentProps> = ({ onDataCollected, onConnec
   const inactivityTimer = useRef<number | null>(null);
   const mutedRef = useRef<boolean>(false);
   const conversationHistoryRef = useRef<string[]>([]);
+  const productServiceRef = useRef<string>("");
+  const targetMarketRef = useRef<string>("");
+  const lastSpeakerRef = useRef<"user" | "ai" | null>(null);
+  const lastSettingsRef = useRef<any>(null);
+  const firstSpeakTimer = useRef<number | null>(null);
+  const firstSpeakHeardRef = useRef<boolean>(false);
+  const greetingNudgeSentRef = useRef<boolean>(false);
+  const awaitingFirstAgentChunkRef = useRef<boolean>(false);
+  // Prospect scoring for SamCoach
+  const { start: startScoring, stop: stopScoring, setSpeaker, record: recordScoringMessage } = useSamScoring();
+  // Persona generation UI
+  const [showPersonaGen, setShowPersonaGen] = useState(false);
+  const [userProductInfo, setUserProductInfo] = useState<{ product: string; target_market: string }>({ product: "", target_market: "" });
 
   const { toast } = useToast();
   const { messages, log, clearMessages } = useSimpleLog(`SamCoach#${instanceId}`);
+
+  // Minimal sanitized greeting used only after Settings are applied
+  const greetingHello = React.useMemo(
+    () =>
+      sanitizeGreeting(
+        "Hey there! I'm Sam, your sales training assistant! Welcome to PitchIQ's Demo!!! I'm going to ask you a few questions about what you sell, then I'll create an extremely nuanced persona for you to try to sell to. To start, what do you sell?"
+      ),
+    []
+  );
 
   /* ───────── token initialization */
   useEffect(() => {
@@ -82,7 +108,15 @@ const SamCoachAgent: React.FC<SamCoachAgentProps> = ({ onDataCollected, onConnec
       try {
         log("🔧 Fetching DG token …");
         const res = await fetch("/api/deepgram/token", { credentials: "include" });
-        const { token } = await res.json();
+        const data = await res.json();
+        const token = data?.token || data?.key;
+        if (!token) {
+          log("❌ No Deepgram token found in response");
+          setInitializing(false);
+          return;
+        }
+        const source = data?.token ? "token" : data?.key ? "key" : "unknown";
+        log(`🔐 Deepgram token received (field: ${source}, length: ${String(token).length})`);
         dgRef.current = createClient(token);
         sdkInitialized.current = true;
         log("✅ SDK ready");
@@ -136,287 +170,39 @@ const SamCoachAgent: React.FC<SamCoachAgentProps> = ({ onDataCollected, onConnec
         agentRef.current?.close?.();
       } catch (e) {
         log(`⚠️ Error cleaning up existing agent: ${e}`);
-      }
-      agentRef.current = null;
-    }
-    
-    // Reset states
-    // Set connecting state immediately after lock
-    setConnecting(true);
-    setConnected(false);
-    setSessionEnded(false);
+};
 
-    try {
-      
-      // Request microphone
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 48000,
-          channelCount: 1
-        }
-      });
-      
-      log("✅ Mic granted");
-      micStream.current = stream;
-      agentRef.current = dgRef.current.agent();
-      const a = agentRef.current;
-
-      // Event handlers
-      a.on("*", (evt: any) => {
-        const eventType = evt?.type || "unknown";
-        if (eventType !== "unknown") {
-          log(`📡 DG → ${eventType} ${eventType.includes('Audio') ? '🔊' : ''}`);
-        }
-      });
-
-      a.on(AgentEvents.Open, () => {
-        log("🌐 WS open → settings");
-        log("🛠️ Settings payload → " + JSON.stringify(buildSettings(), null, 2));
-        a.configure(buildSettings());
-        log("✅ Settings sent - waiting for SettingsApplied...");
-        
-        initSpeaker();
-        
-        pingId.current = window.setInterval(() => {
-          a.keepAlive();
-        }, KEEPALIVE_MS);
-        setConnected(true);
-        setConnecting(false);
-      });
-
-      a.on(AgentEvents.SettingsApplied, () => {
-        log("✅ Settings ACK - starting mic");
-        startMicPump();
-        startInactivityTimer();
-      });
-
-      a.on(AgentEvents.UserStartedSpeaking, () => {
-        log("📡 DG → UserStartedSpeaking 🎤");
-        resetInactivityTimer();
-      });
-
-      a.on(AgentEvents.AgentAudioDone, () => {
-        log("📡 DG → AgentAudioDone 🔇");
-      });
-
-      a.on(AgentEvents.AgentThinking, () => {
-        log("📡 DG → AgentThinking 🤔");
-      });
-
-      a.on(AgentEvents.AgentStartedSpeaking, () => {
-        log("📡 DG → AgentStartedSpeaking 🗣️");
-        resetInactivityTimer();
-      });
-
-      a.on(AgentEvents.ConversationText, (msg) => {
-        log(`📡 DG → ConversationText: "${msg.content}"`);
-        setTranscript(msg.content);
-        resetInactivityTimer();
-        
-        const lowerText = msg.content.toLowerCase().trim();
-        
-        // Store all conversation messages for context
-        conversationHistoryRef.current.push(msg.content);
-        
-        // Keep only last 10 messages to avoid memory bloat
-        if (conversationHistoryRef.current.length > 10) {
-          conversationHistoryRef.current = conversationHistoryRef.current.slice(-10);
-        }
-        
-        // Check for persona generation trigger phrase
-        const keyTriggerPhrase = "give me a moment while i generate your persona";
-        
-        log(`🔍 DEBUG: Checking for trigger phrase in: ${lowerText}`);
-        log(`🔍 DEBUG: Looking for: ${keyTriggerPhrase}`);
-        
-        // Check if the key trigger phrase was said by Sam
-        if (lowerText.includes(keyTriggerPhrase)) {
-          log(`🎭 Detected persona generation trigger from Sam`);
-          
-          if (onDataCollected) {
-            // Extract only the user's business description (not Sam's messages)
-            const userMessages = conversationHistoryRef.current.filter(msg => {
-              const lowerMsg = msg.toLowerCase();
-              // Filter out Sam's messages and greetings
-              return !lowerMsg.includes('welcome to pitchiq') && 
-                     !lowerMsg.includes('i\'m sam') &&
-                     !lowerMsg.includes('what product') &&
-                     !lowerMsg.includes('great,') &&
-                     !lowerMsg.includes('give me a moment') &&
-                     msg.length > 10; // Only substantial user responses
-            });
-            
-            // Use the most recent substantial user message as the product description
-            const productInfo = userMessages.length > 0 ? userMessages[userMessages.length - 1].trim() : '';
-            
-            if (productInfo) {
-              log(`🎮 Triggering persona generation with conversation context: ${productInfo}`);
-              onDataCollected({
-                product_service: productInfo,
-                target_market: "" // Will be determined by persona generation
-              });
-            } else {
-              log(`⚠️ No product information found in conversation history`);
-              log(`⚠️ Conversation history: ${JSON.stringify(conversationHistoryRef.current)}`);
-            }
-          } else {
-            log(`⚠️ Cannot trigger persona generation - missing callback`);
-          }
-        }
-      });
-      
-      a.on(AgentEvents.Audio, (payload) => {
-        log(`📡 DG → AgentAudio event received! 🔊`);
-        // Only play audio if we have a valid audio context
-        if (spkCtx.current && spkCtx.current.state !== "closed") {
-          playTTS(payload);
-        } else {
-          log("⚠️ Ignoring audio - no valid audio context");
-        }
-      });
-
-      a.on(AgentEvents.Error, (e) => {
-        if (e.code === "CLIENT_MESSAGE_TIMEOUT") {
-          log("⏰ Session timeout - no speech detected for a while");
-        } else {
-          log(`🚨 DG error ${JSON.stringify(e)}`);
-        }
-      });
-      a.on(AgentEvents.Close, () => {
-        log("🌐 WS closed");
-        cleanup();
-      });
-    } catch (e) {
-      log(`❌ startSession – ${e}`);
-      setConnecting(false);
-    }
-  }, [log, connecting, connected]);
-
-  /* ───────── settings */
-  const buildSettings = () => ({
-    audio: {
-      input: {
-        encoding: "linear16",
-        sample_rate: 48000,
-      },
-      output: {
-        encoding: "linear16",
-        sample_rate: 48000,
-      },
-    },
-    agent: {
-      language: "en",
-      listen: {
-        provider: {
-          type: "deepgram",
-          model: "nova-2",
-        },
-      },
-      think: {
-        provider: {
-          type: "open_ai",
-          model: "gpt-4o-mini",
-        },
-        prompt: `You are Sam, PitchIQ's AI assistant. Welcome users and collect their product/service info.
-
-STYLE: Friendly, encouraging, conversational (under 30 words per response).
-
-FLOW:
-1. Welcome them to PitchIQ
-2. Ask what product/service they sell
-3. If they give a DETAILED description (who they serve, what problem they solve, or specific details), say: "Great, give me a moment while I generate your persona!"
-4. If they give a VAGUE answer (just "consulting", "apps", "coaching"), ask for more specifics
-5. Stop talking after saying the trigger phrase
-
-EXAMPLES:
-- VAGUE (ask for more): "consulting", "apps", "coaching", "software"
-- DETAILED (trigger): "sales training for entrepreneurs", "mobile apps for restaurants", "executive coaching for tech leaders"
-
-IMPORTANT: Use the EXACT phrase "Great, give me a moment while I generate your persona!" to trigger persona generation`
-      },
-      speak: {
-        provider: {
-          type: "deepgram",
-          model: "aura-2-asteria-en",
-        },
-      },
-      greeting: "Welcome to PitchIQ! I'm Sam, your AI assistant. I'm here to help you get set up for an amazing sales training experience. PitchIQ creates realistic AI prospects for you to practice with. To build your perfect practice partner, I need to know - what product or service do you sell?"
-    },
-    experimental: false,
-  });
-
-  /* ───────── mic pump */
-  const startMicPump = async () => {
-    if (!micStream.current || !agentRef.current) {
-      log("❌ Missing mic stream or agent reference");
-      return;
-    }
-
-    try {
-      micCtx.current = new AudioContext({ sampleRate: MIC_RATE });
-      await micCtx.current.audioWorklet.addModule("/static/deepgram-worklet.js");
-      
-      if (micCtx.current.state === "closed") {
-        log("❌ Audio context closed during worklet load - aborting mic setup");
-        return;
-      }
-      
-      micNode.current = new AudioWorkletNode(micCtx.current, "deepgram-worklet");
-      log("✅ Audio worklet node created successfully");
-    } catch (error) {
-      log(`❌ Error setting up microphone: ${error}`);
-      return;
-    }
-
-    let hold = new Int16Array(0);
-
-    micNode.current.port.onmessage = (e) => {
-      const data = e.data;
-      
-      // Check current mute state from ref (avoids stale closure)
-      if (mutedRef.current) {
-        // When muted, still process audio but don't send it
-        return;
-      }
-      
-      if (!agentRef.current) {
-        log("⚠️ No agent reference, skipping audio data");
-        return;
-      }
-
-      const in16 = new Int16Array(data);
-      let cat = new Int16Array(hold.length + in16.length);
-      cat.set(hold);
-      cat.set(in16, hold.length);
-
-      const TARGET_SAMPLES = (MIC_RATE * 30) / 1000; // 30ms chunks
-
-      while (cat.length >= TARGET_SAMPLES) {
-        const chunk = cat.slice(0, TARGET_SAMPLES);
-        cat = cat.slice(TARGET_SAMPLES);
-
-        try {
-          agentRef.current.send(chunk.buffer);
-        } catch (error) {
-          log(`❌ Error sending audio data: ${error}`);
-          break;
-        }
-      }
-      hold = cat;
-    };
-
-    const source = micCtx.current.createMediaStreamSource(micStream.current);
-    source.connect(micNode.current);
-    micNode.current.connect(micCtx.current.destination);
-  };
-
-  /* ───────── speaker */
+// ... rest of the code remains the same ...
   const initSpeaker = () => {
     spkCtx.current = new AudioContext({ sampleRate: TTS_RATE });
     playHead.current = 0;
+  };
+
+  // Ensure the speaker AudioContext exists and is runnable
+  const ensureSpeakerReady = async (): Promise<boolean> => {
+    let ctx = spkCtx.current;
+    if (!ctx || ctx.state === "closed") {
+      try {
+        spkCtx.current = new AudioContext({ sampleRate: TTS_RATE });
+        playHead.current = 0;
+        ctx = spkCtx.current;
+        log("🔈 Created new speaker AudioContext");
+      } catch (e) {
+        log(`❌ Failed to create speaker AudioContext: ${e}`);
+        return false;
+      }
+    }
+
+    if (ctx.state === "suspended") {
+      try {
+        await ctx.resume();
+        log("✅ Resumed suspended speaker AudioContext");
+      } catch (e) {
+        log(`❌ Failed to resume speaker AudioContext: ${e}`);
+        return false;
+      }
+    }
+    return true;
   };
 
   const playTTS = (payload: any) => {
@@ -484,6 +270,8 @@ IMPORTANT: Use the EXACT phrase "Great, give me a moment while I generate your p
   const cleanup = () => {
     micStream.current?.getTracks().forEach((t) => t.stop());
     micNode.current?.disconnect();
+    // End Sam's scoring session if active
+    try { stopScoring(); } catch {}
     
     // Only close audio contexts if they're not already closed
     if (micCtx.current && micCtx.current.state !== "closed") {
@@ -517,6 +305,8 @@ IMPORTANT: Use the EXACT phrase "Great, give me a moment while I generate your p
     setConnected(false);
     setConnecting(false);
     setInactivityWarning(false);
+    // Stop scoring session proactively
+    try { stopScoring(); } catch {}
     
     // Clear inactivity timer
     if (inactivityTimer.current) {
@@ -637,8 +427,25 @@ IMPORTANT: Use the EXACT phrase "Great, give me a moment while I generate your p
 
   return (
     <div className="flex flex-col items-center justify-center h-full w-full p-4">
-      {/* Clean UI - just the card with end call button */}
+      {showPersonaGen ? (
+        <div className="w-full max-w-md p-6 bg-white border border-gray-900 rounded-xl shadow-lg">
+          <PersonaGenerationCard
+            userProductInfo={userProductInfo}
+            autoStart={true}
+            onPersonaGenerated={(persona) => {
+              log(`🎉 Persona generated: ${persona.name}`);
+              setShowPersonaGen(false);
+              // Optionally, could navigate or trigger next UI step here
+            }}
+            onError={(err) => {
+              log(`❌ Persona generation error: ${err}`);
+              setShowPersonaGen(false);
+            }}
+          />
+        </div>
+      ) : (
       <div className="w-full max-w-md p-6 bg-white border border-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">
+        {/* Clean UI - just the card with end call button */}
         {/* Connection Status Indicator */}
         <div className="flex items-center justify-center mb-6">
           <div className="flex items-center space-x-2">
@@ -724,6 +531,7 @@ IMPORTANT: Use the EXACT phrase "Great, give me a moment while I generate your p
           ) : null}
         </div>
       </div>
+      )}
     </div>
   );
 };

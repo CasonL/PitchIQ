@@ -2,11 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { CompanyPackage } from '@/lib/companySchema';
 import { loadCompany } from '@/lib/companyLoader';
-import SamCoachAgent from './SamCoachAgent';
+import SamCoachAgent from './samcoach/SamCoachAgent';
 import PersonaGenerationCard from './PersonaGenerationCard';
 import { ProspectAgent } from './ProspectAgent';
 import { PersonaDisplayCard } from './PersonaDisplayCard';
 import { useUser } from '@/components/common/UserDetailsGate';
+import ProspectScoringDebugPanel from '../debug/ProspectScoringDebugPanel';
+import { prospectScoringService } from '../../services/ProspectScoringService';
+import { audioResourceManager } from '@/utils/audioResourceManager';
 
 export interface PersonaData {
   name: string;
@@ -23,6 +26,13 @@ export interface PersonaData {
     chattiness_description?: string;
     emotional_description?: string;
   };
+  
+  // Premium Archetype fields (from behavioral shells)
+  shell_id?: string;
+  archetype_name?: string;
+  archetype_emoji?: string;
+  archetype_tagline?: string;
+  vocal_quirks?: string[];
   
   // Additional fields from comprehensive bias prevention system
   gender?: string;
@@ -49,6 +59,38 @@ export interface PersonaData {
   /** Distinct personality quirks, e.g. "Blunt, impatient, slightly sarcastic" */
   personality_traits?: string;
   surface_business_info?: string;
+  
+  // Research brief - what consultant would discover from pre-call research
+  research_brief?: {
+    online_presence?: {
+      website_info?: string;
+      social_media_status?: string;
+      review_summary?: string;
+    };
+    business_intelligence?: {
+      years_in_business?: string;
+      location_context?: string;
+      competitive_position?: string;
+      growth_indicators?: string;
+    };
+    opportunity_signals?: string[];
+    red_flags?: string[];
+    talking_points?: string[];
+  };
+  
+  // Call opening variation
+  call_opening_style?: {
+    greeting_type?: string;
+    energy_level?: string;
+    time_awareness?: string;
+    opening_phrases?: string[];
+    context_mentions?: string[];
+  };
+  
+  // Professional biography fields
+  professional_background?: string;  // e.g., "5 years at Salesforce as Account Executive, started in retail management"
+  experience_years?: string;  // e.g., "8 years in B2B sales"
+  education?: string;  // e.g., "MBA from State University"
 }
 
 export interface UserProductInfo {
@@ -80,6 +122,11 @@ export const DualVoiceAgentFlow: React.FC<DualVoiceAgentFlowProps> = ({
   const [sessionData, setSessionData] = useState<any>({});
   const [samStarted, setSamStarted] = useState(false);
   const [connectionState, setConnectionState] = useState<{ connected: boolean; connecting: boolean }>({ connected: false, connecting: false });
+  
+  // Debug panel state
+  const [debugPanelVisible, setDebugPanelVisible] = useState(false);
+  const [scoringSessionId, setScoringSessionId] = useState<string | null>(null);
+  const [scoringPersonaId, setScoringPersonaId] = useState<string | null>(null);
 
   // Propagate connection state changes to parent component
   useEffect(() => {
@@ -116,10 +163,28 @@ export const DualVoiceAgentFlow: React.FC<DualVoiceAgentFlowProps> = ({
   };
 
   // Handle persona generation completion
-  const handlePersonaGenerated = (persona: PersonaData) => {
-    console.log('👤 Persona generated:', persona);
+  const handlePersonaGenerated = async (persona: PersonaData) => {
+    console.log('🎭 DualVoiceAgentFlow: handlePersonaGenerated called with persona:', persona.name);
+    console.log('📋 Full persona data:', persona);
+    console.log('🔄 Setting stage from', currentStage, 'to persona-display');
     setGeneratedPersona(persona);
+    
+    // Initialize prospect scoring session
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const personaId = `persona_${persona.name?.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`;
+    
+    try {
+      console.log('🎯 Initializing prospect scoring session:', { sessionId, personaId });
+      await prospectScoringService.startSession(personaId, sessionId);
+      setScoringSessionId(sessionId);
+      setScoringPersonaId(personaId);
+      console.log('✅ Prospect scoring session initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize prospect scoring session:', error);
+    }
+    
     setCurrentStage('persona-display');
+    console.log('✅ Stage transition completed to persona-display');
   };
 
   // Handle starting the prospect call with a smooth transition
@@ -130,23 +195,47 @@ export const DualVoiceAgentFlow: React.FC<DualVoiceAgentFlowProps> = ({
     // First ensure that Sam's session is properly cleaned up
     console.log('🧹 Ensuring Sam session cleanup before starting prospect');
     
-    // Longer delay to ensure proper cleanup of audio resources between agent transitions
-    // This prevents microphone resource conflicts causing CLIENT_MESSAGE_TIMEOUT
-    setTimeout(() => {
-      console.log('🔍 Audio resources cleanup verification');
+    // Use centralized audio resource manager for thorough cleanup
+    const forceAudioCleanup = async () => {
+      console.log('🧹 Force cleaning audio resources via AudioResourceManager');
+      await audioResourceManager.forceCleanupAll();
       
-      // Additional delay after cleanup check before proceeding with new agent
+      // Additional browser-level cleanup
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop());
+      } catch {} // Ignore permission errors
+    };
+    
+    // Aggressive cleanup with extended delay for audio resource release
+    forceAudioCleanup();
+    
+    setTimeout(async () => {
+      console.log('🔍 Audio resources cleanup verification');
+      await forceAudioCleanup(); // Second cleanup pass
+      
+      // Extended delay to ensure complete audio resource release
       setTimeout(() => {
         console.log('🚀 Starting ProspectAgent after verified cleanup');
         setCurrentStage('prospect-call');
         setIsTransitioning(false);
-      }, 500); // Delay after cleanup verification
+      }, 1000); // Increased delay after cleanup verification
       
-    }, 1500); // Increased delay for thorough cleanup
+    }, 3000); // Extended delay for thorough cleanup (3 seconds)
   }, []);
 
   // Handle prospect end (hang up)
-  const handleProspectEnd = () => {
+  const handleProspectEnd = async () => {
+    // End prospect scoring session if active
+    if (scoringSessionId && prospectScoringService.isSessionActive()) {
+      try {
+        console.log('🎯 Ending prospect scoring session:', scoringSessionId);
+        const finalInsights = await prospectScoringService.endSession();
+        console.log('📊 Final scoring insights:', finalInsights);
+      } catch (error) {
+        console.error('❌ Error ending scoring session:', error);
+      }
+    }
     setCurrentStage('persona-display');
   };
 
@@ -269,6 +358,14 @@ export const DualVoiceAgentFlow: React.FC<DualVoiceAgentFlowProps> = ({
           </div>
         </div>
       )}
+      
+      {/* Debug Panel - Always available when scoring session exists */}
+      <ProspectScoringDebugPanel
+        isVisible={debugPanelVisible}
+        onToggle={() => setDebugPanelVisible(!debugPanelVisible)}
+        sessionId={scoringSessionId || undefined}
+        personaId={scoringPersonaId || undefined}
+      />
     </div>
   );
 };

@@ -19,6 +19,9 @@ interface CallMetrics {
   averageSentenceLength: number;
   voiceId: string;
   userInteractions: number;
+  agentGreetingStartAt?: number;
+  firstUserSpeechAt?: number;
+  timeToFirstUserSpeechMs?: number;
 }
 
 interface CallEvent {
@@ -162,6 +165,33 @@ export class CallMonitoring {
   }
   
   /**
+   * Mark when the agent starts the greeting (idempotent)
+   */
+  markAgentGreetingStart(sessionId: string, ts: number = Date.now()): void {
+    const metrics = this.activeCallMetrics.get(sessionId);
+    if (!metrics) return;
+    if (metrics.agentGreetingStartAt) return; // only set once
+    
+    metrics.agentGreetingStartAt = ts;
+    this.logEvent(sessionId, 'agent_greeting_started', { at: ts });
+  }
+  
+  /**
+   * Mark when the user first starts speaking (idempotent)
+   */
+  markFirstUserSpeech(sessionId: string, ts: number = Date.now()): void {
+    const metrics = this.activeCallMetrics.get(sessionId);
+    if (!metrics) return;
+    if (metrics.firstUserSpeechAt) return; // only set once
+    
+    metrics.firstUserSpeechAt = ts;
+    if (metrics.agentGreetingStartAt) {
+      metrics.timeToFirstUserSpeechMs = ts - metrics.agentGreetingStartAt;
+    }
+    this.logEvent(sessionId, 'first_user_speech', { at: ts, latencyMs: metrics.timeToFirstUserSpeechMs });
+  }
+  
+  /**
    * Log an event
    */
   private logEvent(sessionId: string, eventType: string, details: any): void {
@@ -202,7 +232,10 @@ export class CallMonitoring {
         audioProcessingErrors: metrics.audioProcessingErrors,
         webSocketErrors: metrics.webSocketErrors,
         sentenceCount: metrics.sentenceCount,
-        userInteractions: metrics.userInteractions
+        userInteractions: metrics.userInteractions,
+        agentGreetingStartAt: metrics.agentGreetingStartAt,
+        firstUserSpeechAt: metrics.firstUserSpeechAt,
+        timeToFirstUserSpeechMs: metrics.timeToFirstUserSpeechMs
       },
       events: sessionEvents.map(event => ({
         type: event.eventType,

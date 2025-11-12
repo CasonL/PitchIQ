@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bot, ArrowRight, MessageCircle, Brain, BrainCircuit } from 'lucide-react';
 import { DualVoiceAgentInterface } from '@/components/voice/DualVoiceAgentInterface';
 import { useUser } from '@/components/common/UserDetailsGate';
+import { useSearchParams } from 'react-router-dom';
 
 /**
  * PitchIQ Dual Voice Demo Session
@@ -11,6 +12,8 @@ import { useUser } from '@/components/common/UserDetailsGate';
 const DemoContent: React.FC = () => {
   const [userProduct, setUserProduct] = useState<string | null>(null);
   const { fullName } = useUser();
+  const [searchParams] = useSearchParams();
+  const archetypeId = searchParams.get('archetype');
 
   const handleProductCaptured = (product: string) => {
     setUserProduct(product);
@@ -20,7 +23,7 @@ const DemoContent: React.FC = () => {
     return (
       <div>
         <h2 className="text-2xl font-bold text-center mb-4">Step 1: Describe Your Product</h2>
-        <DualVoiceAgentInterface scenario={null} />
+        <DualVoiceAgentInterface scenario={null} archetypeId={archetypeId} />
       </div>
     );
   }
@@ -35,9 +38,12 @@ const DemoContent: React.FC = () => {
           persona: {
             name: 'Generated Persona',
             role: 'Decision Maker',
-            primary_concern: 'ROI and implementation'
+            primary_concern: 'ROI and implementation',
+            business_details: 'Technology company',
+            about_person: 'Experienced decision maker focused on ROI'
           }
-        }} 
+        }}
+        archetypeId={archetypeId}
       />
     </div>
   );

@@ -6,4 +6,4 @@
 [build.environment]
   NODE_VERSION = "22"
   # Set the Flask backend URL for email signup API calls
-  VITE_API_BASE_URL = "https://d579-2604-3d08-ea96-700-3d4e-8844-f779-2a7c.ngrok-free.app" 
+  VITE_API_BASE_URL = "https://8b6f43fdae68.ngrok-free.app" 

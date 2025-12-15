@@ -56,8 +56,26 @@ const SEOBlogSection: React.FC = () => {
   };
 
   return (
-    <section className="py-16 md:py-24 bg-background">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-20 md:py-28 bg-background relative overflow-hidden">
+      {/* Background Images */}
+      {/* Desktop/Landscape Background */}
+      <div 
+        className="absolute inset-0 hidden md:block bg-cover bg-center bg-no-repeat opacity-35 z-0"
+        style={{ backgroundImage: 'url(/BlogBackgroundlandscape.png)' }}
+      ></div>
+      
+      {/* Mobile/Portrait Background */}
+      <div 
+        className="absolute inset-0 md:hidden bg-cover bg-center bg-no-repeat opacity-35 z-0"
+        style={{ backgroundImage: 'url(/BlogBackgroundportrait.png)' }}
+      ></div>
+
+      {/* Gradient Fade at Bottom */}
+      <div 
+        className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent z-[1]"
+      ></div>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <motion.div 
           className="text-center mb-12"
           variants={itemVariants}

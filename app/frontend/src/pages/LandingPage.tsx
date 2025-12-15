@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
-import AboutUsSection from "@/components/AboutUsSection";
-import FeatureShowcase from "@/components/FeatureShowcase";
 import HowItWorksSection from "@/components/HowItWorksSection";
 import ArchetypeSelectionSection from "@/components/ArchetypeSelectionSection";
 import SEOBlogSection from "@/components/SEOBlogSection";
@@ -19,11 +17,9 @@ const LandingPage = () => {
       <Navbar preRelease={false} onOpenEmailModal={openEmailSignupModal} />
       <main className="flex-grow">
         <HeroSection onOpenEmailModal={openEmailSignupModal} />
-        <ArchetypeSelectionSection onOpenEmailModal={openEmailSignupModal} />
         <HowItWorksSection onOpenEmailModal={openEmailSignupModal} />
-        <FeatureShowcase />
+        <ArchetypeSelectionSection onOpenEmailModal={openEmailSignupModal} />
         <SEOBlogSection />
-        <AboutUsSection onOpenEmailModal={openEmailSignupModal} />
       </main>
       <Footer />
       

@@ -1,5 +1,5 @@
 [build]
-  base    = "landing-page-source/"  # Path to landing page project
+  base    = "app/frontend/"  # Path to your frontend project
   publish = "dist/"          # Publish directory (relative to 'base')
   command = "npm run build"  # Your build command
 

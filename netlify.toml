@@ -1,9 +1,9 @@
 [build]
-  base    = "app/frontend/"  # Path to your frontend project
+  base    = "landing-page-source/"  # Path to landing page project
   publish = "dist/"          # Publish directory (relative to 'base')
   command = "npm run build"  # Your build command
 
 [build.environment]
   NODE_VERSION = "22"
   # Set the Flask backend URL for email signup API calls
-  VITE_API_BASE_URL = "https://8b6f43fdae68.ngrok-free.app" 
+  VITE_API_BASE_URL = "https://8b6f43fdae68.ngrok-free.app"

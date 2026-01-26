@@ -9,13 +9,22 @@ import { Phone as CallIcon, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Navbar from '@/components/Navbar';
 import EmailSignupModal from '@/components/EmailSignupModal';
+import { MarcusModelSelector } from './MarcusModelSelector';
+import { MARCUS_AI_MODELS } from './CharmerAIService';
 
 interface MarcusLobbyProps {
   onStartCall: () => void;
   marcusContext?: 'B2B' | 'B2C';
+  selectedModel: keyof typeof MARCUS_AI_MODELS;
+  onModelChange: (model: keyof typeof MARCUS_AI_MODELS) => void;
 }
 
-export const MarcusLobby: React.FC<MarcusLobbyProps> = ({ onStartCall, marcusContext = 'B2B' }) => {
+export const MarcusLobby: React.FC<MarcusLobbyProps> = ({ 
+  onStartCall, 
+  marcusContext = 'B2B',
+  selectedModel,
+  onModelChange
+}) => {
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [showScenarioBanner, setShowScenarioBanner] = useState(true);
   const [startCardAnimation, setStartCardAnimation] = useState(false);
@@ -145,36 +154,22 @@ export const MarcusLobby: React.FC<MarcusLobbyProps> = ({ onStartCall, marcusCon
                   Start Call
                 </Button>
                 
-                <p className="text-gray-600 text-sm mt-3">
+                <p className="text-gray-600 text-sm mt-3 mb-6">
                   4-minute interactive training call
                 </p>
+
+                {/* Model Selector */}
+                <MarcusModelSelector
+                  selectedModel={selectedModel}
+                  onModelChange={onModelChange}
+                />
               </div>
             )}
           </motion.div>
 
-          {/* Right Column - Bio Cards */}
+          {/* Right Column - Spacer */}
           <div className="flex flex-col justify-center space-y-5">
-            <motion.div
-              className="bg-green-900/10 rounded-xl p-6 shadow-sm border-2 border-gray-300"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: startCardAnimation ? 1 : 0 }}
-              transition={{ duration: 0.6, delay: startCardAnimation ? 2.5 : 0 }}
-            >
-              <p className="text-gray-700 text-lg leading-relaxed">
-                Sales consultant and competitor. Knows every trick. Perfect prospect—if you can reach him.
-              </p>
-            </motion.div>
-            
-            <motion.div
-              className="bg-green-900/10 rounded-xl p-6 shadow-sm border-2 border-gray-300"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: startCardAnimation ? 1 : 0 }}
-              transition={{ duration: 0.6, delay: startCardAnimation ? 3.2 : 0 }}
-            >
-              <p className="text-gray-700 text-lg leading-relaxed">
-                Win him over, you're ready for the real world. Lose him, learn exactly why.
-              </p>
-            </motion.div>
+            {/* Bio cards removed */}
           </div>
         </motion.div>
         )}

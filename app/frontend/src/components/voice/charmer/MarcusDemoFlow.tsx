@@ -8,6 +8,7 @@ import { MarcusLobby } from './MarcusLobby';
 import { CharmerController } from './CharmerController';
 import { MarcusPostCall } from './MarcusPostCall';
 import { useSearchParams } from 'react-router-dom';
+import { MARCUS_AI_MODELS } from './CharmerAIService';
 
 type FlowStep = 'lobby' | 'call' | 'post-call';
 
@@ -25,6 +26,7 @@ export const MarcusDemoFlow: React.FC<MarcusDemoFlowProps> = ({
   
   const [currentStep, setCurrentStep] = useState<FlowStep>(autoStart ? 'call' : 'lobby');
   const [callData, setCallData] = useState<any>(null);
+  const [selectedModel, setSelectedModel] = useState<keyof typeof MARCUS_AI_MODELS>('gpt-4o-mini');
 
   // Handle lobby → call transition
   const handleStartCall = useCallback(() => {
@@ -60,13 +62,20 @@ export const MarcusDemoFlow: React.FC<MarcusDemoFlowProps> = ({
   // Render current step
   switch (currentStep) {
     case 'lobby':
-      return <MarcusLobby onStartCall={handleStartCall} />;
+      return (
+        <MarcusLobby 
+          onStartCall={handleStartCall}
+          selectedModel={selectedModel}
+          onModelChange={setSelectedModel}
+        />
+      );
     
     case 'call':
       return (
         <CharmerController
           onCallComplete={handleCallComplete}
-          autoStart={true} // Auto-start since user already clicked in lobby
+          autoStart={true}
+          aiModel={selectedModel}
         />
       );
     

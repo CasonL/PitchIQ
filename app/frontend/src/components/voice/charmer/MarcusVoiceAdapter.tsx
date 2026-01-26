@@ -28,7 +28,7 @@ interface MarcusVoiceContextType {
 
 interface SpeakOptions {
   voiceId?: string;
-  emotion?: 'neutral' | 'happy' | 'sad' | 'angry' | 'fearful' | 'surprised';
+  emotion?: 'neutral' | 'happy' | 'excited' | 'amused' | 'warm' | 'interested' | 'curious' | 'skeptical' | 'disappointed' | 'frustrated' | 'annoyed' | 'worried' | 'surprised' | 'intrigued';
   speed?: number;
   interrupt?: boolean;
 }

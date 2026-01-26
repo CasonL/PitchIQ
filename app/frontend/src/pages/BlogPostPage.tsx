@@ -14,8 +14,6 @@ const oldBlogPostsContent = {
     date: "June 15, 2025",
     readTime: "8 min read",
     category: "Sales Training",
-    tags: ["Sales Training", "Objection Handling", "Confidence"],
-    excerpt: "Discover the root cause of why you freeze when a prospect says no and learn how to overcome it with these simple yet effective techniques.",
     tags: ["AI Training", "Close Rates", "Performance"],
     excerpt: "Discover how enterprise sales teams are using AI-powered training to dramatically improve their performance and revenue outcomes.",
     content: `

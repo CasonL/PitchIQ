@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, RefObject } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Mail, Check, ArrowRight } from "lucide-react";
 // import { useAuthContext } from "@/context/AuthContext"; // Commented out for pre-launch
@@ -33,6 +34,8 @@ declare global {
 }
 
 const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
+  const navigate = useNavigate();
+  
   // Remove lottieData state and useEffect for fetching, as the component handles it
   // const [lottieData, setLottieData] = useState<object | null>(null); 
 
@@ -162,10 +165,18 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
               <Button 
                 size="lg" 
                 className="bg-pitchiq-red hover:bg-pitchiq-red/90 text-white text-lg sm:text-base px-8 py-4 sm:px-6 sm:py-2 w-full sm:w-auto shadow-lg hover:shadow-xl transition-shadow duration-300 group"
+                onClick={() => navigate('/Demo/Marcus')}
+              >
+                Try Free Demo
+                <ArrowRight className="ml-2 -mr-1 h-5 w-5 sm:h-4 sm:w-4 transform transition-transform duration-150 group-hover:translate-x-1" />
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline"
+                className="border-2 border-pitchiq-red text-pitchiq-red hover:bg-pitchiq-red/10 text-lg sm:text-base px-8 py-4 sm:px-6 sm:py-2 w-full sm:w-auto"
                 onClick={onOpenEmailModal}
               >
-                Build Your Confidence
-                <ArrowRight className="ml-2 -mr-1 h-5 w-5 sm:h-4 sm:w-4 transform transition-transform duration-150 group-hover:translate-x-1" />
+                Join Waitlist
               </Button>
             </div>
           </div>
@@ -176,11 +187,11 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
           <div className="order-2 lg:order-2 hidden lg:flex items-center justify-center min-h-[300px] lg:min-h-[400px] w-full h-full">
             <div className="flex flex-col items-center gap-6" style={{ minHeight: '450px' }}>
               <motion.div 
-                className="relative cursor-pointer"
-                onClick={() => setMarcusClicked(!marcusClicked)}
-                animate={!marcusClicked ? {
+                className="relative cursor-pointer group"
+                onClick={() => navigate('/Demo/Marcus')}
+                animate={{
                   scale: [1, 1.02, 1],
-                } : {}}
+                }}
                 transition={{
                   duration: 2,
                   repeat: Infinity,
@@ -189,15 +200,19 @@ const HeroSection = ({ onOpenEmailModal }: HeroSectionProps) => {
               >
                 <img 
                   src="/charmer-portrait.png" 
-                  alt="Marcus - AI Sales Prospect"
-                  className="w-[280px] h-[280px] object-cover rounded-3xl border-2 border-black shadow-lg opacity-85 transition-all duration-300 hover:opacity-100 hover:scale-105 hover:shadow-2xl"
+                  alt="Marcus - AI Sales Prospect - Click to start demo"
+                  className="w-[280px] h-[280px] object-cover rounded-3xl border-4 border-black shadow-lg opacity-85 transition-all duration-300 hover:opacity-100 hover:scale-105 hover:shadow-2xl"
                 />
-                {/* Demo Coming Soon Badge */}
+                
+                {/* Demo pill badge */}
                 <div className="absolute top-3 left-3">
-                  <span className="inline-block bg-green-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md whitespace-nowrap transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-default">
-                    Demo coming soon
+                  <span className="inline-block bg-pitchiq-red text-white text-sm font-semibold px-4 py-1.5 rounded-full shadow-md">
+                    Demo
                   </span>
                 </div>
+                
+                {/* Animated pulse ring */}
+                <div className="absolute inset-0 rounded-3xl border-4 border-pitchiq-red animate-pulse opacity-50 pointer-events-none"></div>
               </motion.div>
               
               {/* Marcus Message Bullets - positioned below with proper spacing */}

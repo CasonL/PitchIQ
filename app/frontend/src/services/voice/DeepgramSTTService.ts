@@ -1,8 +1,10 @@
 /**
  * DeepgramSTTService.ts
- * Handles speech-to-text using Deepgram Nova-2 Streaming
- * Better turn detection and lower cost than AssemblyAI
+ * Handles speech-to-text using Deepgram Nova-2 Streaming via official SDK
+ * SDK handles browser WebSocket authentication properly
  */
+
+import { createClient, LiveTranscriptionEvents, LiveClient } from '@deepgram/sdk';
 
 export interface DeepgramConfig {
   onTranscript: (text: string, isFinal: boolean) => void;
@@ -12,19 +14,40 @@ export interface DeepgramConfig {
 }
 
 export class DeepgramSTTService {
-  private ws: WebSocket | null = null;
+  private liveClient: LiveClient | null = null;
   private config: DeepgramConfig;
   private isConnected: boolean = false;
   private mediaRecorder: MediaRecorder | null = null;
-  private audioContext: AudioContext | null = null;
+  private mediaStream: MediaStream | null = null;
   private accumulatedTranscript: string = ''; // Accumulate utterance fragments
+  private isPaused: boolean = false; // Pause STT to prevent echo
+  private lastTTSTranscript: string = ''; // Track recent TTS output for echo detection
+  private ttsEndTime: number = 0; // Track when TTS playback ended
 
   constructor(config: DeepgramConfig) {
     this.config = config;
   }
 
   /**
-   * Connect to Deepgram streaming endpoint
+   * Pause STT to prevent echo during TTS playback
+   */
+  pauseForTTS(ttsText: string): void {
+    this.isPaused = true;
+    this.lastTTSTranscript = ttsText.toLowerCase();
+    console.log('[Deepgram] ⏸️ STT paused during TTS playback');
+  }
+
+  /**
+   * Resume STT after TTS playback complete
+   */
+  resumeAfterTTS(): void {
+    this.isPaused = false;
+    this.ttsEndTime = Date.now(); // Mark when TTS ended
+    console.log('[Deepgram] ▶️ STT resumed after TTS');
+  }
+
+  /**
+   * Connect to Deepgram streaming endpoint using official SDK
    */
   async connect(): Promise<void> {
     try {
@@ -34,54 +57,82 @@ export class DeepgramSTTService {
         throw new Error('No Deepgram API key available');
       }
 
-      console.log('[Deepgram] Requesting microphone access...');
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,  // Cancel echo from speakers
-          noiseSuppression: true,  // Suppress background noise
-          autoGainControl: true    // Normalize volume
+      console.log('[Deepgram] API key received:', apiKey.substring(0, 15) + '...');
+      console.log('[Deepgram] Initializing Deepgram SDK client...');
+
+      // Create Deepgram client with SDK
+      const deepgram = createClient(apiKey);
+      
+      // Start live transcription connection
+      // Note: Don't specify encoding/sample_rate when using MediaRecorder
+      // SDK auto-detects from WebM container
+      this.liveClient = deepgram.listen.live({
+        model: 'nova-2',
+        language: 'en-US',
+        punctuate: true,
+        smart_format: true,
+        interim_results: true,
+        utterance_end_ms: 1500, // 1.5s pause before ending utterance
+        vad_events: false
+      });
+
+      // Setup event handlers
+      this.liveClient.on(LiveTranscriptionEvents.Open, () => {
+        console.log('[Deepgram] SDK WebSocket connected');
+        this.isConnected = true;
+      });
+
+      this.liveClient.on(LiveTranscriptionEvents.Transcript, (data: any) => {
+        this.handleTranscript(data);
+      });
+
+      this.liveClient.on(LiveTranscriptionEvents.Metadata, (data: any) => {
+        console.log('[Deepgram] Metadata:', data);
+      });
+
+      this.liveClient.on(LiveTranscriptionEvents.UtteranceEnd, () => {
+        console.log('[Deepgram] ✅ Utterance ended');
+        if (this.accumulatedTranscript) {
+          console.log(`[Deepgram] 📝 Complete utterance (UtteranceEnd): "${this.accumulatedTranscript}"`);
+          try {
+            this.config.onTranscript(this.accumulatedTranscript, true);
+          } catch (error) {
+            console.error('[Deepgram] ❌ CRITICAL: onTranscript callback threw error:', error);
+            this.config.onError(error as Error);
+          }
+          this.accumulatedTranscript = '';
         }
       });
 
-      // Connect to Deepgram WebSocket
-      const wsUrl = `wss://api.deepgram.com/v1/listen?` + new URLSearchParams({
-        model: 'nova-2',
-        language: 'en-US',
-        encoding: 'linear16',
-        sample_rate: '16000',
-        channels: '1',
-        punctuate: 'true',
-        smart_format: 'true',
-        interim_results: 'true',
-        utterance_end_ms: '3000', // 3s silence before finalizing
-        vad_events: 'true',
-        vad_turnoff: '800', // Require 800ms of silence before VAD turns off (reduces false positives from noise)
-        endpointing: '600' // 600ms pause for responsive turn-taking
-      }).toString();
+      this.liveClient.on(LiveTranscriptionEvents.SpeechStarted, () => {
+        console.log('[Deepgram] 🎤 Speech started');
+        if (this.config.onSpeechStart) {
+          this.config.onSpeechStart();
+        }
+      });
 
-      console.log('[Deepgram] Connecting to WebSocket...');
-      this.ws = new WebSocket(wsUrl, ['token', apiKey]);
+      this.liveClient.on(LiveTranscriptionEvents.Error, (error: any) => {
+        console.error('[Deepgram] SDK error:', error);
+        this.config.onError(new Error(error.message || 'Deepgram SDK error'));
+      });
 
-      this.ws.onopen = () => {
-        console.log('[Deepgram] WebSocket connected');
-        this.isConnected = true;
-        this.setupAudioStreaming(stream);
-      };
-
-      this.ws.onmessage = (event) => {
-        this.handleMessage(event.data);
-      };
-
-      this.ws.onerror = (error) => {
-        console.error('[Deepgram] WebSocket error:', error);
-        this.config.onError(new Error('Deepgram connection error'));
-      };
-
-      this.ws.onclose = (event) => {
-        console.log('[Deepgram] WebSocket closed:', event.code, event.reason);
+      this.liveClient.on(LiveTranscriptionEvents.Close, () => {
+        console.log('[Deepgram] SDK WebSocket closed');
         this.isConnected = false;
         this.stopMicrophone();
-      };
+      });
+
+      // Get microphone access and start streaming
+      console.log('[Deepgram] Requesting microphone access...');
+      this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+
+      this.setupAudioStreaming(this.mediaStream);
 
     } catch (error) {
       console.error('[Deepgram] Connection failed:', error);
@@ -105,51 +156,38 @@ export class DeepgramSTTService {
   }
 
   /**
-   * Setup audio streaming to Deepgram
+   * Setup audio streaming to Deepgram SDK
    */
   private setupAudioStreaming(stream: MediaStream): void {
     try {
-      // Create AudioContext for processing
-      this.audioContext = new AudioContext({ sampleRate: 16000 });
-      const source = this.audioContext.createMediaStreamSource(stream);
+      if (!this.liveClient) {
+        throw new Error('Deepgram client not initialized');
+      }
 
-      // Use ScriptProcessor for audio chunks
-      const processor = this.audioContext.createScriptProcessor(4096, 1, 1);
-      
+      // Use MediaRecorder to capture audio
+      this.mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm'
+      });
+
       let audioChunksSent = 0;
-      processor.onaudioprocess = (event) => {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-
-        const inputData = event.inputBuffer.getChannelData(0);
-        
-        // Convert Float32 to Int16 for Deepgram
-        const int16Data = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          const s = Math.max(-1, Math.min(1, inputData[i]));
-          int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-        }
-
-        // Send to Deepgram
-        this.ws!.send(int16Data.buffer);
-        
-        audioChunksSent++;
-        if (audioChunksSent === 1) {
-          console.log('[Deepgram] First audio chunk sent');
-        }
-        if (audioChunksSent % 50 === 0) {
-          console.log(`[Deepgram] Sent ${audioChunksSent} audio chunks`);
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0 && this.liveClient) {
+          this.liveClient.send(event.data);
+          audioChunksSent++;
+          if (audioChunksSent === 1) {
+            console.log('[Deepgram] First audio chunk sent via SDK');
+          }
         }
       };
 
-      // Create muted gain node
-      const gainNode = this.audioContext.createGain();
-      gainNode.gain.value = 0; // Mute
-      
-      source.connect(processor);
-      processor.connect(gainNode);
-      gainNode.connect(this.audioContext.destination);
+      this.mediaRecorder.onerror = (error) => {
+        console.error('[Deepgram] MediaRecorder error:', error);
+        this.config.onError(new Error('Audio recording error'));
+      };
 
-      console.log('[Deepgram] Audio streaming started');
+      // Start recording with 100ms chunks for low latency
+      this.mediaRecorder.start(100);
+      console.log('[Deepgram] Audio streaming started via SDK');
 
     } catch (error) {
       console.error('[Deepgram] Audio streaming error:', error);
@@ -161,108 +199,118 @@ export class DeepgramSTTService {
    * Stop microphone and audio processing
    */
   private stopMicrophone(): void {
-    if (this.audioContext) {
-      this.audioContext.close();
-      this.audioContext = null;
-    }
-
-    if (this.mediaRecorder) {
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       this.mediaRecorder.stop();
       this.mediaRecorder = null;
+    }
+
+    if (this.mediaStream) {
+      this.mediaStream.getTracks().forEach(track => track.stop());
+      this.mediaStream = null;
     }
 
     console.log('[Deepgram] Microphone stopped');
   }
 
   /**
-   * Handle Deepgram WebSocket messages
+   * Check if transcript is likely echo from TTS
+   * Only applies within 2 seconds after TTS ends to avoid false positives on conversational responses
    */
-  private handleMessage(data: string): void {
+  private isLikelyEcho(transcript: string): boolean {
+    if (!this.lastTTSTranscript) return false;
+    
+    // CRITICAL: Only apply echo filtering within 2 seconds of TTS ending
+    // After that, user responses naturally reference the conversation topic (not echoes)
+    const timeSinceTTS = Date.now() - this.ttsEndTime;
+    if (timeSinceTTS > 2000) {
+      return false; // Too late to be an echo - this is user speech
+    }
+    
+    const transcriptLower = transcript.toLowerCase();
+    const ttsLower = this.lastTTSTranscript;
+    
+    // Simple substring check - if STT output is contained in recent TTS output
+    if (ttsLower.includes(transcriptLower) || transcriptLower.includes(ttsLower)) {
+      return true;
+    }
+    
+    // Word overlap check - calculate percentage of shared words
+    const transcriptWords = new Set(transcriptLower.split(/\s+/).filter(w => w.length > 2));
+    const ttsWords = new Set(ttsLower.split(/\s+/).filter(w => w.length > 2));
+    
+    if (transcriptWords.size === 0) return false;
+    
+    let matchCount = 0;
+    transcriptWords.forEach(word => {
+      if (ttsWords.has(word)) matchCount++;
+    });
+    
+    const similarity = matchCount / transcriptWords.size;
+    return similarity > 0.6; // 60% word overlap = likely echo
+  }
+
+  /**
+   * Handle transcript from Deepgram SDK
+   */
+  private handleTranscript(data: any): void {
     try {
-      const message = JSON.parse(data);
+      const transcript = data.channel?.alternatives?.[0]?.transcript;
+      if (!transcript) return;
 
-      // Handle transcript results
-      if (message.type === 'Results') {
-        const transcript = message.channel?.alternatives?.[0]?.transcript;
-        if (!transcript) return;
+      // ECHO PREVENTION: Drop transcripts while STT is paused for TTS
+      if (this.isPaused) {
+        console.log(`[Deepgram] 🔇 Dropped transcript during TTS pause: "${transcript}"`);
+        return;
+      }
+      
+      // ECHO FILTERING: Check if this looks like TTS echo
+      if (this.isLikelyEcho(transcript)) {
+        console.log(`[Deepgram] 🔇 Filtered likely echo: "${transcript}"`);
+        return;
+      }
 
-        const isFinal = message.is_final === true;
-        const speechFinal = message.speech_final === true;
+      const isFinal = data.is_final === true;
+      const speechFinal = data.speech_final === true;
 
-        // Log the result
-        if (isFinal) {
-          console.log(`[Deepgram] ${speechFinal ? 'SPEECH FINAL' : 'Final'}: "${transcript}"`);
-        }
+      // Log the result
+      if (isFinal) {
+        console.log(`[Deepgram] ${speechFinal ? 'SPEECH FINAL' : 'Final'}: "${transcript}"`);
+      }
 
-        // Handle transcript accumulation
-        if (speechFinal) {
-          // True end of utterance - combine with any accumulated transcript
-          const completeTranscript = this.accumulatedTranscript 
-            ? `${this.accumulatedTranscript} ${transcript}`.trim()
-            : transcript;
-          
-          console.log(`[Deepgram] 📝 Complete utterance (speech_final): "${completeTranscript}"`);
-          this.config.onTranscript(completeTranscript, true);
-          
-          // Reset accumulator for next utterance
-          this.accumulatedTranscript = '';
-        } else if (isFinal) {
-          // Intermediate final - append to accumulated transcript
-          if (this.accumulatedTranscript) {
-            this.accumulatedTranscript += ' ' + transcript;
-            console.log(`[Deepgram] Appending to transcript: "${transcript}"`);
-            console.log(`[Deepgram] 📋 Accumulated so far: "${this.accumulatedTranscript}"`);
-          } else {
-            this.accumulatedTranscript = transcript;
-            console.log(`[Deepgram] Storing first transcript chunk: "${transcript}"`);
-          }
-          this.config.onTranscript(transcript, false); // Update UI with current chunk
-        } else {
-          // Partial result - send as-is for UI feedback
-          this.config.onTranscript(transcript, false);
-        }
-
-      } else if (message.type === 'Metadata') {
-        console.log('[Deepgram] Metadata:', message);
-      } else if (message.type === 'UtteranceEnd') {
-        console.log('[Deepgram] ✅ Utterance ended');
-        
-        // If we have accumulated transcript but no speech_final, send it now
+      // Handle transcript accumulation
+      if (speechFinal || isFinal) {
+        // Append to accumulated transcript but DON'T process yet
+        // Wait for UtteranceEnd to actually process
         if (this.accumulatedTranscript) {
-          console.log(`[Deepgram] 📝 Complete utterance (UtteranceEnd): "${this.accumulatedTranscript}"`);
-          this.config.onTranscript(this.accumulatedTranscript, true);
-          this.accumulatedTranscript = '';
+          this.accumulatedTranscript += ' ' + transcript;
+          console.log(`[Deepgram] Appending: "${transcript}"`);
+          console.log(`[Deepgram] 📋 Accumulated: "${this.accumulatedTranscript}"`);
         } else {
-          console.log('[Deepgram] ⚠️ UtteranceEnd but no accumulated transcript (already sent via speech_final)');
+          this.accumulatedTranscript = transcript;
+          console.log(`[Deepgram] Started accumulating: "${transcript}"`);
         }
-      } else if (message.type === 'SpeechStarted') {
-        console.log('[Deepgram] 🎤 Speech started');
-        // Trigger immediate interruption detection via VAD
-        if (this.config.onSpeechStart) {
-          this.config.onSpeechStart();
-        }
-        // DON'T reset accumulator here - UtteranceEnd should handle it
-        // this.accumulatedTranscript = '';
+        this.config.onTranscript(transcript, false); // Update UI only
+      } else {
+        // Partial result - send as-is for UI feedback
+        this.config.onTranscript(transcript, false);
       }
 
     } catch (error) {
-      console.error('[Deepgram] Message parsing error:', error);
+      console.error('[Deepgram] Transcript parsing error:', error);
     }
   }
 
   /**
-   * Disconnect from Deepgram
+   * Disconnect from Deepgram SDK
    */
   async disconnect(): Promise<void> {
-    console.log('[Deepgram] Disconnecting...');
+    console.log('[Deepgram] Disconnecting SDK...');
     
     this.stopMicrophone();
 
-    if (this.ws) {
-      // Send close message
-      this.ws.send(JSON.stringify({ type: 'CloseStream' }));
-      this.ws.close();
-      this.ws = null;
+    if (this.liveClient) {
+      this.liveClient.finish();
+      this.liveClient = null;
     }
 
     this.isConnected = false;

@@ -22,20 +22,40 @@ export interface CartesiaConfig {
 
 export interface SpeakOptions {
   voiceId?: string;
-  emotion?: 'neutral' | 'happy' | 'sad' | 'angry' | 'fearful' | 'surprised';
+  emotion?: 'neutral' | 'happy' | 'excited' | 'amused' | 'warm' | 'interested' | 'curious' | 'skeptical' | 'disappointed' | 'frustrated' | 'annoyed' | 'worried' | 'surprised' | 'intrigued';
   speed?: number; // 0.5 - 2.0
 }
 
 // Map our emotion types to Cartesia's emotion system
 // Cartesia emotions: anger, positivity, surprise, sadness, curiosity
 // Format: ["emotion_name:level"] where level is: lowest, low, (moderate), high, highest
+// BOOSTED LEVELS: Marcus is charismatic and expressive - use high/highest for clear emotional tone
 const EMOTION_MAP: Record<string, string[]> = {
+  // Neutral/baseline
   'neutral': [], // No emotion tags = neutral
-  'happy': ['positivity:moderate'], // Warm, friendly - reduced from 'high' to prevent creepy laughter
-  'sad': ['sadness:high'], // Sad, disappointed
-  'angry': ['anger:moderate'], // Frustrated, upset (not too intense)
-  'fearful': ['sadness:low'], // Concerned, worried (Cartesia doesn't have "fear")
-  'surprised': ['surprise:high', 'curiosity:moderate'], // Surprised and curious
+  
+  // Positive emotions (BOOSTED for Marcus's charismatic personality)
+  'happy': ['positivity:high'], // Baseline friendly - boosted from moderate
+  'warm': ['positivity:highest'], // Genuinely warm, caring - maxed out
+  'excited': ['positivity:highest', 'curiosity:high'], // Genuinely excited, energized - boosted curiosity
+  'amused': ['positivity:highest'], // Finding something funny/entertaining - boosted, removed low curiosity
+  
+  // Curiosity/Interest
+  'interested': ['curiosity:high', 'positivity:moderate'], // Paying attention - boosted both
+  'curious': ['curiosity:highest', 'surprise:moderate'], // Really wants to know more - boosted
+  'intrigued': ['curiosity:highest', 'positivity:high'], // Fascinated, drawn in - boosted positivity
+  
+  // Surprise
+  'surprised': ['surprise:highest', 'curiosity:high'], // Caught off guard - boosted both
+  
+  // Skeptical/Cautious
+  'skeptical': ['curiosity:low', 'positivity:lowest'], // Not convinced, dubious - added negativity
+  
+  // Negative emotions (BOOSTED for clear emotional expression)
+  'disappointed': ['sadness:high'], // Let down - boosted
+  'worried': ['sadness:moderate', 'positivity:lowest'], // Concerned - boosted sadness, added negativity
+  'frustrated': ['anger:moderate', 'sadness:moderate'], // Mildly irritated - boosted sadness
+  'annoyed': ['anger:high'], // More irritated - boosted
 };
 
 export class CartesiaService {

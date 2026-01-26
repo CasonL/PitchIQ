@@ -5,6 +5,7 @@
 
 export interface ExtractedInfo {
   name?: string;
+  gender?: 'male' | 'female' | 'unknown';
   product?: string;
   targetAudience?: string;
   memorablePhrase?: string;
@@ -30,14 +31,47 @@ export interface CoachingIssue {
 
 export class CharmerContextExtractor {
   /**
-   * Extract user's name from transcript
+   * Detect gender from name
    */
-  static extractName(transcript: string, currentName?: string): string | null {
-    // First check for name corrections (higher priority)
+  static detectGender(name: string): 'male' | 'female' | 'unknown' {
+    const nameLower = name.toLowerCase();
+    
+    const maleNames = ['john', 'james', 'robert', 'michael', 'william', 'david', 'richard', 'joseph', 'thomas', 'charles',
+                       'daniel', 'matthew', 'anthony', 'mark', 'donald', 'steven', 'paul', 'andrew', 'joshua', 'kenneth',
+                       'kevin', 'brian', 'george', 'edward', 'ronald', 'timothy', 'jason', 'jeffrey', 'ryan', 'jacob',
+                       'marcus', 'cason', 'kayson', 'alex', 'chris', 'sam', 'mike', 'dave', 'steve', 'tom', 'ben'];
+    
+    const femaleNames = ['mary', 'patricia', 'jennifer', 'linda', 'barbara', 'elizabeth', 'susan', 'jessica', 'sarah',
+                         'karen', 'nancy', 'lisa', 'betty', 'margaret', 'sandra', 'ashley', 'kimberly', 'emily', 'donna',
+                         'michelle', 'dorothy', 'carol', 'amanda', 'melissa', 'deborah', 'stephanie', 'rebecca', 'sharon',
+                         'laura', 'cynthia', 'kathleen', 'amy', 'angela', 'shirley', 'anna', 'brenda', 'pamela', 'emma',
+                         'nicole', 'helen', 'samantha', 'katherine', 'christine', 'debra', 'rachel', 'catherine', 'carolyn',
+                         'janet', 'ruth', 'maria', 'heather', 'diane', 'virginia', 'julie', 'joyce', 'victoria', 'olivia'];
+    
+    if (maleNames.includes(nameLower)) return 'male';
+    if (femaleNames.includes(nameLower)) return 'female';
+    
+    // Check common endings
+    if (nameLower.endsWith('a') || nameLower.endsWith('ie') || nameLower.endsWith('ine')) return 'female';
+    
+    return 'unknown';
+  }
+  
+  /**
+   * Extract user's name from transcript
+   * Only extracts during introductions (first 3 exchanges) or explicit corrections
+   */
+  static extractName(transcript: string, currentName?: string, utteranceCount: number = 0): string | null {
+    // Always check for name corrections (can happen anytime)
     const correction = this.detectNameCorrection(transcript);
     if (correction) {
       console.log(`🔄 Name corrected: ${currentName} → ${correction}`);
       return correction;
+    }
+    
+    // If we already have a name and we're past introductions, skip extraction
+    if (currentName && utteranceCount > 3) {
+      return null;
     }
     
     // Patterns: "I'm X", "My name is X", "This is X", "X here"
@@ -54,11 +88,18 @@ export class CharmerContextExtractor {
         const name = match[1].trim();
         // Filter out common false positives and non-names
         const blacklist = [
-          'Hello', 'Hi', 'Hey', 'Yes', 'Yeah', 'Sure', 'Okay', 'Thanks', 'Great', 'Good', 'Fine',
-          'Interesting', 'Sorry', 'Please', 'Welcome', 'Excuse', 'Pardon', 'Maybe', 'Perfect',
-          'Exactly', 'Absolutely', 'Definitely', 'Actually', 'Really', 'Truly', 'Honestly'
+          'hello', 'hi', 'hey', 'yes', 'yeah', 'sure', 'okay', 'thanks', 'great', 'good', 'fine',
+          'interesting', 'sorry', 'please', 'welcome', 'excuse', 'pardon', 'maybe', 'perfect',
+          'exactly', 'absolutely', 'definitely', 'actually', 'really', 'truly', 'honestly',
+          'that', 'this', 'pretty', 'very', 'quite', 'rather', 'fairly', 'somewhat', 'going', 'gone',
+          'been', 'getting', 'doing', 'having', 'being', 'working', 'making', 'taking', 'coming', 'keeping',
+          'part', 'reason', 'thing', 'something', 'anything', 'nothing', 'everything', 'someone',
+          'anyone', 'everyone', 'nobody', 'somebody', 'anyone', 'wondering', 'curious', 'looking',
+          'trying', 'calling', 'reaching', 'following', 'asking', 'telling', 'saying', 'thinking'
         ];
-        if (!blacklist.includes(name)) {
+        // Additional validation: name should be at least 2 chars and not a common word
+        // Use case-insensitive blacklist check
+        if (!blacklist.includes(name.toLowerCase()) && name.length >= 2 && !/^(it|is|am|at|in|on|to|be|do|so|we|he|she)$/i.test(name)) {
           console.log(`✅ Extracted name: ${name}`);
           return name;
         }
@@ -302,9 +343,9 @@ export class CharmerContextExtractor {
   /**
    * Full extraction from transcript
    */
-  static extractAll(transcript: string, currentName?: string): ExtractedInfo {
+  static extractAll(transcript: string, currentName?: string, utteranceCount: number = 0): ExtractedInfo {
     return {
-      name: this.extractName(transcript, currentName),
+      name: this.extractName(transcript, currentName, utteranceCount),
       product: this.extractProduct(transcript),
       memorablePhrase: this.extractMemorablePhrase(transcript),
       detectedIssues: this.detectCoachingIssues(transcript),

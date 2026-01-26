@@ -11,6 +11,11 @@ import { MarcusVoiceProvider, useMarcusVoice } from './MarcusVoiceAdapter';
 import { CharmerPhaseManager, CharmerPhase } from './CharmerPhaseManager';
 import { CharmerContextExtractor } from './CharmerContextExtractor';
 import { CharmerAIService } from './CharmerAIService';
+import { QuestionClassifier, QuestionClassification } from './QuestionClassifier';
+import { JudgmentGate, JudgmentContext } from './JudgmentGate';
+import { StrategyLayer, StrategyContext, StrategyConstraints } from './StrategyLayer';
+import { SentenceCompletenessAnalyzer } from './SentenceCompleteness';
+import { CognitiveCompletenessAnalyzer } from './CognitiveCompleteness';
 import { CHARMER_PERSONA } from '../../../data/staticPersonas/theCharmer';
 
 interface CharmerControllerProps {
@@ -49,8 +54,18 @@ const CharmerControllerContent = memo(({
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
   const lastTranscriptRef = useRef('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const wasInterruptedRef = useRef(false);
   const incompleteUtteranceRef = useRef('');
   const lastMarcusSpeakTimeRef = useRef(0);
+  const speculativeResponseRef = useRef<Promise<any> | null>(null);
+  const lastClassificationRef = useRef<QuestionClassification | null>(null);
+  const judgmentGateRef = useRef(new JudgmentGate());
+  const strategyLayerRef = useRef(new StrategyLayer());
+  const lastUserSpeechTimeRef = useRef(0);
+  const processingTranscriptRef = useRef<string>(''); // Track which transcript we're processing
+  const utteranceCountRef = useRef(0); // Track number of complete utterances
+  const utteranceGraceTimerRef = useRef<NodeJS.Timeout | null>(null); // Grace period after UtteranceEnd
+  const pendingUtteranceRef = useRef<{text: string; count: number} | null>(null); // Pending utterance during grace
   
   // Refs for tracking
   const sessionIdRef = useRef<string | null>(null);
@@ -79,11 +94,16 @@ const CharmerControllerContent = memo(({
   /**
    * Process user's speech input
    */
-  const processUserInput = useCallback(async (userText: string) => {
+  const processUserInput = useCallback(async (userText: string, utteranceSnapshot: number) => {
     if (isProcessing) return;
     
+    // Clear any stale interrupt flag from previous utterances
+    const wasInterrupted = wasInterruptedRef.current;
+    wasInterruptedRef.current = false;
+    
     setIsProcessing(true);
-    console.log(`📝 Processing user input: "${userText.substring(0, 50)}..."`);
+    const processingUtteranceCount = utteranceSnapshot;
+    console.log(`📝 Processing user input: "${userText.substring(0, 50)}..." (utterance #${processingUtteranceCount})`);
     
     try {
       const phaseManager = phaseManagerRef.current;
@@ -94,8 +114,8 @@ const CharmerControllerContent = memo(({
       setConversationHistory(prev => [...prev, { role: 'user', content: userText }]);
       
       // Extract information from user's speech
-      // Pass current name to allow corrections
-      const extracted = CharmerContextExtractor.extractAll(userText, context.userName);
+      // Pass current name to allow corrections and utterance count to limit name extraction to introductions
+      const extracted = CharmerContextExtractor.extractAll(userText, context.userName, processingUtteranceCount);
       
       // Update context with extracted info (allow name updates for corrections)
       if (extracted.name) {
@@ -159,14 +179,164 @@ const CharmerControllerContent = memo(({
         }
       }
       
-      // Generate Marcus's response using AI
-      const aiResponse = await aiServiceRef.current.generateResponse({
+      // STRATEGY LAYER: Determine behavioral constraints before generating response
+      const repQualitySignals = strategyLayerRef.current.analyzeRepQuality(userText, conversationHistory);
+      
+      const strategyContext: StrategyContext = {
         phase: currentPhaseNum,
-        conversationContext: phaseManager.getContext(),
+        conversationHistory: conversationHistory,
         userInput: userText,
-        phasePromptContext: phaseManager.getPhasePromptContext(),
-        conversationHistory: conversationHistory
-      });
+        repQualitySignals
+      };
+      
+      const strategyConstraints = strategyLayerRef.current.determineStrategy(strategyContext);
+      
+      // Classify question for logging/analysis only - NO artificial delays
+      // Response time comes from actual AI generation complexity, not fake waits
+      const classification = QuestionClassifier.classify(userText);
+      const strategy = QuestionClassifier.getResponseStrategy(classification);
+      
+      console.log(`🧠 Question classified: ${classification.questionType} (${classification.category})`);
+      
+      // Check if we have a speculative response ready
+      let aiResponse;
+      if (speculativeResponseRef.current) {
+        console.log('⚡ Using speculative response');
+        try {
+          aiResponse = await speculativeResponseRef.current;
+          speculativeResponseRef.current = null;
+          
+          // SAFETY: Check if user started a new utterance during speculative generation
+          if (utteranceCountRef.current !== processingUtteranceCount) {
+            console.log('🚫 User started new utterance during speculative generation - scrapping response');
+            console.log(`   Was processing utterance #${processingUtteranceCount}, now at #${utteranceCountRef.current}`);
+            setIsProcessing(false);
+            return;
+          }
+        } catch (err) {
+          console.log('⚠️ Speculative response failed, generating fresh response');
+          speculativeResponseRef.current = null;
+          
+          // SAFETY: Check before starting fresh generation
+          if (utteranceCountRef.current !== processingUtteranceCount) {
+            console.log('🚫 User started new utterance - aborting fresh generation');
+            setIsProcessing(false);
+            return;
+          }
+          
+          aiResponse = await aiServiceRef.current.generateResponse({
+            phase: currentPhaseNum,
+            conversationContext: phaseManager.getContext(),
+            userInput: userText,
+            phasePromptContext: phaseManager.getPhasePromptContext(),
+            conversationHistory: conversationHistory
+          });
+          
+          // SAFETY: Check after generation completes
+          if (utteranceCountRef.current !== processingUtteranceCount) {
+            console.log('🚫 User started new utterance during fallback generation - scrapping response');
+            setIsProcessing(false);
+            return;
+          }
+        }
+      } else {
+        // Generate Marcus's response using AI with Strategy constraints
+        aiResponse = await aiServiceRef.current.generateResponse({
+          phase: currentPhaseNum,
+          conversationContext: phaseManager.getContext(),
+          userInput: userText,
+          phasePromptContext: phaseManager.getPhasePromptContext(),
+          conversationHistory: conversationHistory,
+          strategyConstraints: strategyConstraints
+        });
+        
+        // SAFETY: Check if user started a new utterance during AI generation
+        if (utteranceCountRef.current !== processingUtteranceCount) {
+          console.log('🚫 User started new utterance during AI generation - scrapping response');
+          console.log(`   Was processing utterance #${processingUtteranceCount}, now at #${utteranceCountRef.current}`);
+          setIsProcessing(false);
+          return;
+        }
+      }
+      
+      // Check if we were interrupted BEFORE starting this processing
+      // (flag captured at start, already cleared from ref)
+      if (wasInterrupted) {
+        console.log('🛑 Response cancelled - user was interrupting when this utterance arrived');
+        setIsProcessing(false);
+        return;
+      }
+      
+      // Check if interrupted DURING AI generation (new interruption)
+      if (wasInterruptedRef.current) {
+        console.log('🛑 Response cancelled - user interrupted during generation');
+        wasInterruptedRef.current = false;
+        setIsProcessing(false);
+        return;
+      }
+      
+      // COGNITIVE COMPLETENESS: Analyze if thought has landed (witness data)
+      const cognitiveAnalysis = CognitiveCompletenessAnalyzer.analyze(userText, conversationHistory);
+      console.log(`🧠 Cognitive analysis: ${cognitiveAnalysis.isCognitivelyComplete ? 'Complete' : 'Incomplete'} - ${cognitiveAnalysis.reason}`);
+      if (!cognitiveAnalysis.isCognitivelyComplete) {
+        console.log(`   Signals: hedging=${cognitiveAnalysis.signals.isHedging}, ambiguous=${cognitiveAnalysis.signals.isAmbiguous}, thinking=${cognitiveAnalysis.signals.isThinking}, followup=${cognitiveAnalysis.signals.invitesFollowup}, strategic=${cognitiveAnalysis.signals.strategicPause}`);
+      }
+      
+      // JUDGMENT GATE: Evaluate if Marcus should speak, wait, suppress, or hold
+      const riskAssessment = judgmentGateRef.current.assessRisk(userText, conversationHistory);
+      const timeSinceLastUserSpeech = Date.now() - lastUserSpeechTimeRef.current;
+      const marcusJustSpoke = Date.now() - lastMarcusSpeakTimeRef.current < 2000;
+      
+      const judgmentContext: JudgmentContext = {
+        userInput: userText,
+        preGeneratedResponse: aiResponse.content,
+        questionRisk: riskAssessment.risk,
+        momentType: riskAssessment.momentType,
+        prospectState: 'testing', // TODO: Track this from phase/conversation state
+        conversationHistory: conversationHistory,
+        timeSinceLastUserSpeech,
+        marcusJustSpoke,
+        // Witness data - inputs, not decisions
+        cognitiveComplete: cognitiveAnalysis.isCognitivelyComplete,
+        cognitiveCompleteness: cognitiveAnalysis
+      };
+      
+      const judgment = judgmentGateRef.current.judge(judgmentContext);
+      
+      console.log(`⚖️ [Judgment Gate] Action: ${judgment.action.toUpperCase()} | ${judgment.reason} | Confidence: ${judgment.confidence}`);
+      
+      // JUDGMENT GATE: Routes to different response strategies (SPEAK/SUPPRESS/HOLD)
+      // JG is a router, not a clock - no artificial timing delays
+      // Response timing comes from natural AI generation complexity
+      
+      // Handle suppression
+      if (judgment.action === 'suppress') {
+        console.log(`🚫 [Judgment Gate] SUPPRESS - ${judgment.reason}`);
+        judgmentGateRef.current.logSuppression(userText, aiResponse.content, judgment);
+        setIsProcessing(false);
+        return;
+      }
+      
+      // Handle HOLD - wait for user to continue (ambiguous input)
+      if (judgment.action === 'hold' && judgment.holdUntil === 'user_continues') {
+        console.log(`🤚 [Judgment Gate] HOLD - ${judgment.reason}`);
+        console.log(`   Waiting for user to clarify ambiguous input (no artificial delay)`);
+        // TODO: Future - route to multi-LLM strategic analysis for complex moments
+        // For now, suppress and wait for user continuation
+        setIsProcessing(false);
+        return;
+      }
+      
+      // WAIT and SPEAK actions proceed immediately - no delays
+      // AI generation time already provides natural "thinking" pause
+      console.log(`✅ [Judgment Gate] ${judgment.action.toUpperCase()} - proceeding immediately`);
+      
+      // TODO: Future enhancement - Multi-LLM Strategic Analysis Router
+      // When JG detects complex strategic moments:
+      // 1. Route to 3 LLM analysis pipeline (intent detection, red herrings, hidden paths)
+      // 2. Background processing while handling simple rapport questions instantly
+      // 3. Strategic guidance system to lead user toward hidden issues
+      // 4. Puzzle-like experience with hints scattered throughout conversation
       
       // If user tried to end call, force Phase 3 transition
       if (forcePhase3Transition) {
@@ -178,52 +348,6 @@ const CharmerControllerContent = memo(({
       setConversationHistory(prev => [...prev, { role: 'assistant', content: aiResponse.content }]);
       console.log(`🎤 Marcus [${aiResponse.emotion}]: "${aiResponse.content}"`);
       
-      // Smart delay: wait if user's sentence seems incomplete
-      const endsWithComma = /,\s*$/.test(userText.trim());
-      const endsWithTrailingWord = /\b(how|what|when|where|why|because|so|and|or|but|that|if|to|with|for|about|like)\s*$/i.test(userText.trim());
-      const hasNoPunctuation = !/[.!?]\s*$/.test(userText.trim());
-      const seemsIncomplete = endsWithComma || endsWithTrailingWord || (hasNoPunctuation && userText.trim().length > 10);
-      
-      if (seemsIncomplete) {
-        console.log('🤔 User sentence seems incomplete, waiting to see if they continue...');
-        
-        // Capture transcript state at start of wait
-        const transcriptBeforeWait = transcript || '';
-        
-        await new Promise(resolve => setTimeout(resolve, 2500)); // Wait 2.5 seconds for continuation
-        
-        // Check if user spoke more during the wait
-        const transcriptAfterWait = transcript || '';
-        const didUserContinue = transcriptAfterWait.length > transcriptBeforeWait.length;
-        
-        if (didUserContinue) {
-          console.log('✋ User continued speaking, canceling response');
-          setIsProcessing(false);
-          return; // Don't respond, user is still talking
-        }
-        
-        // User didn't continue - fill the silence naturally
-        console.log('👂 No continuation detected, filling the pause with filler');
-        const fillerMessages = [
-          "Uhh, yeah, so...",
-          "Right, so...",
-          "Okay, so...",
-          "Yeah...",
-          "Hmm..."
-        ];
-        const fillerMessage = fillerMessages[Math.floor(Math.random() * fillerMessages.length)];
-        
-        // Override response to fill the pause naturally
-        aiResponse.content = fillerMessage;
-        aiResponse.emotion = 'neutral';
-        // Update history with the filler message
-        setConversationHistory(prev => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: fillerMessage };
-          return updated;
-        });
-      }
-      
       // Dynamic speed based on phase (Phase 3 is more energetic)
       const speed = currentPhase === 3 ? 0.95 : 0.75;
       
@@ -233,6 +357,14 @@ const CharmerControllerContent = memo(({
         emotion: aiResponse.emotion, // Dynamic based on phase & content
         speed: speed
       });
+      
+      // Check if interrupted during speaking
+      if (wasInterruptedRef.current) {
+        console.log('🛑 Response interrupted during speaking');
+        wasInterruptedRef.current = false;
+        setIsProcessing(false);
+        return;
+      }
       
       // Track when Marcus finishes speaking (to filter echo)
       lastMarcusSpeakTimeRef.current = Date.now();
@@ -320,6 +452,27 @@ const CharmerControllerContent = memo(({
   }, [isProcessing, conversationHistory, transitionToPhase]);
   
   /**
+   * Detect continuation cues - patterns suggesting user will keep talking
+   */
+  const detectContinuationCue = useCallback((text: string): boolean => {
+    const trimmed = text.trim().toLowerCase();
+    
+    // Trailing conjunctions or connectives
+    const trailingConjunction = /\b(and|but|so|or|because|since|while|though|although|however|yet|nor)\s*[.,]?\s*$/i.test(trimmed);
+    
+    // Fillers suggesting more coming
+    const trailingFiller = /\b(yeah|like|um|uh|well|actually|basically|you know)\s*[.,]?\s*$/i.test(trimmed);
+    
+    // Incomplete thought patterns
+    const incompleteThought = /\b(i mean|what i'm saying|the thing is|so like)\s*$/i.test(trimmed);
+    
+    // Question starts (partial questions)
+    const questionStart = /\b(what|how|why|when|where|who|can|could|would|should|do|does|did|are|is|was)\s*$/i.test(trimmed);
+    
+    return trailingConjunction || trailingFiller || incompleteThought || questionStart;
+  }, []);
+  
+  /**
    * Monitor transcript for user speech and process with Marcus AI
    * Deepgram's speech_final events provide better turn detection
    * NOW SUPPORTS INTERRUPTIONS: User can speak while Marcus is talking
@@ -336,16 +489,24 @@ const CharmerControllerContent = memo(({
       return;
     }
     
-    // If Marcus is speaking and user speaks, this is an interruption
-    // The MarcusVoiceManager will automatically stop Marcus
-    // We'll process the user's input normally
-    if (isSpeaking) {
-      console.log(`🛑 User interrupted Marcus - processing interruption`);
-    }
-    
     // Get new content
     const newContent = transcript.replace(lastTranscriptRef.current, '').trim();
     if (newContent && newContent.length > 3) {
+      // Track user speech timing for Judgment Gate
+      lastUserSpeechTimeRef.current = Date.now();
+      
+      // EARLY DETECTION: Question patterns (used throughout pipeline)
+      const endsWithQuestion = newContent.trim().endsWith('?');
+      const isShortQuestion = newContent.length < 75 && endsWithQuestion;
+      
+      // CRITICAL: If grace window is active and user continues speaking, RESET the timer
+      // This prevents Marcus from cutting off multi-part thoughts
+      if (utteranceGraceTimerRef.current && pendingUtteranceRef.current) {
+        console.log(`👂 User continuing during grace window - resetting timer`);
+        clearTimeout(utteranceGraceTimerRef.current);
+        utteranceGraceTimerRef.current = null;
+      }
+      
       // Parse words for analysis
       const words = newContent.split(/\s+/);
       const wordCount = words.length;
@@ -359,96 +520,159 @@ const CharmerControllerContent = memo(({
         return;
       }
       
-      // Skip incomplete detection for complete questions (end with ?)
-      const endsWithQuestionMark = /\?$/.test(newContent.trim());
+      // Classify question type for potential speculative generation
+      const partialClassification = QuestionClassifier.classify(newContent);
+      const partialStrategy = QuestionClassifier.getResponseStrategy(partialClassification);
       
-      let seemsIncomplete = false;
+      // Start speculative generation for instant/quick questions
+      if (partialStrategy.shouldSpeculate && !speculativeResponseRef.current && !isSpeaking) {
+        console.log(`🚀 Starting speculative generation for ${partialClassification.category} question: "${newContent}"`);
+        lastClassificationRef.current = partialClassification;
+        
+        const phaseManager = phaseManagerRef.current;
+        const currentPhaseNum = phaseManager.getCurrentPhase();
+        
+        speculativeResponseRef.current = aiServiceRef.current.generateResponse({
+          phase: currentPhaseNum,
+          conversationContext: phaseManager.getContext(),
+          userInput: newContent,
+          phasePromptContext: phaseManager.getPhasePromptContext(),
+          conversationHistory: conversationHistory
+        }).catch(err => {
+          console.log('⚠️ Speculative generation error:', err);
+          speculativeResponseRef.current = null;
+          throw err;
+        });
+      }
       
-      if (endsWithQuestionMark) {
-        console.log(`✅ Complete question detected: "${newContent}"`);
-      } else {
-        // Check for complete sentence patterns that override incomplete word detection
-        const completePatterns = [
-          /\bif\s+\w+\s+(have|has|had|can|could|would|will|need|want)\s+(that|this|it|them|those|these)[\.\!]?\s*$/i, // "if you have that"
-          /\bwhen\s+\w+\s+\w+\s+(that|this|it)[\.\!]?\s*$/i, // "when you get that"
-          /\b(give|gave|take|took|make|made|get|got)\s+(that|this|it|them)[\.\!]?\s*$/i, // "take that", "get this"
-          /\b(need|want|have)\s+(some|any|that|this)[\.\!]?\s*$/i, // "need that", "want some"
-          /\bat\s+all[\.\!]?\s*$/i, // "at all", "not at all"
-          /\bthat'?s\s+all[\.\!]?\s*$/i, // "that's all", "thats all"
-          /\bnot\s+at\s+all[\.\!]?\s*$/i, // "not at all"
-          /\bafter\s+all[\.\!]?\s*$/i // "after all"
-        ];
-        
-        const isCompletePattern = completePatterns.some(pattern => pattern.test(newContent));
-        
-        if (isCompletePattern) {
-          console.log(`✅ Complete sentence pattern detected: "${newContent}"`);
-          seemsIncomplete = false;
+      // Grammatical structure analysis for sentence completeness
+      const completenessAnalysis = SentenceCompletenessAnalyzer.analyze(newContent);
+      
+      // SKIP incomplete sentence check if speculative generation already in progress
+      // This prevents 2s delays on instant/quick questions
+      if (speculativeResponseRef.current) {
+        console.log(`⚡ Speculative response in progress - skipping incomplete sentence check for instant response`);
+      } else if (!completenessAnalysis.isComplete && completenessAnalysis.confidence >= 0.5) {
+        // HEURISTIC: Short questions are complete - skip wait
+        if (isShortQuestion) {
+          console.log(`⚡ Short question (${newContent.length} chars) - processing immediately despite incomplete detection`);
+          // Process immediately, no wait
         } else {
-          // Check if sentence seems incomplete using grammatical signals
-          const incompleteWords = {
-            prepositions: ['to', 'with', 'of', 'for', 'from', 'about', 'at', 'in', 'on', 'by', 'into', 'onto', 'upon', 'without', 'within', 'through', 'over', 'under', 'between', 'among'],
-            conjunctions: ['and', 'but', 'or', 'because', 'since', 'when', 'while', 'although', 'though', 'unless', 'until', 'whereas', 'whether'],
-            auxiliaries: ['do', 'does', 'did', 'have', 'has', 'had', 'can', 'could', 'will', 'would', 'should', 'shall', 'may', 'might', 'must'],
-            articles: ['a', 'an', 'the'],
-            fillers: ['like', 'um', 'uh', 'er', 'ah'],
-            possessives: ['your', 'my', 'his', 'her', 'their', 'our', 'its'],
-            quantifiers: ['some', 'any', 'many', 'much', 'few', 'several', 'each', 'every', 'both', 'all', 'most'],
-            negations: ['not', 'no', 'never', 'neither', 'nor'],
-            comparatives: ['more', 'less', 'most', 'least', 'better', 'worse', 'than'],
-            intensifiers: ['just', 'really', 'very', 'quite', 'almost', 'nearly', 'so']
-          };
+          // Check if user is explicitly asking for time
+          const normalizedContent = newContent.toLowerCase();
+          const askingForTime = /hold on|give me a (sec|second|minute)|one (sec|second|minute)|just a (sec|second|minute)/.test(normalizedContent);
+          const waitTime = askingForTime ? 10000 : 2000;
           
-          // Check if sentence has proper ending punctuation FIRST
-          const hasEndingPunctuation = /[.!?]\s*$/.test(newContent);
+          console.log(`⏸️ Incomplete sentence detected: "${newContent.substring(0, 60)}..."`);
+          console.log(`   Reason: ${completenessAnalysis.reason} (confidence: ${completenessAnalysis.confidence})`);
+          console.log(`   Waiting ${waitTime/1000}s for continuation${askingForTime ? ' (user asked for time)' : ''}`);
           
-          // If sentence has proper ending punctuation, it's COMPLETE regardless of trailing words
-          if (hasEndingPunctuation) {
-            seemsIncomplete = false;
-          } else {
-            // Only check for incomplete patterns if NO ending punctuation
-            const allIncompleteWords = Object.values(incompleteWords).flat();
-            const endsWithIncompleteWord = lastWord && allIncompleteWords.includes(lastWord);
-            
-            // Only treat trailing comma as incomplete if followed by filler words
-            // (Deepgram often adds commas incorrectly based on prosody)
-            const endsWithFillerPhrase = /,\s*(like|um|uh|you know|so)\s*,?\s*$/i.test(newContent);
-            const endsWithComma = /,\s*$/.test(newContent) && wordCount < 8; // Short fragments with comma = incomplete
-            
-            // Only flag short sentences as incomplete if they DON'T have proper punctuation
-            const tooShort = wordCount <= 2 && 
-                             !['yes', 'no', 'okay', 'ok', 'sure', 'right', 'thanks', 'hello', 'hi', 'hey', 'great', 'good', 'fine', 'perfect'].includes(lastWord || '');
-            
-            // Semantic checks: verbs/copulas that need objects/complements
-            const needsComplement = /\b(is|are|was|were|be|been|wondering|struggle|struggling|thinking|asking|looking|trying|going|wanting|needing)\s*$/i.test(newContent);
-            const incompleteQuestion = /^(do|does|did|can|could|will|would|should|may|might)\s+\w+\s*$/i.test(newContent) || /\b(what|where|when|why|how)\s+\w+\s*$/i.test(newContent);
-            
-            seemsIncomplete = endsWithIncompleteWord || endsWithComma || endsWithFillerPhrase || tooShort || needsComplement || incompleteQuestion;
-          }
+          const transcriptSnapshot = transcript;
+          const utteranceSnapshot = utteranceCountRef.current;
+          
+          // Wait to see if user continues
+          setTimeout(() => {
+            // If no new utterance started, process what we have
+            if (utteranceCountRef.current === utteranceSnapshot) {
+              console.log(`✅ No continuation after ${waitTime/1000}s - processing anyway`);
+              
+              // Increment utterance count for incomplete sentence that timed out
+              utteranceCountRef.current++;
+              const currentUtterance = utteranceCountRef.current;
+              
+              // NOTE: Don't set interrupt flag here - this is user continuing their own thought
+              // Interrupt detection happens in processUserInput via utterance count checks
+              
+              processUserInput(newContent, currentUtterance);
+              lastTranscriptRef.current = transcript;
+            } else {
+              console.log(`👂 User continued speaking - new utterance detected, skipping partial sentence`);
+            }
+          }, waitTime);
+          
+          return; // Don't process yet
         }
       }
       
-      if (seemsIncomplete) {
-        console.log(`⏸️ Incomplete sentence detected: "${newContent}" - accumulating...`);
-        // Store incomplete utterance, wait for continuation
-        incompleteUtteranceRef.current = newContent;
-        lastTranscriptRef.current = transcript; // CRITICAL: Update ref to prevent duplication
+      console.log(`✅ Sentence appears complete: ${completenessAnalysis.reason} (confidence: ${completenessAnalysis.confidence})`);
+
+      // SKIP GRACE WINDOW if speculative generation in progress - instant response needed
+      if (speculativeResponseRef.current) {
+        console.log(`⚡ Speculative response ready - processing immediately (no grace window)`);
+        utteranceCountRef.current++;
+        const currentUtterance = utteranceCountRef.current;
+        console.log(`📊 Utterance #${currentUtterance} complete`);
+        console.log(`🎙️ User speech: "${newContent}"`);
+        processUserInput(newContent, currentUtterance);
+        lastTranscriptRef.current = transcript;
         return;
       }
+
+      // SKIP GRACE WINDOW for questions - they're complete thoughts, no need to wait
+      if (endsWithQuestion) {
+        console.log(`⚡ Question detected - processing immediately (no grace window)`);
+        utteranceCountRef.current++;
+        const currentUtterance = utteranceCountRef.current;
+        console.log(`📊 Utterance #${currentUtterance} complete`);
+        console.log(`🎙️ User speech: "${newContent}"`);
+        processUserInput(newContent, currentUtterance);
+        lastTranscriptRef.current = transcript;
+        return;
+      }
+
+      // GRACE WINDOW: Check if this looks like it might continue
+      const hasContinuationCue = detectContinuationCue(newContent);
+      const graceWindow = hasContinuationCue ? 1500 : 1000; // Allow natural pauses between thoughts
       
-      // Check if we have an incomplete utterance to prepend
-      const completeUtterance = incompleteUtteranceRef.current
-        ? `${incompleteUtteranceRef.current} ${newContent}`
-        : newContent;
+      if (hasContinuationCue) {
+        console.log(`👂 Continuation cue detected ("${newContent.slice(-30)}") - extending grace to ${graceWindow}ms`);
+      }
       
-      console.log(`🎙️ User speech: "${completeUtterance}"`);
+      // Clear any existing grace timer
+      if (utteranceGraceTimerRef.current) {
+        clearTimeout(utteranceGraceTimerRef.current);
+      }
       
-      // Process complete utterance
-      processUserInput(completeUtterance);
+      // Store pending utterance
+      const utteranceSnapshot = utteranceCountRef.current;
+      pendingUtteranceRef.current = { text: newContent, count: utteranceSnapshot };
       
-      // Reset incomplete buffer
-      incompleteUtteranceRef.current = '';
-      lastTranscriptRef.current = transcript;
+      console.log(`⏱️ Grace window: waiting ${graceWindow}ms to see if user continues...`);
+      
+      // Set grace timer
+      utteranceGraceTimerRef.current = setTimeout(() => {
+        // Check if grace timer was cleared (user continued speaking)
+        if (!utteranceGraceTimerRef.current) {
+          console.log(`👂 Grace window was reset - user is still speaking`);
+          return;
+        }
+        
+        // Check if utterance count changed (new utterance started)
+        if (utteranceCountRef.current !== utteranceSnapshot) {
+          console.log(`👂 User continued speaking during grace - merging utterances`);
+          return;
+        }
+        
+        // Grace period expired, no continuation - finalize this utterance
+        console.log(`✅ Grace period complete - finalizing utterance`);
+        
+        // Increment utterance counter
+        utteranceCountRef.current++;
+        const currentUtterance = utteranceCountRef.current;
+        console.log(`📊 Utterance #${currentUtterance} complete`);
+        
+        // NOTE: Don't set interrupt flag here - processUserInput handles interruption via utterance count
+        // If Marcus is speaking, his generation will detect the new utterance and self-cancel
+        
+        // Complete sentence - process
+        console.log(`🎙️ User speech: "${newContent}"`);
+        
+        processUserInput(newContent, currentUtterance);
+        lastTranscriptRef.current = transcript;
+        pendingUtteranceRef.current = null;
+      }, graceWindow);
+      
+      return; // Don't process yet - wait for grace period
     } else {
       // No new content, just update ref
       lastTranscriptRef.current = transcript;
@@ -468,12 +692,18 @@ const CharmerControllerContent = memo(({
       setTimeout(async () => {
         const greeting = "Marcus's Phone!!";
         console.log(`🎤 Marcus [happy]: "${greeting}"`);
+        
+        // Set echo protection BEFORE speaking to prevent microphone feedback
+        lastMarcusSpeakTimeRef.current = Date.now();
+        
         await speakAsMarcus(greeting, { 
           voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
           emotion: 'happy', // Upbeat, answering the phone
           speed: 0.75  // Slower, more deliberate delivery
         });
-        lastMarcusSpeakTimeRef.current = Date.now(); // Track for echo filtering
+        
+        // Update timestamp after speaking completes
+        lastMarcusSpeakTimeRef.current = Date.now();
         setConversationHistory([{ role: 'assistant', content: greeting }]);
       }, 500);
     }

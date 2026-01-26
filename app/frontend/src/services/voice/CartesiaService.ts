@@ -108,9 +108,9 @@ export class CartesiaService {
    */
   private async prefetchApiKey(): Promise<void> {
     try {
-      const response = await fetch('/api/cartesia/token');
+      const response = await fetch('/.netlify/functions/cartesia-key');
       const data = await response.json();
-      this.apiKey = data.key;
+      this.apiKey = data.api_key;
       console.log('[Cartesia] API key pre-fetched and ready');
     } catch (error) {
       console.warn('[Cartesia] Failed to pre-fetch API key, will fetch on first speak');
@@ -127,9 +127,9 @@ export class CartesiaService {
 
       // Get API key from backend (secure)
       if (!this.apiKey) {
-        const response = await fetch('/api/cartesia/token');
+        const response = await fetch('/.netlify/functions/cartesia-key');
         const data = await response.json();
-        this.apiKey = data.key;
+        this.apiKey = data.api_key;
       }
 
       // Ensure WebSocket is connected

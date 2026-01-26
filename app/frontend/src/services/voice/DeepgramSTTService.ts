@@ -145,14 +145,14 @@ export class DeepgramSTTService {
    */
   private async fetchApiKey(): Promise<string> {
     console.log('[Deepgram] Fetching API key from backend...');
-    const response = await fetch('/api/deepgram/token');
+    const response = await fetch('/.netlify/functions/deepgram-key');
     const data = await response.json();
     
-    if (!data.key && !data.token) {
+    if (!data.api_key) {
       throw new Error('No Deepgram API key received from backend');
     }
     
-    return data.key || data.token;
+    return data.api_key;
   }
 
   /**

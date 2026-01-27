@@ -3,6 +3,9 @@
   publish = "dist/"          # Publish directory (relative to 'base')
   command = "npm run build"  # Your build command
 
+[functions]
+  directory = "netlify/functions"  # Serverless functions directory (relative to repo root)
+
 [build.environment]
   NODE_VERSION = "22"
   # Set the Flask backend URL for email signup API calls

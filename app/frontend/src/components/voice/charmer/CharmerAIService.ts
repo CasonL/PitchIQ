@@ -542,7 +542,7 @@ export class CharmerAIService {
   constructor(apiKey?: string, model?: keyof typeof MARCUS_AI_MODELS) {
     // In production, API key would come from environment or backend
     this.apiKey = apiKey || '';
-    this.baseUrl = '/api/openai'; // Proxy through backend (now using OpenRouter)
+    this.baseUrl = '/.netlify/functions/openai'; // Netlify serverless function
     this.model = MARCUS_AI_MODELS[model || 'gpt-4o-mini']; // Default to GPT-4o-mini
   }
   

@@ -561,7 +561,7 @@ const CharmerControllerContent = memo(({
           // Check if user is explicitly asking for time
           const normalizedContent = newContent.toLowerCase();
           const askingForTime = /hold on|give me a (sec|second|minute)|one (sec|second|minute)|just a (sec|second|minute)/.test(normalizedContent);
-          const waitTime = askingForTime ? 10000 : 2000;
+          const waitTime = askingForTime ? 10000 : 5000;
           
           console.log(`⏸️ Incomplete sentence detected: "${newContent.substring(0, 60)}..."`);
           console.log(`   Reason: ${completenessAnalysis.reason} (confidence: ${completenessAnalysis.confidence})`);

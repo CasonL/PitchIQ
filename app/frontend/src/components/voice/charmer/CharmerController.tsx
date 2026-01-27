@@ -45,7 +45,7 @@ const CharmerControllerContent = memo(({
   
   // Phase management
   const phaseManagerRef = useRef(new CharmerPhaseManager());
-  const [currentPhase, setCurrentPhase] = useState<CharmerPhase>(1);
+  const [currentPhase, setCurrentPhase] = useState<CharmerPhase>('prospect');
   const [phaseContext, setPhaseContext] = useState(phaseManagerRef.current.getContext());
   // AI service
   const aiServiceRef = useRef(new CharmerAIService());
@@ -107,7 +107,10 @@ const CharmerControllerContent = memo(({
     
     try {
       const phaseManager = phaseManagerRef.current;
-      const currentPhaseNum = phaseManager.getCurrentPhase();
+      const currentPhaseStr = phaseManager.getCurrentPhase();
+      // Map string phase to number for StrategyLayer compatibility
+      const phaseMap: Record<CharmerPhase, number> = { 'prospect': 1, 'coach': 2, 'exit': 3 };
+      const currentPhaseNum = phaseMap[currentPhaseStr];
       const context = phaseManager.getContext();
       
       // Add user input to conversation history
@@ -148,34 +151,17 @@ const CharmerControllerContent = memo(({
         console.log(`✅ Captured product: ${extracted.product}`);
       }
       
-      // In Phase 2, extract pitch analysis
-      let forcePhase3Transition = false;
-      if (currentPhaseNum === 2) {
-        // Accumulate pitch transcript
-        const updatedPitchTranscript = context.userPitchTranscript + ' ' + userText;
-        phaseManager.updateContext({ userPitchTranscript: updatedPitchTranscript });
+      // Extract pitch analysis for coaching potential
+      if (extracted.detectedIssues && extracted.detectedIssues.length > 0) {
+        const issue = CharmerContextExtractor.pickOneIssue(extracted.detectedIssues);
+        const strength = CharmerContextExtractor.pickOneStrength(extracted.strengths, userText);
         
-        // Detect if user is trying to end the call early (Marcus should intercept!)
-        const userTryingToEnd = /\b(save you|save your time|let you go|gotta run|have a great day|hope you|thanks for your time|i'll let you|not a fit|wrong fit|different issue|completely different)\b/i.test(userText);
-        
-        if (userTryingToEnd) {
-          console.log('🚨 User trying to end call - Marcus will intercept and transition to Phase 3!');
-          forcePhase3Transition = true;
-        }
-        
-        // If user has finished pitching (detected by length or pause), analyze
-        if (updatedPitchTranscript.length > 150) {
-          // Detect issues and strengths
-          const issue = CharmerContextExtractor.pickOneIssue(extracted.detectedIssues);
-          const strength = CharmerContextExtractor.pickOneStrength(extracted.strengths, updatedPitchTranscript);
-          
-          if (issue) {
-            phaseManager.updateContext({ 
-              identifiedIssue: issue.type,
-              whatWorked: strength || 'You got through the core idea clearly'
-            });
-            console.log(`🎯 Analysis: Issue=${issue.type}, Strength=${strength}`);
-          }
+        if (issue) {
+          phaseManager.updateContext({ 
+            identifiedIssue: issue.type,
+            whatWorked: strength || 'You got through the core idea clearly'
+          });
+          console.log(`🎯 Analysis: Issue=${issue.type}, Strength=${strength}`);
         }
       }
       
@@ -225,7 +211,7 @@ const CharmerControllerContent = memo(({
           }
           
           aiResponse = await aiServiceRef.current.generateResponse({
-            phase: currentPhaseNum,
+            phase: currentPhaseStr,
             conversationContext: phaseManager.getContext(),
             userInput: userText,
             phasePromptContext: phaseManager.getPhasePromptContext(),
@@ -242,7 +228,7 @@ const CharmerControllerContent = memo(({
       } else {
         // Generate Marcus's response using AI with Strategy constraints
         aiResponse = await aiServiceRef.current.generateResponse({
-          phase: currentPhaseNum,
+          phase: currentPhaseStr,
           conversationContext: phaseManager.getContext(),
           userInput: userText,
           phasePromptContext: phaseManager.getPhasePromptContext(),
@@ -328,28 +314,7 @@ const CharmerControllerContent = memo(({
       }
       
       // WAIT and SPEAK actions proceed immediately - no delays
-      // AI generation time already provides natural "thinking" pause
-      console.log(`✅ [Judgment Gate] ${judgment.action.toUpperCase()} - proceeding immediately`);
-      
-      // TODO: Future enhancement - Multi-LLM Strategic Analysis Router
-      // When JG detects complex strategic moments:
-      // 1. Route to 3 LLM analysis pipeline (intent detection, red herrings, hidden paths)
-      // 2. Background processing while handling simple rapport questions instantly
-      // 3. Strategic guidance system to lead user toward hidden issues
-      // 4. Puzzle-like experience with hints scattered throughout conversation
-      
-      // If user tried to end call, force Phase 3 transition
-      if (forcePhase3Transition) {
-        aiResponse.shouldTransitionPhase = true;
-        aiResponse.nextPhase = 3;
-      }
-      
-      // Add Marcus's response to history
-      setConversationHistory(prev => [...prev, { role: 'assistant', content: aiResponse.content }]);
-      console.log(`🎤 Marcus [${aiResponse.emotion}]: "${aiResponse.content}"`);
-      
-      // Dynamic speed based on phase (Phase 3 is more energetic)
-      const speed = currentPhase === 3 ? 0.95 : 0.75;
+      const speed = currentPhase === 'coach' || currentPhase === 'exit' ? 0.85 : 0.75;
       
       // Speak Marcus's response using Cartesia TTS with dynamic emotion
       await speakAsMarcus(aiResponse.content, {
@@ -374,34 +339,7 @@ const CharmerControllerContent = memo(({
       if (aiResponse.shouldTransitionPhase && aiResponse.nextPhase) {
         // Natural pause before transitioning
         await new Promise(resolve => setTimeout(resolve, 1500));
-        
         transitionToPhase(aiResponse.nextPhase!);
-        
-        // Auto-speak Phase 3 opening line after transition from Phase 2
-        if (currentPhaseNum === 2 && aiResponse.nextPhase === 3) {
-          // Brief pause after transition
-          await new Promise(resolve => setTimeout(resolve, 800));
-          
-          console.log('🎬 Auto-generating Phase 3 opening line');
-          const phase3Opening = await aiServiceRef.current.generateResponse({
-            phase: 3,
-            conversationContext: phaseManagerRef.current.getContext(),
-            userInput: '', // No user input, just opening
-            phasePromptContext: phaseManagerRef.current.getPhasePromptContext(),
-            conversationHistory: conversationHistory
-          });
-          
-          setConversationHistory(prev => [...prev, { role: 'assistant', content: phase3Opening.content }]);
-          console.log(`🎤 Marcus [${phase3Opening.emotion}]: "${phase3Opening.content}"`);
-          
-          await speakAsMarcus(phase3Opening.content, {
-            voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
-            emotion: phase3Opening.emotion,
-            speed: 0.95 // Phase 3 is more energetic
-          });
-          
-          lastMarcusSpeakTimeRef.current = Date.now();
-        }
       }
       
       // Check for automatic phase transitions (NOW happens after Marcus actually finishes)
@@ -411,35 +349,17 @@ const CharmerControllerContent = memo(({
         
         // Natural pause before transitioning
         await new Promise(resolve => setTimeout(resolve, 1500));
-        
         transitionToPhase(autoTransition.nextPhase!);
-        
-        // Auto-speak Phase 3 opening line after auto-transition from Phase 2
-        if (currentPhaseNum === 2 && autoTransition.nextPhase === 3) {
-          // Brief pause after transition
-          await new Promise(resolve => setTimeout(resolve, 800));
-          
-          console.log('🎬 Auto-generating Phase 3 opening line (auto-transition)');
-          const phase3Opening = await aiServiceRef.current.generateResponse({
-            phase: 3,
-            conversationContext: phaseManagerRef.current.getContext(),
-            userInput: '', // No user input, just opening
-            phasePromptContext: phaseManagerRef.current.getPhasePromptContext(),
-            conversationHistory: conversationHistory
-          });
-          
-          setConversationHistory(prev => [...prev, { role: 'assistant', content: phase3Opening.content }]);
-          console.log(`🎤 Marcus [${phase3Opening.emotion}]: "${phase3Opening.content}"`);
-          
-          await speakAsMarcus(phase3Opening.content, {
-            voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
-            emotion: phase3Opening.emotion,
-            speed: 0.95
-          });
-          
-          lastMarcusSpeakTimeRef.current = Date.now();
-        }
       }
+      
+      // 1. Marcus has his own issues and insecurities (built into his persona)
+      // 2. Objection stack system - multi-root resistance that softens gradually
+      // 3. Strategic guidance system to lead user toward hidden issues
+      // 4. Puzzle-like experience with hints scattered throughout conversation
+      
+      // Add Marcus's response to history
+      setConversationHistory(prev => [...prev, { role: 'assistant', content: aiResponse.content }]);
+      console.log(`🎤 Marcus [${aiResponse.emotion}]: "${aiResponse.content}"`);
       
       // Update context state
       setPhaseContext(phaseManager.getContext());
@@ -530,10 +450,10 @@ const CharmerControllerContent = memo(({
         lastClassificationRef.current = partialClassification;
         
         const phaseManager = phaseManagerRef.current;
-        const currentPhaseNum = phaseManager.getCurrentPhase();
+        const currentPhaseStr = phaseManager.getCurrentPhase();
         
         speculativeResponseRef.current = aiServiceRef.current.generateResponse({
-          phase: currentPhaseNum,
+          phase: currentPhaseStr,
           conversationContext: phaseManager.getContext(),
           userInput: newContent,
           phasePromptContext: phaseManager.getPhasePromptContext(),
@@ -726,7 +646,7 @@ const CharmerControllerContent = memo(({
     
     // Reset phase manager
     phaseManagerRef.current.reset();
-    setCurrentPhase(1);
+    setCurrentPhase('prospect');
     setPhaseContext(phaseManagerRef.current.getContext());
     setConversationHistory([]);
     

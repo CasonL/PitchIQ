@@ -740,10 +740,29 @@ const CharmerControllerContent = memo(({
   const handleEndCall = useCallback(() => {
     console.log('📵 Ending Marcus call');
     
+    const duration = phaseManagerRef.current.getTotalDuration();
+    
+    // Build CallMetrics for post-call feedback
+    const metrics = {
+      callDuration: duration,
+      userSpeakingTime: Math.floor(duration * 0.5), // Estimated from conversation
+      marcusSpeakingTime: Math.floor(duration * 0.5),
+      questions: [],
+      openEndedCount: 0,
+      followUpCount: 0,
+      objections: [],
+      objectionsRaised: 0,
+      objectionsAddressed: 0,
+      objectionsResolved: 0,
+      totalExchanges: conversationHistory.length / 2,
+      winCondition: 'not_yet' as const
+    };
+    
     // Get final call data
     const callData = {
       sessionId: sessionIdRef.current,
-      duration: phaseManagerRef.current.getTotalDuration(),
+      duration: duration,
+      metrics: metrics,
       phaseSummary: phaseManagerRef.current.getPhaseSummary(),
       finalContext: phaseManagerRef.current.getContext(),
       conversationHistory
@@ -793,35 +812,6 @@ const CharmerControllerContent = memo(({
             The Charmer
           </p>
         </div>
-        
-        {/* Phase indicator */}
-        {isConnected && (
-          <div className="mb-8 p-6 bg-white rounded-xl shadow-sm border-2 border-gray-300">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-base font-semibold text-gray-900">
-                Phase {currentPhase} of 5
-              </span>
-              <span className="text-sm text-gray-500">
-                {phaseManagerRef.current.getTimeInCurrentPhase()}s
-              </span>
-            </div>
-            
-            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-3">
-              <div 
-                className="bg-red-600 h-2.5 rounded-full transition-all duration-300"
-                style={{ width: `${(currentPhase / 5) * 100}%` }}
-              />
-            </div>
-            
-            <div className="text-sm text-gray-600 font-medium">
-              {currentPhase === 1 && '🤝 Building Connection...'}
-              {currentPhase === 2 && '👂 Listening & Observing...'}
-              {currentPhase === 3 && '✨ Painting the Vision...'}
-              {currentPhase === 4 && '🎯 Modeling Detachment...'}
-              {currentPhase === 5 && '👋 Graceful Exit...'}
-            </div>
-          </div>
-        )}
         
         {/* Call controls */}
         <div className="flex justify-center items-center gap-3 mb-8">

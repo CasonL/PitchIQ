@@ -18,6 +18,11 @@ exports.handler = async function(event, context) {
   try {
     const requestBody = JSON.parse(event.body);
     
+    // Strip provider prefix from model name (e.g., 'openai/gpt-4o-mini' -> 'gpt-4o-mini')
+    if (requestBody.model && requestBody.model.includes('/')) {
+      requestBody.model = requestBody.model.split('/')[1];
+    }
+    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {

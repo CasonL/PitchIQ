@@ -542,7 +542,7 @@ export class CharmerAIService {
   constructor(apiKey?: string, model?: keyof typeof MARCUS_AI_MODELS) {
     // In production, API key would come from environment or backend
     this.apiKey = apiKey || '';
-    this.baseUrl = '/.netlify/functions/openai'; // Netlify serverless function
+    this.baseUrl = '/.netlify/functions/openai-chat'; // Netlify serverless function
     this.model = MARCUS_AI_MODELS[model || 'gpt-4o-mini']; // Default to GPT-4o-mini
   }
   
@@ -561,8 +561,8 @@ export class CharmerAIService {
       const systemPrompt = this.buildSystemPrompt(context, motivationBlock, conversationStyle);
       const userPrompt = this.buildUserPrompt(context);
       
-      // Call AI via OpenRouter proxy
-      const response = await fetch(this.baseUrl + '/chat', {
+      // Call AI via Netlify Function
+      const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

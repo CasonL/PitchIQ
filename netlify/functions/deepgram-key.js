@@ -17,25 +17,22 @@ exports.handler = async function(event, context) {
   }
 
   try {
-    // Proxy to Flask backend which has keys loaded from instance/.env
-    const response = await fetch('http://localhost:8080/api/deepgram/key');
+    const apiKey = process.env.DEEPGRAM_API_KEY;
     
-    if (!response.ok) {
-      throw new Error(`Flask backend returned ${response.status}`);
+    if (!apiKey) {
+      throw new Error('DEEPGRAM_API_KEY not configured');
     }
-    
-    const data = await response.json();
     
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(data)
+      body: JSON.stringify({ key: apiKey })
     };
   } catch (error) {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: `Failed to fetch from backend: ${error.message}` })
+      body: JSON.stringify({ error: error.message })
     };
   }
 };

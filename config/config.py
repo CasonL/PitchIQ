@@ -26,6 +26,7 @@ class Config:
     ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
     DEEPGRAM_API_KEY = os.environ.get('DEEPGRAM_API_KEY')
+    CARTESIA_API_KEY = os.environ.get('CARTESIA_API_KEY')
     # --- End API Keys ---
 
     # Flask-Limiter settings

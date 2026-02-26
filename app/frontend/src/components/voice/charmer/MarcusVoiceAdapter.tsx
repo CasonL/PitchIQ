@@ -15,6 +15,7 @@ interface MarcusVoiceContextType {
   
   // Transcript
   transcript: string;
+  isFinalTranscript: boolean; // Added to track UtteranceEnd events
   
   // Control methods
   startCall: () => Promise<void>;
@@ -65,6 +66,7 @@ export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [transcript, setTranscript] = useState('');
+  const [isFinalTranscript, setIsFinalTranscript] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [metrics, setMetrics] = useState<VoiceMetrics>({
     sttMinutes: 0,
@@ -87,11 +89,10 @@ export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
       onTranscript: (text: string, isFinal: boolean) => {
         console.log(`[MarcusVoiceAdapter] Transcript ${isFinal ? 'SPEECH FINAL' : 'partial'}: "${text}"`);
         
-        if (isFinal) {
-          // Deepgram's speech_final means utterance is truly complete
-          // Update transcript with complete utterance
-          setTranscript(prev => prev + (prev ? ' ' : '') + text);
-        }
+        // CRITICAL: Update transcript state for BOTH partials and finals
+        // This triggers useEffect in CharmerController for speculative generation
+        setTranscript(text);
+        setIsFinalTranscript(isFinal);
         
         // Notify parent component
         if (onTranscriptUpdate) {
@@ -226,6 +227,7 @@ export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
     isConnecting,
     error,
     transcript,
+    isFinalTranscript,
     startCall,
     endCall,
     speakAsMarcus,

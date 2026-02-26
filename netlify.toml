@@ -1,12 +1,18 @@
 [build]
-  base    = "app/frontend/"  # Path to your frontend project
-  publish = "dist/"          # Publish directory (relative to 'base')
-  command = "npm run build"  # Your build command
+  publish = "app/frontend/dist/"
+  command = "cd app/frontend && npm run build"
 
 [functions]
-  directory = "../../netlify/functions"  # Relative to base directory (app/frontend/)
+  directory = "netlify/functions"
+
+# Local dev settings
+[dev]
+  framework = "#custom"
+  command = "npm --prefix app/frontend run dev"
+  targetPort = 5173
+  port = 3000
+  autoLaunch = false
 
 [build.environment]
   NODE_VERSION = "22"
-  # Set the Flask backend URL for email signup API calls
   VITE_API_BASE_URL = "https://8b6f43fdae68.ngrok-free.app"

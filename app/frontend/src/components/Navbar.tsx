@@ -59,6 +59,8 @@ const NavbarComponent = ({ preRelease, onOpenEmailModal }: NavbarProps) => {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const sectionPositionsRef = useRef<Record<string, number>>({});
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   const navLinks = [
     { name: 'How It Works', href: '/#how-it-works' },
@@ -89,6 +91,32 @@ const NavbarComponent = ({ preRelease, onOpenEmailModal }: NavbarProps) => {
       clearTimeout(timeoutId);
     };
   }, [location.pathname]);
+
+  // Scroll detection for hiding/showing navbar
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Show navbar when at top
+      if (currentScrollY < 10) {
+        setIsVisible(true);
+      } 
+      // Hide when scrolling down, show when scrolling up
+      else if (currentScrollY > lastScrollY) {
+        setIsVisible(false);
+      } else {
+        setIsVisible(true);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [lastScrollY]);
 
   const scrollToSection = (idWithHash: string) => {
     const sectionId = idWithHash.substring(2);
@@ -154,7 +182,13 @@ const NavbarComponent = ({ preRelease, onOpenEmailModal }: NavbarProps) => {
   }
 
   return (
-    <nav ref={localNavRef} className="bg-white/80 backdrop-blur-md fixed w-full z-50 top-0 shadow-sm">
+    <nav 
+      ref={localNavRef} 
+      className={`bg-white/80 backdrop-blur-md fixed w-full z-50 shadow-sm transition-transform duration-300 ${
+        isVisible ? 'translate-y-0' : '-translate-y-full'
+      }`}
+      style={{ top: 0 }}
+    >
       <div className="max-w-7xl mx-auto px-6 md:px-10 lg:px-20">
         <div className="flex items-center justify-between h-20">
           <Link to="/" className="flex items-center space-x-2">

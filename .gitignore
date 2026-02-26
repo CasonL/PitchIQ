@@ -78,3 +78,5 @@ deploy.zip
 # landing-deploy/ # If this is a local deployment staging folder
 
 # Add any other files or folders you want to ignore 
+# Local Netlify folder
+.netlify

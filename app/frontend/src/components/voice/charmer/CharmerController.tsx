@@ -17,6 +17,14 @@ import { StrategyLayer, StrategyContext, StrategyConstraints } from './StrategyL
 import { SentenceCompletenessAnalyzer } from './SentenceCompleteness';
 import { CognitiveCompletenessAnalyzer } from './CognitiveCompleteness';
 import { CHARMER_PERSONA } from '../../../data/staticPersonas/theCharmer';
+import { MarcusPostCallMoments } from './MarcusPostCallMoments';
+import { ConversationTracker } from './ConversationTranscript';
+import { CriticalMomentDetector } from './CriticalMomentDetector';
+import { MomentFeedbackGenerator } from './MomentFeedbackGenerator';
+import { MarcusChallengeLobby } from './MarcusChallengeLobby';
+import { MarcusScenario } from './MarcusScenarios';
+import { FirstUtterancePatternDetector } from './FirstUtterancePatternDetector';
+import { TranscriptQualityDetector } from './TranscriptQualityDetector';
 
 interface CharmerControllerProps {
   onCallEnd?: () => void;
@@ -38,6 +46,7 @@ const CharmerControllerContent = memo(({
     isConnected, 
     isConnecting,
     transcript,
+    isFinalTranscript,
     error,
     speakAsMarcus,
     isSpeaking
@@ -50,9 +59,55 @@ const CharmerControllerContent = memo(({
   // AI service
   const aiServiceRef = useRef(new CharmerAIService());
   
+  // Scenario state
+  const [selectedScenario, setSelectedScenario] = useState<MarcusScenario | null>(null);
+  const [showScenarioSelector, setShowScenarioSelector] = useState(true);
+  const [isRinging, setIsRinging] = useState(false);
+  const ringTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Phone ringing audio with Web Audio API for volume boost
+  const phoneRingAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  
+  // Initialize phone ring audio on mount - simple HTML audio
+  useEffect(() => {
+    phoneRingAudioRef.current = new Audio('/phone-ring.mp3');
+    phoneRingAudioRef.current.loop = true;
+    phoneRingAudioRef.current.volume = 1.0; // Max volume
+    phoneRingAudioRef.current.preload = 'auto';
+    
+    // Debug events to check if file loads
+    phoneRingAudioRef.current.addEventListener('loadeddata', () => {
+      console.log('🔊 Phone ring audio loaded successfully', {
+        duration: phoneRingAudioRef.current?.duration,
+        readyState: phoneRingAudioRef.current?.readyState
+      });
+    });
+    phoneRingAudioRef.current.addEventListener('error', (e) => {
+      console.error('❌ Phone ring audio failed to load:', e);
+      console.error('Error details:', phoneRingAudioRef.current?.error);
+    });
+    phoneRingAudioRef.current.addEventListener('canplay', () => {
+      console.log('✅ Phone ring audio can play');
+    });
+    
+    console.log('🔊 Phone ring audio initialized (HTML audio element)');
+    
+    return () => {
+      if (phoneRingAudioRef.current) {
+        phoneRingAudioRef.current.pause();
+        phoneRingAudioRef.current = null;
+      }
+    };
+  }, []);
+  
   // Conversation state
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const [showMomentFeedback, setShowMomentFeedback] = useState(false);
+  const [momentFeedbackData, setMomentFeedbackData] = useState<{momentPuzzles: any[], callSummary: any, duration: number} | null>(null);
   const lastTranscriptRef = useRef('');
+  const transcriptRef = useRef(''); // Track current transcript for timeout callbacks
   const [isProcessing, setIsProcessing] = useState(false);
   const wasInterruptedRef = useRef(false);
   const incompleteUtteranceRef = useRef('');
@@ -66,9 +121,12 @@ const CharmerControllerContent = memo(({
   const utteranceCountRef = useRef(0); // Track number of complete utterances
   const utteranceGraceTimerRef = useRef<NodeJS.Timeout | null>(null); // Grace period after UtteranceEnd
   const pendingUtteranceRef = useRef<{text: string; count: number} | null>(null); // Pending utterance during grace
+  const queuedUtterancesRef = useRef<Array<{text: string; count: number}>>([]); // Queue multiple utterances if processing
   
   // Refs for tracking
   const sessionIdRef = useRef<string | null>(null);
+  const conversationTrackerRef = useRef<ConversationTracker | null>(null);
+  const callStartTimeRef = useRef<number>(0);
   const nameMentionCountRef = useRef<{[key: string]: number}>({});
   /**
    * Generate session ID
@@ -95,7 +153,12 @@ const CharmerControllerContent = memo(({
    * Process user's speech input
    */
   const processUserInput = useCallback(async (userText: string, utteranceSnapshot: number) => {
-    if (isProcessing) return;
+    if (isProcessing) {
+      // Queue this utterance to process after current one completes
+      console.log(`⏸️ Already processing - queuing utterance #${utteranceSnapshot}`);
+      queuedUtterancesRef.current.push({ text: userText, count: utteranceSnapshot });
+      return;
+    }
     
     // Clear any stale interrupt flag from previous utterances
     const wasInterrupted = wasInterruptedRef.current;
@@ -106,6 +169,46 @@ const CharmerControllerContent = memo(({
     console.log(`📝 Processing user input: "${userText.substring(0, 50)}..." (utterance #${processingUtteranceCount})`);
     
     try {
+      // Check transcript quality - detect garbled/poor STT
+      const qualityCheck = TranscriptQualityDetector.assess(userText);
+      
+      if (qualityCheck.isLikelyGarbled) {
+        console.log(`🔊 Poor transcript quality detected (${Math.round(qualityCheck.confidence * 100)}% confidence)`);
+        console.log(`   Issues: ${qualityCheck.issues.join(', ')}`);
+        console.log(`   Original: "${userText}"`);
+        
+        // Marcus didn't hear properly - use natural "can't hear you" response
+        const clarificationResponses = [
+          "Sorry, you cut out there. Can you say that again?",
+          "I didn't catch that. Can you repeat it?",
+          "Sorry, what was that? You broke up a bit.",
+          "Can you repeat that? I missed it."
+        ];
+        
+        const response = clarificationResponses[Math.floor(Math.random() * clarificationResponses.length)];
+        
+        console.log(`🎤 Marcus [confused]: "${response}"`);
+        
+        // Speak immediately - no AI processing needed
+        await speakAsMarcus(response, {
+          voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
+          emotion: 'worried',
+          speed: 0.75
+        });
+        
+        lastMarcusSpeakTimeRef.current = Date.now();
+        
+        // Add to conversation history as clarification request
+        setConversationHistory(prev => [
+          ...prev,
+          { role: 'user', content: '[garbled audio]' },
+          { role: 'assistant', content: response }
+        ]);
+        
+        setIsProcessing(false);
+        return;
+      }
+      
       const phaseManager = phaseManagerRef.current;
       const currentPhaseStr = phaseManager.getCurrentPhase();
       // Map string phase to number for StrategyLayer compatibility
@@ -215,7 +318,8 @@ const CharmerControllerContent = memo(({
             conversationContext: phaseManager.getContext(),
             userInput: userText,
             phasePromptContext: phaseManager.getPhasePromptContext(),
-            conversationHistory: conversationHistory
+            conversationHistory: conversationHistory,
+            scenario: selectedScenario
           });
           
           // SAFETY: Check after generation completes
@@ -233,12 +337,13 @@ const CharmerControllerContent = memo(({
           userInput: userText,
           phasePromptContext: phaseManager.getPhasePromptContext(),
           conversationHistory: conversationHistory,
+          scenario: selectedScenario,
           strategyConstraints: strategyConstraints
         });
         
-        // SAFETY: Check if user started a new utterance during AI generation
+        // SAFETY: Check after generation completes
         if (utteranceCountRef.current !== processingUtteranceCount) {
-          console.log('🚫 User started new utterance during AI generation - scrapping response');
+          console.log('🚫 User started new utterance during fallback generation - scrapping response');
           console.log(`   Was processing utterance #${processingUtteranceCount}, now at #${utteranceCountRef.current}`);
           setIsProcessing(false);
           return;
@@ -368,6 +473,16 @@ const CharmerControllerContent = memo(({
       console.error('❌ Error processing user input:', error);
     } finally {
       setIsProcessing(false);
+      
+      // Process all queued utterances in order
+      if (queuedUtterancesRef.current.length > 0) {
+        const queued = queuedUtterancesRef.current.shift()!; // Get first queued item
+        console.log(`▶️ Processing queued utterance #${queued.count} (${queuedUtterancesRef.current.length} remaining)`);
+        // Small delay to allow state to settle
+        setTimeout(() => {
+          processUserInput(queued.text, queued.count);
+        }, 100);
+      }
     }
   }, [isProcessing, conversationHistory, transitionToPhase]);
   
@@ -400,17 +515,102 @@ const CharmerControllerContent = memo(({
   useEffect(() => {
     if (!transcript || transcript === lastTranscriptRef.current) return;
     
-    // Don't process user speech while Marcus is thinking (prevents queuing)
-    // BUT ALLOW processing while Marcus is speaking (enables interruptions!)
-    if (isProcessing) {
-      console.log(`⏸️ Ignoring transcript while Marcus is thinking`);
-      // Mark this transcript as seen so it doesn't get processed later
-      lastTranscriptRef.current = transcript;
-      return;
-    }
+    // Update transcript ref for timeout callbacks
+    transcriptRef.current = transcript;
     
     // Get new content
     const newContent = transcript.replace(lastTranscriptRef.current, '').trim();
+    
+    // SPECULATIVE GENERATION: Start LLM call on partials for FIRST utterance only
+    // This gives instant response while still processing complete messages
+    const isFirstUtterance = utteranceCountRef.current === 0;
+    const words = newContent.split(/\s+/);
+    const wordCount = words.length;
+    
+    if (!isFinalTranscript && isFirstUtterance && wordCount >= 2 && !speculativeResponseRef.current && !isSpeaking) {
+      // PATTERN DETECTION: Re-check pattern on each partial until we get a match
+      const patternMatch = FirstUtterancePatternDetector.detect(newContent);
+      
+      if (patternMatch.extractedName) {
+        console.log(`📋 Extracted name from pattern: ${patternMatch.extractedName}`);
+      }
+      
+      if (FirstUtterancePatternDetector.canUseInstantResponse(patternMatch.pattern)) {
+        // Check for ultra-fast canned response (0ms - no LLM)
+        const cannedResponse = FirstUtterancePatternDetector.getCannedResponse(patternMatch.pattern);
+        
+        if (cannedResponse) {
+          // INSTANT CANNED RESPONSE - no LLM call needed!
+          console.log(`🔍 Pattern detected: ${patternMatch.pattern} (confidence: ${patternMatch.confidence})`);
+          console.log(`⚡⚡⚡ CANNED: Using instant response (0ms LLM) - "${cannedResponse}"`);
+          
+          // Wrap in resolved promise for consistent interface
+          speculativeResponseRef.current = Promise.resolve({
+            content: cannedResponse,
+            emotion: 'neutral'
+          });
+        } else {
+          // Good pattern detected! Start focused LLM call
+          console.log(`🔍 Pattern detected: ${patternMatch.pattern} (confidence: ${patternMatch.confidence})`);
+          console.log(`⚡ INSTANT: Using focused LLM for pattern "${patternMatch.pattern}"`);
+          
+          const phaseManager = phaseManagerRef.current;
+          const currentPhaseStr = phaseManager.getCurrentPhase();
+          
+          // Use focused prompt for instant response
+          speculativeResponseRef.current = aiServiceRef.current.generateFocusedResponse({
+            phase: currentPhaseStr,
+            conversationContext: phaseManager.getContext(),
+            userInput: newContent,
+            phasePromptContext: phaseManager.getPhasePromptContext(),
+            conversationHistory: conversationHistory,
+            scenario: selectedScenario,
+            patternMatch: patternMatch
+          }).catch(err => {
+            console.log('⚠️ Focused generation error:', err);
+            speculativeResponseRef.current = null;
+            throw err;
+          });
+        }
+      } else if (wordCount >= 8) {
+        // No pattern detected after 8+ words - fallback to full LLM
+        console.log(`🔍 Pattern: ${patternMatch.pattern} (no match after ${wordCount} words)`);
+        console.log(`⚡ FALLBACK: Using full LLM after 8+ words`);
+        
+        const phaseManager = phaseManagerRef.current;
+        const currentPhaseStr = phaseManager.getCurrentPhase();
+        
+        // Fallback to full system prompt
+        speculativeResponseRef.current = aiServiceRef.current.generateResponse({
+          phase: currentPhaseStr,
+          conversationContext: phaseManager.getContext(),
+          userInput: newContent,
+          phasePromptContext: phaseManager.getPhasePromptContext(),
+          conversationHistory: conversationHistory,
+          scenario: selectedScenario
+        }).catch(err => {
+          console.log('⚠️ Speculative generation error:', err);
+          speculativeResponseRef.current = null;
+          throw err;
+        });
+      }
+      // else: Keep waiting for more words to detect pattern
+    }
+    
+    // CRITICAL FIX: Only PROCESS final transcripts (UtteranceEnd events)
+    // This prevents fragmentation where "Hey, Marcus. It's Kayson from WebSite Co." 
+    // gets split into multiple partial utterances
+    if (!isFinalTranscript) {
+      // Log partials for visibility, but don't process them
+      if (newContent && !isFirstUtterance) {
+        console.log(`📝 Partial transcript (waiting for UtteranceEnd): "${newContent.substring(0, 60)}..."`);
+      }
+      return;
+    }
+    
+    // If we get here, we have a FINAL transcript (UtteranceEnd confirmed by Deepgram)
+    console.log(`✅ UtteranceEnd received - processing complete message`);
+    
     if (newContent && newContent.length > 3) {
       // Track user speech timing for Judgment Gate
       lastUserSpeechTimeRef.current = Date.now();
@@ -419,185 +619,47 @@ const CharmerControllerContent = memo(({
       const endsWithQuestion = newContent.trim().endsWith('?');
       const isShortQuestion = newContent.length < 75 && endsWithQuestion;
       
-      // CRITICAL: If grace window is active and user continues speaking, RESET the timer
-      // This prevents Marcus from cutting off multi-part thoughts
-      if (utteranceGraceTimerRef.current && pendingUtteranceRef.current) {
-        console.log(`👂 User continuing during grace window - resetting timer`);
-        clearTimeout(utteranceGraceTimerRef.current);
-        utteranceGraceTimerRef.current = null;
-      }
-      
       // Parse words for analysis
       const words = newContent.split(/\s+/);
       const wordCount = words.length;
-      const lastWord = words[words.length - 1]?.toLowerCase().replace(/[.,!?;:]/g, '');
       
       // Filter out likely echo (short phrases right after Marcus speaks)
       const timeSinceMarcusSpoke = Date.now() - lastMarcusSpeakTimeRef.current;
-      if (timeSinceMarcusSpoke < 2000 && wordCount < 5) {
+      if (timeSinceMarcusSpoke < 1000 && wordCount <= 2) {
         console.log(`🔇 Filtering likely echo: "${newContent}" (${timeSinceMarcusSpoke}ms after Marcus, ${wordCount} words)`);
         lastTranscriptRef.current = transcript;
         return;
       }
       
-      // Classify question type for potential speculative generation
-      const partialClassification = QuestionClassifier.classify(newContent);
-      const partialStrategy = QuestionClassifier.getResponseStrategy(partialClassification);
-      
-      // Start speculative generation for instant/quick questions
-      if (partialStrategy.shouldSpeculate && !speculativeResponseRef.current && !isSpeaking) {
-        console.log(`🚀 Starting speculative generation for ${partialClassification.category} question: "${newContent}"`);
-        lastClassificationRef.current = partialClassification;
-        
-        const phaseManager = phaseManagerRef.current;
-        const currentPhaseStr = phaseManager.getCurrentPhase();
-        
-        speculativeResponseRef.current = aiServiceRef.current.generateResponse({
-          phase: currentPhaseStr,
-          conversationContext: phaseManager.getContext(),
-          userInput: newContent,
-          phasePromptContext: phaseManager.getPhasePromptContext(),
-          conversationHistory: conversationHistory
-        }).catch(err => {
-          console.log('⚠️ Speculative generation error:', err);
-          speculativeResponseRef.current = null;
-          throw err;
-        });
-      }
-      
-      // Grammatical structure analysis for sentence completeness
-      const completenessAnalysis = SentenceCompletenessAnalyzer.analyze(newContent);
-      
-      // SKIP incomplete sentence check if speculative generation already in progress
-      // This prevents 2s delays on instant/quick questions
-      if (speculativeResponseRef.current) {
-        console.log(`⚡ Speculative response in progress - skipping incomplete sentence check for instant response`);
-      } else if (!completenessAnalysis.isComplete && completenessAnalysis.confidence >= 0.5) {
-        // HEURISTIC: Short questions are complete - skip wait
-        if (isShortQuestion) {
-          console.log(`⚡ Short question (${newContent.length} chars) - processing immediately despite incomplete detection`);
-          // Process immediately, no wait
-        } else {
-          // Check if user is explicitly asking for time
-          const normalizedContent = newContent.toLowerCase();
-          const askingForTime = /hold on|give me a (sec|second|minute)|one (sec|second|minute)|just a (sec|second|minute)/.test(normalizedContent);
-          const waitTime = askingForTime ? 10000 : 5000;
-          
-          console.log(`⏸️ Incomplete sentence detected: "${newContent.substring(0, 60)}..."`);
-          console.log(`   Reason: ${completenessAnalysis.reason} (confidence: ${completenessAnalysis.confidence})`);
-          console.log(`   Waiting ${waitTime/1000}s for continuation${askingForTime ? ' (user asked for time)' : ''}`);
-          
-          const transcriptSnapshot = transcript;
-          const utteranceSnapshot = utteranceCountRef.current;
-          
-          // Wait to see if user continues
-          setTimeout(() => {
-            // If no new utterance started, process what we have
-            if (utteranceCountRef.current === utteranceSnapshot) {
-              console.log(`✅ No continuation after ${waitTime/1000}s - processing anyway`);
-              
-              // Increment utterance count for incomplete sentence that timed out
-              utteranceCountRef.current++;
-              const currentUtterance = utteranceCountRef.current;
-              
-              // NOTE: Don't set interrupt flag here - this is user continuing their own thought
-              // Interrupt detection happens in processUserInput via utterance count checks
-              
-              processUserInput(newContent, currentUtterance);
-              lastTranscriptRef.current = transcript;
-            } else {
-              console.log(`👂 User continued speaking - new utterance detected, skipping partial sentence`);
-            }
-          }, waitTime);
-          
-          return; // Don't process yet
-        }
-      }
-      
-      console.log(`✅ Sentence appears complete: ${completenessAnalysis.reason} (confidence: ${completenessAnalysis.confidence})`);
-
-      // SKIP GRACE WINDOW if speculative generation in progress - instant response needed
-      if (speculativeResponseRef.current) {
-        console.log(`⚡ Speculative response ready - processing immediately (no grace window)`);
-        utteranceCountRef.current++;
-        const currentUtterance = utteranceCountRef.current;
-        console.log(`📊 Utterance #${currentUtterance} complete`);
-        console.log(`🎙️ User speech: "${newContent}"`);
-        processUserInput(newContent, currentUtterance);
-        lastTranscriptRef.current = transcript;
-        return;
-      }
-
-      // SKIP GRACE WINDOW for questions - they're complete thoughts, no need to wait
-      if (endsWithQuestion) {
-        console.log(`⚡ Question detected - processing immediately (no grace window)`);
-        utteranceCountRef.current++;
-        const currentUtterance = utteranceCountRef.current;
-        console.log(`📊 Utterance #${currentUtterance} complete`);
-        console.log(`🎙️ User speech: "${newContent}"`);
-        processUserInput(newContent, currentUtterance);
-        lastTranscriptRef.current = transcript;
-        return;
-      }
-
-      // GRACE WINDOW: Check if this looks like it might continue
-      const hasContinuationCue = detectContinuationCue(newContent);
-      const graceWindow = hasContinuationCue ? 1500 : 1000; // Allow natural pauses between thoughts
-      
-      if (hasContinuationCue) {
-        console.log(`👂 Continuation cue detected ("${newContent.slice(-30)}") - extending grace to ${graceWindow}ms`);
-      }
-      
-      // Clear any existing grace timer
-      if (utteranceGraceTimerRef.current) {
-        clearTimeout(utteranceGraceTimerRef.current);
-      }
-      
-      // Store pending utterance
-      const utteranceSnapshot = utteranceCountRef.current;
-      pendingUtteranceRef.current = { text: newContent, count: utteranceSnapshot };
-      
-      console.log(`⏱️ Grace window: waiting ${graceWindow}ms to see if user continues...`);
-      
-      // Set grace timer
-      utteranceGraceTimerRef.current = setTimeout(() => {
-        // Check if grace timer was cleared (user continued speaking)
-        if (!utteranceGraceTimerRef.current) {
-          console.log(`👂 Grace window was reset - user is still speaking`);
-          return;
-        }
-        
-        // Check if utterance count changed (new utterance started)
-        if (utteranceCountRef.current !== utteranceSnapshot) {
-          console.log(`👂 User continued speaking during grace - merging utterances`);
-          return;
-        }
-        
-        // Grace period expired, no continuation - finalize this utterance
-        console.log(`✅ Grace period complete - finalizing utterance`);
-        
-        // Increment utterance counter
-        utteranceCountRef.current++;
-        const currentUtterance = utteranceCountRef.current;
-        console.log(`📊 Utterance #${currentUtterance} complete`);
-        
-        // NOTE: Don't set interrupt flag here - processUserInput handles interruption via utterance count
-        // If Marcus is speaking, his generation will detect the new utterance and self-cancel
-        
-        // Complete sentence - process
-        console.log(`🎙️ User speech: "${newContent}"`);
-        
-        processUserInput(newContent, currentUtterance);
-        lastTranscriptRef.current = transcript;
-        pendingUtteranceRef.current = null;
-      }, graceWindow);
-      
-      return; // Don't process yet - wait for grace period
-    } else {
-      // No new content, just update ref
+      // Process the complete utterance immediately
+      utteranceCountRef.current++;
+      const currentUtterance = utteranceCountRef.current;
+      console.log(`📊 Utterance #${currentUtterance} complete (${wordCount} words)`);
+      console.log(`🎙️ User speech: "${newContent}"`);
+      processUserInput(newContent, currentUtterance);
       lastTranscriptRef.current = transcript;
+      return;
     }
-  }, [transcript, processUserInput, isSpeaking, isProcessing]);
+    
+    // Short utterances (3 chars or less) - wait for continuation
+    if (newContent && newContent.length <= 3) {
+      console.log(`⏭️ Very short final: "${newContent}" - waiting 1s for continuation`);
+      
+      const transcriptSnapshot = transcript;
+      const utteranceSnapshot = utteranceCountRef.current;
+      
+      setTimeout(() => {
+        if (utteranceCountRef.current === utteranceSnapshot) {
+          console.log(`⏰ Short final timeout - processing "${newContent}"`);
+          utteranceCountRef.current++;
+          processUserInput(newContent, utteranceCountRef.current);
+          lastTranscriptRef.current = transcriptSnapshot;
+        }
+      }, 1000);
+      
+      return;
+    }
+  }, [transcript, isFinalTranscript, isSpeaking, conversationHistory, selectedScenario, processUserInput, detectContinuationCue]);
   
   /**
    * Handle Marcus's greeting when call connects
@@ -606,20 +668,21 @@ const CharmerControllerContent = memo(({
   useEffect(() => {
     if (isConnected && !hasGreetedRef.current && conversationHistory.length === 0) {
       hasGreetedRef.current = true;
-      console.log('👋 Marcus greeting: sending opening line');
       
-      // Marcus's Phase 1 opening line (as if answering his phone)
+      console.log('👋 Marcus connected - answering immediately');
+      
+      // Marcus's Phase 1 opening line - answer immediately (ringing already happened)
       setTimeout(async () => {
-        const greeting = "Marcus's Phone!!";
-        console.log(`🎤 Marcus [happy]: "${greeting}"`);
+        const greeting = "Hello?";
+        console.log(`🎤 Marcus [neutral]: "${greeting}"`);
         
         // Set echo protection BEFORE speaking to prevent microphone feedback
         lastMarcusSpeakTimeRef.current = Date.now();
         
         await speakAsMarcus(greeting, { 
           voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
-          emotion: 'happy', // Upbeat, answering the phone
-          speed: 0.75  // Slower, more deliberate delivery
+          emotion: 'neutral', // Answering phone, waiting to hear who it is
+          speed: 0.8
         });
         
         // Update timestamp after speaking completes
@@ -635,60 +698,206 @@ const CharmerControllerContent = memo(({
   }, [isConnected, conversationHistory.length, speakAsMarcus]);
   
   /**
+   * Handle scenario selection - show Marcus screen and start ringing
+   */
+  const handleScenarioSelect = useCallback(async (scenario: MarcusScenario) => {
+    if (isConnecting || isRinging) {
+      console.log('⚠️ Already connecting/ringing, ignoring duplicate call');
+      return;
+    }
+    
+    // Clear any existing ring timeout
+    if (ringTimeoutRef.current) {
+      console.log('⚠️ Clearing existing ring timeout');
+      clearTimeout(ringTimeoutRef.current);
+      ringTimeoutRef.current = null;
+    }
+    
+    console.log(`🎯 Scenario selected: ${scenario.name} (${scenario.difficulty})`);
+    setSelectedScenario(scenario);
+    setShowScenarioSelector(false);
+    setIsRinging(true);
+    
+    const sessionId = generateSessionId();
+    sessionIdRef.current = sessionId;
+    console.log(`📞 Starting ring sequence with session: ${sessionId}`);
+    
+    // Initialize conversation tracker
+    callStartTimeRef.current = Date.now();
+    conversationTrackerRef.current = new ConversationTracker(callStartTimeRef.current);
+    console.log('📋 Conversation tracker initialized');
+    
+    // Reset utterance counter for new call
+    utteranceCountRef.current = 0;
+    
+    // Reset phase manager with scenario context
+    phaseManagerRef.current.reset();
+    phaseManagerRef.current.updateContext({
+      product: scenario.product,
+      marcusRole: scenario.marcusRole,
+      marcusMood: scenario.marcusMood
+    });
+    setCurrentPhase('prospect');
+    setPhaseContext(phaseManagerRef.current.getContext());
+    setConversationHistory([]);
+    
+    // Play phone ringing sound IMMEDIATELY - looping naturally with silence gaps
+    if (phoneRingAudioRef.current) {
+      const audio = phoneRingAudioRef.current;
+      audio.volume = 1.0;
+      audio.currentTime = 0;
+      audio.loop = true;
+      audio.playbackRate = 1.4; // Speed up by 1.4x
+      audio.preservesPitch = true; // Keep pitch the same
+      
+      // Force immediate playback - don't await, just fire it
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => console.log('🔊 Phone ringing started immediately (1.4x speed, pitch preserved)'))
+          .catch(err => console.error('Phone ring error:', err));
+      }
+    }
+    
+    // Wait 15 seconds for phone to ring, THEN connect to Marcus
+    const startTime = Date.now();
+    console.log('📞 Phone ringing for 15 seconds...', new Date().toISOString());
+    
+    ringTimeoutRef.current = setTimeout(async () => {
+      const elapsed = Date.now() - startTime;
+      console.log(`📞 ${elapsed}ms elapsed - now connecting`, new Date().toISOString());
+      
+      // Stop ringing before connection
+      if (phoneRingAudioRef.current) {
+        phoneRingAudioRef.current.pause();
+        phoneRingAudioRef.current.currentTime = 0;
+        console.log('📵 Ringing finished - now connecting to Marcus');
+      }
+      
+      setIsRinging(false);
+      ringTimeoutRef.current = null;
+      
+      // Start the call AFTER ringing finishes
+      await startCall();
+    }, 15000);
+  }, [isConnecting, isRinging, startCall, generateSessionId]);
+  
+  /**
    * Handle call start
    */
   const handleStartCall = useCallback(async () => {
-    if (isConnecting) return;
+    if (isConnecting || !selectedScenario) return;
     
     const sessionId = generateSessionId();
     sessionIdRef.current = sessionId;
     console.log(`📞 Starting Marcus call with session: ${sessionId}`);
+    console.log(`🎯 Scenario: ${selectedScenario.name} (${selectedScenario.difficulty})`);
     
-    // Reset phase manager
+    // Play phone ringing sound
+    if (phoneRingAudioRef.current) {
+      phoneRingAudioRef.current.currentTime = 0;
+      phoneRingAudioRef.current.play().catch(err => console.log('Phone ring play error:', err));
+    }
+    
+    // Initialize conversation tracker
+    callStartTimeRef.current = Date.now();
+    conversationTrackerRef.current = new ConversationTracker(callStartTimeRef.current);
+    console.log('📋 Conversation tracker initialized');
+    
+    // Reset utterance counter for new call
+    utteranceCountRef.current = 0;
+    
+    // Reset phase manager with scenario context
     phaseManagerRef.current.reset();
+    phaseManagerRef.current.updateContext({
+      product: selectedScenario.product,
+      marcusRole: selectedScenario.marcusRole,
+      marcusMood: selectedScenario.marcusMood
+    });
     setCurrentPhase('prospect');
     setPhaseContext(phaseManagerRef.current.getContext());
     setConversationHistory([]);
     
     // Start the call (no persona parameter needed for new voice system)
     await startCall();
-  }, [isConnecting, startCall, generateSessionId]);
+  }, [isConnecting, startCall, generateSessionId, selectedScenario]);
   
   /**
    * Handle call end
    */
-  const handleEndCall = useCallback(() => {
+  const handleEndCall = useCallback(async () => {
     console.log('📵 Ending Marcus call');
     
     const duration = phaseManagerRef.current.getTotalDuration();
+    console.log(`📊 Call duration calculated: ${duration} seconds`);
     
-    // Build CallMetrics for post-call feedback
-    const metrics = {
-      callDuration: duration,
-      userSpeakingTime: Math.floor(duration * 0.5), // Estimated from conversation
-      marcusSpeakingTime: Math.floor(duration * 0.5),
-      questions: [],
-      openEndedCount: 0,
-      followUpCount: 0,
-      objections: [],
-      objectionsRaised: 0,
-      objectionsAddressed: 0,
-      objectionsResolved: 0,
-      totalExchanges: conversationHistory.length / 2,
-      winCondition: 'not_yet' as const
-    };
+    // Get conversation transcript
+    const transcript = conversationTrackerRef.current?.getTranscript();
     
-    // Get final call data
+    // Detect critical moments
+    let momentPuzzles: any[] = [];
+    let callSummary: any = null;
+    
+    if (transcript && conversationTrackerRef.current) {
+      console.log('🔍 Analyzing conversation for critical moments...');
+      
+      const detector = new CriticalMomentDetector();
+      const criticalMoments = detector.detectCriticalMoments(transcript);
+      
+      console.log(`✅ Found ${criticalMoments.length} critical moments`);
+      
+      // Generate puzzle-based feedback for moments
+      if (criticalMoments.length > 0) {
+        const feedbackGenerator = new MomentFeedbackGenerator();
+        
+        try {
+          momentPuzzles = await feedbackGenerator.generateMomentPuzzles(criticalMoments);
+          callSummary = await feedbackGenerator.generateCallSummary(
+            criticalMoments,
+            conversationHistory.length / 2,
+            duration
+          );
+          console.log('✅ Generated moment-based feedback');
+        } catch (error) {
+          console.error('❌ Error generating feedback:', error);
+        }
+      }
+    }
+    
+    // Build call data
     const callData = {
       sessionId: sessionIdRef.current,
       duration: duration,
-      metrics: metrics,
+      conversationHistory,
+      momentPuzzles: momentPuzzles,
+      callSummary: callSummary,
+      metrics: {
+        callDuration: duration,
+        userSpeakingTime: Math.floor(duration * 0.5),
+        marcusSpeakingTime: Math.floor(duration * 0.5),
+        questions: [],
+        openEndedCount: 0,
+        followUpCount: 0,
+        objections: [],
+        objectionsRaised: 0,
+        objectionsAddressed: 0,
+        objectionsResolved: 0,
+        totalExchanges: conversationHistory.length / 2,
+        winCondition: 'not_yet' as const
+      },
       phaseSummary: phaseManagerRef.current.getPhaseSummary(),
-      finalContext: phaseManagerRef.current.getContext(),
-      conversationHistory
+      finalContext: phaseManagerRef.current.getContext()
     };
     
     endCall();
+    
+    // Store feedback data and show UI
+    setMomentFeedbackData({
+      momentPuzzles,
+      callSummary,
+      duration
+    });
+    setShowMomentFeedback(true);
     
     if (onCallComplete) {
       onCallComplete(callData);
@@ -713,10 +922,44 @@ const CharmerControllerContent = memo(({
     }
   }, [autoStart, isConnected, isConnecting, handleStartCall]);
   
+  /**
+   * Close moment feedback and return to scenario selector
+   */
+  const handleCloseMomentFeedback = useCallback(() => {
+    setShowMomentFeedback(false);
+    setMomentFeedbackData(null);
+    setConversationHistory([]);
+    utteranceCountRef.current = 0;
+    lastTranscriptRef.current = '';
+    setShowScenarioSelector(true);
+    setSelectedScenario(null);
+  }, []);
+  
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-6">
-      <div className="w-full max-w-3xl">
-        {/* Header with Profile */}
+    <>
+      {/* Scenario Selector */}
+      {showScenarioSelector && (
+        <MarcusChallengeLobby
+          onStartChallenge={handleScenarioSelect}
+          onCancel={onCallEnd}
+        />
+      )}
+      
+      {/* Moment-Based Feedback */}
+      {showMomentFeedback && momentFeedbackData && (
+        <MarcusPostCallMoments
+          momentPuzzles={momentFeedbackData.momentPuzzles}
+          callSummary={momentFeedbackData.callSummary}
+          duration={momentFeedbackData.duration}
+          onTryAgain={handleCloseMomentFeedback}
+        />
+      )}
+      
+      {/* Main Call Interface - Show when ringing, connecting, or connected */}
+      {!showMomentFeedback && !showScenarioSelector && selectedScenario && (isRinging || isConnecting || isConnected) && (
+        <div className="min-h-screen bg-white flex items-center justify-center p-6">
+          <div className="w-full max-w-3xl">
+            {/* Header with Profile */}
         <div className="text-center mb-8">
           <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg border-2 border-black">
             <img 
@@ -733,88 +976,55 @@ const CharmerControllerContent = memo(({
           </p>
         </div>
         
-        {/* Call controls */}
+        {/* Call controls - only show End Call button when connected/connecting */}
         <div className="flex justify-center items-center gap-3 mb-8">
-          {!isConnected && !isConnecting ? (
-            <Button
-              variant="outlined"
-              onClick={handleStartCall}
-              disabled={isConnecting}
-              startIcon={<CallIcon />}
-              sx={{
-                bgcolor: 'white',
-                border: '2px solid black',
-                '&:hover': {
-                  bgcolor: 'white',
-                  border: '2px solid black',
-                  transform: 'translateY(-2px)',
-                },
-                color: 'black',
-                fontWeight: '600',
-                fontSize: '1rem',
-                py: 1.5,
-                px: 5,
-                borderRadius: 2,
-                textTransform: 'none',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                transition: 'all 0.3s ease',
-              }}
-            >
-              Start Call with Marcus
-            </Button>
-          ) : (
-            <>
-              <Button
-                variant="outlined"
-                onClick={handleEndCall}
-                startIcon={<EndCallIcon />}
-                sx={{
-                  bgcolor: 'white',
-                  border: '1px solid #dc2626',
-                  '&:hover': {
-                    bgcolor: '#fef2f2',
-                    border: '1px solid #dc2626',
-                  },
-                  color: '#dc2626',
-                  fontWeight: '500',
-                  fontSize: '0.875rem',
-                  py: 0.75,
-                  px: 3,
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                End Call
-              </Button>
-              
-              {/* Processing indicator beside button */}
-              {isProcessing && (
-                <CircularProgress size={20} sx={{ color: '#dc2626' }} />
-              )}
-            </>
+          <Button
+            variant="outlined"
+            onClick={handleEndCall}
+            startIcon={<EndCallIcon />}
+            sx={{
+              bgcolor: 'white',
+              border: '1px solid #dc2626',
+              '&:hover': {
+                bgcolor: '#fef2f2',
+                border: '1px solid #dc2626',
+              },
+              color: '#dc2626',
+              fontWeight: '500',
+              fontSize: '0.875rem',
+              py: 0.75,
+              px: 3,
+              borderRadius: 2,
+              textTransform: 'none',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            End Call
+          </Button>
+          
+          {/* Processing indicator beside button */}
+          {isProcessing && (
+            <CircularProgress size={20} sx={{ color: '#dc2626' }} />
           )}
         </div>
         
-        {/* Loading indicator */}
-        {isConnecting && (
+        {/* Ringing indicator */}
+        {isRinging && (
           <div className="flex justify-center items-center gap-3 mb-6 p-6 bg-white rounded-xl border-2 border-gray-300">
             <CircularProgress size={24} sx={{ color: '#dc2626' }} />
             <span className="text-base text-gray-700 font-medium">
-              Connecting to Marcus...
+              📞 Ringing...
             </span>
           </div>
         )}
         
-        {/* Connected - waiting for user */}
-        {isConnected && conversationHistory.length === 0 && !isProcessing && (
-          <div className="mb-6 p-6 bg-white rounded-xl border-2 border-gray-300 text-center">
-            <p className="text-lg text-gray-900 font-semibold mb-2">
-              🎤 Connected! Start the conversation
-            </p>
-            <p className="text-sm text-gray-600">
-              Introduce yourself and your product to Marcus
-            </p>
+        {/* Connecting indicator */}
+        {isConnecting && (
+          <div className="flex justify-center items-center gap-3 mb-6 p-6 bg-white rounded-xl border-2 border-gray-300">
+            <CircularProgress size={24} sx={{ color: '#dc2626' }} />
+            <span className="text-base text-gray-700 font-medium">
+              � Connecting...
+            </span>
           </div>
         )}
         
@@ -826,8 +1036,10 @@ const CharmerControllerContent = memo(({
             </p>
           </div>
         )}
-      </div>
-    </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 });
 

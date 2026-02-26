@@ -108,9 +108,9 @@ export class CartesiaService {
    */
   private async prefetchApiKey(): Promise<void> {
     try {
-      const response = await fetch('/.netlify/functions/cartesia-key');
+      const response = await fetch('/api/cartesia/token');
       const data = await response.json();
-      this.apiKey = data.api_key;
+      this.apiKey = data.key || data.api_key || data.token;
       console.log('[Cartesia] API key pre-fetched and ready');
     } catch (error) {
       console.warn('[Cartesia] Failed to pre-fetch API key, will fetch on first speak');
@@ -415,15 +415,34 @@ export class CartesiaService {
         if (this.audioQueue.length > 0) {
           this.playQueuedAudio();
         } else if (this.streamingComplete) {
-          // Streaming is done AND queue is empty = playback complete
-          this.isPlaying = false;
-          this.config.onSpeakingEnd();
+          // CRITICAL: Wait for scheduled audio to finish playing, not just queue to empty
+          const now = this.audioContext?.currentTime || 0;
+          const remainingTime = Math.max(0, this.scheduledEndTime - now);
           
-          // Resolve the playback complete promise
-          if (this.playbackCompleteResolve) {
-            console.log('[Cartesia] 🎵 All audio chunks played, resolving promise');
-            this.playbackCompleteResolve();
-            this.playbackCompleteResolve = null;
+          if (remainingTime > 0.01) {
+            // Audio still playing - wait for it to finish
+            const waitMs = Math.ceil(remainingTime * 1000) + 50; // Add 50ms buffer
+            console.log(`[Cartesia] ⏳ Waiting ${waitMs}ms for audio playback to complete`);
+            setTimeout(() => {
+              this.isPlaying = false;
+              this.config.onSpeakingEnd();
+              
+              if (this.playbackCompleteResolve) {
+                console.log('[Cartesia] 🎵 All audio chunks played, resolving promise');
+                this.playbackCompleteResolve();
+                this.playbackCompleteResolve = null;
+              }
+            }, waitMs);
+          } else {
+            // Audio finished - resolve immediately
+            this.isPlaying = false;
+            this.config.onSpeakingEnd();
+            
+            if (this.playbackCompleteResolve) {
+              console.log('[Cartesia] 🎵 All audio chunks played, resolving promise');
+              this.playbackCompleteResolve();
+              this.playbackCompleteResolve = null;
+            }
           }
         }
       }, 50);

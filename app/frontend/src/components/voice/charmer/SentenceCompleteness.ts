@@ -14,6 +14,16 @@ export class SentenceCompletenessAnalyzer {
     }
 
     const lastChar = trimmed[trimmed.length - 1];
+    
+    // EARLY EXIT: Questions ending with ? are complete
+    if (lastChar === '?') {
+      return {
+        isComplete: true,
+        reason: 'Question ending with ?',
+        confidence: 0.95
+      };
+    }
+    
     const words = trimmed.split(/\s+/);
     // Strip ALL punctuation including ellipsis (...), periods, commas, etc.
     const lastWord = words[words.length - 1]?.toLowerCase().replace(/[.,!?;:]+$/g, '').replace(/\.{2,}/g, '');

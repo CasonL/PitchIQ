@@ -72,7 +72,7 @@ export class DeepgramSTTService {
         punctuate: true,
         smart_format: true,
         interim_results: true,
-        utterance_end_ms: 1500, // 1.5s pause before ending utterance
+        utterance_end_ms: 2000, // 2s pause - allows multi-sentence pitches with natural pauses
         vad_events: false
       });
 
@@ -145,14 +145,15 @@ export class DeepgramSTTService {
    */
   private async fetchApiKey(): Promise<string> {
     console.log('[Deepgram] Fetching API key from backend...');
-    const response = await fetch('/.netlify/functions/deepgram-key');
+    const response = await fetch('/api/deepgram/token');
     const data = await response.json();
     
-    if (!data.api_key) {
+    const apiKey = data.key || data.token || data.api_key;
+    if (!apiKey) {
       throw new Error('No Deepgram API key received from backend');
     }
     
-    return data.api_key;
+    return apiKey;
   }
 
   /**
@@ -278,22 +279,35 @@ export class DeepgramSTTService {
       }
 
       // Handle transcript accumulation
-      if (speechFinal || isFinal) {
-        // Append to accumulated transcript but DON'T process yet
-        // Wait for UtteranceEnd to actually process
-        if (this.accumulatedTranscript) {
-          this.accumulatedTranscript += ' ' + transcript;
-          console.log(`[Deepgram] Appending: "${transcript}"`);
-          console.log(`[Deepgram] 📋 Accumulated: "${this.accumulatedTranscript}"`);
+      // Deepgram does NOT accumulate across speechFinals - each one resets
+      // We need to manually build the complete utterance
+      
+      if (!this.accumulatedTranscript) {
+        // First transcript - store it
+        this.accumulatedTranscript = transcript;
+        console.log(`[Deepgram] 📋 Started: "${transcript}"`);
+      } else if (transcript.length > this.accumulatedTranscript.length) {
+        // Longer = normal Deepgram accumulation within same phrase
+        this.accumulatedTranscript = transcript;
+      } else if (speechFinal || isFinal) {
+        // Shorter speechFinal after longer one = Deepgram RESET with new phrase
+        // Check if it's genuinely new content (not a substring)
+        const isSubstring = this.accumulatedTranscript.toLowerCase().includes(transcript.toLowerCase().trim());
+        const isVeryShort = transcript.trim().length <= 5; // Likely noise/echo
+        
+        if (!isSubstring && !isVeryShort) {
+          // New content - append it
+          this.accumulatedTranscript = this.accumulatedTranscript.trim() + ' ' + transcript.trim();
+          console.log(`[Deepgram] ➕ Appending: "${transcript}"`);
         } else {
-          this.accumulatedTranscript = transcript;
-          console.log(`[Deepgram] Started accumulating: "${transcript}"`);
+          console.log(`[Deepgram] ⏭️ Ignoring ${isVeryShort ? 'noise' : 'duplicate'}: "${transcript}"`);
         }
-        this.config.onTranscript(transcript, false); // Update UI only
-      } else {
-        // Partial result - send as-is for UI feedback
-        this.config.onTranscript(transcript, false);
       }
+      
+      // CRITICAL: Send ACCUMULATED transcript to UI to prevent fragmentation
+      // This ensures UI always sees full context, not fragments like "lot" or "is"
+      console.log(`[Deepgram] 📤 Sending accumulated: "${this.accumulatedTranscript}"`);
+      this.config.onTranscript(this.accumulatedTranscript, false);
 
     } catch (error) {
       console.error('[Deepgram] Transcript parsing error:', error);

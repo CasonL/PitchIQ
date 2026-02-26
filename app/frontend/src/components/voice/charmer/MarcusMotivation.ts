@@ -145,8 +145,9 @@ export function getConversationStyle(
 ): string {
   const inWarmth = isInWarmthWindow(exchangeCount, motivation);
   
-  if (inWarmth && !hasDetectedSalesIntent) {
-    return 'warm_personal';
+  // Start as cold call - Marcus doesn't know the caller
+  if (exchangeCount <= 1 && !hasDetectedSalesIntent) {
+    return 'cold_call_busy';
   }
   
   if (hasDetectedSalesIntent && !inWarmth) {

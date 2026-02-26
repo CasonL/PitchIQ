@@ -38,12 +38,11 @@ export class MarcusVoiceManager {
   private lastSpeakStartTime: number = 0; // Track when Marcus started speaking
   private isStopping: boolean = false; // Prevent concurrent stop calls
   private currentSpeechId: string | null = null; // Track current speech session
-  private userSpeechStartTime: number = 0; // Track when user started speaking
-  private interruptionThreshold: number = 400; // Minimum ms of user speech before interrupting Marcus (reduced for faster response)
-  private noiseFloor: number = 0; // Ambient noise level baseline
-  private isCalibrating: boolean = false; // Track if we're calibrating noise
-  private calibrationSamples: number[] = []; // Audio level samples during calibration
-  private lastInterruptionWasNoise: boolean = false; // Track if last interruption was false positive
+  private recentMarcusSpeech: string[] = []; // Track Marcus's recent utterances for echo detection
+  
+  // Backchannel patterns (don't interrupt on these)
+  private readonly BACKCHANNELS = ['mm-hmm', 'mhm', 'uh-huh', 'yeah', 'yep', 'right', 'okay', 'ok', 'sure', 'mm'];
+  private readonly CLARIFICATION_WORDS = ['wait', 'hold on', 'hang on', 'stop', 'what', 'sorry', 'huh', 'excuse me', 'actually', 'no', 'well', 'but', 'however'];
   private metrics: VoiceMetrics = {
     sttMinutes: 0,
     ttsCharacters: 0,
@@ -55,7 +54,6 @@ export class MarcusVoiceManager {
     this.config = config;
     this.sttService = new DeepgramSTTService({
       onTranscript: this.handleTranscript.bind(this),
-      onSpeechStart: this.handleSpeechStart.bind(this), // VAD for instant interruption
       onError: this.handleError.bind(this),
     });
     this.ttsService = new CartesiaService({
@@ -89,12 +87,19 @@ export class MarcusVoiceManager {
   async speak(text: string, options?: { 
     interrupt?: boolean;
     voiceId?: string;
-    emotion?: 'neutral' | 'happy' | 'sad' | 'angry' | 'fearful' | 'surprised';
+    emotion?: 'neutral' | 'happy' | 'excited' | 'amused' | 'warm' | 'interested' | 'curious' | 'skeptical' | 'disappointed' | 'frustrated' | 'annoyed' | 'worried' | 'surprised' | 'intrigued';
     speed?: number;
   }): Promise<void> {
     // Generate unique ID for this speech
     const speechId = `speech_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     this.currentSpeechId = speechId;
+    
+    // Store Marcus's speech for echo detection (strip SSML tags first)
+    const cleanText = text.replace(/<[^>]+>/g, '').toLowerCase(); // Remove all SSML tags
+    this.recentMarcusSpeech.push(cleanText);
+    if (this.recentMarcusSpeech.length > 5) {
+      this.recentMarcusSpeech.shift(); // Keep only last 5 utterances
+    }
     
     console.log('[MarcusVoiceManager] Speaking:', text, `(${speechId})`);
     
@@ -120,12 +125,18 @@ export class MarcusVoiceManager {
       return;
     }
 
+    // ECHO PREVENTION: Pause STT during TTS playback
+    this.sttService.pauseForTTS(cleanText);
+
     // Synthesize and play with voice options
     await this.ttsService.speak(text, {
       voiceId: options?.voiceId,
       emotion: options?.emotion,
       speed: options?.speed,
     });
+    
+    // ECHO PREVENTION: Resume STT after TTS complete
+    this.sttService.resumeAfterTTS();
   }
 
   /**
@@ -194,84 +205,12 @@ export class MarcusVoiceManager {
   // Private methods
 
   /**
-   * Handle immediate speech detection via VAD (Voice Activity Detection)
-   * Now with adaptive noise filtering!
+   * Handle transcript from ASR - forward to controller layer
+   * NOTE: Interruption detection disabled here - CharmerController handles it via utterance counts
+   * This prevents false interruptions from delayed UtteranceEnd events
    */
-  private handleSpeechStart(): void {
-    // ⚡ SMART INTERRUPTION with noise filtering
-    if (this.isSpeaking && !this.interruptionDetected) {
-      // 🛡️ ECHO PROTECTION: Ignore VAD events for first 800ms after Marcus starts
-      const timeSinceSpeakStart = Date.now() - this.lastSpeakStartTime;
-      if (timeSinceSpeakStart < 800) {
-        console.log(`🛡️ [Echo Protection] Ignoring VAD ${timeSinceSpeakStart}ms after Marcus started (likely echo)`);
-        return;
-      }
-      
-      // Track when user started speaking
-      if (this.userSpeechStartTime === 0) {
-        this.userSpeechStartTime = Date.now();
-        console.log('👂 [User Speech Detected] Monitoring duration before interrupting...');
-        
-        // Check again after threshold to see if user is still speaking
-        setTimeout(() => {
-          if (this.isSpeaking && this.userSpeechStartTime > 0 && !this.interruptionDetected) {
-            const speechDuration = Date.now() - this.userSpeechStartTime;
-            if (speechDuration >= this.interruptionThreshold) {
-              console.log(`⚡ [INSTANT Interruption] User spoke for ${speechDuration}ms - stopping Marcus NOW`);
-              this.interruptionDetected = true;
-              
-              // Stop Marcus immediately
-              this.stopSpeaking().catch(err => {
-                console.error('[MarcusVoiceManager] Error stopping speech on VAD interruption:', err);
-              });
-            }
-          }
-        }, this.interruptionThreshold);
-      }
-    } else if (!this.isSpeaking) {
-      // Reset user speech timer when Marcus isn't speaking
-      this.userSpeechStartTime = 0;
-    }
-  }
-
   private handleTranscript(text: string, isFinal: boolean): void {
-    // Reset user speech timer when we get a transcript (speech ended)
-    if (isFinal && this.userSpeechStartTime > 0) {
-      this.userSpeechStartTime = 0;
-    }
-    
-    // 🎤 INTERRUPTION DETECTION: Check if user spoke while Marcus was talking
-    if (this.isSpeaking && text.trim().length > 0 && !this.interruptionDetected) {
-      console.log('🛑 [Interruption Detected] User spoke while Marcus was talking:', text);
-      this.interruptionDetected = true;
-      this.lastInterruptionWasNoise = false; // Real speech detected
-      
-      // Stop Marcus immediately (may already be stopped by VAD)
-      this.stopSpeaking().catch(err => {
-        console.error('[MarcusVoiceManager] Error stopping speech on interruption:', err);
-      });
-      
-      // Notify controller about interruption
-      if (this.config.onInterruption) {
-        this.config.onInterruption(text);
-      }
-    }
-    
-    // 🔍 SMART RECOVERY: Check if interruption was false positive (no actual speech)
-    if (this.interruptionDetected && isFinal && text.trim().length === 0) {
-      // Marcus was stopped but no speech was detected - likely noise!
-      console.log('🤔 [False Interruption] Marcus was stopped but no speech detected');
-      this.lastInterruptionWasNoise = true;
-      
-      // Trigger recovery response after brief pause
-      setTimeout(() => {
-        if (this.lastInterruptionWasNoise && !this.isSpeaking) {
-          this.handleFalseInterruption();
-        }
-      }, 800); // Wait 800ms to see if user actually speaks
-    }
-
-    // Forward transcript to callback
+    // Simply forward to callback - let CharmerController handle interruption logic
     this.config.onTranscript(text, isFinal);
   }
 
@@ -304,30 +243,4 @@ export class MarcusVoiceManager {
     }
   }
 
-  /**
-   * Handle false interruption - Marcus was stopped by noise, not actual speech
-   */
-  private handleFalseInterruption(): void {
-    console.log('💬 [Smart Recovery] Asking if user said something...');
-    
-    const recoveryPhrases = [
-      "Did you say something?",
-      "Sorry, did you speak?",
-      "I thought I heard you - what was that?",
-      "Did you want to add something?",
-      "Sorry, I missed that - what did you say?"
-    ];
-    
-    const phrase = recoveryPhrases[Math.floor(Math.random() * recoveryPhrases.length)];
-    
-    // Speak the recovery phrase
-    this.speak(phrase, {
-      emotion: 'neutral',
-      speed: 1.0
-    }).catch(err => {
-      console.error('[MarcusVoiceManager] Error speaking recovery phrase:', err);
-    });
-    
-    this.lastInterruptionWasNoise = false;
-  }
 }

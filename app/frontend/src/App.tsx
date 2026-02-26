@@ -21,6 +21,7 @@ import SamOrchestratorPage from './pages/SamOrchestratorPage';
 import MarcusDemoPage from './pages/MarcusDemoPage';
 import BlogPage from './pages/BlogPage';
 import BlogPostPage from './pages/BlogPostPage';
+import AdminSignups from './pages/AdminSignups';
 
 const App = () => (
   <HelmetProvider>
@@ -42,6 +43,9 @@ const App = () => (
       {/* Blog */}
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogPostPage />} />
+
+      {/* Admin */}
+      <Route path="/admin/signups" element={<AdminSignups />} />
 
       {/* Onboarding */}
       <Route path="/personalize" element={<AuthGuard><PersonalizeCoachPage /></AuthGuard>} />

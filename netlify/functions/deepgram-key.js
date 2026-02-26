@@ -16,21 +16,26 @@ exports.handler = async function(event, context) {
     };
   }
 
-  // Check if API key exists
-  const apiKey = process.env.DEEPGRAM_API_KEY;
-  
-  if (!apiKey) {
+  try {
+    // Proxy to Flask backend which has keys loaded from instance/.env
+    const response = await fetch('http://localhost:8080/api/deepgram/key');
+    
+    if (!response.ok) {
+      throw new Error(`Flask backend returned ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify(data)
+    };
+  } catch (error) {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Deepgram API key not configured' })
+      body: JSON.stringify({ error: `Failed to fetch from backend: ${error.message}` })
     };
   }
-
-  // Return API key
-  return {
-    statusCode: 200,
-    headers,
-    body: JSON.stringify({ api_key: apiKey })
-  };
 };

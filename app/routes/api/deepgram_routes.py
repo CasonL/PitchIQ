@@ -11,11 +11,9 @@ deepgram_bp = Blueprint('deepgram', __name__)
 
 @deepgram_bp.route('/token', methods=['GET'])
 def get_deepgram_token():
-    """Get Deepgram API token.
-    If `DEMO_MODE` flag is enabled in Flask config, the route is public.
-    Otherwise the user must be authenticated.
+    """Generate temporary JWT token for browser-side Deepgram WebSocket connections.
+    Tokens expire in 30 seconds but WebSocket stays alive after connection.
     """
-    """Get Deepgram API token for Voice Agent integration with proper scopes"""
     try:
         # Get Deepgram API key from environment
         master_api_key = current_app.config.get('DEEPGRAM_API_KEY') or os.getenv('DEEPGRAM_API_KEY')
@@ -27,17 +25,54 @@ def get_deepgram_token():
                 'error': 'Deepgram API key not configured'
             }), 500
         
-        # For now, return the master key directly since scoped tokens are having permission issues
-        # This is acceptable for development/testing but should use scoped tokens in production
-        if current_user.is_authenticated:
-            logger.info(f"Returning master Deepgram token for user {current_user.id}")
-        else:
-            logger.info("Returning master Deepgram token (demo mode)")
-        # Return both formats for compatibility with different frontend components
-        return jsonify({
-            'key': master_api_key,
-            'token': master_api_key
-        })
+        # Generate temporary JWT token via Deepgram API
+        # This is required for browser security - raw API keys don't work from browsers
+        try:
+            response = requests.post(
+                'https://api.deepgram.com/v1/auth/grant',
+                headers={'Authorization': f'Token {master_api_key}'},
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                token_data = response.json()
+                jwt_token = token_data.get('access_token')
+                expires_in = token_data.get('expires_in', 30)
+                
+                if current_user.is_authenticated:
+                    logger.info(f"Generated temporary Deepgram token for user {current_user.id} (expires in {expires_in}s)")
+                else:
+                    logger.info(f"Generated temporary Deepgram token (demo mode, expires in {expires_in}s)")
+                
+                return jsonify({
+                    'key': jwt_token,
+                    'token': jwt_token,
+                    'expires_in': expires_in
+                })
+            elif response.status_code == 403:
+                # API key doesn't have permission to create temporary tokens
+                # Fall back to returning the master key (works for development)
+                logger.warning(f"API key lacks permission for JWT generation (403). Falling back to master key.")
+                logger.info("For production, upgrade to a Deepgram API key with temporary token permissions")
+                
+                return jsonify({
+                    'key': master_api_key,
+                    'token': master_api_key,
+                    'note': 'Using master API key (JWT generation not permitted)'
+                })
+            else:
+                logger.error(f"Failed to generate Deepgram token: {response.status_code} - {response.text}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Failed to generate token: {response.status_code}'
+                }), 500
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error calling Deepgram API: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to reach Deepgram API'
+            }), 500
         
     except Exception as e:
         logger.error(f"Error getting Deepgram token: {str(e)}")

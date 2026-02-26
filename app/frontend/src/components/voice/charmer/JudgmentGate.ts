@@ -121,15 +121,6 @@ export class JudgmentGate {
     }
 
     if (momentType === 'reflex' && questionRisk === 'low') {
-      if (prospectState === 'guarded' && userSentiment === 'defensive') {
-        return {
-          action: 'wait',
-          reason: 'Reflex moment but prospect is guarded - deliberate pause shows respect',
-          delayMs: 600,
-          confidence: 0.8
-        };
-      }
-
       return {
         action: 'speak',
         reason: 'Low-risk reflex moment - immediate response appropriate',
@@ -138,44 +129,10 @@ export class JudgmentGate {
     }
 
     if (momentType === 'judgment') {
-      if (questionRisk === 'high') {
-        return {
-          action: 'wait',
-          reason: 'High-risk question in judgment moment - pause demonstrates consideration',
-          delayMs: 1200,
-          confidence: 0.85
-        };
-      }
-
-      const recentHistory = conversationHistory.slice(-4);
-      const marcusRecentlyDominated = this.checkMarcusDominance(recentHistory);
-
-      if (marcusRecentlyDominated) {
-        return {
-          action: 'wait',
-          reason: 'Marcus has been talking too much - create space for user',
-          delayMs: 1000,
-          confidence: 0.8
-        };
-      }
-
-      if (prospectState === 'testing') {
-        const isProbingQuestion = this.isProbingForWeakness(userInput);
-        if (isProbingQuestion) {
-          return {
-            action: 'wait',
-            reason: 'User is testing - pause shows confidence, not desperation',
-            delayMs: 900,
-            confidence: 0.82
-          };
-        }
-      }
-
       return {
         action: 'speak',
-        reason: 'Judgment moment with acceptable risk profile',
-        delayMs: 400,
-        confidence: 0.75
+        reason: 'Judgment moment - natural AI generation provides sufficient timing',
+        confidence: 0.85
       };
     }
 
@@ -184,9 +141,9 @@ export class JudgmentGate {
 
       if (requiresDeliberation) {
         return {
-          action: 'wait',
-          reason: 'Strategic moment requires visible deliberation - pause is part of the answer',
-          delayMs: 1500,
+          action: 'speak',
+          reason: 'Strategic response ready - no artificial delay needed',
+          delayMs: 0,
           confidence: 0.88
         };
       }
@@ -194,16 +151,15 @@ export class JudgmentGate {
       return {
         action: 'speak',
         reason: 'Strategic response ready with acceptable timing',
-        delayMs: 800,
+        delayMs: 0,
         confidence: 0.8
       };
     }
 
     return {
-      action: 'wait',
-      reason: 'Default cautious behavior - wait for better signal',
-      delayMs: 700,
-      confidence: 0.6
+      action: 'speak',
+      reason: 'Default - proceed with natural timing',
+      confidence: 0.7
     };
   }
 

@@ -167,10 +167,14 @@ def create_app(config_name='dev'):
 
     # Import company API blueprint
     from app.routes.api.company_routes import company_bp
+    
+    # Import OpenAI proxy blueprint
+    from app.routes.api.openai_routes import openai_bp
 
     # Register API blueprints
     flask_instance.register_blueprint(api_main_bp, url_prefix='/api')
     flask_instance.register_blueprint(auth_api_bp, url_prefix='/api/auth')
+    flask_instance.register_blueprint(openai_bp, url_prefix='/api/openai')
     flask_instance.register_blueprint(email_signup_bp, url_prefix='/api/email-signup')
     flask_instance.register_blueprint(contact_bp, url_prefix='/api/contact')
     flask_instance.register_blueprint(dashboard_api_bp, url_prefix='/api/dashboard')
@@ -187,6 +191,10 @@ def create_app(config_name='dev'):
     # Deepgram Voice Agent API
     from app.routes.api.deepgram_routes import deepgram_bp
     flask_instance.register_blueprint(deepgram_bp, url_prefix='/api/deepgram')
+    
+    # Cartesia TTS API
+    from app.routes.api.cartesia_routes import cartesia_bp
+    flask_instance.register_blueprint(cartesia_bp, url_prefix='/api/cartesia')
     
     # Debug: Check company route registration
     print("\n=== DEBUG: Checking company route registration ===")
@@ -249,6 +257,10 @@ def create_app(config_name='dev'):
     from app.routes.api.conversation_patterns import conversation_patterns_bp
     flask_instance.register_blueprint(conversation_patterns_bp, url_prefix='/api')
     
+    # API Key proxy routes for Marcus demo
+    from app.routes.api.api_key_routes import api_keys_bp
+    flask_instance.register_blueprint(api_keys_bp)
+    
     # Register demo blueprint
     from app.demo import demo
     flask_instance.register_blueprint(demo, url_prefix='/demo')
@@ -264,6 +276,7 @@ def create_app(config_name='dev'):
     # This must be done after csrf.init_app() is called
     csrf.exempt(api_main_bp)
     csrf.exempt(auth_api_bp)
+    csrf.exempt(openai_bp)
     csrf.exempt(email_signup_bp)
     csrf.exempt(contact_bp)
     csrf.exempt(dashboard_api_bp)

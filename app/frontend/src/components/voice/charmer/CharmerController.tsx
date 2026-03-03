@@ -928,9 +928,7 @@ const CharmerControllerContent = memo(({
       onCallComplete(callData);
     }
     
-    if (onCallEnd) {
-      onCallEnd();
-    }
+    // Don't call onCallEnd yet - wait until user closes feedback
   }, [endCall, onCallEnd, onCallComplete, conversationHistory]);
   
   /**
@@ -958,7 +956,12 @@ const CharmerControllerContent = memo(({
     lastTranscriptRef.current = '';
     setShowScenarioSelector(true);
     setSelectedScenario(null);
-  }, []);
+    
+    // Now call onCallEnd after user closes feedback
+    if (onCallEnd) {
+      onCallEnd();
+    }
+  }, [onCallEnd]);
   
   return (
     <>

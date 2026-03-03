@@ -4,7 +4,7 @@
   command = "npm run build"
 
 [functions]
-  directory = "netlify/functions"
+  directory = "app/frontend/netlify/functions"
 
 # Local dev settings
 [dev]

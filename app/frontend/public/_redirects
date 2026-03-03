@@ -1,2 +1,4 @@
+/api/deepgram/token /.netlify/functions/deepgram-key 200
+/api/cartesia/token /.netlify/functions/cartesia-key 200
 /thank-you.html /thank-you.html 200
 /*    /index.html   200

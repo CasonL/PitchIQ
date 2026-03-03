@@ -775,6 +775,19 @@ const CharmerControllerContent = memo(({
    * Handle scenario selection - show Marcus screen and start ringing
    */
   const handleScenarioSelect = useCallback(async (scenario: MarcusScenario) => {
+    // Clear any saved feedback when starting a new scenario
+    try {
+      localStorage.removeItem('marcusFeedbackData');
+      console.log('🗑️ Cleared old feedback data for new scenario');
+    } catch (err) {
+      console.error('❌ Failed to clear old feedback data:', err);
+    }
+    
+    console.log(`🎯 Scenario selected: ${scenario.name} (${scenario.difficulty})`);
+    setSelectedScenario(scenario);
+    setShowScenarioSelector(false);
+    setIsRinging(true);
+    
     const sessionId = generateSessionId();
     sessionIdRef.current = sessionId;
     console.log(`📞 Starting ring sequence with session: ${sessionId}`);

@@ -217,13 +217,13 @@ export const TrainingWheels: React.FC<TrainingWheelsProps> = ({
           <div className="flex items-start gap-3">
             {getTipIcon(tip.type)}
             <div className="flex-1">
-              <p className="text-white text-sm font-medium leading-relaxed">
+              <p className={`text-sm font-medium leading-relaxed ${tip.type === 'success' ? 'text-gray-900' : 'text-white'}`}>
                 {tip.message}
               </p>
               
               {tip.suggestion && (
-                <div className="mt-3 p-3 bg-black/50 rounded-xl border border-white/20">
-                  <p className="text-xs text-gray-200 font-mono leading-relaxed">
+                <div className={`mt-3 p-3 rounded-xl border ${tip.type === 'success' ? 'bg-black/20 border-black/30' : 'bg-black/50 border-white/20'}`}>
+                  <p className={`text-xs font-mono leading-relaxed ${tip.type === 'success' ? 'text-gray-900' : 'text-gray-200'}`}>
                     💡 {tip.suggestion}
                   </p>
                 </div>

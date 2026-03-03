@@ -871,21 +871,24 @@ const CharmerControllerContent = memo(({
       
       console.log(`✅ Found ${criticalMoments.length} critical moments`);
       
-      // Generate puzzle-based feedback for moments
-      if (criticalMoments.length > 0) {
-        const feedbackGenerator = new MomentFeedbackGenerator();
-        
-        try {
+      // Always generate feedback, even with 0 critical moments
+      const feedbackGenerator = new MomentFeedbackGenerator();
+      
+      try {
+        // Generate moment puzzles if we have critical moments
+        if (criticalMoments.length > 0) {
           momentPuzzles = await feedbackGenerator.generateMomentPuzzles(criticalMoments);
-          callSummary = await feedbackGenerator.generateCallSummary(
-            criticalMoments,
-            conversationHistory.length / 2,
-            duration
-          );
-          console.log('✅ Generated moment-based feedback');
-        } catch (error) {
-          console.error('❌ Error generating feedback:', error);
         }
+        
+        // Always generate call summary for overall feedback
+        callSummary = await feedbackGenerator.generateCallSummary(
+          criticalMoments,
+          conversationHistory.length / 2,
+          duration
+        );
+        console.log('✅ Generated moment-based feedback');
+      } catch (error) {
+        console.error('❌ Error generating feedback:', error);
       }
     }
     

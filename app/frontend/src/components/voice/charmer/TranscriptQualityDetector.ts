@@ -51,7 +51,7 @@ export class TranscriptQualityDetector {
       garbageScore += 0.5;
     }
     
-    const isLikelyGarbled = garbageScore >= 0.4;
+    const isLikelyGarbled = garbageScore >= 0.65;
     
     return {
       isLikelyGarbled,

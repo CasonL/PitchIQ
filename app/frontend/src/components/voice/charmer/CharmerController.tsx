@@ -205,6 +205,12 @@ const CharmerControllerContent = memo(({
           { role: 'assistant', content: response }
         ]);
         
+        // Track garbled audio clarification
+        if (conversationTrackerRef.current) {
+          conversationTrackerRef.current.addUserMessage('[garbled audio]');
+          conversationTrackerRef.current.addMarcusMessage(response, 5);
+        }
+        
         setIsProcessing(false);
         return;
       }
@@ -218,6 +224,11 @@ const CharmerControllerContent = memo(({
       
       // Add user input to conversation history
       setConversationHistory(prev => [...prev, { role: 'user', content: userText }]);
+      
+      // Track message for feedback generation
+      if (conversationTrackerRef.current) {
+        conversationTrackerRef.current.addUserMessage(userText);
+      }
       
       // Extract information from user's speech
       // Pass current name to allow corrections and utterance count to limit name extraction to introductions
@@ -466,6 +477,15 @@ const CharmerControllerContent = memo(({
       setConversationHistory(prev => [...prev, { role: 'assistant', content: aiResponse.content }]);
       console.log(`🎤 Marcus [${aiResponse.emotion}]: "${aiResponse.content}"`);
       
+      // Track Marcus message for feedback generation
+      if (conversationTrackerRef.current) {
+        conversationTrackerRef.current.addMarcusMessage(
+          aiResponse.content,
+          strategyContext.resistanceLevel,
+          aiResponse.emotion
+        );
+      }
+      
       // Update context state
       setPhaseContext(phaseManager.getContext());
       
@@ -688,6 +708,11 @@ const CharmerControllerContent = memo(({
         // Update timestamp after speaking completes
         lastMarcusSpeakTimeRef.current = Date.now();
         setConversationHistory([{ role: 'assistant', content: greeting }]);
+        
+        // Track greeting in conversation
+        if (conversationTrackerRef.current) {
+          conversationTrackerRef.current.addMarcusMessage(greeting, 6, 'neutral');
+        }
       }, 500);
     }
     

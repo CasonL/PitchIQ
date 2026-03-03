@@ -62,7 +62,15 @@ const CharmerControllerContent = memo(({
   
   // Scenario state
   const [selectedScenario, setSelectedScenario] = useState<MarcusScenario | null>(null);
-  const [showScenarioSelector, setShowScenarioSelector] = useState(true);
+  const [showScenarioSelector, setShowScenarioSelector] = useState(() => {
+    // Don't show scenario selector if we have saved feedback
+    try {
+      const saved = localStorage.getItem('marcusFeedbackData');
+      return !saved;
+    } catch {
+      return true;
+    }
+  });
   const [isRinging, setIsRinging] = useState(false);
   const ringTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -106,7 +114,20 @@ const CharmerControllerContent = memo(({
   // Conversation state
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
   const [showMomentFeedback, setShowMomentFeedback] = useState(false);
-  const [momentFeedbackData, setMomentFeedbackData] = useState<{momentPuzzles: any[], callSummary: any, duration: number, conversationExchanges?: any[]} | null>(null);
+  const [momentFeedbackData, setMomentFeedbackData] = useState<{momentPuzzles: any[], callSummary: any, duration: number, conversationExchanges?: any[]} | null>(() => {
+    // Restore feedback data from localStorage on mount
+    try {
+      const saved = localStorage.getItem('marcusFeedbackData');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log('🔄 Restored feedback data from localStorage');
+        return parsed;
+      }
+    } catch (err) {
+      console.error('❌ Failed to restore feedback data:', err);
+    }
+    return null;
+  });
   
   // Training wheels state
   const [trainingWheelsEnabled, setTrainingWheelsEnabled] = useState(false);
@@ -754,23 +775,6 @@ const CharmerControllerContent = memo(({
    * Handle scenario selection - show Marcus screen and start ringing
    */
   const handleScenarioSelect = useCallback(async (scenario: MarcusScenario) => {
-    if (isConnecting || isRinging) {
-      console.log('⚠️ Already connecting/ringing, ignoring duplicate call');
-      return;
-    }
-    
-    // Clear any existing ring timeout
-    if (ringTimeoutRef.current) {
-      console.log('⚠️ Clearing existing ring timeout');
-      clearTimeout(ringTimeoutRef.current);
-      ringTimeoutRef.current = null;
-    }
-    
-    console.log(`🎯 Scenario selected: ${scenario.name} (${scenario.difficulty})`);
-    setSelectedScenario(scenario);
-    setShowScenarioSelector(false);
-    setIsRinging(true);
-    
     const sessionId = generateSessionId();
     sessionIdRef.current = sessionId;
     console.log(`📞 Starting ring sequence with session: ${sessionId}`);
@@ -979,9 +983,46 @@ const CharmerControllerContent = memo(({
   }, [autoStart, isConnected, isConnecting, handleStartCall]);
   
   /**
+   * Restore feedback UI state on mount if data exists
+   */
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('marcusFeedbackData');
+      if (saved) {
+        setShowMomentFeedback(true);
+        console.log('🔄 Showing restored feedback UI');
+      }
+    } catch (err) {
+      console.error('❌ Failed to restore feedback UI:', err);
+    }
+  }, []);
+  
+  /**
+   * Save feedback data to localStorage whenever it changes
+   */
+  useEffect(() => {
+    if (momentFeedbackData) {
+      try {
+        localStorage.setItem('marcusFeedbackData', JSON.stringify(momentFeedbackData));
+        console.log('💾 Saved feedback data to localStorage');
+      } catch (err) {
+        console.error('❌ Failed to save feedback data:', err);
+      }
+    }
+  }, [momentFeedbackData]);
+  
+  /**
    * Close moment feedback and return to scenario selector
    */
   const handleCloseMomentFeedback = useCallback(() => {
+    // Clear localStorage when closing feedback
+    try {
+      localStorage.removeItem('marcusFeedbackData');
+      console.log('🗑️ Cleared feedback data from localStorage');
+    } catch (err) {
+      console.error('❌ Failed to clear feedback data:', err);
+    }
+    
     setShowMomentFeedback(false);
     setMomentFeedbackData(null);
     setConversationHistory([]);

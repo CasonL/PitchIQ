@@ -105,7 +105,7 @@ const CharmerControllerContent = memo(({
   // Conversation state
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
   const [showMomentFeedback, setShowMomentFeedback] = useState(false);
-  const [momentFeedbackData, setMomentFeedbackData] = useState<{momentPuzzles: any[], callSummary: any, duration: number} | null>(null);
+  const [momentFeedbackData, setMomentFeedbackData] = useState<{momentPuzzles: any[], callSummary: any, duration: number, conversationExchanges?: any[]} | null>(null);
   const lastTranscriptRef = useRef('');
   const transcriptRef = useRef(''); // Track current transcript for timeout callbacks
   const [isProcessing, setIsProcessing] = useState(false);
@@ -189,6 +189,7 @@ const CharmerControllerContent = memo(({
           phase: currentPhaseStr,
           conversationContext: phaseManager.getContext(),
           userInput: userText,
+          phasePromptContext: phaseManager.getPhasePromptContext(),
           conversationHistory: conversationHistory
         });
         
@@ -863,6 +864,7 @@ const CharmerControllerContent = memo(({
     
     // Get conversation transcript
     const transcript = conversationTrackerRef.current?.getTranscript();
+    const conversationExchanges = transcript?.exchanges || [];
     
     // Detect critical moments
     let momentPuzzles: any[] = [];
@@ -928,7 +930,8 @@ const CharmerControllerContent = memo(({
     setMomentFeedbackData({
       momentPuzzles,
       callSummary,
-      duration
+      duration,
+      conversationExchanges
     });
     setShowMomentFeedback(true);
     
@@ -987,6 +990,7 @@ const CharmerControllerContent = memo(({
           momentPuzzles={momentFeedbackData.momentPuzzles}
           callSummary={momentFeedbackData.callSummary}
           duration={momentFeedbackData.duration}
+          conversationExchanges={momentFeedbackData.conversationExchanges}
           onTryAgain={handleCloseMomentFeedback}
         />
       )}

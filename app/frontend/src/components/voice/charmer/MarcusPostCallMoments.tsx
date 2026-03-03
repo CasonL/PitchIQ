@@ -7,11 +7,15 @@ import React, { useState } from 'react';
 import { Button } from '@mui/material';
 import { RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import { MomentPuzzle, CallSummary } from './MomentFeedbackGenerator';
+import { ConversationExchange } from './ConversationTranscript';
+import { AnnotatedTranscript } from './AnnotatedTranscript';
+import { ResistanceTimeline } from './ResistanceTimeline';
 
 interface MarcusPostCallMomentsProps {
   momentPuzzles: MomentPuzzle[];
   callSummary: CallSummary | null;
   duration: number;
+  conversationExchanges?: ConversationExchange[];
   onTryAgain: () => void;
 }
 
@@ -19,6 +23,7 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
   momentPuzzles,
   callSummary,
   duration,
+  conversationExchanges = [],
   onTryAgain
 }) => {
   const [revealedHints, setRevealedHints] = useState<{[key: string]: boolean}>({});
@@ -57,15 +62,20 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
           </p>
         </div>
         
-        {/* No moments found */}
-        {momentPuzzles.length === 0 && (
-          <div className="bg-white/5 border border-white/10 rounded-3xl p-8 mb-6">
-            <p className="text-gray-300 text-center mb-4">
-              Call too short to analyze critical moments.
-            </p>
-            <p className="text-gray-400 text-center text-sm">
-              Try a longer conversation to get detailed feedback on key exchanges.
-            </p>
+        {/* Resistance Timeline */}
+        {conversationExchanges.length > 0 && (
+          <div className="mb-6">
+            <ResistanceTimeline 
+              exchanges={conversationExchanges} 
+              duration={duration} 
+            />
+          </div>
+        )}
+        
+        {/* Annotated Transcript */}
+        {conversationExchanges.length > 0 && (
+          <div className="mb-6">
+            <AnnotatedTranscript exchanges={conversationExchanges} />
           </div>
         )}
         

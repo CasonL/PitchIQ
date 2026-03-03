@@ -23,7 +23,7 @@ export class MomentFeedbackGenerator {
   
   constructor(apiKey?: string) {
     this.apiKey = apiKey || '';
-    this.baseUrl = '/api/openai';
+    this.baseUrl = '/api/openai/chat';
   }
   
   /**

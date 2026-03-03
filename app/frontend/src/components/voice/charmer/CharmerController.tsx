@@ -25,6 +25,7 @@ import { MarcusChallengeLobby } from './MarcusChallengeLobby';
 import { MarcusScenario } from './MarcusScenarios';
 import { FirstUtterancePatternDetector } from './FirstUtterancePatternDetector';
 import { TranscriptQualityDetector } from './TranscriptQualityDetector';
+import { TrainingWheels } from './TrainingWheels';
 
 interface CharmerControllerProps {
   onCallEnd?: () => void;
@@ -106,6 +107,19 @@ const CharmerControllerContent = memo(({
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
   const [showMomentFeedback, setShowMomentFeedback] = useState(false);
   const [momentFeedbackData, setMomentFeedbackData] = useState<{momentPuzzles: any[], callSummary: any, duration: number, conversationExchanges?: any[]} | null>(null);
+  
+  // Training wheels state
+  const [trainingWheelsEnabled, setTrainingWheelsEnabled] = useState(false);
+  const [currentResistance, setCurrentResistance] = useState(6);
+  const [lastResistance, setLastResistance] = useState(6);
+  const [currentSignals, setCurrentSignals] = useState({
+    askedDiscovery: false,
+    buildingRapport: false,
+    talkingTooMuch: false,
+    makingAssumptions: false,
+    providingValue: false
+  });
+  const [lastUserMessage, setLastUserMessage] = useState('');
   const lastTranscriptRef = useRef('');
   const transcriptRef = useRef(''); // Track current transcript for timeout callbacks
   const [isProcessing, setIsProcessing] = useState(false);
@@ -296,6 +310,14 @@ const CharmerControllerContent = memo(({
       };
       
       const strategyConstraints = strategyLayerRef.current.determineStrategy(strategyContext);
+      
+      // Update training wheels state
+      if (trainingWheelsEnabled) {
+        setLastResistance(currentResistance);
+        setCurrentResistance(strategyConstraints.resistanceLevel);
+        setCurrentSignals(repQualitySignals);
+        setLastUserMessage(userText);
+      }
       
       // Classify question for logging/analysis only - NO artificial delays
       // Response time comes from actual AI generation complexity, not fake waits
@@ -995,6 +1017,19 @@ const CharmerControllerContent = memo(({
         />
       )}
       
+      {/* Training Wheels Overlay */}
+      {!showMomentFeedback && !showScenarioSelector && isConnected && (
+        <TrainingWheels
+          enabled={trainingWheelsEnabled}
+          currentResistance={currentResistance}
+          lastResistance={lastResistance}
+          currentPhase={currentPhase === 'prospect' ? 1 : currentPhase === 'discovery' ? 2 : 3}
+          signals={currentSignals}
+          lastUserMessage={lastUserMessage}
+          conversationTurns={conversationHistory.filter(h => h.role === 'user').length}
+        />
+      )}
+      
       {/* Main Call Interface - Show when ringing, connecting, or connected */}
       {!showMomentFeedback && !showScenarioSelector && selectedScenario && (isRinging || isConnecting || isConnected) && (
         <div className="min-h-screen bg-white flex items-center justify-center p-6">
@@ -1018,6 +1053,29 @@ const CharmerControllerContent = memo(({
         
         {/* Call controls - only show End Call button when connected/connecting */}
         <div className="flex justify-center items-center gap-3 mb-8">
+          {/* Training Wheels Toggle */}
+          <Button
+            variant="outlined"
+            onClick={() => setTrainingWheelsEnabled(!trainingWheelsEnabled)}
+            sx={{
+              bgcolor: trainingWheelsEnabled ? '#dcfce7' : 'white',
+              border: trainingWheelsEnabled ? '2px solid #10b981' : '1px solid #9ca3af',
+              color: trainingWheelsEnabled ? '#065f46' : '#6b7280',
+              '&:hover': {
+                bgcolor: trainingWheelsEnabled ? '#bbf7d0' : '#f9fafb',
+                border: trainingWheelsEnabled ? '2px solid #10b981' : '1px solid #6b7280',
+              },
+              textTransform: 'none',
+              borderRadius: 2,
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              px: 2,
+              py: 1
+            }}
+          >
+            {trainingWheelsEnabled ? '🎓 Training ON' : '🎓 Training OFF'}
+          </Button>
+          
           <Button
             variant="outlined"
             onClick={handleEndCall}

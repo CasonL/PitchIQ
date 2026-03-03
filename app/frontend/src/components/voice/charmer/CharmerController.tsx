@@ -177,20 +177,25 @@ const CharmerControllerContent = memo(({
         console.log(`   Issues: ${qualityCheck.issues.join(', ')}`);
         console.log(`   Original: "${userText}"`);
         
-        // Marcus didn't hear properly - use natural "can't hear you" response
-        const clarificationResponses = [
-          "Sorry, you cut out there. Can you say that again?",
-          "I didn't catch that. Can you repeat it?",
-          "Sorry, what was that? You broke up a bit.",
-          "Can you repeat that? I missed it."
-        ];
+        // Generate adaptive clarification - Marcus acknowledges what he understood
+        // and asks for clarification on unclear parts (instead of generic "can you repeat that")
+        console.log(`🎤 Generating adaptive clarification response...`);
         
-        const response = clarificationResponses[Math.floor(Math.random() * clarificationResponses.length)];
+        const phaseManager = phaseManagerRef.current;
+        const currentPhaseStr = phaseManager.getCurrentPhase();
         
-        console.log(`🎤 Marcus [confused]: "${response}"`);
+        // Pass garbled text to AI - prompt has ADAPTIVE CLARIFICATION instructions
+        const aiResponse = await aiServiceRef.current.generateResponse({
+          phase: currentPhaseStr,
+          conversationContext: phaseManager.getContext(),
+          userInput: userText,
+          conversationHistory: conversationHistory
+        });
         
-        // Speak immediately - no AI processing needed
-        await speakAsMarcus(response, {
+        console.log(`🎤 Marcus [confused]: "${aiResponse.content}"`);
+        
+        // Speak the adaptive clarification
+        await speakAsMarcus(aiResponse.content, {
           voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
           emotion: 'worried',
           speed: 0.75
@@ -201,14 +206,14 @@ const CharmerControllerContent = memo(({
         // Add to conversation history as clarification request
         setConversationHistory(prev => [
           ...prev,
-          { role: 'user', content: '[garbled audio]' },
-          { role: 'assistant', content: response }
+          { role: 'user', content: userText },
+          { role: 'assistant', content: aiResponse.content }
         ]);
         
         // Track garbled audio clarification
         if (conversationTrackerRef.current) {
-          conversationTrackerRef.current.addUserMessage('[garbled audio]');
-          conversationTrackerRef.current.addMarcusMessage(response, 5);
+          conversationTrackerRef.current.addUserMessage(userText);
+          conversationTrackerRef.current.addMarcusMessage(aiResponse.content, 5);
         }
         
         setIsProcessing(false);

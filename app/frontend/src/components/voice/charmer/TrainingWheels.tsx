@@ -222,8 +222,8 @@ export const TrainingWheels: React.FC<TrainingWheelsProps> = ({
               </p>
               
               {tip.suggestion && (
-                <div className="mt-3 p-3 bg-black/30 rounded-xl border border-white/10">
-                  <p className="text-xs text-gray-300 font-mono">
+                <div className="mt-3 p-3 bg-black/50 rounded-xl border border-white/20">
+                  <p className="text-xs text-gray-200 font-mono leading-relaxed">
                     💡 {tip.suggestion}
                   </p>
                 </div>

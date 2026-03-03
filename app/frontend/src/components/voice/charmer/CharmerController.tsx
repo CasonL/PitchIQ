@@ -509,7 +509,7 @@ const CharmerControllerContent = memo(({
       if (conversationTrackerRef.current) {
         conversationTrackerRef.current.addMarcusMessage(
           aiResponse.content,
-          strategyContext.resistanceLevel,
+          strategyConstraints.resistanceLevel,
           aiResponse.emotion
         );
       }

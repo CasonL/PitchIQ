@@ -8,7 +8,7 @@ import { ConversationTranscript, ConversationExchange, CriticalMoment } from './
 export class CriticalMomentDetector {
   /**
    * Analyze transcript and find the most critical moments
-   * Returns max 2 moments, prioritized by impact
+   * Returns max 5 moments, prioritized by impact
    */
   detectCriticalMoments(transcript: ConversationTranscript): CriticalMoment[] {
     const moments: CriticalMoment[] = [];
@@ -25,10 +25,26 @@ export class CriticalMomentDetector {
     const objectionMisses = this.findObjectionMishandling(transcript);
     moments.push(...objectionMisses);
     
-    // Sort by severity and return top 2
+    // NEW: Find rambling responses
+    const rambling = this.findRambling(transcript);
+    moments.push(...rambling);
+    
+    // NEW: Find repetition
+    const repetition = this.findRepetition(transcript);
+    moments.push(...repetition);
+    
+    // NEW: Find tone issues
+    const toneIssues = this.findToneIssues(transcript);
+    moments.push(...toneIssues);
+    
+    // NEW: Find missed pain signals
+    const missedPain = this.findMissedPainSignals(transcript);
+    moments.push(...missedPain);
+    
+    // Sort by severity and return top 5
     return moments
       .sort((a, b) => b.severity - a.severity)
-      .slice(0, 2);
+      .slice(0, 5);
   }
   
   /**
@@ -211,5 +227,169 @@ export class CriticalMomentDetector {
       .filter(w => w.length > 3 && !stopWords.includes(w));
     
     return words.slice(0, 5); // Top 5 key words
+  }
+  
+  /**
+   * NEW: Find rambling - user responses longer than 15 seconds
+   */
+  private findRambling(transcript: ConversationTranscript): CriticalMoment[] {
+    const rambling: CriticalMoment[] = [];
+    const exchanges = transcript.exchanges;
+    
+    for (let i = 0; i < exchanges.length; i++) {
+      const userMsg = exchanges[i];
+      
+      if (userMsg.speaker === 'user') {
+        // Estimate duration: ~150 words per minute = 2.5 words per second
+        const wordCount = userMsg.text.split(/\s+/).length;
+        const estimatedSeconds = wordCount / 2.5;
+        
+        if (estimatedSeconds > 15) {
+          const nextMarcus = this.findNextMarcusMessage(exchanges, i);
+          
+          rambling.push({
+            id: `ramble_${userMsg.id}`,
+            timestamp: userMsg.timestamp,
+            type: 'rambling',
+            severity: 0.6,
+            userMessage: userMsg.text,
+            marcusResponse: nextMarcus?.text || '',
+            resistanceBefore: userMsg.resistanceLevel || 0,
+            resistanceAfter: nextMarcus?.resistanceLevel || 0,
+            whatHappened: `User spoke for ~${Math.round(estimatedSeconds)} seconds - too long`,
+            hiddenOpportunity: 'Keep responses under 10 seconds. Ask questions, don\'t monologue.'
+          });
+        }
+      }
+    }
+    
+    return rambling;
+  }
+  
+  /**
+   * NEW: Find repetition - asking the same question twice
+   */
+  private findRepetition(transcript: ConversationTranscript): CriticalMoment[] {
+    const repetitions: CriticalMoment[] = [];
+    const exchanges = transcript.exchanges;
+    const userMessages: ConversationExchange[] = exchanges.filter(e => e.speaker === 'user');
+    
+    for (let i = 0; i < userMessages.length; i++) {
+      for (let j = i + 1; j < userMessages.length; j++) {
+        const msg1 = userMessages[i].text.toLowerCase();
+        const msg2 = userMessages[j].text.toLowerCase();
+        
+        // Check for very similar messages (>70% word overlap)
+        const words1 = new Set(msg1.split(/\s+/));
+        const words2 = new Set(msg2.split(/\s+/));
+        const intersection = new Set([...words1].filter(x => words2.has(x)));
+        const similarity = intersection.size / Math.min(words1.size, words2.size);
+        
+        if (similarity > 0.7 && msg1.length > 20) {
+          const nextMarcus = this.findNextMarcusMessage(exchanges, exchanges.indexOf(userMessages[j]));
+          
+          repetitions.push({
+            id: `repeat_${userMessages[j].id}`,
+            timestamp: userMessages[j].timestamp,
+            type: 'repetition',
+            severity: 0.75,
+            userMessage: userMessages[j].text,
+            marcusResponse: nextMarcus?.text || '',
+            resistanceBefore: userMessages[i].resistanceLevel || 0,
+            resistanceAfter: nextMarcus?.resistanceLevel || 0,
+            whatHappened: 'User repeated the same question - shows they weren\'t listening',
+            hiddenOpportunity: 'If you didn\'t get the answer you wanted, reframe the question differently.'
+          });
+          break; // Only flag once per message
+        }
+      }
+    }
+    
+    return repetitions;
+  }
+  
+  /**
+   * NEW: Find tone issues - demanding or aggressive language
+   */
+  private findToneIssues(transcript: ConversationTranscript): CriticalMoment[] {
+    const toneIssues: CriticalMoment[] = [];
+    const exchanges = transcript.exchanges;
+    
+    const demandingPatterns = [
+      /\b(answer my question|listen|you need to|you have to|you should)\b/i,
+      /\b(are you|can you answer|just tell me)\b.*\?/i,
+      /\bcould you answer\b/i
+    ];
+    
+    for (let i = 0; i < exchanges.length; i++) {
+      const userMsg = exchanges[i];
+      
+      if (userMsg.speaker === 'user') {
+        const hasDemandingTone = demandingPatterns.some(pattern => pattern.test(userMsg.text));
+        
+        if (hasDemandingTone) {
+          const nextMarcus = this.findNextMarcusMessage(exchanges, i);
+          
+          toneIssues.push({
+            id: `tone_${userMsg.id}`,
+            timestamp: userMsg.timestamp,
+            type: 'tone_issue',
+            severity: 0.8,
+            userMessage: userMsg.text,
+            marcusResponse: nextMarcus?.text || '',
+            resistanceBefore: userMsg.resistanceLevel || 0,
+            resistanceAfter: nextMarcus?.resistanceLevel || 0,
+            whatHappened: 'Tone shifted to demanding - prospects shut down when pushed',
+            hiddenOpportunity: 'Stay curious, not combative. "Help me understand..." not "Answer my question."'
+          });
+        }
+      }
+    }
+    
+    return toneIssues;
+  }
+  
+  /**
+   * NEW: Find missed pain signals - Marcus volunteers pain but user doesn't explore
+   */
+  private findMissedPainSignals(transcript: ConversationTranscript): CriticalMoment[] {
+    const missedPain: CriticalMoment[] = [];
+    const exchanges = transcript.exchanges;
+    
+    const painSignals = [
+      /\b(leads? bounce|losing|miss|waste|struggle|frustrat|problem|issue|concern)\b/i,
+      /\b(not sure|don't know|can't tell|unclear)\b/i,
+      /\b(could be better|room for improvement|wish|would like)\b/i
+    ];
+    
+    for (let i = 0; i < exchanges.length - 1; i++) {
+      const marcusMsg = exchanges[i];
+      const userMsg = exchanges[i + 1];
+      
+      if (marcusMsg.speaker === 'marcus' && userMsg.speaker === 'user') {
+        const volunteersPain = painSignals.some(pattern => pattern.test(marcusMsg.text));
+        const asksFollowUp = /\?/.test(userMsg.text);
+        const pitches = /\b(we offer|we help|our solution|what we do)\b/i.test(userMsg.text);
+        
+        if (volunteersPain && (!asksFollowUp || pitches)) {
+          const nextMarcus = this.findNextMarcusMessage(exchanges, i + 1);
+          
+          missedPain.push({
+            id: `painmiss_${userMsg.id}`,
+            timestamp: userMsg.timestamp,
+            type: 'missed_pain',
+            severity: 0.85,
+            userMessage: userMsg.text,
+            marcusResponse: nextMarcus?.text || '',
+            resistanceBefore: marcusMsg.resistanceLevel || 0,
+            resistanceAfter: nextMarcus?.resistanceLevel || 0,
+            whatHappened: 'Marcus volunteered a pain point but user didn\'t dig deeper',
+            hiddenOpportunity: `Ask: "Tell me more about that" or "How is that affecting you?"'
+          });
+        }
+      }
+    }
+    
+    return missedPain;
   }
 }

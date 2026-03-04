@@ -17,7 +17,8 @@ export interface ConversationExchange {
 export interface CriticalMoment {
   id: string;
   timestamp: number;
-  type: 'missed_opening' | 'objection_mishandled' | 'resistance_spike' | 'trust_window';
+  type: 'missed_opening' | 'objection_mishandled' | 'resistance_spike' | 'trust_window' | 
+        'rambling' | 'repetition' | 'tone_issue' | 'missed_pain';
   severity: number; // 0-1, how critical was this?
   
   // The actual exchange

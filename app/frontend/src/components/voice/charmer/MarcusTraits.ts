@@ -161,20 +161,53 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
 };
 
 /**
- * Randomly select a trait profile for Marcus
- * Distribution mirrors real sales prospecting ratios
+ * Difficulty-weighted trait distributions
+ * Easy = More winnable prospects, lower resistance
+ * Hard = Mostly qualify-outs, higher resistance, elite discovery needed
  */
-export function getRandomMarcusTraits(): { profile: MarcusTraitProfile; profileName: string } {
-  // Real-world distribution (approximate)
-  const distribution = [
-    { name: 'urgentBuyer', weight: 10 },        // 10% - Hot leads
-    { name: 'exploringAlternatives', weight: 15 }, // 15% - Warm leads
-    { name: 'hiddenPain', weight: 20 },         // 20% - Need discovery skills
-    { name: 'mildlyDissatisfied', weight: 20 }, // 20% - Low potential
-    { name: 'noBudgetPain', weight: 15 },       // 15% - No budget
-    { name: 'happyCustomer', weight: 10 },      // 10% - Not a fit
-    { name: 'justBrowsing', weight: 10 }        // 10% - Tire kickers
-  ];
+const TRAIT_DISTRIBUTIONS: Record<'easy' | 'medium' | 'hard', Array<{ name: string; weight: number }>> = {
+  // EASY: 50% winnable, 30% practice discovery, 20% qualify-out
+  easy: [
+    { name: 'urgentBuyer', weight: 20 },          // 20% - Hot lead, easier win
+    { name: 'exploringAlternatives', weight: 30 }, // 30% - Warm lead, accessible pain
+    { name: 'hiddenPain', weight: 30 },           // 30% - Practice discovery (still winnable)
+    { name: 'mildlyDissatisfied', weight: 10 },   // 10% - Practice qualifying out
+    { name: 'noBudgetPain', weight: 5 },          // 5% - Rare dead end
+    { name: 'happyCustomer', weight: 5 },         // 5% - Rare stonewaller
+    { name: 'justBrowsing', weight: 0 }           // 0% - Not on easy
+  ],
+  
+  // MEDIUM: 40% winnable, 35% practice discovery, 25% qualify-out
+  medium: [
+    { name: 'urgentBuyer', weight: 10 },          // 10% - Less frequent hot leads
+    { name: 'exploringAlternatives', weight: 20 }, // 20% - Solid warm leads
+    { name: 'hiddenPain', weight: 35 },           // 35% - Requires good discovery
+    { name: 'mildlyDissatisfied', weight: 15 },   // 15% - Practice qualification
+    { name: 'noBudgetPain', weight: 10 },         // 10% - Budget blockers
+    { name: 'happyCustomer', weight: 5 },         // 5% - Happy customers
+    { name: 'justBrowsing', weight: 5 }           // 5% - Tire kickers
+  ],
+  
+  // HARD: 20% winnable, 30% elite discovery, 50% qualify-out
+  // This is the "real world" - most prospects aren't a fit
+  hard: [
+    { name: 'urgentBuyer', weight: 5 },           // 5% - Rare easy win
+    { name: 'exploringAlternatives', weight: 15 }, // 15% - Warm but skeptical
+    { name: 'hiddenPain', weight: 30 },           // 30% - Elite discovery needed
+    { name: 'mildlyDissatisfied', weight: 20 },   // 20% - Low potential
+    { name: 'noBudgetPain', weight: 15 },         // 15% - No budget
+    { name: 'happyCustomer', weight: 10 },        // 10% - Not a fit
+    { name: 'justBrowsing', weight: 5 }           // 5% - Tire kickers
+  ]
+};
+
+/**
+ * Select a trait profile weighted by scenario difficulty
+ * Easy = More winnable prospects
+ * Hard = Mostly qualify-outs (mirrors real prospecting)
+ */
+export function getRandomMarcusTraits(difficulty: 'easy' | 'medium' | 'hard' = 'medium'): { profile: MarcusTraitProfile; profileName: string } {
+  const distribution = TRAIT_DISTRIBUTIONS[difficulty];
   
   // Calculate total weight
   const totalWeight = distribution.reduce((sum, item) => sum + item.weight, 0);

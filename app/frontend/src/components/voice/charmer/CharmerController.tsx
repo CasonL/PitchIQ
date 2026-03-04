@@ -823,8 +823,8 @@ const CharmerControllerContent = memo(({
       console.error('❌ Failed to save active call state:', err);
     }
     
-    // Randomize Marcus's traits for this call
-    const { profile, profileName } = getRandomMarcusTraits();
+    // Randomize Marcus's traits for this call (weighted by difficulty)
+    const { profile, profileName } = getRandomMarcusTraits(scenario.difficulty);
     const scenarioWithTraits = {
       ...scenario,
       traits: profile,
@@ -832,9 +832,10 @@ const CharmerControllerContent = memo(({
     };
     
     console.log(`🎯 Scenario selected: ${scenario.name} (${scenario.difficulty})`);
-    console.log(`🎭 Marcus traits: ${profileName}`);
+    console.log(`🎭 Marcus traits: ${profileName} (${scenario.difficulty}-weighted)`);
     console.log(`   Pain: ${profile.painLevel} | Urgency: ${profile.urgency} | Budget: ${profile.budget} | Openness: ${profile.openness}`);
     console.log(`   Satisfaction: ${profile.satisfactionLevel}/10 | Initial Resistance: ${profile.initialResistance}/10`);
+    console.log(`   Winnable: ${profile.winConditionExists ? 'Yes' : 'No'} | Ideal: ${profile.idealOutcome}`);
     
     setSelectedScenario(scenarioWithTraits);
     setShowScenarioSelector(false);

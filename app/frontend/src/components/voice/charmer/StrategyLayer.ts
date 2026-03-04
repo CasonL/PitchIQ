@@ -200,7 +200,7 @@ export class StrategyLayer {
         canRevealTimeline: false,
         canRevealPainPoints: false,
         canRevealDecisionProcess: false,
-        canShowInterest: resistance <= 4 && signals.buildingRapport,
+        canShowInterest: resistance <= 5 && signals.buildingRapport, // Raised from 4 to allow initial engagement
         canAdmitConcerns: false
       };
     }
@@ -210,10 +210,10 @@ export class StrategyLayer {
       
       return {
         canRevealBudget: false,
-        canRevealTimeline: earnedTrust && resistance <= 5,
-        canRevealPainPoints: earnedTrust && resistance <= 6,
-        canRevealDecisionProcess: earnedTrust && resistance <= 4,
-        canShowInterest: resistance <= 5,
+        canRevealTimeline: earnedTrust && resistance <= 6,
+        canRevealPainPoints: earnedTrust && resistance <= 7, // Raised from 6 to handle trait-based resistance
+        canRevealDecisionProcess: earnedTrust && resistance <= 5,
+        canShowInterest: resistance <= 6, // Raised from 5 to allow more engagement
         canAdmitConcerns: earnedTrust && signals.providingValue
       };
     }

@@ -35,6 +35,27 @@ export interface CriticalMoment {
   productValueAdd?: string; // Which product benefit applies here
 }
 
+export interface SuccessfulMoment {
+  id: string;
+  timestamp: number;
+  type: 'resistance_drop' | 'pain_discovery' | 'objection_handled' | 'active_listening' | 
+        'brevity_win' | 'permission_opener';
+  impact: number; // 0-1, how impactful was this win?
+  
+  // The actual exchange
+  userMessage: string;
+  marcusResponse: string;
+  
+  // Context
+  resistanceBefore: number;
+  resistanceAfter: number;
+  whatHappened: string; // Brief description of what they did right
+  
+  // For reinforcement
+  whyItWorked: string; // Why this was effective
+  repeatThis?: string; // Optional: How to replicate this win
+}
+
 export interface ConversationTranscript {
   exchanges: ConversationExchange[];
   startTime: number; // timestamp

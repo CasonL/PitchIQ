@@ -958,17 +958,19 @@ const CharmerControllerContent = memo(({
     const transcript = conversationTrackerRef.current?.getTranscript();
     const conversationExchanges = transcript?.exchanges || [];
     
-    // Detect critical moments
+    // Detect critical moments and successful moments
     let momentPuzzles: any[] = [];
+    let successfulMoments: any[] = [];
     let callSummary: any = null;
     
     if (transcript && conversationTrackerRef.current) {
-      console.log('🔍 Analyzing conversation for critical moments...');
+      console.log('🔍 Analyzing conversation for critical moments and wins...');
       
       const detector = new CriticalMomentDetector();
       const criticalMoments = detector.detectCriticalMoments(transcript);
+      const successMoments = detector.detectSuccessfulMoments(transcript);
       
-      console.log(`✅ Found ${criticalMoments.length} critical moments`);
+      console.log(`✅ Found ${criticalMoments.length} critical moments, ${successMoments.length} wins`);
       
       // Always generate feedback, even with 0 critical moments
       const feedbackGenerator = new MomentFeedbackGenerator();
@@ -978,6 +980,9 @@ const CharmerControllerContent = memo(({
         if (criticalMoments.length > 0) {
           momentPuzzles = await feedbackGenerator.generateMomentPuzzles(criticalMoments);
         }
+        
+        // Store successful moments for display
+        successfulMoments = successMoments;
         
         // Always generate call summary for overall feedback with trait analysis
         callSummary = await feedbackGenerator.generateCallSummary(
@@ -1008,6 +1013,7 @@ const CharmerControllerContent = memo(({
       duration: duration,
       conversationHistory,
       momentPuzzles: momentPuzzles,
+      successfulMoments: successfulMoments,
       callSummary: callSummary,
       metrics: {
         callDuration: duration,

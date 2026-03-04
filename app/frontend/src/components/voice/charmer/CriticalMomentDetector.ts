@@ -384,7 +384,7 @@ export class CriticalMomentDetector {
             resistanceBefore: marcusMsg.resistanceLevel || 0,
             resistanceAfter: nextMarcus?.resistanceLevel || 0,
             whatHappened: 'Marcus volunteered a pain point but user didn\'t dig deeper',
-            hiddenOpportunity: `Ask: "Tell me more about that" or "How is that affecting you?"'
+            hiddenOpportunity: 'Ask: "Tell me more about that" or "How is that affecting you?"'
           });
         }
       }

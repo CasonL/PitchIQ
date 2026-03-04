@@ -6,7 +6,13 @@
  * - Fixed and predictable (same Marcus, same pain points)
  * - Replayable (learn the puzzle, master the approach)
  * - Focused on booking the next step (not closing the deal)
+ * 
+ * TRAIT RANDOMIZATION:
+ * Each call now includes randomized traits (pain level, budget, urgency)
+ * to mirror real sales - not every prospect is a fit
  */
+
+import { MarcusTraitProfile } from './MarcusTraits';
 
 export type ScenarioDifficulty = 'easy' | 'medium' | 'hard';
 
@@ -21,6 +27,10 @@ export interface MarcusScenario {
   // Marcus's state
   marcusRole: string;
   marcusMood: string;
+  
+  // Randomized traits (assigned per call)
+  traits?: MarcusTraitProfile;
+  traitProfileName?: string;
   
   // Pain points (fixed set per scenario)
   visiblePains: string[];  // Marcus will mention these if asked

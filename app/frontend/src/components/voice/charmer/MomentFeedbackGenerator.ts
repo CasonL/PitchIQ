@@ -15,6 +15,8 @@ export interface MomentPuzzle {
 export interface CallSummary {
   overallTakeaway: string; // 2-3 sentences
   encouragement: string; // Short motivational line
+  traitAnalysis?: string; // Analysis of performance vs Marcus's traits
+  idealOutcome?: string; // What should have happened based on traits
 }
 
 export class MomentFeedbackGenerator {
@@ -50,12 +52,23 @@ export class MomentFeedbackGenerator {
   }
   
   /**
-   * Generate qualitative call summary
+   * Generate overall call summary with trait-aware analysis
    */
   async generateCallSummary(
     moments: CriticalMoment[],
     totalExchanges: number,
-    callDuration: number
+    callDuration: number,
+    scenario?: { productName?: string; targetAudience?: string },
+    marcusTraits?: {
+      traitProfileName: string;
+      painLevel: string;
+      urgency: string;
+      budget: string;
+      openness: string;
+      satisfactionLevel: number;
+      idealOutcome: string;
+      winConditionExists: boolean;
+    }
   ): Promise<CallSummary> {
     const prompt = `You are a sales coach providing honest but encouraging feedback after a cold call.
 
@@ -64,6 +77,16 @@ CALL CONTEXT:
 - Total exchanges: ${totalExchanges}
 - Critical moments identified: ${moments.length}
 
+${marcusTraits ? `MARCUS'S HIDDEN TRAITS (for your analysis only):
+- Profile: ${marcusTraits.traitProfileName}
+- Pain Level: ${marcusTraits.painLevel}
+- Urgency: ${marcusTraits.urgency}
+- Budget: ${marcusTraits.budget}
+- Openness: ${marcusTraits.openness}
+- Satisfaction with current solution: ${marcusTraits.satisfactionLevel}/10
+- Winnable call: ${marcusTraits.winConditionExists ? 'Yes' : 'No'}
+- Ideal outcome: ${marcusTraits.idealOutcome}
+` : ''}
 CRITICAL MOMENTS:
 ${moments.map((m, i) => `
 ${i + 1}. ${m.type.replace(/_/g, ' ')}
@@ -75,18 +98,23 @@ ${i + 1}. ${m.type.replace(/_/g, ' ')}
 Generate a qualitative summary with:
 1. overallTakeaway: 2-3 sentences that honestly assess how they did. Be specific about what they got right and what they missed. No generic platitudes.
 2. encouragement: One short line that motivates them to try again. Make it feel personal, not corporate.
+${marcusTraits ? `3. traitAnalysis: 2-3 sentences explaining how Marcus's traits affected this call. Did they recognize the signs? Should they have qualified out? Did they miss hidden pain?
+4. idealOutcome: One sentence stating what SHOULD have happened given Marcus's traits (e.g., "Qualified out gracefully" or "Booked follow-up" or "Uncovered hidden pain").` : ''}
 
 Return ONLY valid JSON in this format:
 {
   "overallTakeaway": "string",
-  "encouragement": "string"
+  "encouragement": "string"${marcusTraits ? `,
+  "traitAnalysis": "string",
+  "idealOutcome": "string"` : ''}
 }
 
 TONE GUIDELINES:
 - Be honest but not harsh
 - Specific observations, not vague ("you kept his attention for 2 minutes" not "good effort")
 - Acknowledge both wins and misses
-- Encouragement should feel earned, not fake`;
+- Encouragement should feel earned, not fake
+${marcusTraits ? `- traitAnalysis should help them understand that not every prospect is a fit - recognizing this is a skill` : ''}`;
 
     try {
       const response = await fetch(this.baseUrl, {

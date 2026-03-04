@@ -38,6 +38,17 @@ export interface StrategyContext {
     makingAssumptions: boolean;
     providingValue: boolean;
   };
+  // Marcus's randomized traits for this call
+  marcusTraits?: {
+    painLevel: string;
+    urgency: string;
+    budget: string;
+    openness: string;
+    initialResistance: number;
+    resistanceVolatility: number;
+    satisfactionLevel: number;
+    painPoints: string[];
+  };
 }
 
 export class StrategyLayer {
@@ -48,12 +59,20 @@ export class StrategyLayer {
   }
 
   determineStrategy(context: StrategyContext): StrategyConstraints {
-    const { phase, conversationHistory, userInput, repQualitySignals } = context;
+    const { phase, conversationHistory, userInput, repQualitySignals, marcusTraits } = context;
 
-    const baseResistance = this.calculateBaseResistance(phase);
+    // Use trait-based resistance if available, otherwise fallback to default
+    const baseResistance = marcusTraits 
+      ? marcusTraits.initialResistance 
+      : this.calculateBaseResistance(phase);
     
     const resistanceModifiers = this.calculateResistanceModifiers(repQualitySignals, conversationHistory);
-    const finalResistance = Math.max(0, Math.min(10, baseResistance + resistanceModifiers));
+    
+    // Apply trait volatility to modifier effect (if available)
+    const volatilityMultiplier = marcusTraits?.resistanceVolatility ?? 1.0;
+    const adjustedModifiers = resistanceModifiers * volatilityMultiplier;
+    
+    const finalResistance = Math.max(0, Math.min(10, baseResistance + adjustedModifiers));
 
     const emotionalPosture = this.determineEmotionalPosture(
       phase,

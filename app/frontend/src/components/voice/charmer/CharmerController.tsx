@@ -21,8 +21,9 @@ import { MarcusPostCallMoments } from './MarcusPostCallMoments';
 import { ConversationTracker } from './ConversationTranscript';
 import { CriticalMomentDetector } from './CriticalMomentDetector';
 import { MomentFeedbackGenerator } from './MomentFeedbackGenerator';
-import { MarcusChallengeLobby } from './MarcusChallengeLobby';
 import { MarcusScenario } from './MarcusScenarios';
+import { MarcusChallengeLobby } from './MarcusChallengeLobby';
+import { getRandomMarcusTraits } from './MarcusTraits';
 import { FirstUtterancePatternDetector } from './FirstUtterancePatternDetector';
 import { TranscriptQualityDetector } from './TranscriptQualityDetector';
 import { TrainingWheels } from './TrainingWheels';
@@ -337,14 +338,25 @@ const CharmerControllerContent = memo(({
         }
       }
       
-      // STRATEGY LAYER: Determine behavioral constraints before generating response
+      // STRATEGY LAYER: Determine Marcus's emotional state, resistance, and what he'll reveal
       const repQualitySignals = strategyLayerRef.current.analyzeRepQuality(userText, conversationHistory);
       
       const strategyContext: StrategyContext = {
         phase: currentPhaseNum,
-        conversationHistory: conversationHistory,
+        conversationHistory,
         userInput: userText,
-        repQualitySignals
+        repQualitySignals,
+        // Pass randomized traits for trait-aware resistance
+        marcusTraits: selectedScenario?.traits ? {
+          painLevel: selectedScenario.traits.painLevel,
+          urgency: selectedScenario.traits.urgency,
+          budget: selectedScenario.traits.budget,
+          openness: selectedScenario.traits.openness,
+          initialResistance: selectedScenario.traits.initialResistance,
+          resistanceVolatility: selectedScenario.traits.resistanceVolatility,
+          satisfactionLevel: selectedScenario.traits.satisfactionLevel,
+          painPoints: selectedScenario.traits.painPoints
+        } : undefined
       };
       
       const strategyConstraints = strategyLayerRef.current.determineStrategy(strategyContext);
@@ -811,8 +823,20 @@ const CharmerControllerContent = memo(({
       console.error('❌ Failed to save active call state:', err);
     }
     
+    // Randomize Marcus's traits for this call
+    const { profile, profileName } = getRandomMarcusTraits();
+    const scenarioWithTraits = {
+      ...scenario,
+      traits: profile,
+      traitProfileName: profileName
+    };
+    
     console.log(`🎯 Scenario selected: ${scenario.name} (${scenario.difficulty})`);
-    setSelectedScenario(scenario);
+    console.log(`🎭 Marcus traits: ${profileName}`);
+    console.log(`   Pain: ${profile.painLevel} | Urgency: ${profile.urgency} | Budget: ${profile.budget} | Openness: ${profile.openness}`);
+    console.log(`   Satisfaction: ${profile.satisfactionLevel}/10 | Initial Resistance: ${profile.initialResistance}/10`);
+    
+    setSelectedScenario(scenarioWithTraits);
     setShowScenarioSelector(false);
     setIsRinging(true);
     
@@ -954,11 +978,22 @@ const CharmerControllerContent = memo(({
           momentPuzzles = await feedbackGenerator.generateMomentPuzzles(criticalMoments);
         }
         
-        // Always generate call summary for overall feedback
+        // Always generate call summary for overall feedback with trait analysis
         callSummary = await feedbackGenerator.generateCallSummary(
           criticalMoments,
           conversationHistory.length / 2,
-          duration
+          duration,
+          undefined, // scenario
+          selectedScenario?.traits && selectedScenario?.traitProfileName ? {
+            traitProfileName: selectedScenario.traitProfileName,
+            painLevel: selectedScenario.traits.painLevel,
+            urgency: selectedScenario.traits.urgency,
+            budget: selectedScenario.traits.budget,
+            openness: selectedScenario.traits.openness,
+            satisfactionLevel: selectedScenario.traits.satisfactionLevel,
+            idealOutcome: selectedScenario.traits.idealOutcome,
+            winConditionExists: selectedScenario.traits.winConditionExists
+          } : undefined
         );
         console.log('✅ Generated moment-based feedback');
       } catch (error) {

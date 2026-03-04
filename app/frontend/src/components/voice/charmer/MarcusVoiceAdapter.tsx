@@ -76,6 +76,7 @@ export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
   });
   
   const voiceManagerRef = useRef<MarcusVoiceManager | null>(null);
+  const wakeLockRef = useRef<any>(null);
   
   /**
    * Initialize voice manager with callbacks
@@ -154,6 +155,24 @@ export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
       setIsConnected(true);
       setIsConnecting(false);
       
+      // Request wake lock to prevent screen timeout on mobile
+      if ('wakeLock' in navigator) {
+        try {
+          (navigator as any).wakeLock.request('screen').then((wl: any) => {
+            wakeLockRef.current = wl;
+            console.log('📱 Screen wake lock acquired - screen won\'t timeout');
+            
+            wl.addEventListener('release', () => {
+              console.log('📱 Screen wake lock released');
+            });
+          }).catch((err: any) => {
+            console.warn('⚠️ Wake lock request failed:', err);
+          });
+        } catch (err) {
+          console.warn('⚠️ Wake lock not supported:', err);
+        }
+      }
+      
       console.log('[MarcusVoiceAdapter] Call started successfully');
     } catch (err) {
       console.error('[MarcusVoiceAdapter] Failed to start call:', err);
@@ -178,6 +197,16 @@ export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
       setIsConnected(false);
       setIsConnecting(false);
       setIsSpeaking(false);
+      
+      // Release wake lock when call ends
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().then(() => {
+          wakeLockRef.current = null;
+          console.log('📱 Screen wake lock released on disconnect');
+        }).catch((err: any) => {
+          console.warn('⚠️ Failed to release wake lock:', err);
+        });
+      }
       
       console.log('[MarcusVoiceAdapter] Call ended');
     } catch (err) {

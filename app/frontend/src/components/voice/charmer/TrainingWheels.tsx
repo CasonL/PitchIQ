@@ -155,7 +155,7 @@ export const TrainingWheels: React.FC<TrainingWheelsProps> = ({
     switch (type) {
       case 'error': return <AlertCircle className="w-5 h-5 text-red-400" />;
       case 'warning': return <AlertCircle className="w-5 h-5 text-yellow-400" />;
-      case 'success': return <CheckCircle className="w-5 h-5 text-green-400" />;
+      case 'success': return <CheckCircle className="w-5 h-5 text-gray-900" />;
       case 'tip': return <Lightbulb className="w-5 h-5 text-blue-400" />;
       default: return null;
     }

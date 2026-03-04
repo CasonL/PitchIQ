@@ -158,6 +158,9 @@ const CharmerControllerContent = memo(({
   const pendingUtteranceRef = useRef<{text: string; count: number} | null>(null); // Pending utterance during grace
   const queuedUtterancesRef = useRef<Array<{text: string; count: number}>>([]); // Queue multiple utterances if processing
   
+  // Wake lock for mobile - prevent screen timeout during calls
+  const wakeLockRef = useRef<any>(null);
+  
   // Refs for tracking
   const sessionIdRef = useRef<string | null>(null);
   const conversationTrackerRef = useRef<ConversationTracker | null>(null);

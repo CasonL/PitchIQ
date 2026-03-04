@@ -43,7 +43,7 @@ export const TrainingWheels: React.FC<TrainingWheelsProps> = ({
         return {
           type: 'error',
           message: "You're talking too much - Marcus is getting impatient",
-          suggestion: "Ask: 'How's business been lately?' or 'What's your biggest challenge right now?'"
+          suggestion: "Ask about his context first: 'How's that been working out?' or 'What made you go with that approach?'"
         };
       }
       
@@ -77,7 +77,7 @@ export const TrainingWheels: React.FC<TrainingWheelsProps> = ({
         return {
           type: 'error',
           message: "You're in discovery phase but not asking questions",
-          suggestion: "Dig deeper: 'What's been the biggest pain point?' or 'Walk me through how you handle that now'"
+          suggestion: "Ask follow-ups: 'How's that been working out?' or 'Walk me through how you handle that currently'"
         };
       }
       
@@ -217,13 +217,13 @@ export const TrainingWheels: React.FC<TrainingWheelsProps> = ({
           <div className="flex items-start gap-3">
             {getTipIcon(tip.type)}
             <div className="flex-1">
-              <p className={`text-sm font-medium leading-relaxed ${tip.type === 'success' ? 'text-gray-900' : 'text-white'}`}>
+              <p className="text-sm font-medium leading-relaxed text-gray-900">
                 {tip.message}
               </p>
               
               {tip.suggestion && (
-                <div className={`mt-3 p-3 rounded-xl border ${tip.type === 'success' ? 'bg-black/20 border-black/30' : 'bg-black/50 border-white/20'}`}>
-                  <p className={`text-xs font-mono leading-relaxed ${tip.type === 'success' ? 'text-gray-900' : 'text-gray-200'}`}>
+                <div className="mt-3 p-3 rounded-xl border bg-white/90 border-gray-300">
+                  <p className="text-xs font-mono leading-relaxed text-gray-900">
                     💡 {tip.suggestion}
                   </p>
                 </div>

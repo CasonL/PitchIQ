@@ -61,12 +61,26 @@ const CharmerControllerContent = memo(({
   const aiServiceRef = useRef(new CharmerAIService());
   
   // Scenario state
-  const [selectedScenario, setSelectedScenario] = useState<MarcusScenario | null>(null);
-  const [showScenarioSelector, setShowScenarioSelector] = useState(() => {
-    // Don't show scenario selector if we have saved feedback
+  const [selectedScenario, setSelectedScenario] = useState<MarcusScenario | null>(() => {
+    // Restore active scenario from localStorage on mount
     try {
-      const saved = localStorage.getItem('marcusFeedbackData');
-      return !saved;
+      const savedCall = localStorage.getItem('marcusActiveCall');
+      if (savedCall) {
+        const parsed = JSON.parse(savedCall);
+        console.log('🔄 Restored active scenario from localStorage');
+        return parsed.scenario;
+      }
+    } catch (err) {
+      console.error('❌ Failed to restore active scenario:', err);
+    }
+    return null;
+  });
+  const [showScenarioSelector, setShowScenarioSelector] = useState(() => {
+    // Don't show scenario selector if we have saved feedback OR active call
+    try {
+      const savedFeedback = localStorage.getItem('marcusFeedbackData');
+      const savedCall = localStorage.getItem('marcusActiveCall');
+      return !savedFeedback && !savedCall;
     } catch {
       return true;
     }
@@ -786,6 +800,17 @@ const CharmerControllerContent = memo(({
       console.error('❌ Failed to clear old feedback data:', err);
     }
     
+    // Save active call state to localStorage
+    try {
+      localStorage.setItem('marcusActiveCall', JSON.stringify({
+        scenario,
+        timestamp: Date.now()
+      }));
+      console.log('💾 Saved active call state to localStorage');
+    } catch (err) {
+      console.error('❌ Failed to save active call state:', err);
+    }
+    
     console.log(`🎯 Scenario selected: ${scenario.name} (${scenario.difficulty})`);
     setSelectedScenario(scenario);
     setShowScenarioSelector(false);
@@ -968,6 +993,14 @@ const CharmerControllerContent = memo(({
     
     endCall();
     
+    // Clear active call state from localStorage when call ends
+    try {
+      localStorage.removeItem('marcusActiveCall');
+      console.log('🗑️ Cleared active call state on call end');
+    } catch (err) {
+      console.error('❌ Failed to clear active call state:', err);
+    }
+    
     // Store feedback data and show UI
     setMomentFeedbackData({
       momentPuzzles,
@@ -1034,7 +1067,8 @@ const CharmerControllerContent = memo(({
     // Clear localStorage when closing feedback
     try {
       localStorage.removeItem('marcusFeedbackData');
-      console.log('🗑️ Cleared feedback data from localStorage');
+      localStorage.removeItem('marcusActiveCall');
+      console.log('🗑️ Cleared feedback and active call data from localStorage');
     } catch (err) {
       console.error('❌ Failed to clear feedback data:', err);
     }

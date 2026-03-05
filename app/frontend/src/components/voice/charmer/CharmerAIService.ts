@@ -850,8 +850,10 @@ export class CharmerAIService {
       
     } catch (error) {
       console.error('❌ Error generating Marcus response:', error);
-      // Return fallback response
-      return this.getFallbackResponse(context.phase);
+      console.error('❌ CRITICAL: Backend API failed - Marcus cannot use fallbacks');
+      console.error('❌ Check Flask logs for /api/openai/chat error details');
+      // Re-throw instead of masking with fallback
+      throw new Error(`Marcus AI generation failed: ${error instanceof Error ? error.message : String(error)}. Check backend /api/openai/chat route.`);
     }
   }
   

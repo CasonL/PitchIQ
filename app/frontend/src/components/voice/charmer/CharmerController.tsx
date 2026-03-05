@@ -446,6 +446,36 @@ const CharmerControllerContent = memo(({
         setIsProcessing(false);
         return;
       }
+    } catch (aiError) {
+      console.error('❌ CRITICAL: AI generation failed:', aiError);
+      console.error('❌ Backend /api/openai/chat is not working. Check Flask logs.');
+      
+      // Speak error message to user
+      try {
+        await speakAsMarcus(
+          "Hey, I'm having technical issues on my end. The AI backend isn't responding. Can you check the Flask server logs?",
+          {
+            voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
+            emotion: 'worried',
+            speed: 0.85
+          }
+        );
+      } catch (ttsError) {
+        console.error('❌ Could not speak error message:', ttsError);
+      }
+      
+      setIsProcessing(false);
+      
+      // End call due to backend failure
+      setTimeout(() => {
+        console.log('📵 Ending call due to backend failure');
+        handleEndCall();
+      }, 3000);
+      
+      return;
+    }
+    
+    try {
       
       // Check if interrupted DURING AI generation (new interruption)
       if (wasInterruptedRef.current) {
@@ -566,6 +596,14 @@ const CharmerControllerContent = memo(({
       
       // Update context state
       setPhaseContext(phaseManager.getContext());
+      
+      setIsProcessing(false);
+    } catch (error) {
+      console.error('❌ Error during Marcus response processing:', error);
+      setIsProcessing(false);
+    }
+    
+    try {
       
     } catch (error) {
       console.error('❌ Error processing user input:', error);

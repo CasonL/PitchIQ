@@ -17,7 +17,7 @@ export interface ConversationContext {
   marcusContext: 'B2B' | 'B2C';
   
   // Coaching analysis
-  identifiedIssue: 'close-ended' | 'feature-dump' | 'weak-opening' | 'vague' | 
+  identifiedIssue: 'premature-pitch' | 'close-ended' | 'feature-dump' | 'weak-opening' | 'vague' | 
                     'no-discovery' | 'too-fast' | 'apologetic' | 'feature-focus' | null;
   whatWorked: string;
   

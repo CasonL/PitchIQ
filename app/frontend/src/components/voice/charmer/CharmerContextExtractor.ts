@@ -14,6 +14,7 @@ export interface ExtractedInfo {
 }
 
 export type CoachingIssueType = 
+  | 'premature-pitch'
   | 'close-ended'
   | 'feature-dump'
   | 'weak-opening'
@@ -158,9 +159,30 @@ export class CharmerContextExtractor {
   /**
    * Detect coaching issues in user's pitch
    */
-  static detectCoachingIssues(transcript: string): CoachingIssue[] {
+  static detectCoachingIssues(transcript: string, utteranceCount: number = 1): CoachingIssue[] {
     const issues: CoachingIssue[] = [];
     const lowerTranscript = transcript.toLowerCase();
+    
+    // Issue 0: Premature Pitch (company/product mentioned in first 2 utterances before rapport)
+    if (utteranceCount <= 2) {
+      const prematurePitchPatterns = [
+        /\bfrom\s+[\w\s]+(company|corp|inc|llc|co\.|solutions|consulting|group|services)/i,
+        /\b(calling|reaching out)\s+(from|about|regarding)\s+[\w\s]+/i,
+        /\bI'm\s+with\s+[\w\s]+(company|corp|inc|llc|co\.|solutions|consulting|group)/i,
+        /\b(selling|offer|provide|help you with|specialize in)\b/i
+      ];
+      
+      for (const pattern of prematurePitchPatterns) {
+        if (pattern.test(transcript)) {
+          issues.push({
+            type: 'premature-pitch',
+            example: transcript.substring(0, 50) + '...',
+            feedback: "You pitched before building rapport. Lead with permission or curiosity, not your company name. Build trust FIRST."
+          });
+          break;
+        }
+      }
+    }
     
     // Issue 1: Close-Ended Questions
     const closeEndedPatterns = [
@@ -348,7 +370,7 @@ export class CharmerContextExtractor {
       name: this.extractName(transcript, currentName, utteranceCount),
       product: this.extractProduct(transcript),
       memorablePhrase: this.extractMemorablePhrase(transcript),
-      detectedIssues: this.detectCoachingIssues(transcript),
+      detectedIssues: this.detectCoachingIssues(transcript, utteranceCount),
       strengths: this.identifyStrengths(transcript)
     };
   }
@@ -361,9 +383,10 @@ export class CharmerContextExtractor {
     
     // Priority order (most impactful to least)
     const priorityOrder: CoachingIssueType[] = [
+      'premature-pitch',   // Fatal mistake - pitch before rapport
       'no-discovery',      // Biggest miss
-      'close-ended',       // Very common and fixable
       'apologetic',        // Undermines everything
+      'close-ended',       // Very common and fixable
       'vague',            // Credibility killer
       'feature-dump',     // Common mistake
       'weak-opening',     // First impression matters

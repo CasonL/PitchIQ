@@ -70,7 +70,7 @@ export class MomentFeedbackGenerator {
       winConditionExists: boolean;
     }
   ): Promise<CallSummary> {
-    const prompt = `You are a sales coach providing honest but encouraging feedback after a cold call.
+    const prompt = `You are a tough but fair sales coach. NO BULLSHIT. NO FLUFF. NO GENERIC PLATITUDES.
 
 CALL CONTEXT:
 - Duration: ${Math.floor(callDuration / 60)}:${(callDuration % 60).toString().padStart(2, '0')}
@@ -95,11 +95,15 @@ ${i + 1}. ${m.type.replace(/_/g, ' ')}
    Resistance: ${m.resistanceBefore} → ${m.resistanceAfter}
 `).join('\n')}
 
-Generate a qualitative summary with:
-1. overallTakeaway: 2-3 sentences that honestly assess how they did. Be specific about what they got right and what they missed. No generic platitudes.
-2. encouragement: One short line that motivates them to try again. Make it feel personal, not corporate.
-${marcusTraits ? `3. traitAnalysis: 2-3 sentences explaining how Marcus's traits affected this call. Did they recognize the signs? Should they have qualified out? Did they miss hidden pain?
-4. idealOutcome: One sentence stating what SHOULD have happened given Marcus's traits (e.g., "Qualified out gracefully" or "Booked follow-up" or "Uncovered hidden pain").` : ''}
+Your job: Tell them EXACTLY what they did wrong and right, using THEIR ACTUAL WORDS from the call.
+
+1. overallTakeaway: 2-3 sentences. CITE specific things they said. Example: "When Marcus mentioned his outdated website, you asked 'Do you have someone who works on it?' - a closed question that went nowhere. You needed to ask WHY it matters to him or HOW it's affecting his business." NO vague shit like "deepen the conversation" or "build rapport." USE THEIR WORDS.
+
+2. encouragement: One punchy line. Make it about what they'll do NEXT time, not generic motivation. Example: "Next call, ask one 'why' question and see what happens." NOT "Keep up the good work!"
+
+${marcusTraits ? `3. traitAnalysis: 2-3 sentences. Tell them if this prospect was even worth their time based on Marcus's hidden traits. Example: "Marcus had high pain and budget but you never uncovered it because you stayed surface-level. This was winnable if you'd asked about business impact instead of technical details."
+
+4. idealOutcome: One sentence. What SHOULD have happened? Example: "Should have booked a follow-up after uncovering 3 pain points." or "Should have qualified out after realizing he's satisfied."` : ''}
 
 Return ONLY valid JSON in this format:
 {
@@ -109,12 +113,12 @@ Return ONLY valid JSON in this format:
   "idealOutcome": "string"` : ''}
 }
 
-TONE GUIDELINES:
-- Be honest but not harsh
-- Specific observations, not vague ("you kept his attention for 2 minutes" not "good effort")
-- Acknowledge both wins and misses
-- Encouragement should feel earned, not fake
-${marcusTraits ? `- traitAnalysis should help them understand that not every prospect is a fit - recognizing this is a skill` : ''}`;
+CRITICAL RULES:
+- CITE their actual words from the call in "quotes"
+- NO phrases like "deepen the conversation", "build rapport", "keep it up", "good effort"
+- Be SPECIFIC about what question they should have asked instead
+- If they fucked up, say it. If they did well, say what they did.
+- Write like you're texting them, not writing a corporate performance review`;
 
     try {
       const response = await fetch(this.baseUrl, {
@@ -128,8 +132,8 @@ ${marcusTraits ? `- traitAnalysis should help them understand that not every pro
             { role: 'system', content: 'You are a sales coach. Output only valid JSON.' },
             { role: 'user', content: prompt }
           ],
-          temperature: 0.8,
-          max_tokens: 300
+          temperature: 0.7,
+          max_tokens: 500
         })
       });
       

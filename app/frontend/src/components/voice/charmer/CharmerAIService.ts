@@ -1169,6 +1169,17 @@ export class CharmerAIService {
     prompt += `**Current Emotional State:** ${constraints.emotionalPosture}\n`;
     prompt += `- Your resistance/guardedness level is ${constraints.resistanceLevel}/10\n`;
     
+    // CRITICAL: Impatience overrides everything
+    if (constraints.isImpatient) {
+      prompt += `\n**⚠️ YOU ARE NOW IMPATIENT - WRAP UP THE CALL:**\n`;
+      prompt += `- They've asked ${constraints.questionsAskedWithoutProgress} questions and gotten nowhere\n`;
+      prompt += `- You're running out of patience and time\n`;
+      prompt += `- Start showing signs you want to end the call: "Look, I appreciate the questions but...", "I've got another call coming up", "Maybe this isn't the right time"\n`;
+      prompt += `- Be polite but firm - you're done with this conversation\n`;
+      prompt += `- If they don't quickly demonstrate value or direction, say you need to go\n`;
+      prompt += `- DO NOT be rude, but DO make it clear this call needs to end soon\n\n`;
+    }
+    
     if (constraints.resistanceLevel >= 7) {
       prompt += `- You are VERY guarded. Short answers. Not revealing much. Skeptical tone.\n`;
     } else if (constraints.resistanceLevel >= 5) {

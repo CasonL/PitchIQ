@@ -6,7 +6,8 @@ export type EmotionalPosture =
   | 'rushed'
   | 'guarded'
   | 'open'
-  | 'testing';
+  | 'testing'
+  | 'impatient';
 
 export interface DisclosureGates {
   canRevealBudget: boolean;
@@ -25,6 +26,8 @@ export interface StrategyConstraints {
   allowedRepMistakes: string[];
   shouldWithholdProgress: boolean;
   withholdReason?: string;
+  isImpatient: boolean;
+  questionsAskedWithoutProgress: number;
 }
 
 export interface StrategyContext {
@@ -53,6 +56,9 @@ export interface StrategyContext {
 
 export class StrategyLayer {
   private currentConstraints: StrategyConstraints;
+  private questionsAsked: number = 0;
+  private lastResistanceLevel: number = 6;
+  private progressMade: boolean = false;
 
   constructor() {
     this.currentConstraints = this.getDefaultConstraints();
@@ -60,6 +66,12 @@ export class StrategyLayer {
 
   determineStrategy(context: StrategyContext): StrategyConstraints {
     const { phase, conversationHistory, userInput, repQualitySignals, marcusTraits } = context;
+
+    // Track questions asked
+    const hasQuestion = /\?|\b(what|how|why|tell me|can you|would you|could you)\b/i.test(userInput);
+    if (hasQuestion) {
+      this.questionsAsked++;
+    }
 
     // Use trait-based resistance if available, otherwise fallback to default
     const baseResistance = marcusTraits 
@@ -73,12 +85,24 @@ export class StrategyLayer {
     const adjustedModifiers = resistanceModifiers * volatilityMultiplier;
     
     const finalResistance = Math.max(0, Math.min(10, baseResistance + adjustedModifiers));
+    
+    // Track progress: resistance dropping or good discovery signals
+    if (finalResistance < this.lastResistanceLevel - 0.5 || 
+        (repQualitySignals.askedDiscovery && repQualitySignals.buildingRapport)) {
+      this.progressMade = true;
+    }
+    this.lastResistanceLevel = finalResistance;
+
+    // Check if user has asked 10+ questions without making progress
+    const isImpatient = this.questionsAsked >= 10 && !this.progressMade;
+    const questionsAskedWithoutProgress = this.progressMade ? 0 : this.questionsAsked;
 
     const emotionalPosture = this.determineEmotionalPosture(
       phase,
       finalResistance,
       userInput,
-      repQualitySignals
+      repQualitySignals,
+      isImpatient
     );
 
     const disclosureGates = this.determineDisclosureGates(
@@ -110,7 +134,9 @@ export class StrategyLayer {
       trainingObjective,
       allowedRepMistakes,
       shouldWithholdProgress: withhold.should,
-      withholdReason: withhold.reason
+      withholdReason: withhold.reason,
+      isImpatient,
+      questionsAskedWithoutProgress
     };
 
     console.log(`🎯 [Strategy] Posture: ${emotionalPosture} | Resistance: ${finalResistance}/10 | Objective: ${trainingObjective}`);
@@ -158,8 +184,13 @@ export class StrategyLayer {
     phase: number,
     resistance: number,
     userInput: string,
-    signals: StrategyContext['repQualitySignals']
+    signals: StrategyContext['repQualitySignals'],
+    isImpatient: boolean = false
   ): EmotionalPosture {
+    // CRITICAL: If user has asked 10+ questions with no progress, Marcus gets impatient
+    if (isImpatient) {
+      return 'impatient';
+    }
     const isPitching = /\b(we help|we provide|our solution|what we do|let me tell you)\b/i.test(userInput);
     const isAsking = /\b(what|how|when|why|tell me|can you|would you)\b/i.test(userInput);
     const isPushy = /\b(just|only|quick|few minutes|won't take long)\b/i.test(userInput);
@@ -370,7 +401,9 @@ export class StrategyLayer {
       },
       trainingObjective: 'Baseline training scenario',
       allowedRepMistakes: [],
-      shouldWithholdProgress: false
+      shouldWithholdProgress: false,
+      isImpatient: false,
+      questionsAskedWithoutProgress: 0
     };
   }
 

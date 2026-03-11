@@ -191,7 +191,7 @@ const CharmerControllerContent = memo(({
   
   // Detect and fix blank state (stale localStorage blocking UI)
   useEffect(() => {
-    const isBlankState = !showScenarioSelector && !showMomentFeedback && !isRinging && !isConnecting && !isConnected;
+    const isBlankState = !showScenarioSelector && !showMomentFeedback && !isGeneratingFeedback && !isRinging && !isConnecting && !isConnected;
     
     if (isBlankState) {
       console.log('⚠️ Detected blank state - clearing stale data and showing scenario selector');
@@ -203,7 +203,7 @@ const CharmerControllerContent = memo(({
       setShowMomentFeedback(false);
       setSelectedScenario(null);
     }
-  }, [showScenarioSelector, showMomentFeedback, isRinging, isConnecting, isConnected]);
+  }, [showScenarioSelector, showMomentFeedback, isGeneratingFeedback, isRinging, isConnecting, isConnected]);
   
   // Refs for tracking
   const sessionIdRef = useRef<string | null>(null);

@@ -137,9 +137,19 @@ export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
    * Start call - initialize STT listening
    */
   const startCall = useCallback(async () => {
+    // Force cleanup if there's an existing connection
     if (isConnecting || isConnected) {
-      console.warn('[MarcusVoiceAdapter] Already connected or connecting');
-      return;
+      console.warn('[MarcusVoiceAdapter] Cleaning up previous connection before starting new call');
+      try {
+        if (voiceManagerRef.current) {
+          await voiceManagerRef.current.cleanup();
+          voiceManagerRef.current = null;
+        }
+        setIsConnected(false);
+        setIsConnecting(false);
+      } catch (err) {
+        console.error('[MarcusVoiceAdapter] Error during forced cleanup:', err);
+      }
     }
     
     setIsConnecting(true);

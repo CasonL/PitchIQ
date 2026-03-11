@@ -157,11 +157,16 @@ export class CharmerContextExtractor {
   }
   
   /**
-   * Detect coaching issues in user's pitch
+   * Detect coaching issues in user's speech
+   * Now context-aware: uses actual conversation quotes
    */
-  static detectCoachingIssues(transcript: string, utteranceCount: number = 1): CoachingIssue[] {
+  static detectCoachingIssues(transcript: string, conversationHistory: Array<{role: string; content: string}> = [], utteranceCount: number = 1): CoachingIssue[] {
     const issues: CoachingIssue[] = [];
     const lowerTranscript = transcript.toLowerCase();
+    
+    // Get Marcus's last message for context-aware feedback
+    const marcusMessages = conversationHistory.filter(m => m.role === 'assistant');
+    const lastMarcusMessage = marcusMessages.length > 0 ? marcusMessages[marcusMessages.length - 1].content : null;
     
     // Issue 0: Premature Pitch (company/product mentioned in first 2 utterances before rapport)
     if (utteranceCount <= 2) {
@@ -193,10 +198,17 @@ export class CharmerContextExtractor {
       const matches = transcript.match(pattern);
       if (matches && matches.length > 0) {
         const example = matches[0];
+        // Find the actual sentence containing the close-ended question
+        const sentences = transcript.split(/[.!?]+/);
+        const questionSentence = sentences.find(s => s.toLowerCase().includes(example.toLowerCase()));
+        const actualQuestion = questionSentence ? questionSentence.trim() + '?' : example;
+        
         issues.push({
           type: 'close-ended',
-          example,
-          feedback: "That yes/no question? Almost lost me there."
+          example: actualQuestion,
+          feedback: lastMarcusMessage 
+            ? `I asked "${lastMarcusMessage.substring(0, 60)}..." and you responded with "${actualQuestion}" - that's a yes/no question. I can dodge that with one word.`
+            : `"${actualQuestion}" - that's a yes/no question. I can dodge that with one word. Ask 'what' or 'how' instead.`
         });
         break; // Only report once
       }
@@ -216,10 +228,12 @@ export class CharmerContextExtractor {
     const weakOpeningPatterns = /^(so|um|uh|basically|well|like)\s+/i;
     const match = transcript.match(weakOpeningPatterns);
     if (match) {
+      const filler = match[0];
+      const restOfSentence = transcript.substring(filler.length, 60).trim();
       issues.push({
         type: 'weak-opening',
-        example: match[0],
-        feedback: "Those filler words at the start weakened your confidence."
+        example: `"${filler}${restOfSentence}..."`,
+        feedback: `Starting with "${filler}${restOfSentence}..." - those filler words weakened your confidence. Own your opening.`
       });
     }
     
@@ -239,10 +253,12 @@ export class CharmerContextExtractor {
     }
     
     if (hasVagueClaim) {
+      // Find the actual vague claim in the transcript
+      const vagueClaim = transcript.match(/\b(better results|improve|help you succeed|increase|enhance|optimize)[^.!?]*/i)?.[0] || 'vague claim';
       issues.push({
         type: 'vague',
-        example: 'improve sales, better results',
-        feedback: "That felt vague. Add a number—'30% more deals in 90 days' beats 'improve sales.'"
+        example: `"${vagueClaim}"`,
+        feedback: `"${vagueClaim}" - that felt vague. Add a number. '30% more deals in 90 days' beats 'improve sales.'`
       });
     }
     
@@ -251,10 +267,14 @@ export class CharmerContextExtractor {
     const hasDiscovery = discoveryPatterns.test(transcript);
     
     if (!hasDiscovery && transcript.length > 100) {
+      // Extract what they said instead of asking
+      const firstSentence = transcript.split(/[.!?]+/)[0].trim();
       issues.push({
         type: 'no-discovery',
-        example: 'No questions asked',
-        feedback: "You didn't ask me a single question about my situation. How'd you know I needed this?"
+        example: `"${firstSentence}${firstSentence.length < transcript.length ? '...' : ''}"`,
+        feedback: lastMarcusMessage
+          ? `I said "${lastMarcusMessage.substring(0, 50)}..." and you launched into "${firstSentence}..." - didn't ask me a single question about MY situation. How'd you know I needed this?`
+          : `You told me "${firstSentence}..." but didn't ask me anything about MY situation. How'd you know I needed this?`
       });
     }
     
@@ -262,10 +282,11 @@ export class CharmerContextExtractor {
     const apologeticPatterns = /\b(sorry to bother|just wanted to|if you have time|don't mean to interrupt)\b/gi;
     const apoMatch = transcript.match(apologeticPatterns);
     if (apoMatch) {
+      const apology = apoMatch[0];
       issues.push({
         type: 'apologetic',
-        example: apoMatch[0],
-        feedback: "That apology at the start—you gave me permission to ignore you before you even started."
+        example: `"${apology}"`,
+        feedback: `"${apology}" at the start? You gave me permission to ignore you before you even started. Own your value.`
       });
     }
     
@@ -365,12 +386,17 @@ export class CharmerContextExtractor {
   /**
    * Full extraction from transcript
    */
-  static extractAll(transcript: string, currentName?: string, utteranceCount: number = 0): ExtractedInfo {
+  static extractAll(
+    transcript: string, 
+    currentName?: string, 
+    utteranceCount: number = 0,
+    conversationHistory: Array<{role: string; content: string}> = []
+  ): ExtractedInfo {
     return {
       name: this.extractName(transcript, currentName, utteranceCount),
       product: this.extractProduct(transcript),
       memorablePhrase: this.extractMemorablePhrase(transcript),
-      detectedIssues: this.detectCoachingIssues(transcript, utteranceCount),
+      detectedIssues: this.detectCoachingIssues(transcript, conversationHistory, utteranceCount),
       strengths: this.identifyStrengths(transcript)
     };
   }

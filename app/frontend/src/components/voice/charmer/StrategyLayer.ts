@@ -138,7 +138,9 @@ export class StrategyLayer {
   ): number {
     let modifier = 0;
 
-    if (signals.talkingTooMuch) modifier += 2;
+    // Only penalize talking too much if NOT asking discovery questions
+    // Qualification questions can be detailed - that's good, not bad
+    if (signals.talkingTooMuch && !signals.askedDiscovery) modifier += 2;
     if (signals.makingAssumptions) modifier += 1;
     if (signals.askedDiscovery) modifier -= 1;
     if (signals.buildingRapport) modifier -= 1;
@@ -385,9 +387,14 @@ export class StrategyLayer {
       userTurns.slice(-3).map(t => t.content).join(' ')
     );
 
-    const buildingRapport = /\b(how are you|how's|great to|nice to|appreciate|thank|understand|makes sense)\b/i.test(
+    // Building rapport includes: greetings, acknowledgments, AND following up on what Marcus said
+    const hasFollowUpQuestion = /\b(you (mentioned|said)|how (is|are|do you like|happy are you)|what (about|do you think)|tell me about your)\b/i.test(
       userTurns.slice(-2).map(t => t.content).join(' ')
     );
+    
+    const buildingRapport = /\b(how are you|how's|great to|nice to|appreciate|thank|understand|makes sense|is this|are you)\b/i.test(
+      userTurns.slice(-2).map(t => t.content).join(' ')
+    ) || hasFollowUpQuestion;
 
     const talkingTooMuch = totalUserWords > totalAssistantWords * 1.5;
 

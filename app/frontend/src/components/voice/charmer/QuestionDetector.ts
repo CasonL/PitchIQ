@@ -32,17 +32,32 @@ export function containsQuestion(text: string): boolean {
 export function isOpenEndedQuestion(text: string): boolean {
   const lowerText = text.toLowerCase().trim();
   
-  // Strong open-ended signals
+  // CRITICAL FIX: Check for discovery keywords ANYWHERE in the question first
+  // This catches polite wrappers: "Would you mind telling me WHAT...", "Can you explain WHY..."
+  const hasDiscoveryKeyword = /\b(how|what|why|tell me|explain|describe|walk me through)\b/.test(lowerText);
+  
+  if (hasDiscoveryKeyword) {
+    // Verify it's actually asking for elaboration, not just a yes/no about a "what"
+    // e.g., "Do you know what time it is?" = closed, but "What time works for you?" = open
+    const isReallyClosedWithKeyword = [
+      /^(do|does|did|is|are|was|were|can|could|would|will|should|have|has|had) you (know|remember|think|believe|agree)\b/,
+      /^is (it|there|that|this) (what|how|why)\b/
+    ];
+    
+    if (isReallyClosedWithKeyword.some(pattern => pattern.test(lowerText))) {
+      return false;
+    }
+    
+    // If it has discovery keyword and isn't a "do you know" type, it's open-ended
+    return true;
+  }
+  
+  // Strong open-ended signals (explicit patterns)
   const openEndedStarters = [
     /^how (do|did|does|would|could|can|should)/,
     /^what (is|are|was|were|would|could|can)/,
     /^why (do|did|does|would|could|is|are)/,
-    /^tell me (about|how|what|why)/,
-    /^describe/,
-    /^explain/,
-    /^walk me through/,
-    /^talk (to )?me about/,
-    /^can you (tell|explain|describe|walk)/
+    /^talk (to )?me about/
   ];
   
   if (openEndedStarters.some(pattern => pattern.test(lowerText))) {
@@ -59,11 +74,6 @@ export function isOpenEndedQuestion(text: string): boolean {
   
   if (closedPatterns.some(pattern => pattern.test(lowerText))) {
     return false;
-  }
-  
-  // Default: if starts with "how", "what", "why" = open-ended
-  if (/^(how|what|why)\b/.test(lowerText)) {
-    return true;
   }
   
   // Default: closed

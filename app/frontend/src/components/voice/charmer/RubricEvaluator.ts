@@ -4,14 +4,17 @@
  */
 
 import { CallMetrics, RubricScore } from './CallMetrics';
+import { FrameworkAnalyzer } from './FrameworkAnalyzer';
 
 export class RubricEvaluator {
   private apiKey: string;
   private baseUrl: string;
+  private frameworkAnalyzer: FrameworkAnalyzer;
   
   constructor(apiKey?: string) {
     this.apiKey = apiKey || '';
-    this.baseUrl = '/api/openai';
+    this.baseUrl = '/api/openai/chat';
+    this.frameworkAnalyzer = new FrameworkAnalyzer();
   }
   
   /**
@@ -19,6 +22,23 @@ export class RubricEvaluator {
    */
   async evaluateCall(metrics: CallMetrics): Promise<RubricScore> {
     const talkRatio = metrics.userSpeakingTime / (metrics.userSpeakingTime + metrics.marcusSpeakingTime);
+    
+    // Build framework insights section if available
+    let frameworkSection = '';
+    if (metrics.frameworkInsights) {
+      const fw = metrics.frameworkInsights;
+      frameworkSection = `
+
+ADVANCED PATTERN ANALYSIS:
+Question Progression: ${fw.questionPattern.feedback}
+${fw.objectionHandling ? `Objection Handling: ${fw.objectionHandling.feedback}` : ''}
+${fw.insightMoments ? `Reframing: ${fw.insightMoments.feedback}` : ''}
+${fw.outcome ? `Call Outcome: ${fw.outcome.feedback}` : ''}
+
+Biggest Win: ${fw.biggestWin}
+Biggest Gap: ${fw.biggestGap}
+`;
+    }
     
     const prompt = `You are a sales coach evaluating a cold call. Analyze the metrics and provide a judgment-based assessment.
 
@@ -30,7 +50,7 @@ CALL METRICS:
 - Objections addressed: ${metrics.objectionsAddressed}
 - Objections resolved: ${metrics.objectionsResolved}
 - Total exchanges: ${metrics.totalExchanges}
-- Win condition: ${metrics.winCondition}
+- Win condition: ${metrics.winCondition}${frameworkSection}
 
 Provide your assessment in this exact JSON format:
 {
@@ -103,6 +123,9 @@ Return ONLY the JSON, no other text.`;
     const talkRatio = metrics.userSpeakingTime / (metrics.userSpeakingTime + metrics.marcusSpeakingTime);
     const talkPercent = Math.round(talkRatio * 100);
     
+    // Use framework insights if available
+    const fw = metrics.frameworkInsights;
+    
     // Simple heuristic scoring
     let score = 5.0;
     
@@ -110,15 +133,21 @@ Return ONLY the JSON, no other text.`;
     if (talkPercent >= 40 && talkPercent <= 60) score += 1.5;
     else if (talkPercent >= 30 && talkPercent <= 70) score += 0.5;
     
-    // Discovery scoring
-    if (metrics.openEndedCount >= 3) score += 1.5;
+    // Discovery scoring - enhanced with framework
+    if (fw?.questionPattern.balance === 'strong') score += 2.5;
+    else if (fw?.questionPattern.balance === 'developing') score += 1.5;
+    else if (metrics.openEndedCount >= 3) score += 1.5;
     if (metrics.followUpCount >= 2) score += 1.0;
     
-    // Objection handling
-    if (metrics.objectionsRaised > 0) {
+    // Objection handling - enhanced with framework
+    if (fw?.objectionHandling && fw.objectionHandling.score >= 8) score += 2;
+    else if (metrics.objectionsRaised > 0) {
       const resolvedRatio = metrics.objectionsResolved / metrics.objectionsRaised;
       score += resolvedRatio * 2;
     }
+    
+    // Outcome quality
+    if (fw?.outcome.type === 'concrete-next-step') score += 1;
     
     score = Math.min(score, 10);
     
@@ -131,28 +160,31 @@ Return ONLY the JSON, no other text.`;
     
     // Generate sales DNA based on strengths
     let salesDNA = 'The Explorer';
-    if (metrics.openEndedCount >= 4) salesDNA = 'Curious Builder';
+    if (fw?.questionPattern.balance === 'strong') salesDNA = 'Curious Builder';
+    else if (metrics.openEndedCount >= 4) salesDNA = 'Curious Builder';
     if (talkRatio > 0.6) salesDNA = 'Confident Closer';
     if (metrics.objectionsResolved >= 2) salesDNA = 'Smooth Navigator';
+    if (fw?.insightMoments && fw.insightMoments.score >= 7) salesDNA = 'Strategic Challenger';
     
     return {
       level,
       score: Math.round(score * 10) / 10,
-      strengths: this.identifyStrengths(metrics, talkRatio),
-      bottleneck: this.identifyBottleneck(metrics, talkRatio),
+      strengths: this.identifyStrengths(metrics, talkRatio, fw),
+      bottleneck: this.identifyBottleneck(metrics, talkRatio, fw),
       trainingPlan: {
-        teach: this.generateTeachingPlan(metrics),
-        challenge: this.generateChallengePlan(metrics)
+        teach: this.generateTeachingPlan(metrics, fw),
+        challenge: this.generateChallengePlan(metrics, fw)
       },
-      oneLiner: this.generateOneLiner(metrics, score),
+      oneLiner: this.generateOneLiner(metrics, score, fw),
       salesDNA
     };
   }
   
-  private identifyStrengths(metrics: CallMetrics, talkRatio: number): string[] {
+  private identifyStrengths(metrics: CallMetrics, talkRatio: number, fw?: typeof metrics.frameworkInsights): string[] {
     const strengths: string[] = [];
     
-    if (metrics.openEndedCount >= 3) strengths.push('Strong discovery mindset');
+    if (fw?.questionPattern.balance === 'strong') strengths.push('Progressed from problem to impact to value');
+    else if (metrics.openEndedCount >= 3) strengths.push('Strong discovery mindset');
     if (talkRatio >= 0.4 && talkRatio <= 0.6) strengths.push('Natural conversation flow');
     if (metrics.objectionsAddressed === metrics.objectionsRaised) strengths.push('Acknowledged all resistance');
     if (metrics.followUpCount >= 2) strengths.push('Active listening');
@@ -166,7 +198,10 @@ Return ONLY the JSON, no other text.`;
     return strengths.slice(0, 2);
   }
   
-  private identifyBottleneck(metrics: CallMetrics, talkRatio: number): string {
+  private identifyBottleneck(metrics: CallMetrics, talkRatio: number, fw?: typeof metrics.frameworkInsights): string {
+    // Use framework insights for more specific gaps
+    if (fw?.biggestGap) return fw.biggestGap;
+    
     // Prioritize objection handling if poor
     if (metrics.objectionsRaised > 0 && metrics.objectionsResolved === 0) {
       return 'Objection recognition';
@@ -183,10 +218,13 @@ Return ONLY the JSON, no other text.`;
     return 'Objection handling confidence';
   }
   
-  private generateTeachingPlan(metrics: CallMetrics): string[] {
+  private generateTeachingPlan(metrics: CallMetrics, fw?: typeof metrics.frameworkInsights): string[] {
     const plan: string[] = [];
     
-    if (metrics.objectionsResolved < metrics.objectionsRaised) {
+    // Use framework-specific recommendations if available
+    if (fw?.questionPattern.balance === 'surface-level' || fw?.questionPattern.balance === 'weak') {
+      plan.push('Moving from context to problem questions', 'Digging into consequences and impact');
+    } else if (metrics.objectionsResolved < metrics.objectionsRaised) {
       plan.push('Spot hidden objections', 'Confirm before moving on');
     }
     if (metrics.openEndedCount < 3) {
@@ -196,10 +234,13 @@ Return ONLY the JSON, no other text.`;
     return plan.slice(0, 2);
   }
   
-  private generateChallengePlan(metrics: CallMetrics): string[] {
+  private generateChallengePlan(metrics: CallMetrics, fw?: typeof metrics.frameworkInsights): string[] {
     const challenges: string[] = [];
     
-    if (metrics.objectionsResolved < metrics.objectionsRaised) {
+    // Framework-based challenges
+    if (fw?.outcome.type === 'no-commitment') {
+      challenges.push('Practice closing for concrete next steps', 'Identify who else needs to be involved');
+    } else if (metrics.objectionsResolved < metrics.objectionsRaised) {
       challenges.push('Prospects who object indirectly', 'Faster objection chains');
     } else {
       challenges.push('More skeptical prospects', 'Higher-stakes scenarios');
@@ -208,7 +249,11 @@ Return ONLY the JSON, no other text.`;
     return challenges.slice(0, 2);
   }
   
-  private generateOneLiner(metrics: CallMetrics, score: number): string {
+  private generateOneLiner(metrics: CallMetrics, score: number, fw?: typeof metrics.frameworkInsights): string {
+    // Use framework-specific feedback if available
+    if (fw?.questionPattern.feedback && score >= 7) {
+      return fw.questionPattern.whatToTryNext;
+    }
     if (score >= 8) return 'You sound credible and confident. Keep that energy.';
     if (score >= 6) return 'You sound credible. You just need sharper pattern recognition.';
     return 'Solid foundation. Focus on reading between the lines.';

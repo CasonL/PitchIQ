@@ -139,3 +139,126 @@ def chat():
     except Exception as e:
         logger.error(f"Error in OpenAI chat proxy: {e}", exc_info=True)
         return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+
+
+@openai_bp.route('/message-feedback', methods=['POST'])
+def message_feedback():
+    """
+    Generate AI-powered feedback for individual messages during calls
+    Analyzes what happened, why it matters, and suggests better approaches
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+        
+        message_content = data.get('message', '')
+        message_role = data.get('role', 'user')
+        conversation_history = data.get('conversationHistory', [])
+        scenario = data.get('scenario', {})
+        
+        if not message_content:
+            return jsonify({'error': 'No message provided'}), 400
+        
+        # Build context-aware prompt for feedback generation
+        is_user = message_role == 'user'
+        
+        system_prompt = """You are a sales training coach analyzing a live sales call. 
+Provide concise, actionable feedback on individual messages.
+
+Focus on:
+- Discovery questioning techniques
+- Building rapport vs. pitching too early
+- Handling objections
+- Open vs. closed questions
+- Active listening signals
+- Value creation
+
+Be direct and specific. Use examples."""
+
+        user_prompt = f"""Analyze this {'salesperson' if is_user else 'prospect'} message from a sales call:
+
+MESSAGE: "{message_content}"
+
+CONTEXT:
+Scenario: {scenario.get('name', 'Unknown')}
+Conversation so far: {len(conversation_history)} exchanges
+
+CONVERSATION HISTORY:
+{chr(10).join([f"{'User' if msg.get('role') == 'user' else 'Marcus'}: {msg.get('content', '')}" for msg in conversation_history[-5:]])}
+
+IMPORTANT: You MUST respond with valid JSON only. No markdown, no explanations, just the JSON object.
+
+Provide feedback in this exact JSON format:
+{{
+  "whatHappened": "Brief description of what the {'salesperson' if is_user else 'prospect'} did (1-2 sentences)",
+  "whyItMatters": "Why this matters for sales success (1-2 sentences)",
+  "betterApproach": "Specific example of what to say instead (only if this was a mistake, otherwise omit this field)",
+  "skillTagged": "Primary skill being tested (e.g., 'Discovery Questioning', 'Objection Handling', 'Rapport Building')"
+}}"""
+
+        import os
+        import requests
+        
+        openrouter_key = os.environ.get('OPENROUTER_API_KEY')
+        if not openrouter_key:
+            logger.error("OPENROUTER_API_KEY not set")
+            return jsonify({'error': 'OpenRouter not configured'}), 503
+        
+        # Call OpenRouter API
+        logger.info(f"Generating feedback for {message_role} message: {message_content[:50]}...")
+        response = requests.post(
+            'https://openrouter.ai/api/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {openrouter_key}',
+                'HTTP-Referer': 'https://pitchiq.com',
+                'X-Title': 'PitchIQ Message Feedback',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': 'openai/gpt-4o-mini',
+                'messages': [
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_prompt}
+                ],
+                'temperature': 0.7,
+                'max_tokens': 300
+            }
+        )
+        
+        if not response.ok:
+            logger.error(f"OpenRouter error: {response.status_code} - {response.text}")
+            return jsonify({'error': f'OpenRouter API error: {response.status_code}'}), 500
+        
+        result = response.json()
+        feedback_text = result['choices'][0]['message']['content']
+        logger.info(f"Raw AI response: {feedback_text[:200]}...")
+        
+        # Parse JSON response - strip markdown if present
+        import json
+        import re
+        
+        # Remove markdown code fences if present
+        feedback_text = re.sub(r'^```json\s*', '', feedback_text)
+        feedback_text = re.sub(r'\s*```$', '', feedback_text)
+        feedback_text = feedback_text.strip()
+        
+        try:
+            feedback = json.loads(feedback_text)
+            logger.info(f"Generated message feedback for {message_role} message")
+            return jsonify({'feedback': feedback}), 200
+        except json.JSONDecodeError as je:
+            logger.error(f"Failed to parse JSON: {je}")
+            logger.error(f"Raw text: {feedback_text}")
+            # Return a fallback response
+            return jsonify({
+                'feedback': {
+                    'whatHappened': 'AI analysis generated',
+                    'whyItMatters': feedback_text[:200] if len(feedback_text) < 500 else 'See full analysis in logs',
+                    'skillTagged': 'General Sales Skills'
+                }
+            }), 200
+        
+    except Exception as e:
+        logger.error(f"Error generating message feedback: {e}", exc_info=True)
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500

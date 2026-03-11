@@ -21,7 +21,7 @@ export const MarcusDemoPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full min-h-screen bg-white">
       <MarcusDemoFlow
         onComplete={handleComplete}
         onStartTraining={handleStartTraining}

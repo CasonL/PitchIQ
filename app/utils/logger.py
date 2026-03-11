@@ -63,7 +63,7 @@ class SmartLogFilter(logging.Filter):
         for pattern in self.HIGHLIGHT_PATTERNS:
             if re.search(pattern, message, re.IGNORECASE):
                 # Add visual emphasis
-                record.msg = f"🔥 {record.msg}"
+                record.msg = f"ALERT: {record.msg}"
                 return True
         
         # Allow INFO and above for our modules
@@ -167,8 +167,8 @@ def setup_smart_logging(level: str = "INFO") -> None:
     # Disable werkzeug request logging completely
     logging.getLogger('werkzeug').disabled = True
     
-    print(f"🎯 Smart logging enabled - Level: {level}")
-    print(f"🔇 Silenced {len(noisy_loggers)} noisy loggers")
+    print(f"Smart logging enabled - Level: {level}")
+    print(f"Silenced {len(noisy_loggers)} noisy loggers")
 
 def get_smart_logger(name: str) -> logging.Logger:
     """
@@ -186,7 +186,7 @@ def log_voice_event(event: str, details: Optional[Dict] = None) -> None:
     """Log voice-related events with special formatting."""
     logger = get_smart_logger('voice')
     details_str = f" - {details}" if details else ""
-    logger.info(f"🎤 {event}{details_str}")
+    logger.info(f"VOICE: {event}{details_str}")
 
 def log_api_call(endpoint: str, status: int, duration_ms: Optional[float] = None) -> None:
     """Log API calls with timing information."""
@@ -194,11 +194,11 @@ def log_api_call(endpoint: str, status: int, duration_ms: Optional[float] = None
     duration_str = f" ({duration_ms:.1f}ms)" if duration_ms else ""
     
     if status >= 400:
-        logger.error(f"🚨 {endpoint} -> {status}{duration_str}")
+        logger.error(f"ERROR: {endpoint} -> {status}{duration_str}")
     elif status >= 300:
-        logger.warning(f"↩️ {endpoint} -> {status}{duration_str}")
+        logger.warning(f"REDIRECT: {endpoint} -> {status}{duration_str}")
     else:
-        logger.info(f"✅ {endpoint} -> {status}{duration_str}")
+        logger.info(f"OK: {endpoint} -> {status}{duration_str}")
 
 def log_session_event(event: str, user_id: Optional[str] = None, session_id: Optional[str] = None) -> None:
     """Log session-related events."""
@@ -210,7 +210,7 @@ def log_session_event(event: str, user_id: Optional[str] = None, session_id: Opt
         context.append(f"session:{session_id[:8]}")
     
     context_str = f" [{', '.join(context)}]" if context else ""
-    logger.info(f"👤 {event}{context_str}")
+    logger.info(f"SESSION: {event}{context_str}")
 
 # Legacy support - keep existing functions
 def get_logger(name):

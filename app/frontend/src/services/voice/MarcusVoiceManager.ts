@@ -125,8 +125,11 @@ export class MarcusVoiceManager {
       return;
     }
 
-    // ECHO PREVENTION: Pause STT during TTS playback
-    this.sttService.pauseForTTS(cleanText);
+    // INTERRUPTIONS ENABLED: Don't pause STT - let user interrupt Marcus
+    // Text-based echo filter in CharmerController will prevent Marcus hearing himself
+    // this.sttService.pauseForTTS(cleanText); // DISABLED
+    
+    this.config.onSpeakingStateChange(true);
 
     // Synthesize and play with voice options
     await this.ttsService.speak(text, {
@@ -135,8 +138,10 @@ export class MarcusVoiceManager {
       speed: options?.speed,
     });
     
-    // ECHO PREVENTION: Resume STT after TTS complete
-    this.sttService.resumeAfterTTS();
+    this.config.onSpeakingStateChange(false);
+    
+    // INTERRUPTIONS ENABLED: Don't resume - STT never paused
+    // this.sttService.resumeAfterTTS(); // DISABLED
   }
 
   /**

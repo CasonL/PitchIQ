@@ -3,6 +3,8 @@
  * Data structures for post-call feedback system
  */
 
+import { FrameworkInsights } from './FrameworkAnalyzer';
+
 export interface ObjectionRoot {
   id: string;
   intensity: number; // 0-1
@@ -49,6 +51,9 @@ export interface CallMetrics {
   totalExchanges: number;
   callDuration: number; // seconds
   winCondition: 'booked' | 'soft_yes' | 'not_yet';
+  
+  // Advanced framework analysis
+  frameworkInsights?: FrameworkInsights;
 }
 
 export interface RubricScore {

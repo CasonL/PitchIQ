@@ -200,3 +200,18 @@
 .animate-pulse-target {
   animation: pulse-target-animation 2s infinite ease-in-out;
 }
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.2);
+  }
+  50% {
+    opacity: 0.95;
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}

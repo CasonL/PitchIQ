@@ -9,6 +9,60 @@ export type UrgencyLevel = 'none' | 'low' | 'medium' | 'high';
 export type BudgetStatus = 'no-budget' | 'locked-contract' | 'available' | 'flexible';
 export type OpennessLevel = 'closed' | 'skeptical' | 'curious' | 'open';
 
+/**
+ * Pain point pools - randomized per call for variety
+ */
+const PAIN_POINT_POOLS = {
+  urgent: [
+    'Current solution crashes constantly',
+    'Team spending hours on manual workarounds daily',
+    'Boss demanding improvements by end of quarter',
+    'Losing deals because of slow response times',
+    'Sales team threatening to quit over the tools',
+    'Missed quota last quarter, need to fix this',
+    'Client complained about our follow-up speed',
+    'Can\'t scale - system maxed out',
+    'Integration broke, IT can\'t fix it',
+    'Competitor using better tools, we\'re falling behind'
+  ],
+  moderate: [
+    'Could definitely be better than what we have',
+    'Support is slow, takes days to get help',
+    'Missing features we actually need',
+    'Team complains but not urgent',
+    'Clunky interface, not intuitive',
+    'Reporting is weak, hard to get insights',
+    'Mobile app barely works',
+    'Data sync issues occasionally',
+    'Wish it integrated with our other tools',
+    'Training new people takes forever'
+  ],
+  mild: [
+    'Minor annoyances here and there',
+    'Occasionally frustrating to use',
+    'Not perfect but gets the job done',
+    'A few things could be smoother',
+    'Some features feel outdated',
+    'UI could be more modern',
+    'Tiny bugs that don\'t get fixed',
+    'Wish it was faster but manageable'
+  ],
+  none: []
+};
+
+/**
+ * Generate random pain points for a given pain level
+ */
+function generatePainPoints(painLevel: PainLevel): string[] {
+  const pool = PAIN_POINT_POOLS[painLevel];
+  if (pool.length === 0) return [];
+  
+  // Randomly select 2-3 pain points
+  const count = painLevel === 'urgent' ? 3 : painLevel === 'moderate' ? 2 : 1;
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
 export interface MarcusTraitProfile {
   // Core motivations
   painLevel: PainLevel;
@@ -46,7 +100,7 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
     urgency: 'high',
     budget: 'flexible',
     openness: 'curious',
-    painPoints: ['Current solution constantly breaks', 'Team spending too much time on workarounds', 'Boss is asking for improvement'],
+    painPoints: [], // Populated dynamically
     currentSolution: 'Legacy system from 2015',
     satisfactionLevel: 3,
     decisionTimeframe: 'ASAP',
@@ -63,7 +117,7 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
     urgency: 'medium',
     budget: 'available',
     openness: 'curious',
-    painPoints: ['Not terrible but could be better', 'Wish it had more features', 'Support is slow'],
+    painPoints: [], // Populated dynamically
     currentSolution: 'Mid-tier competitor',
     satisfactionLevel: 6,
     decisionTimeframe: 'next quarter',
@@ -80,7 +134,7 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
     urgency: 'low',
     budget: 'no-budget',
     openness: 'skeptical',
-    painPoints: ['Minor annoyances', 'Occasionally frustrating'],
+    painPoints: [], // Populated dynamically
     currentSolution: 'Current vendor for 3 years',
     satisfactionLevel: 7,
     decisionTimeframe: '6+ months',
@@ -114,7 +168,7 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
     urgency: 'medium',
     budget: 'available',
     openness: 'skeptical',
-    painPoints: ['Integration headaches', 'Data inconsistencies', 'Manual workarounds'],
+    painPoints: [], // Populated dynamically
     currentSolution: 'DIY solution cobbled together',
     satisfactionLevel: 5,
     decisionTimeframe: '3-6 months',
@@ -131,7 +185,7 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
     urgency: 'low',
     budget: 'no-budget',
     openness: 'curious',
-    painPoints: ['Definitely has issues', 'Would love a better solution'],
+    painPoints: [], // Populated dynamically
     currentSolution: 'Free/cheap alternative',
     satisfactionLevel: 5,
     decisionTimeframe: 'no timeline',
@@ -148,7 +202,7 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
     urgency: 'none',
     budget: 'no-budget',
     openness: 'open',
-    painPoints: ['Casually interested in alternatives'],
+    painPoints: [], // Populated dynamically
     currentSolution: 'Current solution works fine',
     satisfactionLevel: 7,
     decisionTimeframe: 'no timeline',
@@ -218,16 +272,27 @@ export function getRandomMarcusTraits(difficulty: 'easy' | 'medium' | 'hard' = '
   for (const item of distribution) {
     random -= item.weight;
     if (random <= 0) {
+      // Clone the profile and populate with randomized pain points
+      const baseProfile = MARCUS_TRAIT_PROFILES[item.name];
+      const profile = {
+        ...baseProfile,
+        painPoints: generatePainPoints(baseProfile.painLevel)
+      };
+      
       return {
-        profile: MARCUS_TRAIT_PROFILES[item.name],
+        profile,
         profileName: item.name
       };
     }
   }
   
   // Fallback (should never reach here)
+  const baseProfile = MARCUS_TRAIT_PROFILES.exploringAlternatives;
   return {
-    profile: MARCUS_TRAIT_PROFILES.exploringAlternatives,
+    profile: {
+      ...baseProfile,
+      painPoints: generatePainPoints(baseProfile.painLevel)
+    },
     profileName: 'exploringAlternatives'
   };
 }

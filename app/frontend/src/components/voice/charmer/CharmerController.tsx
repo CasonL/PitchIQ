@@ -17,7 +17,7 @@ import { StrategyLayer, StrategyContext, StrategyConstraints } from './StrategyL
 import { SentenceCompletenessAnalyzer } from './SentenceCompleteness';
 import { CognitiveCompletenessAnalyzer } from './CognitiveCompleteness';
 import { CHARMER_PERSONA } from '../../../data/staticPersonas/theCharmer';
-import { MarcusPostCallMoments } from './MarcusPostCallMoments';
+import { MarcusPostCall } from './MarcusPostCall';
 import { ConversationTracker } from './ConversationTranscript';
 import { CriticalMomentDetector } from './CriticalMomentDetector';
 import { MomentFeedbackGenerator } from './MomentFeedbackGenerator';
@@ -27,6 +27,7 @@ import { getRandomMarcusTraits } from './MarcusTraits';
 import { FirstUtterancePatternDetector } from './FirstUtterancePatternDetector';
 import { TranscriptQualityDetector } from './TranscriptQualityDetector';
 import { TrainingWheels } from './TrainingWheels';
+import { FrameworkAnalyzer } from './FrameworkAnalyzer';
 
 interface CharmerControllerProps {
   onCallEnd?: () => void;
@@ -128,7 +129,6 @@ const CharmerControllerContent = memo(({
   
   // Conversation state
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
-  const [showMomentFeedback, setShowMomentFeedback] = useState(false);
   const [momentFeedbackData, setMomentFeedbackData] = useState<{momentPuzzles: any[], callSummary: any, duration: number, conversationExchanges?: any[]} | null>(() => {
     // Restore feedback data from localStorage on mount
     try {
@@ -142,6 +142,15 @@ const CharmerControllerContent = memo(({
       console.error('❌ Failed to restore feedback data:', err);
     }
     return null;
+  });
+  const [showMomentFeedback, setShowMomentFeedback] = useState(() => {
+    // Show feedback if we have saved feedback data in localStorage
+    try {
+      const saved = localStorage.getItem('marcusFeedbackData');
+      return saved !== null;
+    } catch {
+      return false;
+    }
   });
   
   // Training wheels state
@@ -172,9 +181,28 @@ const CharmerControllerContent = memo(({
   const utteranceGraceTimerRef = useRef<NodeJS.Timeout | null>(null); // Grace period after UtteranceEnd
   const pendingUtteranceRef = useRef<{text: string; count: number} | null>(null); // Pending utterance during grace
   const queuedUtterancesRef = useRef<Array<{text: string; count: number}>>([]); // Queue multiple utterances if processing
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null); // Track silence after Marcus speaks
+  const silenceStartRef = useRef(0); // When silence started
+  const lastMarcusMessageRef = useRef(''); // Last thing Marcus said
   
   // Wake lock for mobile - prevent screen timeout during calls
   const wakeLockRef = useRef<any>(null);
+  
+  // Detect and fix blank state (stale localStorage blocking UI)
+  useEffect(() => {
+    const isBlankState = !showScenarioSelector && !showMomentFeedback && !isRinging && !isConnecting && !isConnected;
+    
+    if (isBlankState) {
+      console.log('⚠️ Detected blank state - clearing stale data and showing scenario selector');
+      // Clear stale localStorage
+      localStorage.removeItem('marcusFeedbackData');
+      localStorage.removeItem('marcusActiveCall');
+      // Show scenario selector
+      setShowScenarioSelector(true);
+      setShowMomentFeedback(false);
+      setSelectedScenario(null);
+    }
+  }, [showScenarioSelector, showMomentFeedback, isRinging, isConnecting, isConnected]);
   
   // Refs for tracking
   const sessionIdRef = useRef<string | null>(null);
@@ -207,7 +235,7 @@ const CharmerControllerContent = memo(({
    */
   const processUserInput = useCallback(async (userText: string, utteranceSnapshot: number) => {
     if (isProcessing) {
-      // Queue this utterance to process after current one completes
+      // Accumulate fragments - user is continuing their thought while Marcus processes
       console.log(`⏸️ Already processing - queuing utterance #${utteranceSnapshot}`);
       queuedUtterancesRef.current.push({ text: userText, count: utteranceSnapshot });
       return;
@@ -220,6 +248,10 @@ const CharmerControllerContent = memo(({
     setIsProcessing(true);
     const processingUtteranceCount = utteranceSnapshot;
     console.log(`📝 Processing user input: "${userText.substring(0, 50)}..." (utterance #${processingUtteranceCount})`);
+    
+    let aiResponse: any;
+    let phaseManager: any;
+    let strategyConstraints: any;
     
     try {
       // Check transcript quality - detect garbled/poor STT
@@ -238,7 +270,7 @@ const CharmerControllerContent = memo(({
         const currentPhaseStr = phaseManager.getCurrentPhase();
         
         // Pass garbled text to AI - prompt has ADAPTIVE CLARIFICATION instructions
-        const aiResponse = await aiServiceRef.current.generateResponse({
+        aiResponse = await aiServiceRef.current.generateResponse({
           phase: currentPhaseStr,
           conversationContext: phaseManager.getContext(),
           userInput: userText,
@@ -274,7 +306,7 @@ const CharmerControllerContent = memo(({
         return;
       }
       
-      const phaseManager = phaseManagerRef.current;
+      phaseManager = phaseManagerRef.current;
       const currentPhaseStr = phaseManager.getCurrentPhase();
       // Map string phase to number for StrategyLayer compatibility
       const phaseMap: Record<CharmerPhase, number> = { 'prospect': 1, 'coach': 2, 'exit': 3 };
@@ -291,7 +323,8 @@ const CharmerControllerContent = memo(({
       
       // Extract information from user's speech
       // Pass current name to allow corrections and utterance count to limit name extraction to introductions
-      const extracted = CharmerContextExtractor.extractAll(userText, context.userName, processingUtteranceCount);
+      // Pass conversationHistory for context-aware coaching feedback
+      const extracted = CharmerContextExtractor.extractAll(userText, context.userName, processingUtteranceCount, conversationHistory);
       
       // Update context with extracted info (allow name updates for corrections)
       if (extracted.name) {
@@ -359,7 +392,7 @@ const CharmerControllerContent = memo(({
         } : undefined
       };
       
-      const strategyConstraints = strategyLayerRef.current.determineStrategy(strategyContext);
+      strategyConstraints = strategyLayerRef.current.determineStrategy(strategyContext);
       
       // Update training wheels state
       if (trainingWheelsEnabled) {
@@ -377,7 +410,6 @@ const CharmerControllerContent = memo(({
       console.log(`🧠 Question classified: ${classification.questionType} (${classification.category})`);
       
       // Check if we have a speculative response ready
-      let aiResponse;
       if (speculativeResponseRef.current) {
         console.log('⚡ Using speculative response');
         try {
@@ -557,7 +589,16 @@ const CharmerControllerContent = memo(({
       
       // Track when Marcus finishes speaking (to filter echo)
       lastMarcusSpeakTimeRef.current = Date.now();
+      lastMarcusMessageRef.current = aiResponse.content;
       console.log('✅ Marcus finished speaking');
+      
+      // DISABLED: Silence detection was interrupting natural pauses
+      // Only re-enable if user explicitly needs it, with much longer timer (15s+)
+      // and guards to not trigger after Marcus asks a question
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
       
       // Handle phase transitions (NOW happens after Marcus actually finishes)
       if (aiResponse.shouldTransitionPhase && aiResponse.nextPhase) {
@@ -610,13 +651,18 @@ const CharmerControllerContent = memo(({
     } finally {
       setIsProcessing(false);
       
-      // Process all queued utterances in order
+      // Combine all queued fragments into one complete thought
       if (queuedUtterancesRef.current.length > 0) {
-        const queued = queuedUtterancesRef.current.shift()!; // Get first queued item
-        console.log(`▶️ Processing queued utterance #${queued.count} (${queuedUtterancesRef.current.length} remaining)`);
+        const allFragments = queuedUtterancesRef.current;
+        const combinedText = allFragments.map(f => f.text).join(' ');
+        const lastCount = allFragments[allFragments.length - 1].count;
+        
+        console.log(`▶️ Combining ${allFragments.length} queued fragments into one thought: "${combinedText.substring(0, 80)}..."`);
+        queuedUtterancesRef.current = []; // Clear the queue
+        
         // Small delay to allow state to settle
         setTimeout(() => {
-          processUserInput(queued.text, queued.count);
+          processUserInput(combinedText, lastCount);
         }, 100);
       }
     }
@@ -734,6 +780,14 @@ const CharmerControllerContent = memo(({
     }
     
     // CRITICAL FIX: Only PROCESS final transcripts (UtteranceEnd events)
+    // Clear silence timer IMMEDIATELY on first sign of user speech (even partial)
+    if (newContent && newContent.length > 3) {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+    }
+    
     // This prevents fragmentation where "Hey, Marcus. It's Kayson from WebSite Co." 
     // gets split into multiple partial utterances
     if (!isFinalTranscript) {
@@ -759,12 +813,23 @@ const CharmerControllerContent = memo(({
       const words = newContent.split(/\s+/);
       const wordCount = words.length;
       
-      // Filter out likely echo (short phrases right after Marcus speaks)
-      const timeSinceMarcusSpoke = Date.now() - lastMarcusSpeakTimeRef.current;
-      if (timeSinceMarcusSpoke < 1000 && wordCount <= 2) {
-        console.log(`🔇 Filtering likely echo: "${newContent}" (${timeSinceMarcusSpoke}ms after Marcus, ${wordCount} words)`);
-        lastTranscriptRef.current = transcript;
-        return;
+      // Filter out echo by comparing transcript to what Marcus actually said
+      // Much more reliable than timing-based filtering
+      if (lastMarcusMessageRef.current) {
+        const marcusText = lastMarcusMessageRef.current.toLowerCase().trim();
+        const userText = newContent.toLowerCase().trim();
+        
+        // Check for exact match or very high similarity (handles transcription variations)
+        const isSimilar = userText === marcusText || 
+                         marcusText.includes(userText) || 
+                         userText.includes(marcusText) ||
+                         (userText.length > 10 && marcusText.startsWith(userText.slice(0, 10)));
+        
+        if (isSimilar) {
+          console.log(`🔇 Filtered Marcus echo: "${newContent}" (matches Marcus: "${lastMarcusMessageRef.current.substring(0, 50)}...")`);
+          lastTranscriptRef.current = transcript;
+          return;
+        }
       }
       
       // Process the complete utterance immediately
@@ -796,6 +861,24 @@ const CharmerControllerContent = memo(({
       return;
     }
   }, [transcript, isFinalTranscript, isSpeaking, conversationHistory, selectedScenario, processUserInput, detectContinuationCue]);
+  
+  /**
+   * Handle silence - inject context for LLM to reason about
+   */
+  const handleSilence = useCallback(async (silenceDuration: number) => {
+    if (isProcessing || isSpeaking) {
+      console.log('⏭️ Skipping silence handling - Marcus is processing or speaking');
+      return;
+    }
+    
+    const lastMessage = lastMarcusMessageRef.current;
+    const silenceContext = `[SILENCE: User has been silent for ${silenceDuration} seconds after you said: "${lastMessage}"]`;
+    
+    console.log(`🤔 Injecting silence context for LLM reasoning: ${silenceDuration}s`);
+    
+    // Pass silence context as a special user input for LLM to reason about
+    processUserInput(silenceContext, utteranceCountRef.current);
+  }, [isProcessing, isSpeaking, processUserInput]);
   
   /**
    * Handle Marcus's greeting when call connects
@@ -1045,6 +1128,13 @@ const CharmerControllerContent = memo(({
       }
     }
     
+    // Run framework analysis for advanced insights
+    const frameworkAnalyzer = new FrameworkAnalyzer();
+    const frameworkInsights = frameworkAnalyzer.analyze(
+      conversationHistory.map(h => ({ role: h.role, content: h.content })),
+      [] // Objections will be populated by the actual objection system
+    );
+    
     // Build call data
     const callData = {
       sessionId: sessionIdRef.current,
@@ -1065,7 +1155,8 @@ const CharmerControllerContent = memo(({
         objectionsAddressed: 0,
         objectionsResolved: 0,
         totalExchanges: conversationHistory.length / 2,
-        winCondition: 'not_yet' as const
+        winCondition: 'not_yet' as const,
+        frameworkInsights: frameworkInsights
       },
       phaseSummary: phaseManagerRef.current.getPhaseSummary(),
       finalContext: phaseManagerRef.current.getContext()
@@ -1177,16 +1268,59 @@ const CharmerControllerContent = memo(({
         />
       )}
       
-      {/* Moment-Based Feedback */}
-      {showMomentFeedback && momentFeedbackData && (
-        <MarcusPostCallMoments
-          momentPuzzles={momentFeedbackData.momentPuzzles}
-          callSummary={momentFeedbackData.callSummary}
-          duration={momentFeedbackData.duration}
-          conversationExchanges={momentFeedbackData.conversationExchanges}
-          onTryAgain={handleCloseMomentFeedback}
-        />
-      )}
+      {/* Post-Call Feedback */}
+      {showMomentFeedback && momentFeedbackData && (() => {
+        // Parse conversation for questions
+        const userQuestionsWithTimestamp = conversationHistory
+          .map((msg, idx) => ({ msg, idx }))
+          .filter(({ msg }) => msg.role === 'user' && msg.content.includes('?'));
+        
+        // Classify as open-ended vs closed-ended
+        const openEndedPatterns = /^(what|how|why|tell me|describe|explain|walk me through)/i;
+        
+        const questions = userQuestionsWithTimestamp.map(({ msg, idx }) => {
+          const isOpenEnded = openEndedPatterns.test(msg.content.trim());
+          return {
+            text: msg.content,
+            timestamp: idx,
+            isOpenEnded,
+            isFollowUp: false
+          };
+        });
+        
+        const openEndedCount = questions.filter(q => q.isOpenEnded).length;
+        
+        return (
+          <MarcusPostCall
+            callData={{
+              duration: momentFeedbackData.duration,
+              metrics: {
+                callDuration: momentFeedbackData.duration,
+                userSpeakingTime: Math.floor(momentFeedbackData.duration * 0.5),
+                marcusSpeakingTime: Math.floor(momentFeedbackData.duration * 0.5),
+                questions,
+                openEndedCount,
+                followUpCount: 0,
+                objections: [],
+                objectionsRaised: 0,
+                objectionsAddressed: 0,
+                objectionsResolved: 0,
+                totalExchanges: conversationHistory.length / 2,
+                winCondition: 'not_yet' as const,
+                frameworkInsights: conversationHistory.length > 0 ? new FrameworkAnalyzer().analyze(
+                  conversationHistory,
+                  []
+                ) : undefined
+              },
+              conversationHistory: conversationHistory
+            }}
+            onTryAgain={handleCloseMomentFeedback}
+            onStartTraining={() => {
+              console.log('Start training clicked - implement navigation');
+            }}
+          />
+        );
+      })()}
       
       {/* Training Wheels Overlay */}
       {!showMomentFeedback && !showScenarioSelector && isConnected && (

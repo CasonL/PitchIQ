@@ -290,17 +290,27 @@ export class DeepgramSTTService {
         // Longer = normal Deepgram accumulation within same phrase
         this.accumulatedTranscript = transcript;
       } else if (speechFinal || isFinal) {
-        // Shorter speechFinal after longer one = Deepgram RESET with new phrase
-        // Check if it's genuinely new content (not a substring)
+        // Shorter speechFinal after longer one = Deepgram RESET with new phrase OR correction
+        // Check if it's genuinely new content vs a correction of existing content
         const isSubstring = this.accumulatedTranscript.toLowerCase().includes(transcript.toLowerCase().trim());
         const isVeryShort = transcript.trim().length <= 5; // Likely noise/echo
         
-        if (!isSubstring && !isVeryShort) {
+        // Check for word overlap to detect corrections vs new content
+        const accWords = this.accumulatedTranscript.toLowerCase().split(/\s+/);
+        const newWords = transcript.toLowerCase().split(/\s+/);
+        const overlapCount = newWords.filter(word => accWords.includes(word)).length;
+        const overlapRatio = overlapCount / Math.max(newWords.length, 1);
+        
+        // If >60% word overlap, it's likely a correction/refinement, not new content
+        const isCorrection = overlapRatio > 0.6;
+        
+        if (!isSubstring && !isVeryShort && !isCorrection) {
           // New content - append it
           this.accumulatedTranscript = this.accumulatedTranscript.trim() + ' ' + transcript.trim();
           console.log(`[Deepgram] ➕ Appending: "${transcript}"`);
         } else {
-          console.log(`[Deepgram] ⏭️ Ignoring ${isVeryShort ? 'noise' : 'duplicate'}: "${transcript}"`);
+          const reason = isVeryShort ? 'noise' : isCorrection ? 'correction' : 'duplicate';
+          console.log(`[Deepgram] ⏭️ Ignoring ${reason}: "${transcript}"`);
         }
       }
       

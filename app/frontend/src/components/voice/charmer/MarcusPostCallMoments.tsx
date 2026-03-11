@@ -16,6 +16,7 @@ interface MarcusPostCallMomentsProps {
   callSummary: CallSummary | null;
   duration: number;
   conversationExchanges?: ConversationExchange[];
+  scenario?: any;
   onTryAgain: () => void;
 }
 
@@ -24,6 +25,7 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
   callSummary,
   duration,
   conversationExchanges = [],
+  scenario,
   onTryAgain
 }) => {
   const [revealedHints, setRevealedHints] = useState<{[key: string]: boolean}>({});
@@ -75,7 +77,14 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
         {/* Annotated Transcript */}
         {conversationExchanges.length > 0 && (
           <div className="mb-6">
-            <AnnotatedTranscript exchanges={conversationExchanges} />
+            <AnnotatedTranscript 
+              exchanges={conversationExchanges}
+              scenario={scenario}
+              conversationHistory={conversationExchanges.map(ex => ({
+                role: ex.speaker === 'user' ? 'user' : 'assistant',
+                content: ex.text
+              }))}
+            />
           </div>
         )}
         

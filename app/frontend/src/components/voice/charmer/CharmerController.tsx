@@ -152,6 +152,7 @@ const CharmerControllerContent = memo(({
       return false;
     }
   });
+  const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
   
   // Training wheels state
   const [trainingWheelsEnabled, setTrainingWheelsEnabled] = useState(false);
@@ -1070,7 +1071,21 @@ const CharmerControllerContent = memo(({
    * Handle call end
    */
   const handleEndCall = useCallback(async () => {
-    console.log('📵 Ending Marcus call');
+    console.log('📵 Ending Marcus call - terminating WebSocket immediately');
+    
+    // CRITICAL: End call FIRST to terminate WebSocket immediately
+    endCall();
+    
+    // Clear active call state from localStorage
+    try {
+      localStorage.removeItem('marcusActiveCall');
+      console.log('🗑️ Cleared active call state on call end');
+    } catch (err) {
+      console.error('❌ Failed to clear active call state:', err);
+    }
+    
+    // Show loading state while generating feedback
+    setIsGeneratingFeedback(true);
     
     const duration = phaseManagerRef.current.getTotalDuration();
     console.log(`📊 Call duration calculated: ${duration} seconds`);
@@ -1162,16 +1177,6 @@ const CharmerControllerContent = memo(({
       finalContext: phaseManagerRef.current.getContext()
     };
     
-    endCall();
-    
-    // Clear active call state from localStorage when call ends
-    try {
-      localStorage.removeItem('marcusActiveCall');
-      console.log('🗑️ Cleared active call state on call end');
-    } catch (err) {
-      console.error('❌ Failed to clear active call state:', err);
-    }
-    
     // Store feedback data and show UI
     setMomentFeedbackData({
       momentPuzzles,
@@ -1179,6 +1184,9 @@ const CharmerControllerContent = memo(({
       duration,
       conversationExchanges
     });
+    
+    // End loading state and show feedback
+    setIsGeneratingFeedback(false);
     setShowMomentFeedback(true);
     
     if (onCallComplete) {
@@ -1266,6 +1274,21 @@ const CharmerControllerContent = memo(({
           onStartChallenge={handleScenarioSelect}
           onCancel={onCallEnd}
         />
+      )}
+      
+      {/* Loading Feedback Screen */}
+      {isGeneratingFeedback && (
+        <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
+          <div className="text-center">
+            <CircularProgress size={60} sx={{ color: '#dc2626', mb: 3 }} />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Analyzing Your Call...
+            </h2>
+            <p className="text-gray-600">
+              Generating personalized feedback and insights
+            </p>
+          </div>
+        </div>
       )}
       
       {/* Post-Call Feedback */}

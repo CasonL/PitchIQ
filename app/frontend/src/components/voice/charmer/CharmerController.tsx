@@ -379,6 +379,7 @@ const CharmerControllerContent = memo(({
         phase: currentPhaseNum,
         conversationHistory,
         userInput: userText,
+        utteranceCount: utteranceSnapshot, // Pass current utterance count for impatience countdown
         repQualitySignals,
         // Pass randomized traits for trait-aware resistance
         marcusTraits: selectedScenario?.traits ? {

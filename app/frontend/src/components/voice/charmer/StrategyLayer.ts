@@ -34,6 +34,7 @@ export interface StrategyContext {
   phase: number;
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
   userInput: string;
+  utteranceCount: number; // Total utterances in this call
   repQualitySignals: {
     askedDiscovery: boolean;
     buildingRapport: boolean;
@@ -51,6 +52,9 @@ export interface StrategyContext {
     resistanceVolatility: number;
     satisfactionLevel: number;
     painPoints: string[];
+    // Architect can force impatience early (e.g., "Marcus has a meeting in 20 minutes")
+    forceImpatientAtUtterance?: number;
+    hasUpcomingObligation?: boolean;
   };
 }
 
@@ -65,7 +69,7 @@ export class StrategyLayer {
   }
 
   determineStrategy(context: StrategyContext): StrategyConstraints {
-    const { phase, conversationHistory, userInput, repQualitySignals, marcusTraits } = context;
+    const { phase, conversationHistory, userInput, utteranceCount, repQualitySignals, marcusTraits } = context;
 
     // Track questions asked
     const hasQuestion = /\?|\b(what|how|why|tell me|can you|would you|could you)\b/i.test(userInput);
@@ -93,9 +97,27 @@ export class StrategyLayer {
     }
     this.lastResistanceLevel = finalResistance;
 
-    // Check if user has asked 10+ questions without making progress
-    const isImpatient = this.questionsAsked >= 10 && !this.progressMade;
+    // IMPATIENCE LOGIC: Multiple triggers to save on API costs
+    // 1. Question-based: 10+ questions without making progress
+    const questionImpatience = this.questionsAsked >= 10 && !this.progressMade;
+    
+    // 2. Utterance-based: 15+ utterances AND high resistance (> 7) = going nowhere
+    const utteranceImpatience = utteranceCount >= 15 && finalResistance > 7;
+    
+    // 3. Architect override: Force impatience at specific utterance (e.g., "has meeting soon")
+    const forcedImpatience = marcusTraits?.forceImpatientAtUtterance 
+      ? utteranceCount >= marcusTraits.forceImpatientAtUtterance
+      : false;
+    
+    const isImpatient = questionImpatience || utteranceImpatience || forcedImpatience;
     const questionsAskedWithoutProgress = this.progressMade ? 0 : this.questionsAsked;
+    
+    if (utteranceImpatience && !questionImpatience) {
+      console.log(`⏰ [Strategy] Utterance impatience triggered: ${utteranceCount} utterances with ${finalResistance.toFixed(1)}/10 resistance`);
+    }
+    if (forcedImpatience) {
+      console.log(`⏰ [Strategy] Architect forced impatience at utterance ${utteranceCount}`);
+    }
 
     const emotionalPosture = this.determineEmotionalPosture(
       phase,

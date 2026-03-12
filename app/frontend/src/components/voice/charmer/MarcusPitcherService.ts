@@ -239,7 +239,7 @@ NOT sales strategy (helping them sell to you).
 
 WHAT PROTECTIVE HUMANS DO:
 - Deflect: "We're pretty happy with what we have"
-- Probe for catch: "So what's the catch?"
+- Express doubt: "I don't know about that"
 - Challenge claims: "I've heard that before"
 - Assert scarcity: "I don't have time for this"
 - Test commitment: "Why are you calling me?"

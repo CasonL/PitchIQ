@@ -21,6 +21,8 @@ import { MarcusPostCall } from './MarcusPostCall';
 import { ConversationTracker } from './ConversationTranscript';
 import { CriticalMomentDetector } from './CriticalMomentDetector';
 import { MomentFeedbackGenerator } from './MomentFeedbackGenerator';
+import { analyzeUserQuestions } from './QuestionDetector';
+import { CallMetrics, QuestionAnalysis } from './CallMetrics';
 import { MarcusScenario } from './MarcusScenarios';
 import { MarcusChallengeLobby } from './MarcusChallengeLobby';
 import { getRandomMarcusTraits } from './MarcusTraits';
@@ -129,7 +131,7 @@ const CharmerControllerContent = memo(({
   
   // Conversation state
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
-  const [momentFeedbackData, setMomentFeedbackData] = useState<{momentPuzzles: any[], callSummary: any, duration: number, conversationExchanges?: any[]} | null>(() => {
+  const [momentFeedbackData, setMomentFeedbackData] = useState<{momentPuzzles: any[], callSummary: any, duration: number, conversationExchanges?: any[], metrics?: CallMetrics} | null>(() => {
     // Restore feedback data from localStorage on mount
     try {
       const saved = localStorage.getItem('marcusFeedbackData');
@@ -1144,12 +1146,104 @@ const CharmerControllerContent = memo(({
       }
     }
     
+    // Calculate real metrics from conversation transcript
+    console.log('📊 Calculating real call metrics from transcript...');
+    
+    // 1. Calculate speaking time from word counts (estimate)
+    let userWordCount = 0;
+    let marcusWordCount = 0;
+    
+    for (const exchange of conversationExchanges) {
+      const wordCount = exchange.text.split(/\s+/).filter(w => w.length > 0).length;
+      if (exchange.speaker === 'user') {
+        userWordCount += wordCount;
+      } else {
+        marcusWordCount += wordCount;
+      }
+    }
+    
+    // Estimate speaking time: ~150 words per minute average
+    const WORDS_PER_MINUTE = 150;
+    const userSpeakingTime = Math.round((userWordCount / WORDS_PER_MINUTE) * 60);
+    const marcusSpeakingTime = Math.round((marcusWordCount / WORDS_PER_MINUTE) * 60);
+    
+    console.log(`📊 Speaking time: User ${userSpeakingTime}s (${userWordCount} words), Marcus ${marcusSpeakingTime}s (${marcusWordCount} words)`);
+    
+    // 2. Analyze discovery questions
+    const allQuestions: QuestionAnalysis[] = [];
+    const userExchanges = conversationExchanges.filter(ex => ex.speaker === 'user');
+    
+    for (let i = 0; i < userExchanges.length; i++) {
+      const currentExchange = userExchanges[i];
+      const previousUser = i > 0 ? userExchanges[i - 1].text : '';
+      const previousMarcus = i > 0 ? conversationExchanges.find(ex => 
+        ex.speaker === 'marcus' && ex.timestamp < currentExchange.timestamp
+      )?.text || '' : '';
+      
+      const questions = analyzeUserQuestions(
+        currentExchange.text,
+        previousUser,
+        previousMarcus,
+        currentExchange.timestamp
+      );
+      
+      allQuestions.push(...questions);
+    }
+    
+    const openEndedCount = allQuestions.filter(q => q.isOpenEnded).length;
+    const followUpCount = allQuestions.filter(q => q.isFollowUp).length;
+    
+    console.log(`📊 Discovery: ${openEndedCount} open-ended, ${followUpCount} follow-ups (${allQuestions.length} total questions)`);
+    
+    // 3. Extract objections from conversation
+    const objectionExchanges = conversationExchanges.filter(ex => 
+      ex.speaker === 'marcus' && ex.objectionTriggered
+    );
+    
+    const objections = objectionExchanges.map(ex => ({
+      id: ex.id,
+      timestamp: ex.timestamp,
+      surface: ex.objectionTriggered || '',
+      roots: [],
+      severity: 0.5,
+      addressed: false,
+      resolved: false,
+      softened_roots: [],
+      still_blocking: []
+    }));
+    
+    const objectionsRaised = objections.length;
+    console.log(`📊 Objections: ${objectionsRaised} raised`);
+    
     // Run framework analysis for advanced insights
     const frameworkAnalyzer = new FrameworkAnalyzer();
     const frameworkInsights = frameworkAnalyzer.analyze(
       conversationHistory.map(h => ({ role: h.role, content: h.content })),
-      [] // Objections will be populated by the actual objection system
+      objections
     );
+    
+    // Build complete metrics
+    const metrics: CallMetrics = {
+      callDuration: duration,
+      userSpeakingTime,
+      marcusSpeakingTime,
+      questions: allQuestions,
+      openEndedCount,
+      followUpCount,
+      objections,
+      objectionsRaised,
+      objectionsAddressed: 0, // TODO: Detect if user responded to objection in next turn
+      objectionsResolved: 0, // TODO: Track if resistance dropped after objection
+      totalExchanges: conversationHistory.length / 2,
+      winCondition: 'not_yet' as const,
+      frameworkInsights
+    };
+    
+    console.log('✅ Real metrics calculated:', {
+      talkRatio: `${Math.round((userSpeakingTime / (userSpeakingTime + marcusSpeakingTime)) * 100)}% user`,
+      discovery: `${openEndedCount} open-ended, ${followUpCount} follow-ups`,
+      objections: objectionsRaised
+    });
     
     // Build call data
     const callData = {
@@ -1159,21 +1253,7 @@ const CharmerControllerContent = memo(({
       momentPuzzles: momentPuzzles,
       successfulMoments: successfulMoments,
       callSummary: callSummary,
-      metrics: {
-        callDuration: duration,
-        userSpeakingTime: Math.floor(duration * 0.5),
-        marcusSpeakingTime: Math.floor(duration * 0.5),
-        questions: [],
-        openEndedCount: 0,
-        followUpCount: 0,
-        objections: [],
-        objectionsRaised: 0,
-        objectionsAddressed: 0,
-        objectionsResolved: 0,
-        totalExchanges: conversationHistory.length / 2,
-        winCondition: 'not_yet' as const,
-        frameworkInsights: frameworkInsights
-      },
+      metrics,
       phaseSummary: phaseManagerRef.current.getPhaseSummary(),
       finalContext: phaseManagerRef.current.getContext()
     };
@@ -1183,7 +1263,8 @@ const CharmerControllerContent = memo(({
       momentPuzzles,
       callSummary,
       duration,
-      conversationExchanges
+      conversationExchanges,
+      metrics
     });
     
     // End loading state and show feedback
@@ -1291,51 +1372,30 @@ const CharmerControllerContent = memo(({
           </div>
         </div>
       )}
-      
+
       {/* Post-Call Feedback */}
       {showMomentFeedback && momentFeedbackData && (() => {
-        // Parse conversation for questions
-        const userQuestionsWithTimestamp = conversationHistory
-          .map((msg, idx) => ({ msg, idx }))
-          .filter(({ msg }) => msg.role === 'user' && msg.content.includes('?'));
-        
-        // Classify as open-ended vs closed-ended
-        const openEndedPatterns = /^(what|how|why|tell me|describe|explain|walk me through)/i;
-        
-        const questions = userQuestionsWithTimestamp.map(({ msg, idx }) => {
-          const isOpenEnded = openEndedPatterns.test(msg.content.trim());
-          return {
-            text: msg.content,
-            timestamp: idx,
-            isOpenEnded,
-            isFollowUp: false
-          };
-        });
-        
-        const openEndedCount = questions.filter(q => q.isOpenEnded).length;
+        // Use stored metrics if available, otherwise fall back to basic calculation
+        const metrics = momentFeedbackData.metrics || {
+          callDuration: momentFeedbackData.duration,
+          userSpeakingTime: Math.floor(momentFeedbackData.duration * 0.5),
+          marcusSpeakingTime: Math.floor(momentFeedbackData.duration * 0.5),
+          questions: [],
+          openEndedCount: 0,
+          followUpCount: 0,
+          objections: [],
+          objectionsRaised: 0,
+          objectionsAddressed: 0,
+          objectionsResolved: 0,
+          totalExchanges: conversationHistory.length / 2,
+          winCondition: 'not_yet' as const
+        };
         
         return (
           <MarcusPostCall
             callData={{
               duration: momentFeedbackData.duration,
-              metrics: {
-                callDuration: momentFeedbackData.duration,
-                userSpeakingTime: Math.floor(momentFeedbackData.duration * 0.5),
-                marcusSpeakingTime: Math.floor(momentFeedbackData.duration * 0.5),
-                questions,
-                openEndedCount,
-                followUpCount: 0,
-                objections: [],
-                objectionsRaised: 0,
-                objectionsAddressed: 0,
-                objectionsResolved: 0,
-                totalExchanges: conversationHistory.length / 2,
-                winCondition: 'not_yet' as const,
-                frameworkInsights: conversationHistory.length > 0 ? new FrameworkAnalyzer().analyze(
-                  conversationHistory,
-                  []
-                ) : undefined
-              },
+              metrics,
               conversationHistory: conversationHistory
             }}
             onTryAgain={handleCloseMomentFeedback}

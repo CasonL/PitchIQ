@@ -13,11 +13,11 @@ import { CharmerContextExtractor } from './CharmerContextExtractor';
 import { CharmerAIService } from './CharmerAIService';
 import { QuestionClassifier, QuestionClassification } from './QuestionClassifier';
 import { JudgmentGate, JudgmentContext } from './JudgmentGate';
-import { StrategyLayer, StrategyContext, StrategyConstraints } from './StrategyLayer';
+import { StrategyLayer, StrategyContext, StrategyOutput, BuyerState } from './StrategyLayer';
 import { SentenceCompletenessAnalyzer } from './SentenceCompleteness';
 import { CognitiveCompletenessAnalyzer } from './CognitiveCompleteness';
 import { CHARMER_PERSONA } from '../../../data/staticPersonas/theCharmer';
-import { MarcusPostCall } from './MarcusPostCall';
+import { MarcusPostCallMoments } from './MarcusPostCallMoments';
 import { ConversationTracker } from './ConversationTranscript';
 import { CriticalMomentDetector } from './CriticalMomentDetector';
 import { MomentFeedbackGenerator } from './MomentFeedbackGenerator';
@@ -131,7 +131,14 @@ const CharmerControllerContent = memo(({
   
   // Conversation state
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
-  const [momentFeedbackData, setMomentFeedbackData] = useState<{momentPuzzles: any[], callSummary: any, duration: number, conversationExchanges?: any[], metrics?: CallMetrics} | null>(() => {
+  const [momentFeedbackData, setMomentFeedbackData] = useState<{
+    duration: number;
+    conversationExchanges?: any[];
+    objectionData?: any;
+    buyerState?: any;
+    finalResistance?: number;
+    metrics?: CallMetrics;
+  } | null>(() => {
     // Restore feedback data from localStorage on mount
     try {
       const saved = localStorage.getItem('marcusFeedbackData');
@@ -174,13 +181,14 @@ const CharmerControllerContent = memo(({
   const wasInterruptedRef = useRef(false);
   const incompleteUtteranceRef = useRef('');
   const lastMarcusSpeakTimeRef = useRef(0);
+  const lastUserSpeechTimeRef = useRef(0);
   const speculativeResponseRef = useRef<Promise<any> | null>(null);
   const lastClassificationRef = useRef<QuestionClassification | null>(null);
   const judgmentGateRef = useRef(new JudgmentGate());
   const strategyLayerRef = useRef(new StrategyLayer());
-  const lastUserSpeechTimeRef = useRef(0);
-  const processingTranscriptRef = useRef<string>(''); // Track which transcript we're processing
+  const lastObjectionRef = useRef<string | undefined>(undefined); // Track last objection for escalation
   const utteranceCountRef = useRef(0); // Track number of complete utterances
+  const processingTranscriptRef = useRef<string>(''); // Track which transcript we're processing
   const utteranceGraceTimerRef = useRef<NodeJS.Timeout | null>(null); // Grace period after UtteranceEnd
   const pendingUtteranceRef = useRef<{text: string; count: number} | null>(null); // Pending utterance during grace
   const queuedUtterancesRef = useRef<Array<{text: string; count: number}>>([]); // Queue multiple utterances if processing
@@ -254,7 +262,8 @@ const CharmerControllerContent = memo(({
     
     let aiResponse: any;
     let phaseManager: any;
-    let strategyConstraints: any;
+    let strategyOutput: StrategyOutput;
+    let buyerState: BuyerState;
     
     try {
       // Check transcript quality - detect garbled/poor STT
@@ -382,6 +391,7 @@ const CharmerControllerContent = memo(({
         conversationHistory,
         userInput: userText,
         utteranceCount: utteranceSnapshot, // Pass current utterance count for impatience countdown
+        lastObjection: lastObjectionRef.current, // Pass last objection for escalation detection
         repQualitySignals,
         // Pass randomized traits for trait-aware resistance
         marcusTraits: selectedScenario?.traits ? {
@@ -396,12 +406,13 @@ const CharmerControllerContent = memo(({
         } : undefined
       };
       
-      strategyConstraints = strategyLayerRef.current.determineStrategy(strategyContext);
+      strategyOutput = await strategyLayerRef.current.determineStrategy(strategyContext);
+      buyerState = strategyOutput.buyerState;
       
       // Update training wheels state
       if (trainingWheelsEnabled) {
         setLastResistance(currentResistance);
-        setCurrentResistance(strategyConstraints.resistanceLevel);
+        setCurrentResistance(buyerState.resistanceLevel);
         setCurrentSignals(repQualitySignals);
         setLastUserMessage(userText);
       }
@@ -463,7 +474,7 @@ const CharmerControllerContent = memo(({
           phasePromptContext: phaseManager.getPhasePromptContext(),
           conversationHistory: conversationHistory,
           scenario: selectedScenario,
-          strategyConstraints: strategyConstraints
+          buyerState: buyerState
         });
         
         // SAFETY: Check after generation completes
@@ -632,10 +643,30 @@ const CharmerControllerContent = memo(({
       
       // Track Marcus message for feedback generation
       if (conversationTrackerRef.current) {
+        // Detect objections using StrategyLayer's theme extraction
+        let objectionTriggered: string | undefined = undefined;
+        const response = aiResponse.content;
+        
+        // Check for skeptical/questioning language (broader patterns)
+        const isSkeptical = /\b(what|why|how|show|prove|not sure|don't know|concerned|worry|question|doubt|uncertain|wondering|curious about|need to see|gotta ask)\b/i.test(response);
+        const isResistant = /\b(too|expensive|busy|not a fit|don't think|doesn't|can't|won't|no time|already have|happy with)\b/i.test(response);
+        
+        if (isSkeptical || isResistant) {
+          objectionTriggered = response; // Store full response
+          
+          // Set active objection immediately for answer evaluation
+          const objectionType = strategyLayerRef.current.setActiveObjection(response);
+          console.log(`🚩 [Objection] Marcus raised: "${response.substring(0, 60)}..."`);
+          console.log(`🎯 [Active Objection] Set to: ${objectionType}`);
+          
+          lastObjectionRef.current = response;
+        }
+        
         conversationTrackerRef.current.addMarcusMessage(
           aiResponse.content,
-          strategyConstraints.resistanceLevel,
-          aiResponse.emotion
+          buyerState.resistanceLevel,
+          aiResponse.emotion,
+          objectionTriggered
         );
       }
       
@@ -1103,18 +1134,31 @@ const CharmerControllerContent = memo(({
     let callSummary: any = null;
     
     if (transcript && conversationTrackerRef.current) {
-      console.log('🔍 Analyzing conversation for critical moments and wins...');
+      console.log('🔍 Analyzing conversation with HYBRID pipeline (rules + LLM judgment)...');
       
       const detector = new CriticalMomentDetector();
-      const criticalMoments = detector.detectCriticalMoments(transcript);
-      const successMoments = detector.detectSuccessfulMoments(transcript);
-      
-      console.log(`✅ Found ${criticalMoments.length} critical moments, ${successMoments.length} wins`);
-      
-      // Always generate feedback, even with 0 critical moments
-      const feedbackGenerator = new MomentFeedbackGenerator();
       
       try {
+        // NEW: Use hybrid pipeline with LLM impact judgment
+        const hybridResults = await detector.detectCriticalMomentsWithLLM(
+          transcript,
+          conversationTrackerRef.current
+        );
+        
+        const criticalMoments = hybridResults.criticalMoments;
+        const successMoments = hybridResults.successfulMoments;
+        const topPositive = hybridResults.topPositive;
+        const topNegative = hybridResults.topNegative;
+        
+        console.log(`✅ Hybrid detection complete:`);
+        console.log(`   ${criticalMoments.length} critical moments (LLM-enriched)`);
+        console.log(`   ${successMoments.length} successful moments (LLM-enriched)`);
+        console.log(`   Top positive: ${topPositive ? `"${topPositive.userMessage.substring(0, 50)}..."` : 'none'}`);
+        console.log(`   Top negative: ${topNegative ? `"${topNegative.userMessage.substring(0, 50)}..."` : 'none'}`);
+        
+        // Always generate feedback, even with 0 critical moments
+        const feedbackGenerator = new MomentFeedbackGenerator();
+        
         // Generate moment puzzles if we have critical moments
         if (criticalMoments.length > 0) {
           momentPuzzles = await feedbackGenerator.generateMomentPuzzles(criticalMoments);
@@ -1123,9 +1167,13 @@ const CharmerControllerContent = memo(({
         // Store successful moments for display
         successfulMoments = successMoments;
         
-        // Always generate call summary for overall feedback with trait analysis
+        // Generate call summary with KEY MOMENTS highlighted
+        const keyMoments = [];
+        if (topPositive) keyMoments.push({ ...topPositive, direction: 'positive' });
+        if (topNegative) keyMoments.push({ ...topNegative, direction: 'negative' });
+        
         callSummary = await feedbackGenerator.generateCallSummary(
-          criticalMoments,
+          keyMoments.length > 0 ? keyMoments : criticalMoments,
           conversationHistory.length / 2,
           duration,
           undefined, // scenario
@@ -1138,11 +1186,58 @@ const CharmerControllerContent = memo(({
             satisfactionLevel: selectedScenario.traits.satisfactionLevel,
             idealOutcome: selectedScenario.traits.idealOutcome,
             winConditionExists: selectedScenario.traits.winConditionExists
+          } : undefined,
+          strategyLayerRef.current.getObjectionData() // Pass objection tracking data
+        );
+        
+        // Augment summary with LLM impact reasoning if available
+        if (topNegative?.impactReason || topPositive?.impactReason) {
+          callSummary.keyMoments = {
+            topNegative: topNegative ? {
+              what: topNegative.userMessage,
+              why: topNegative.impactReason || topNegative.whatHappened,
+              category: topNegative.impactCategory || 'trust_break'
+            } : null,
+            topPositive: topPositive ? {
+              what: topPositive.userMessage,
+              why: topPositive.impactReason || topPositive.whatHappened,
+              category: topPositive.impactCategory || 'discovery'
+            } : null
+          };
+        }
+        
+        console.log('✅ Generated LLM-enhanced feedback');
+      } catch (error) {
+        console.error('❌ Error in hybrid pipeline, falling back to rule-based:', error);
+        
+        // Fallback to rule-based only if LLM fails
+        const criticalMoments = detector.detectCriticalMoments(transcript);
+        const successMoments = detector.detectSuccessfulMoments(transcript);
+        
+        const feedbackGenerator = new MomentFeedbackGenerator();
+        
+        if (criticalMoments.length > 0) {
+          momentPuzzles = await feedbackGenerator.generateMomentPuzzles(criticalMoments);
+        }
+        
+        successfulMoments = successMoments;
+        
+        callSummary = await feedbackGenerator.generateCallSummary(
+          criticalMoments,
+          conversationHistory.length / 2,
+          duration,
+          undefined,
+          selectedScenario?.traits && selectedScenario?.traitProfileName ? {
+            traitProfileName: selectedScenario.traitProfileName,
+            painLevel: selectedScenario.traits.painLevel,
+            urgency: selectedScenario.traits.urgency,
+            budget: selectedScenario.traits.budget,
+            openness: selectedScenario.traits.openness,
+            satisfactionLevel: selectedScenario.traits.satisfactionLevel,
+            idealOutcome: selectedScenario.traits.idealOutcome,
+            winConditionExists: selectedScenario.traits.winConditionExists
           } : undefined
         );
-        console.log('✅ Generated moment-based feedback');
-      } catch (error) {
-        console.error('❌ Error generating feedback:', error);
       }
     }
     
@@ -1245,6 +1340,23 @@ const CharmerControllerContent = memo(({
       objections: objectionsRaised
     });
     
+    // Get objection and buyer state data from StrategyLayer
+    const objectionData = strategyLayerRef.current?.getObjectionData() || {
+      objectionSatisfaction: {},
+      objectionCounts: {},
+      activeObjection: undefined
+    };
+    
+    const buyerState = strategyLayerRef.current ? {
+      clarity: strategyLayerRef.current['buyerState']?.clarity,
+      trustLevel: strategyLayerRef.current['buyerState']?.trustLevel || 0,
+      relevance: strategyLayerRef.current['buyerState']?.relevance
+    } : undefined;
+    
+    const finalResistance = conversationExchanges.length > 0
+      ? conversationExchanges[conversationExchanges.length - 1].resistanceLevel || 5
+      : 5;
+    
     // Build call data
     const callData = {
       sessionId: sessionIdRef.current,
@@ -1254,16 +1366,20 @@ const CharmerControllerContent = memo(({
       successfulMoments: successfulMoments,
       callSummary: callSummary,
       metrics,
+      objectionData,
+      buyerState,
+      finalResistance,
       phaseSummary: phaseManagerRef.current.getPhaseSummary(),
       finalContext: phaseManagerRef.current.getContext()
     };
     
     // Store feedback data and show UI
     setMomentFeedbackData({
-      momentPuzzles,
-      callSummary,
       duration,
       conversationExchanges,
+      objectionData,
+      buyerState,
+      finalResistance,
       metrics
     });
     
@@ -1374,37 +1490,21 @@ const CharmerControllerContent = memo(({
       )}
 
       {/* Post-Call Feedback */}
-      {showMomentFeedback && momentFeedbackData && (() => {
-        // Use stored metrics if available, otherwise fall back to basic calculation
-        const metrics = momentFeedbackData.metrics || {
-          callDuration: momentFeedbackData.duration,
-          userSpeakingTime: Math.floor(momentFeedbackData.duration * 0.5),
-          marcusSpeakingTime: Math.floor(momentFeedbackData.duration * 0.5),
-          questions: [],
-          openEndedCount: 0,
-          followUpCount: 0,
-          objections: [],
-          objectionsRaised: 0,
-          objectionsAddressed: 0,
-          objectionsResolved: 0,
-          totalExchanges: conversationHistory.length / 2,
-          winCondition: 'not_yet' as const
-        };
-        
-        return (
-          <MarcusPostCall
-            callData={{
-              duration: momentFeedbackData.duration,
-              metrics,
-              conversationHistory: conversationHistory
-            }}
-            onTryAgain={handleCloseMomentFeedback}
-            onStartTraining={() => {
-              console.log('Start training clicked - implement navigation');
-            }}
-          />
-        );
-      })()}
+      {showMomentFeedback && momentFeedbackData && (
+        <MarcusPostCallMoments
+          duration={momentFeedbackData.duration}
+          conversationExchanges={momentFeedbackData.conversationExchanges || []}
+          objectionData={momentFeedbackData.objectionData || {
+            objectionSatisfaction: {},
+            objectionCounts: {},
+            activeObjection: undefined
+          }}
+          buyerState={momentFeedbackData.buyerState}
+          finalResistance={momentFeedbackData.finalResistance || 5}
+          scenario={selectedScenario}
+          onTryAgain={handleCloseMomentFeedback}
+        />
+      )}
       
       {/* Training Wheels Overlay */}
       {!showMomentFeedback && !showScenarioSelector && isConnected && (

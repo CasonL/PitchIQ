@@ -5,7 +5,7 @@
 
 import { CharmerPhase } from './CharmerPhaseManager';
 import type { ConversationContext } from './CharmerPhaseManager';
-import type { StrategyConstraints } from './StrategyLayer';
+import type { BuyerState } from './StrategyLayer';
 import { FirstUtterancePatternDetector, type PatternMatch } from './FirstUtterancePatternDetector';
 import { MARCUS_OBJECTION_STACKS } from './ObjectionStack';
 
@@ -150,7 +150,7 @@ You're friendly. Relaxed. Not in gatekeeper mode yet - just human conversation. 
       timingGuidance = `\n\n**⏱️ EXCHANGE ${exchangeCount} - COLD CALL, WHO IS THIS?**\n- If they greeted you: "Good, who is this?" or "Fine. Who am I talking to?"\n- If they just said your name: "Yeah? Who's this?"\n- Once you know their name, ask purpose next turn\n\nStay BRIEF.`;
     }
   } else if (exchangeCount === 2) {
-    timingGuidance = `\n\n**⏱️ EXCHANGE ${exchangeCount} - CHECK FOR NAME FIRST**\n**CRITICAL**: Look at conversation history - did they already give their name?\n- If YES (they introduced themselves already): ask purpose (SOFT): "What are you offering?" or "Okay. What can I do for you?" or "What's this about?"\n- If NO (still don't know who they are): ask again: "Who is this?"\n\n**Still too early for "What do you want?" - you're not impatient yet.**\nStay guarded. Brief responses.`;
+    timingGuidance = `\n\n**⏱️ EXCHANGE ${exchangeCount} - BE CONTEXT AWARE**\n**CRITICAL**: Read their last message carefully before responding.\n\n**If they ALREADY told you what this is about** (e.g., "talk about your sales team", "your website", "your marketing"):\n- DON'T ask "What can I do for you?" or "What's this about?" - they just told you!\n- Respond to what they ACTUALLY said: "Not really interested" or "We're all set" or "We already have someone for that"\n\n**If they gave name but NOT purpose yet** (just said "Hi, I'm X from Y"):\n- Ask purpose: "What are you offering?" or "What's this call about?"\n\n**If they still haven't given their name:**\n- Ask again: "Who is this?"\n\n**Still too early for "What do you want?" - you're not impatient yet.**\nStay guarded. Brief responses.`;
   } else if (exchangeCount <= 4) {
     timingGuidance = `\n\n**⏱️ EXCHANGE ${exchangeCount} - STILL GUARDED**\nStill a stranger. Keep responses short. Answer what they ask, nothing more. If you need to ask purpose: "What service are you selling?" or "What's your pitch?"\n\n**Still avoid "What do you want?" unless getting annoyed.**`;
   } else if (exchangeCount <= 6) {
@@ -678,7 +678,7 @@ export interface AIRequestContext {
   userInput: string;
   phasePromptContext: string;
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
-  strategyConstraints?: StrategyConstraints;
+  buyerState?: BuyerState; // How Marcus feels/behaves (replaces strategyConstraints)
   scenario?: any; // MarcusScenario - optional for challenge mode
   patternMatch?: PatternMatch; // For focused instant responses
 }
@@ -1113,9 +1113,9 @@ export class CharmerAIService {
       fullPrompt += this.buildScenarioPrompt(context.scenario);
     }
     
-    // STRATEGY CONSTRAINTS: Behavioral boundaries set by Strategy Layer
-    if (context.strategyConstraints) {
-      fullPrompt += this.buildStrategyConstraintPrompt(context.strategyConstraints);
+    // BUYER STATE: How Marcus feels and behaves (set by Strategy Layer)
+    if (context.buyerState) {
+      fullPrompt += this.buildBuyerStatePrompt(context.buyerState);
     }
     
     fullPrompt += `\n\n---\n\n**Remember:** You are Marcus. Stay in your current identity. No role bleed.`;
@@ -1161,35 +1161,99 @@ export class CharmerAIService {
   }
   
   /**
-   * Build strategy constraint instructions for Marcus's behavior
+   * Build buyer state instructions for Marcus's behavior
+   * This drives how Marcus responds based on his current state
    */
-  private buildStrategyConstraintPrompt(constraints: StrategyConstraints): string {
-    let prompt = `\n\n---\n\n**BEHAVIORAL CONSTRAINTS (You must follow these):**\n\n`;
+  private buildBuyerStatePrompt(state: BuyerState): string {
+    let prompt = `\n\n---\n\n**HOW YOU FEEL RIGHT NOW:**\n\n`;
     
-    prompt += `**Current Emotional State:** ${constraints.emotionalPosture}\n`;
-    prompt += `- Your resistance/guardedness level is ${constraints.resistanceLevel}/10\n`;
+    prompt += `**Current Emotional State:** ${state.emotionalPosture}\n`;
+    prompt += `- Your resistance/guardedness level is ${state.resistanceLevel}/10\n`;
+    prompt += `- Your openness to this conversation: ${state.openness}/10\n`;
+    prompt += `- Your patience remaining: ${state.patience}/10\n`;
+    prompt += `- Your trust level in this person: ${state.trustLevel}/10\n`;
+    prompt += `- How clear you are on what they're offering: ${state.clarity}/10\n`;
+    prompt += `- How relevant this feels to your needs: ${state.relevance}/10\n`;
     
-    // CRITICAL: Impatience overrides everything
-    if (constraints.isImpatient) {
-      prompt += `\n**⚠️ YOU ARE NOW IMPATIENT - WRAP UP THE CALL:**\n`;
-      prompt += `- They've asked ${constraints.questionsAskedWithoutProgress} questions and gotten nowhere\n`;
-      prompt += `- You're running out of patience and time\n`;
-      prompt += `- Start showing signs you want to end the call: "Look, I appreciate the questions but...", "I've got another call coming up", "Maybe this isn't the right time"\n`;
-      prompt += `- Be polite but firm - you're done with this conversation\n`;
-      prompt += `- If they don't quickly demonstrate value or direction, say you need to go\n`;
-      prompt += `- DO NOT be rude, but DO make it clear this call needs to end soon\n\n`;
+    // CRITICAL: Acknowledge when they address your concerns
+    if (state.lastAcknowledgment) {
+      prompt += `\n**🎯 ACKNOWLEDGE THEIR ANSWER:**\n`;
+      prompt += `- They just addressed your concern somewhat well\n`;
+      prompt += `- Start your response with: "${state.lastAcknowledgment}"\n`;
+      prompt += `- Then pivot to your next concern or remaining skepticism\n`;
+      prompt += `- DO NOT repeat the same objection if it was partially satisfied\n`;
+      prompt += `- You can still be skeptical on OTHER concerns\n\n`;
     }
     
-    if (constraints.resistanceLevel >= 7) {
-      prompt += `- You are VERY guarded. Short answers. Not revealing much. Skeptical tone.\n`;
-    } else if (constraints.resistanceLevel >= 5) {
-      prompt += `- You are somewhat guarded. Answer questions but don't volunteer extra info.\n`;
+    // CRITICAL 1: Force exit - highest priority
+    if (state.shouldForceExit) {
+      prompt += `\n**🚪 YOU MUST END THIS CALL NOW:**\n`;
+      prompt += `- Reason: ${state.exitReason}\n`;
+      prompt += `- You've had enough. This isn't going anywhere.\n`;
+      prompt += `- Say: "I don't think this is a fit right now. Let's reconnect later."\n`;
+      prompt += `- Or: "I've got to run. Send me something and I'll take a look."\n`;
+      prompt += `- Be polite but FINAL. Don't give them another opening.\n`;
+      prompt += `- Your patience is GONE.\n\n`;
+      return prompt; // Exit early - nothing else matters
+    }
+    
+    // CRITICAL 2: Objection escalation
+    if (state.shouldEscalateObjection) {
+      prompt += `\n**🔥 OBJECTION ESCALATION - GET DEMANDING:**\n`;
+      prompt += `- You've raised the "${state.objectionEscalationTheme}" concern ${state.objectionCount} times\n`;
+      prompt += `- They STILL haven't addressed it properly\n`;
+      prompt += `- Get MORE specific and demanding:\n`;
+      prompt += `  - "I need to see ONE case study before we continue."\n`;
+      prompt += `  - "Show me proof or I'm done here."\n`;
+      prompt += `  - "I've asked this three times - do you have an answer or not?"\n`;
+      prompt += `- If they dodge again, end the call.\n`;
+      prompt += `- You're frustrated. Show it.\n\n`;
+    }
+    
+    // CRITICAL 3: Rep incoherence - show confusion
+    if (state.shouldShowConfusion) {
+      prompt += `\n**🤔 YOU'RE CONFUSED - DON'T RESCUE THEM:**\n`;
+      prompt += `- They're not making sense\n`;
+      prompt += `- DO NOT paraphrase what you think they meant\n`;
+      prompt += `- DO NOT help them clarify\n`;
+      prompt += `- Say: "I'm not following. What exactly are you offering?"\n`;
+      prompt += `- Or: "Wait, what? Can you say that differently?"\n`;
+      prompt += `- Or: "Huh? I don't understand."\n`;
+      prompt += `- Be genuinely confused. Don't fix their mess.\n\n`;
+    }
+    
+    // Active objection tracking
+    if (state.activeObjection) {
+      const satisfaction = state.objectionSatisfaction[state.activeObjection];
+      prompt += `\n**Your current concern:** ${state.activeObjection}\n`;
+      prompt += `- Satisfaction level: ${(satisfaction * 100).toFixed(0)}%\n`;
+      if (satisfaction < 0.3) {
+        prompt += `- This is a MAJOR unresolved concern for you\n`;
+      } else if (satisfaction < 0.7) {
+        prompt += `- They've partially addressed this, but you're not fully convinced\n`;
+      } else {
+        prompt += `- This concern is mostly resolved\n`;
+      }
+    }
+    
+    // Response behavior based on resistance
+    if (state.resistanceLevel >= 7) {
+      prompt += `\n**You are VERY guarded:**\n`;
+      prompt += `- Short answers. Not revealing much. Skeptical tone.\n`;
+      prompt += `- They need to earn every piece of information.\n`;
+    } else if (state.resistanceLevel >= 5) {
+      prompt += `\n**You are somewhat guarded:**\n`;
+      prompt += `- Answer questions but don't volunteer extra info.\n`;
+      prompt += `- Stay neutral until they prove value.\n`;
     } else {
-      prompt += `- You are relatively open. Willing to share when asked good questions.\n`;
+      prompt += `\n**You are relatively open:**\n`;
+      prompt += `- Willing to share when asked good questions.\n`;
+      prompt += `- They've earned some trust.\n`;
     }
     
+    // Disclosure gates
     prompt += `\n**What You Can/Cannot Disclose:**\n`;
-    const gates = constraints.disclosureGates;
+    const gates = state.disclosureGates;
     
     if (!gates.canRevealBudget) prompt += `- DO NOT reveal budget information\n`;
     if (!gates.canRevealTimeline) prompt += `- DO NOT reveal timeline or urgency\n`;
@@ -1200,16 +1264,6 @@ export class CharmerAIService {
     
     if (gates.canShowInterest) prompt += `- You CAN show some interest if they earn it\n`;
     if (gates.canRevealPainPoints) prompt += `- You CAN share pain points when asked good questions\n`;
-    
-    if (constraints.shouldWithholdProgress) {
-      prompt += `\n**IMPORTANT - WITHHOLD PROGRESS:**\n`;
-      prompt += `- ${constraints.withholdReason}\n`;
-      prompt += `- Do NOT move the conversation forward\n`;
-      prompt += `- Do NOT reward poor sales behavior\n`;
-    }
-    
-    prompt += `\n**Training Objective:** ${constraints.trainingObjective}\n`;
-    prompt += `- Your responses should support this training goal\n`;
     
     return prompt;
   }

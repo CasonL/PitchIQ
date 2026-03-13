@@ -3,9 +3,15 @@
  * Identifies the 1-2 most impactful moments from a call
  */
 
-import { ConversationTranscript, ConversationExchange, CriticalMoment, SuccessfulMoment } from './ConversationTranscript';
+import { ConversationTranscript, ConversationExchange, CriticalMoment, SuccessfulMoment, ExchangePair } from './ConversationTranscript';
+import { ImpactJudge, ImpactJudgment } from './ImpactJudge';
 
 export class CriticalMomentDetector {
+  private impactJudge: ImpactJudge;
+
+  constructor() {
+    this.impactJudge = new ImpactJudge();
+  }
   /**
    * Detect successful moments - what they did right
    * Returns max 3 wins, prioritized by impact
@@ -43,7 +49,103 @@ export class CriticalMomentDetector {
       .slice(0, 3);
   }
   /**
-   * Analyze transcript and find the most critical moments
+   * HYBRID PIPELINE: Analyze transcript with rule-based candidates + LLM judgment
+   * This is the recommended approach - rules filter, LLM judges impact
+   */
+  async detectCriticalMomentsWithLLM(
+    transcript: ConversationTranscript,
+    conversationTracker: any // ConversationTracker instance
+  ): Promise<{
+    criticalMoments: CriticalMoment[];
+    successfulMoments: SuccessfulMoment[];
+    topPositive: CriticalMoment | null;
+    topNegative: CriticalMoment | null;
+  }> {
+    console.log('🔍 Starting hybrid impact detection pipeline...');
+    
+    // STEP 1: Rule-based candidate detection
+    const candidateMoments = this.detectCriticalMoments(transcript);
+    const candidateSuccesses = this.detectSuccessfulMoments(transcript);
+    
+    console.log(`📋 Rule-based detection found ${candidateMoments.length} negative candidates, ${candidateSuccesses.length} positive candidates`);
+    
+    // STEP 2: Extract exchange pairs for LLM judgment
+    const allPairs = conversationTracker.getStructuredExchangePairs();
+    
+    // Filter to pairs that match our candidate moments
+    const candidatePairs = allPairs.filter(pair => {
+      return candidateMoments.some(moment => 
+        moment.userMessage === pair.userTurn.text || 
+        moment.marcusResponse === pair.marcusResponse.text
+      ) || candidateSuccesses.some(success =>
+        success.userMessage === pair.userTurn.text ||
+        success.marcusResponse === pair.marcusResponse.text
+      );
+    });
+    
+    console.log(`🎯 Filtered to ${candidatePairs.length} exchange pairs for LLM judgment`);
+    
+    // STEP 3: Build conversation context for LLM
+    const currentObjections = transcript.exchanges
+      .filter(ex => ex.speaker === 'marcus' && ex.objectionTriggered)
+      .map(ex => ex.objectionTriggered!);
+    
+    const avgResistance = transcript.exchanges
+      .filter(ex => ex.resistanceLevel !== undefined)
+      .reduce((sum, ex, _, arr) => sum + ex.resistanceLevel! / arr.length, 0);
+    
+    const context = {
+      totalExchanges: transcript.exchanges.length,
+      currentObjections: [...new Set(currentObjections)], // Dedupe
+      trustLevel: Math.max(0, 10 - avgResistance),
+      callStage: this.determineCallStage(transcript.exchanges.length)
+    };
+    
+    // STEP 4: LLM judgment on candidates
+    let judgments: ImpactJudgment[] = [];
+    
+    if (candidatePairs.length > 0) {
+      try {
+        judgments = await this.impactJudge.judgeExchangePairs(candidatePairs, context);
+      } catch (error) {
+        console.error('❌ LLM judgment failed:', error);
+        // Fall back to rule-based only
+      }
+    }
+    
+    // STEP 5: Merge LLM judgments with rule-based moments
+    const enrichedMoments = this.mergeLLMJudgments(candidateMoments, candidatePairs, judgments);
+    const enrichedSuccesses = this.mergeLLMJudgmentsForSuccesses(candidateSuccesses, candidatePairs, judgments);
+    
+    // STEP 6: Rank and identify top 1 good + top 1 bad
+    const ranked = this.impactJudge.rankMoments(judgments);
+    
+    // Map top judgments back to moments
+    const topNegative = this.findMomentForJudgment(enrichedMoments, ranked.topNegative);
+    const topPositive = this.findSuccessMomentForJudgment(enrichedSuccesses, ranked.topPositive);
+    
+    // Convert top positive SuccessfulMoment to CriticalMoment format for consistency
+    const topPositiveAsCritical = topPositive ? {
+      ...topPositive,
+      type: 'missed_opening' as const, // Placeholder type
+      severity: 0,
+      hiddenOpportunity: topPositive.repeatThis || 'Replicate this approach'
+    } : null;
+    
+    console.log('✅ Hybrid pipeline complete');
+    console.log(`   Top negative: ${topNegative ? topNegative.type : 'none'}`);
+    console.log(`   Top positive: ${topPositive ? topPositive.type : 'none'}`);
+    
+    return {
+      criticalMoments: enrichedMoments,
+      successfulMoments: enrichedSuccesses,
+      topPositive: topPositiveAsCritical,
+      topNegative
+    };
+  }
+  
+  /**
+   * Analyze transcript and find the most critical moments (rule-based only)
    * Returns max 5 moments, prioritized by impact
    */
   detectCriticalMoments(transcript: ConversationTranscript): CriticalMoment[] {
@@ -77,10 +179,122 @@ export class CriticalMomentDetector {
     const missedPain = this.findMissedPainSignals(transcript);
     moments.push(...missedPain);
     
+    // NEW: Find repeated objections (CRITICAL signal)
+    const repeatedObjections = this.findRepeatedObjections(transcript);
+    moments.push(...repeatedObjections);
+    
     // Sort by severity and return top 5
     return moments
       .sort((a, b) => b.severity - a.severity)
       .slice(0, 5);
+  }
+  
+  /**
+   * Determine call stage based on exchange count
+   */
+  private determineCallStage(exchangeCount: number): 'opening' | 'discovery' | 'objection' | 'closing' {
+    if (exchangeCount < 6) return 'opening';
+    if (exchangeCount < 12) return 'discovery';
+    if (exchangeCount < 20) return 'objection';
+    return 'closing';
+  }
+  
+  /**
+   * Merge LLM judgments into CriticalMoment objects
+   */
+  private mergeLLMJudgments(
+    moments: CriticalMoment[],
+    pairs: ExchangePair[],
+    judgments: ImpactJudgment[]
+  ): CriticalMoment[] {
+    return moments.map(moment => {
+      // Find matching pair
+      const pair = pairs.find(p => 
+        p.userTurn.text === moment.userMessage || 
+        p.marcusResponse.text === moment.marcusResponse
+      );
+      
+      if (!pair) return moment;
+      
+      // Find matching judgment
+      const judgment = judgments.find((j, idx) => pairs[idx]?.id === pair.id);
+      
+      if (!judgment) return moment;
+      
+      // Enrich with LLM data
+      return {
+        ...moment,
+        impactScore: judgment.impactScore,
+        impactDirection: judgment.direction,
+        impactCategory: judgment.category,
+        impactReason: judgment.reason,
+        buyerStateChange: judgment.buyerStateChange,
+        isKeyMoment: judgment.isKeyMoment
+      };
+    });
+  }
+  
+  /**
+   * Merge LLM judgments into SuccessfulMoment objects
+   */
+  private mergeLLMJudgmentsForSuccesses(
+    successes: SuccessfulMoment[],
+    pairs: ExchangePair[],
+    judgments: ImpactJudgment[]
+  ): SuccessfulMoment[] {
+    return successes.map(success => {
+      const pair = pairs.find(p => 
+        p.userTurn.text === success.userMessage || 
+        p.marcusResponse.text === success.marcusResponse
+      );
+      
+      if (!pair) return success;
+      
+      const judgment = judgments.find((j, idx) => pairs[idx]?.id === pair.id);
+      
+      if (!judgment || judgment.impactScore <= 0) return success;
+      
+      return {
+        ...success,
+        impactScore: judgment.impactScore,
+        impactCategory: judgment.category,
+        impactReason: judgment.reason,
+        isKeyMoment: judgment.isKeyMoment
+      };
+    });
+  }
+  
+  /**
+   * Find CriticalMoment matching a judgment
+   */
+  private findMomentForJudgment(
+    moments: CriticalMoment[],
+    judgment: ImpactJudgment | null
+  ): CriticalMoment | null {
+    if (!judgment) return null;
+    
+    // Find moment with matching isKeyMoment flag and negative score
+    return moments.find(m => 
+      m.isKeyMoment && 
+      m.impactScore !== undefined && 
+      m.impactScore < 0
+    ) || null;
+  }
+  
+  /**
+   * Find SuccessfulMoment matching a judgment
+   */
+  private findSuccessMomentForJudgment(
+    successes: SuccessfulMoment[],
+    judgment: ImpactJudgment | null
+  ): SuccessfulMoment | null {
+    if (!judgment) return null;
+    
+    return successes.find(s => 
+      s.isKeyMoment && 
+      s.impactScore !== undefined && 
+      s.impactScore > 0
+    ) || null;
   }
   
   /**
@@ -383,6 +597,88 @@ export class CriticalMomentDetector {
     }
     
     return toneIssues;
+  }
+  
+  /**
+   * NEW: Find repeated objections - CRITICAL signal when buyer repeats same concern
+   * This means the objection was never actually addressed
+   */
+  private findRepeatedObjections(transcript: ConversationTranscript): CriticalMoment[] {
+    const repeated: CriticalMoment[] = [];
+    const exchanges = transcript.exchanges;
+    
+    // Track objection themes and their occurrences
+    const objectionThemes = new Map<string, Array<{exchange: ConversationExchange, index: number}>>();
+    
+    for (let i = 0; i < exchanges.length; i++) {
+      const ex = exchanges[i];
+      
+      if (ex.speaker === 'marcus' && ex.objectionTriggered) {
+        const theme = this.extractObjectionTheme(ex.objectionTriggered);
+        
+        if (!objectionThemes.has(theme)) {
+          objectionThemes.set(theme, []);
+        }
+        
+        objectionThemes.get(theme)!.push({ exchange: ex, index: i });
+      }
+    }
+    
+    // Flag themes that repeated 3+ times
+    for (const [theme, occurrences] of objectionThemes.entries()) {
+      if (occurrences.length >= 3) {
+        // Create moment for the 3rd occurrence
+        const thirdOccurrence = occurrences[2];
+        const userMsg = this.findPreviousUserMessage(exchanges, thirdOccurrence.index);
+        
+        if (userMsg) {
+          repeated.push({
+            id: `repeated_obj_${thirdOccurrence.exchange.id}`,
+            timestamp: thirdOccurrence.exchange.timestamp,
+            type: 'repeated_objection',
+            severity: 0.95, // VERY high severity
+            userMessage: userMsg.text,
+            marcusResponse: thirdOccurrence.exchange.text,
+            resistanceBefore: userMsg.resistanceLevel || 0,
+            resistanceAfter: thirdOccurrence.exchange.resistanceLevel || 0,
+            whatHappened: `Marcus repeated "${theme}" concern ${occurrences.length} times - it was never resolved`,
+            hiddenOpportunity: 'Acknowledge the concern directly and address the root fear, not just symptoms'
+          });
+        }
+      }
+    }
+    
+    return repeated;
+  }
+  
+  /**
+   * Extract core theme from objection text
+   */
+  private extractObjectionTheme(objectionText: string): string {
+    const lower = objectionText.toLowerCase();
+    
+    // Map to core themes
+    if (/\b(proof|evidence|work|results?|roi|show me)\b/.test(lower)) {
+      return 'lack_of_proof';
+    }
+    if (/\b(trust|believe|sure|know|guarantee)\b/.test(lower)) {
+      return 'trust_concern';
+    }
+    if (/\b(time|busy|bandwidth|schedule)\b/.test(lower)) {
+      return 'time_concern';
+    }
+    if (/\b(budget|cost|price|afford|expensive)\b/.test(lower)) {
+      return 'budget_concern';
+    }
+    if (/\b(fit|right|relevant|applicable)\b/.test(lower)) {
+      return 'fit_concern';
+    }
+    if (/\b(generic|cookie.?cutter|customiz|tailored)\b/.test(lower)) {
+      return 'customization_concern';
+    }
+    
+    // Default: use first 3 words
+    return lower.split(/\s+/).slice(0, 3).join('_');
   }
   
   /**

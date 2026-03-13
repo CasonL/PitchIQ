@@ -68,6 +68,11 @@ export class MomentFeedbackGenerator {
       satisfactionLevel: number;
       idealOutcome: string;
       winConditionExists: boolean;
+    },
+    objectionData?: {
+      activeObjection?: string;
+      objectionSatisfaction: Record<string, number>;
+      objectionCounts: Record<string, number>;
     }
   ): Promise<CallSummary> {
     const prompt = `You are a tough but fair sales coach. NO BULLSHIT. NO FLUFF. NO GENERIC PLATITUDES.
@@ -86,6 +91,18 @@ ${marcusTraits ? `MARCUS'S HIDDEN TRAITS (for your analysis only):
 - Satisfaction with current solution: ${marcusTraits.satisfactionLevel}/10
 - Winnable call: ${marcusTraits.winConditionExists ? 'Yes' : 'No'}
 - Ideal outcome: ${marcusTraits.idealOutcome}
+` : ''}
+${objectionData ? `OBJECTION HANDLING (CRITICAL):
+${Object.entries(objectionData.objectionSatisfaction)
+  .filter(([_, satisfaction]) => satisfaction < 1.0)
+  .map(([type, satisfaction]) => {
+    const count = objectionData.objectionCounts[type] || 0;
+    const addressed = satisfaction > 0.3 ? 'partially addressed' : 'NEVER addressed';
+    return `- ${type.toUpperCase()}: Raised ${count}x, satisfaction ${(satisfaction * 100).toFixed(0)}% (${addressed})`;
+  }).join('\n') || '- No objections raised'}
+${objectionData.activeObjection ? `- Active objection at call end: ${objectionData.activeObjection.toUpperCase()}` : ''}
+
+⚠️ If satisfaction is 0-30%, they NEVER used the right language to address it. Call this out FIRST in your feedback.
 ` : ''}
 CRITICAL MOMENTS:
 ${moments.map((m, i) => `

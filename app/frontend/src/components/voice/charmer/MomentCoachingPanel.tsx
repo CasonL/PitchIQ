@@ -157,6 +157,14 @@ TACTICAL PATTERN CHECKS (analyze the user's response for these):
 5. **Length mismatch**: Marcus gave short/impatient response → you gave long explanation (bad)
 6. **Mixing modes**: Trying to ask discovery AND pitch AND explain all in the same sentence
 
+STRATEGIC CORRECTION GUIDANCE:
+- If Marcus asks "What do you want?" or "Why are you calling?" → he's asking for CLARITY, not inviting discovery
+- Correct move: Answer his question FIRST (crisp reason for call), THEN transition to one question
+- WRONG: deflect into discovery ("I want to understand your challenges")
+- RIGHT: answer directly ("Quick reason for the call: [concrete value prop]. [One clean question]")
+- Pattern: impatient buyer = needs clarity, not discovery invitation
+- Don't recommend pivoting to discovery when the buyer is asking for relevance/clarity
+
 ${['strong_move', 'best_moment', 'turning_point'].includes(moment.classification) ? `This was a WIN. Explain what MECHANICALLY made this work:
 
 TONE: Strategic coach who sees the board position. Use "you" naturally. Focus on the specific mechanics that made this land.
@@ -212,8 +220,10 @@ Brief explanation of the mechanical mismatch (what Marcus needed vs what you gav
 - Examples MUST be SHORTER/CLEANER than what the user said
 - Examples MUST sound CONVERSATIONAL and NATURAL, not formal or corporate
 - Examples MUST be CONCRETE and SPECIFIC to this moment, not generic value statements
-- AVOID: "enhance", "discuss", "explore", "effectiveness" - these are too polished/boardroom
+- AVOID: "enhance", "discuss", "explore", "effectiveness", "I want to understand" - these are too polished/boardroom
 - PREFER: short, direct language that sounds like real cold-call conversation
+- If Marcus asked for clarity ("What do you want?"), examples should ANSWER his question, not deflect into discovery
+- Structure: [Crisp reason for call] + [One transition question], NOT [Discovery question] alone
 
 > "Example response 1 that would work"
 

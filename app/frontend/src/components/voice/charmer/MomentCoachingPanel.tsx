@@ -165,34 +165,60 @@ STRATEGIC CORRECTION GUIDANCE:
 - Pattern: impatient buyer = needs clarity, not discovery invitation
 - Don't recommend pivoting to discovery when the buyer is asking for relevance/clarity
 
-${['strong_move', 'best_moment', 'turning_point'].includes(moment.classification) ? `This was a WIN. Explain what MECHANICALLY made this work:
+${['strong_move', 'best_moment', 'turning_point'].includes(moment.classification) ? `This moment had POTENTIAL. Analyze both the strategic choice AND the execution quality:
 
-TONE: Strategic coach who sees the board position. Use "you" naturally. Focus on the specific mechanics that made this land.
+CRITICAL: Separate "right move" from "clean execution". A rep can choose the correct strategic response but deliver it poorly. Be honest about both.
 
-FORMAT RULES - CRITICAL FOR READABILITY:
-- Start with 1 sentence on what you did right
+TONE: Rigorous coach who sees nuance. Give credit for good instincts, but don't oversell rough execution.
+
+EXECUTION QUALITY CHECKS:
+1. **Clarity**: Was the response actually clear, or just directionally relevant but clunky?
+2. **Completeness**: Did they finish their thought, or trail off mid-sentence?
+3. **Phrasing**: Was it natural and conversational, or awkward and tangled?
+4. **Precision**: Did they use concrete language, or vague/generic terms?
+5. **Strategic alignment**: Did they actually pick up the buyer's thread, or just answer generally?
+
+CLASSIFY THE WIN:
+- **Full clean win**: Right move + clean execution
+- **Partial win**: Right move + rough execution (MOST COMMON)
+- **Decent move**: Right instinct + clumsy delivery
+
+Don't call something "clear and concise" if it was unfinished or awkward. Be honest.
+
+FORMAT RULES:
+- Start with 1 sentence on the core strategic choice
 - Use markdown headers (###) for each section
 - Use bullet points (-) for breakdown items
 - Add blank lines (\\n\\n) between sections
 - Use **bold** for key concepts
+- ALWAYS include a concrete improvement example if execution was rough
 
 Structure your response like this:
 
-### What You Did
-Brief explanation of the strategic move (what you addressed and how)
+### What You Did Well
+The strategic choice (what you attempted to address and why it was the right move)
 
-### Why It Landed
-- Specific reason tied to Marcus's state
-- Timing element (if relevant)
-- Language/approach that worked
+### What Limited the Moment
+Execution quality issues (rough phrasing, incomplete thoughts, missed strategic threads)
+Be specific: quote actual awkward phrases if present
+
+### Why It Partially Landed (or Fully Landed)
+- Marcus's state made him receptive to this move type
+- Which parts of your response worked
+- Which parts reduced clarity or impact
+
+### How to Execute This Move Better
+Provide 1-2 concrete examples showing cleaner execution of the same strategic move
+Use blockquotes for verbatim examples
+
+> "Example of cleaner execution"
 
 ### The Key Mechanic
-- The underlying principle that made this effective
-- How it moved Marcus's state in the right direction
+The underlying principle that makes this move type effective when executed well
 
-Example output:
+Example output for partial win:
 {
-  "whyItWorked": "You addressed Marcus's **skepticism** by making it concrete instead of abstract.\\n\\n### What You Did\\nYou shifted from talking about personalization as a feature to showing how it works in practice. Instead of defending the concept, you offered a relatable scenario he could visualize.\\n\\n### Why It Landed\\n- Marcus was at moderate trust/curiosity - ready to engage but needed substance\\n- The word \\\"actual\\\" signaled you're grounded, not pitching fluff\\n- You moved from generic to personalized, matching his need for clarity\\n\\n### The Key Mechanic\\nWhen a buyer expresses doubt at moderate trust, **concrete examples** build credibility faster than feature explanations. You gave him something he could mentally test, which moved his curiosity up and reduced resistance."
+  "whyItWorked": "You made the right strategic choice by answering Marcus's direct question instead of dodging it.\\n\\n### What You Did Well\\nYou attempted to explain your offer directly when Marcus asked 'What exactly are you offering?' This was important because he needed clarity before deciding whether to keep listening.\\n\\n### What Limited the Moment\\nYour explanation introduced the right concept, but the phrasing was rough and unfinished. The line 'Where you can generate a persona exactly like your IT customer persona in your business' is clunky and awkward. You also trailed off mid-thought: 'afterwards, they get,' - this incomplete delivery reduced the clarity of your answer.\\n\\n### Why It Partially Landed\\n- Marcus had enough curiosity to hear a concrete explanation\\n- The simulated-prospect idea is relevant and differentiated\\n- But the rough phrasing prevented it from landing as cleanly as it could have\\n\\n### How to Execute This Move Better\\n\\n> \\"We let your reps practice against AI prospects modeled after your real buyers, including similar pain points and objections, so they can sharpen conversations before talking to actual customers.\\"\\n\\n> \\"Sales training that feels like real calls. Your team practices on AI prospects that match your actual buyer personas.\\"\\n\\n### The Key Mechanic\\nWhen a buyer asks for clarity, answering directly with a concrete, complete explanation shows you're responsive and builds trust. But execution matters - rough phrasing reduces impact even when the strategic choice is correct."
 }
 
 Now generate YOUR coaching based on the actual moment above.` : `Explain what MECHANICALLY would work here instead:

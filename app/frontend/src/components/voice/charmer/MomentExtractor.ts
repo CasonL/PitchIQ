@@ -116,9 +116,29 @@ export class MomentExtractor {
     
     console.log(`🔍 Evaluating ${candidateMoments.length} candidate moments with LLM...`);
     
+    // DEDUPLICATE: One turn should produce at most one moment
+    // Priority: positive_shift > negative_shift > missed_opportunity > unresolved_concern
+    const momentsByTurn = new Map<number, KeyMoment>();
+    const typePriority = {
+      'positive_shift': 1,
+      'negative_shift': 2,
+      'missed_leverage': 3,
+      'unresolved_concern': 4
+    };
+    
+    for (const moment of candidateMoments) {
+      const existing = momentsByTurn.get(moment.turnNumber);
+      if (!existing || typePriority[moment.type] < typePriority[existing.type]) {
+        momentsByTurn.set(moment.turnNumber, moment);
+      }
+    }
+    
+    const deduplicated = Array.from(momentsByTurn.values());
+    console.log(`✂️ Deduplicated from ${candidateMoments.length} to ${deduplicated.length} moments (removed duplicates by turn)`);
+    
     // Note: LLM filtering happens async in MarcusPostCallMoments
     // For now, return top candidates by resistance change magnitude
-    const sortedByImpact = candidateMoments.sort((a, b) => {
+    const sortedByImpact = deduplicated.sort((a, b) => {
       const impactA = Math.abs(a.resistanceAfter - a.resistanceBefore);
       const impactB = Math.abs(b.resistanceAfter - b.resistanceBefore);
       return impactB - impactA;

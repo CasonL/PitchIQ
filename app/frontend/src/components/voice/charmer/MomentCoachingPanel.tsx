@@ -206,10 +206,15 @@ The strategic choice (what you attempted to address and why it was the right mov
 Execution quality issues (rough phrasing, incomplete thoughts, missed strategic threads)
 Be specific: quote actual awkward phrases if present
 
-### Why It Partially Landed (or Fully Landed)
+### Why It Partially Landed (use "Why It Fully Landed" ONLY if execution was clean)
+For partial wins (rough execution):
 - Marcus's state made him receptive to this move type
 - Which parts of your response worked
 - Which parts reduced clarity or impact
+
+For full wins (clean execution):
+- Why the move matched Marcus's immediate need
+- How your execution amplified the strategic choice
 
 ### How to Execute This Move Better
 Provide 1-2 concrete examples showing cleaner execution of the same strategic move
@@ -218,11 +223,12 @@ Use blockquotes for verbatim examples
 > "Example of cleaner execution"
 
 ### The Key Mechanic
-The underlying principle that makes this move type effective when executed well
+The underlying principle that makes this move type effective when executed well.
+Avoid overstating outcomes: use "builds credibility" or "maintains engagement" instead of "builds trust".
 
 Example output for partial win:
 {
-  "whyItWorked": "You made the right strategic choice by answering Marcus's direct question instead of dodging it.\\n\\n### What You Did Well\\nYou attempted to explain your offer directly when Marcus asked 'What exactly are you offering?' This was important because he needed clarity before deciding whether to keep listening.\\n\\n### What Limited the Moment\\nYour explanation introduced the right concept, but the phrasing was rough and unfinished. The line 'Where you can generate a persona exactly like your IT customer persona in your business' is clunky and awkward. You also trailed off mid-thought: 'afterwards, they get,' - this incomplete delivery reduced the clarity of your answer.\\n\\n### Why It Partially Landed\\n- Marcus had enough curiosity to hear a concrete explanation\\n- The simulated-prospect idea is relevant and differentiated\\n- But the rough phrasing prevented it from landing as cleanly as it could have\\n\\n### How to Execute This Move Better\\n\\n> \\"We let your reps practice against AI prospects modeled after your real buyers, including similar pain points and objections, so they can sharpen conversations before talking to actual customers.\\"\\n\\n> \\"Sales training that feels like real calls. Your team practices on AI prospects that match your actual buyer personas.\\"\\n\\n### The Key Mechanic\\nWhen a buyer asks for clarity, answering directly with a concrete, complete explanation shows you're responsive and builds trust. But execution matters - rough phrasing reduces impact even when the strategic choice is correct."
+  "whyItWorked": "You made the right strategic choice by answering Marcus's direct question instead of dodging it.\\n\\n### What You Did Well\\nYou attempted to explain your offer directly when Marcus asked 'What exactly are you offering?' This was important because he needed clarity before deciding whether to keep listening.\\n\\n### What Limited the Moment\\nYour explanation introduced the right concept, but the phrasing was rough and unfinished. The line 'Where you can generate a persona exactly like your IT customer persona in your business' is clunky and awkward. You also trailed off mid-thought: 'afterwards, they get,' - this incomplete delivery reduced the clarity of your answer.\\n\\n### Why It Partially Landed\\n- Marcus had enough curiosity to hear a concrete explanation\\n- The simulated-prospect idea is relevant and differentiated\\n- But the rough phrasing prevented it from landing as cleanly as it could have\\n\\n### How to Execute This Move Better\\n\\n> \\"We let your reps practice against AI prospects modeled after your real buyers, so they can sharpen conversations before talking to actual customers.\\"\\n\\n> \\"Sales training that feels like real calls. Your team practices on AI prospects that match your buyer personas.\\"\\n\\n### The Key Mechanic\\nWhen a buyer asks for clarity, answering directly with a concrete, complete explanation demonstrates responsiveness and builds credibility. Execution matters - rough phrasing reduces impact even when the strategic choice is correct."
 }
 
 Now generate YOUR coaching based on the actual moment above.` : `Explain what MECHANICALLY would work here instead:

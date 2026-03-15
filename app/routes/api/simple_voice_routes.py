@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 simple_voice_bp = Blueprint('simple_voice', __name__)
 
 @simple_voice_bp.route('/transcribe', methods=['POST'])
-@login_required
 def transcribe_audio():
     """Transcribe audio using Deepgram STT API"""
     try:
@@ -65,7 +64,7 @@ def transcribe_audio():
                     if alternatives and 'transcript' in alternatives[0]:
                         transcript = alternatives[0]['transcript']
             
-            logger.info(f"Transcription successful for user {current_user.id}: {transcript[:50]}...")
+            logger.info(f"Transcription successful: {transcript[:50]}...")
             return jsonify({
                 'success': True,
                 'transcript': transcript

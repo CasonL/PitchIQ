@@ -138,6 +138,7 @@ const CharmerControllerContent = memo(({
     buyerState?: any;
     finalResistance?: number;
     metrics?: CallMetrics;
+    preAnalyzedMoments?: any[];
   } | null>(() => {
     // Restore feedback data from localStorage on mount
     try {
@@ -1038,9 +1039,9 @@ const CharmerControllerContent = memo(({
       }
     }
     
-    // Wait 15 seconds for phone to ring, THEN connect to Marcus
+    // Wait 10 seconds for phone to ring, THEN connect to Marcus
     const startTime = Date.now();
-    console.log('📞 Phone ringing for 15 seconds...', new Date().toISOString());
+    console.log('📞 Phone ringing for 10 seconds...', new Date().toISOString());
     
     ringTimeoutRef.current = setTimeout(async () => {
       const elapsed = Date.now() - startTime;
@@ -1058,7 +1059,7 @@ const CharmerControllerContent = memo(({
       
       // Start the call AFTER ringing finishes
       await startCall();
-    }, 15000);
+    }, 10000);
   }, [isConnecting, isRinging, startCall, generateSessionId]);
   
   /**
@@ -1374,13 +1375,17 @@ const CharmerControllerContent = memo(({
     };
     
     // Store feedback data and show UI
+    // Combine critical and successful moments for pre-analysis
+    const allAnalyzedMoments = [...(momentPuzzles || []), ...(successfulMoments || [])];
+    
     setMomentFeedbackData({
       duration,
       conversationExchanges,
       objectionData,
       buyerState,
       finalResistance,
-      metrics
+      metrics,
+      preAnalyzedMoments: allAnalyzedMoments.length > 0 ? allAnalyzedMoments : undefined
     });
     
     // End loading state and show feedback
@@ -1503,6 +1508,7 @@ const CharmerControllerContent = memo(({
           finalResistance={momentFeedbackData.finalResistance || 5}
           scenario={selectedScenario}
           onTryAgain={handleCloseMomentFeedback}
+          preAnalyzedMoments={momentFeedbackData.preAnalyzedMoments}
         />
       )}
       

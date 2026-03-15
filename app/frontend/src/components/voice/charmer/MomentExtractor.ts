@@ -92,14 +92,27 @@ export class MomentExtractor {
     // Build exchange pairs
     const pairs = this.buildExchangePairs(exchanges);
     
+    // Check for opening issues first (when opening score would be low)
+    const openingIssues = this.findOpeningIssues(pairs, context);
+    
     // Identify candidates for each type
     const positiveShifts = this.findPositiveShifts(pairs, context);
     const negativeShifts = this.findNegativeShifts(pairs, context);
     const missedOpportunities = this.findMissedOpportunities(pairs, context);
     const unresolvedConcerns = this.findUnresolvedConcerns(pairs, context);
     
+    // Debug logging
+    console.log(`📊 Moment candidate breakdown:`, {
+      openingIssues: openingIssues.length,
+      positiveShifts: positiveShifts.length,
+      negativeShifts: negativeShifts.length,
+      missedOpportunities: missedOpportunities.length,
+      unresolvedConcerns: unresolvedConcerns.length,
+      totalPairs: pairs.length
+    });
+    
     // Filter with LLM for true impact
-    const candidateMoments = [...positiveShifts, ...negativeShifts, ...missedOpportunities, ...unresolvedConcerns];
+    const candidateMoments = [...openingIssues, ...positiveShifts, ...negativeShifts, ...missedOpportunities, ...unresolvedConcerns];
     
     console.log(`🔍 Evaluating ${candidateMoments.length} candidate moments with LLM...`);
     
@@ -112,6 +125,127 @@ export class MomentExtractor {
     });
     
     return sortedByImpact.slice(0, 8); // Return more candidates for LLM to filter
+  }
+  
+  /**
+   * Analyze opening exchanges when opening score is low
+   * Identifies specific opening mistakes rather than just resistance changes
+   */
+  private static findOpeningIssues(
+    pairs: Array<{ marcusStatement: ConversationExchange; userResponse: ConversationExchange; outcome: ConversationExchange | null; index: number }>,
+    context: MomentExtractionContext
+  ): KeyMoment[] {
+    const issues: KeyMoment[] = [];
+    
+    // Calculate what the opening score would be using INITIAL resistance
+    const initialResistance = context.conversationExchanges[0]?.resistanceLevel || context.finalResistance;
+    const resistanceScore = Math.max(0, 100 - (initialResistance * 10));
+    const trustScore = Math.max(0, Math.min(100, ((context.buyerState?.trustLevel || 0) / 10) * 100));
+    const openingScore = Math.round((resistanceScore * 0.6) + (trustScore * 0.4));
+    
+    console.log(`🎬 Opening analysis: initialRes=${initialResistance}, score=${openingScore}`);
+    
+    // Only analyze if opening score is weak (< 70) - increased threshold
+    if (openingScore >= 70 || pairs.length < 2) {
+      return issues;
+    }
+    
+    // Analyze first 2-3 exchanges for specific patterns
+    const openingPairs = pairs.slice(0, Math.min(3, pairs.length));
+    
+    for (const pair of openingPairs) {
+      if (!pair.outcome) continue;
+      
+      const userText = pair.userResponse.text.toLowerCase();
+      const marcusText = pair.marcusStatement.text.toLowerCase();
+      const outcomeText = pair.outcome.text.toLowerCase();
+      
+      let issueFound = false;
+      let issueType = '';
+      let coaching = '';
+      
+      // Pattern 1: Rushed into pitch or time ask without rapport
+      if (pair.index <= 1) {
+        const isPitching = /we (help|offer|provide|specialize|work with)|our (service|product|solution|platform)|what we do is/.test(userText);
+        const askedForTime = /(do you have|got|have you got).*(minute|second|time|moment)|wondering if you/.test(userText);
+        const isLongExplanation = userText.split(' ').length > 30;
+        const marcusShowsResistance = /not interested|busy|have someone|no thanks|don't need|what do you want/.test(outcomeText);
+        
+        if ((isPitching || askedForTime || isLongExplanation) && marcusShowsResistance && pair.index === 0) {
+          issueFound = true;
+          issueType = askedForTime ? 'Asked for time too early' : 'Rushed into pitch';
+          coaching = askedForTime 
+            ? 'Asking "do you have 5 minutes" on a cold call signals you\'re about to pitch. Build rapport first.'
+            : 'You jumped straight into explaining your product. On cold calls, build a moment of rapport first before pitching.';
+        }
+      }
+      
+      // Pattern 2: Generic/weak opener
+      if (pair.index === 0 && !issueFound) {
+        const isGeneric = /how are you|how's it going|hope (you're|you are) doing well/.test(userText);
+        const noContext = !/(noticed|saw|read|researched|looked at)/.test(userText);
+        const marcusGuarded = pair.outcome.resistanceLevel && pair.outcome.resistanceLevel >= 7;
+        
+        if (isGeneric && noContext && marcusGuarded) {
+          issueFound = true;
+          issueType = 'Weak opener';
+          coaching = 'Generic openers like "How are you?" signal cold call. Try referencing something specific about their business to show you did research.';
+        }
+      }
+      
+      // Pattern 3: Didn't handle initial pushback
+      if (pair.index <= 2 && !issueFound) {
+        const marcusObjected = /not interested|busy|have someone|send (me )?something|call.*later/.test(marcusText);
+        const userIgnored = !/(understand|hear you|makes sense|fair|appreciate|respect)/.test(userText);
+        const userKeptPitching = /let me|what we do|our (service|product)|we help/.test(userText);
+        const resistanceWentUp = pair.outcome.resistanceLevel && pair.marcusStatement.resistanceLevel && 
+                                 pair.outcome.resistanceLevel > pair.marcusStatement.resistanceLevel;
+        
+        if (marcusObjected && (userIgnored || userKeptPitching) && resistanceWentUp) {
+          issueFound = true;
+          issueType = 'Ignored objection';
+          coaching = `Marcus said "${this.extractQuote(marcusText, 40)}" but you kept pitching. Acknowledge objections before responding.`;
+        }
+      }
+      
+      // Pattern 4: No credibility building
+      if (pair.index <= 2 && !issueFound) {
+        const userMadesClaim = /we (help|work with|improve|increase|boost)|best|top|leading|expert/.test(userText);
+        const noProof = !/(company|client|customer|team|case|example|result)/.test(userText);
+        const marcusSkeptical = /prove|show me|evidence|everyone says|heard.*before/.test(outcomeText);
+        
+        if (userMadesClaim && noProof && marcusSkeptical) {
+          issueFound = true;
+          issueType = 'No credibility';
+          coaching = 'You made claims without proof early. Drop a quick credibility marker ("We work with 3 SaaS companies in Denver") to earn attention.';
+        }
+      }
+      
+      if (issueFound) {
+        const marcusState = this.inferMarcusState(pair.outcome.resistanceLevel || 5, pair.outcome, context);
+        issues.push({
+          id: `opening_${pair.index}`,
+          type: 'negative_shift',
+          classification: 'mistake',
+          reasonTag: 'Trust', // Opening issues are about building trust
+          timestamp: pair.userResponse.timestamp,
+          turnNumber: Math.floor(pair.index / 2) + 1,
+          title: `Opening mistake: ${issueType}`,
+          userMessage: pair.userResponse.text,
+          marcusResponse: pair.marcusStatement.text,
+          surroundingContext: this.extractSurroundingContext(pair.index),
+          resistanceBefore: pair.marcusStatement.resistanceLevel || 5,
+          resistanceAfter: pair.outcome.resistanceLevel || 5,
+          whatChanged: `Opening landed poorly - ${issueType.toLowerCase()}`,
+          humanConsequence: 'Marcus became guarded instead of curious',
+          whyItMatters: coaching,
+          marcusState
+        });
+        break; // Only flag one opening issue
+      }
+    }
+    
+    return issues;
   }
   
   /**
@@ -141,8 +275,8 @@ export class MomentExtractor {
         continue;
       }
       
-      // Resistance dropped meaningfully after user's response (lowered threshold)
-      if (resistanceDrop >= 1.5) {
+      // Resistance dropped meaningfully after user's response
+      if (resistanceDrop >= 1.0) {
         const marcusState = this.inferMarcusState(afterRes, pair.outcome, context);
         shifts.push({
           id: `pos_${pair.index}`,
@@ -221,8 +355,8 @@ export class MomentExtractor {
         continue;
       }
       
-      // Resistance increased meaningfully after user's response (lowered threshold)
-      if (resistanceIncrease >= 1.5) {
+      // Resistance increased meaningfully after user's response
+      if (resistanceIncrease >= 1.0) {
         const marcusState = this.inferMarcusState(afterRes, pair.outcome, context);
         shifts.push({
           id: `neg_${pair.index}`,
@@ -323,13 +457,19 @@ export class MomentExtractor {
       .filter(([type, satisfaction]) => satisfaction < 0.5 && (objectionData.objectionCounts[type] || 0) > 0)
       .sort((a, b) => (objectionData.objectionCounts[b[0]] || 0) - (objectionData.objectionCounts[a[0]] || 0));
     
+    console.log(`🔍 Unresolved objections:`, unresolvedTypes.map(([type, sat]) => `${type}=${sat.toFixed(2)}`));
+    
     if (unresolvedTypes.length === 0) return [];
     
     const topUnresolvedType = unresolvedTypes[0][0];
     
-    // Find the first time this objection was raised
+    // Find the first time this objection was raised - check both objectionTriggered and objectionType
     for (const pair of pairs) {
-      if (pair.outcome?.objectionTriggered?.toLowerCase().includes(topUnresolvedType.toLowerCase())) {
+      const objectionMatch = pair.outcome?.objectionTriggered?.toLowerCase() === topUnresolvedType.toLowerCase() ||
+                            pair.outcome?.objectionType?.toLowerCase() === topUnresolvedType.toLowerCase() ||
+                            pair.marcusStatement.objectionTriggered?.toLowerCase() === topUnresolvedType.toLowerCase();
+      
+      if (objectionMatch) {
         const satisfaction = objectionData.objectionSatisfaction[topUnresolvedType] || 0;
         const count = objectionData.objectionCounts[topUnresolvedType] || 0;
         

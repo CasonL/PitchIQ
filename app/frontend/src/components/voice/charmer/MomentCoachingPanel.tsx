@@ -299,14 +299,25 @@ STYLE RULES:
       // Remove any leading/trailing whitespace
       content = content.trim();
       
-      // With json_object mode, OpenAI should return valid JSON
+      // Sanitize: escape actual newlines and control characters that LLM may output
+      // Even with json_object mode, OpenAI sometimes outputs literal newlines in strings
+      const sanitized = content.replace(/(["'])([\s\S]*?)\1/g, (match, quote, str) => {
+        // Escape control characters inside string values
+        const escaped = str
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '\\r')
+          .replace(/\t/g, '\\t');
+        return quote + escaped + quote;
+      });
+      
       let brief;
       try {
-        brief = JSON.parse(content);
+        brief = JSON.parse(sanitized);
         console.log('✅ Successfully parsed coaching brief');
       } catch (parseError) {
         console.error('❌ Failed to parse coaching brief:', parseError);
         console.log('Raw content:', content);
+        console.log('Sanitized:', sanitized);
         throw new Error('Invalid JSON response from LLM');
       }
       

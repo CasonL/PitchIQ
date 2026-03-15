@@ -220,6 +220,10 @@ Brief explanation of the mechanical mismatch (what Marcus needed vs what you gav
 - Examples MUST be SHORTER/CLEANER than what the user said
 - Examples MUST sound CONVERSATIONAL and NATURAL, not formal or corporate
 - Examples MUST be CONCRETE and SPECIFIC to this moment, not generic value statements
+- AVOID generic value language: "improve performance", "boost results", "drive growth", "innovative solutions", "enhance effectiveness"
+- AVOID outcome claims too early: "drives results", "guaranteed success" - these sound like pitches
+- PREFER concrete activities: "practice real conversations" not "improve performance"
+- PREFER category differentiation with contrast: "we do X instead of Y" (e.g., "practice real buyer conversations instead of just sitting through training")
 - AVOID: "enhance", "discuss", "explore", "effectiveness", "I want to understand" - these are too polished/boardroom
 - PREFER: short, direct language that sounds like real cold-call conversation
 - If Marcus asked for clarity ("What do you want?"), examples should ANSWER his question, not deflect into discovery
@@ -236,15 +240,21 @@ Brief explanation of the mechanical mismatch (what Marcus needed vs what you gav
 CRITICAL GUIDANCE FOR EXAMPLES:
 - Your verbatim examples are the "gold standard" that will be evaluated
 - Make them CONCRETE and SPECIFIC to this exact moment
-- They should sound like REAL conversation, not polished sales copy
+- Describe WHAT YOU DO in practical terms, not vague value propositions
+- Use contrast structure when possible: "we help teams do X instead of Y" (concrete vs concrete)
+- Example: "practice real buyer conversations instead of just sitting through training" (GOOD)
+- Example: "improve sales performance with innovative solutions" (TOO VAGUE)
+- They should sound like REAL conversation, not polished sales copy or brochure language
 - Shorter is better - if Marcus was impatient, your example should be brief
 - Use natural language: "Quick reason for the call" not "I'd like to discuss"
 - Avoid asking for pain/challenges too early - earn the right first
 - Match the buyer's energy - if they're skeptical, be crisp and clear, not wordy
+- Don't make outcome claims ("drives results") at the opening - just explain what you do differently
+- Use concrete, category-specific language and avoid generic value claims in examples
 
-Example output:
+Example output for opening clarity:
 {
-  "whyItDidntWork": "Marcus needed **concrete acknowledgment**, but you gave him a **vague deflection**.\\n\\n### The Core Issue\\nHe'd already signaled disinterest (\\\"not a good time\\\"), but your response tried to push forward instead of addressing it. At low trust/curiosity, he needs you to acknowledge his position before offering anything.\\n\\n### What Would Work Here\\n- **Acknowledge his disinterest**: Validate that you heard him say it's not a good time\\n- **Show him value**: Briefly state what he'd get if he did engage, then let him decide\\n\\n> \\\"I understand it's not a good time. Can I send you a quick 1-pager on how this works and you can reach out if you're ever curious?\\\"\\n\\n> \\\"Got it, sounds like timing isn't right. Would it be helpful if I sent over a brief overview so you have it when things settle down?\\\"\\n\\n### The Key Mechanic\\nWhen a buyer signals disinterest at low trust, **acknowledging it directly** shows respect for their time. Then offering something low-commitment (send info, not schedule call) gives them an easy out while keeping the door open."
+  "whyItDidntWork": "Marcus asked a blunt question because he wanted a fast reason to keep listening. Your answer was hesitant and tried to do too much at once.\n\n### The Core Issue\nMarcus needed clarity about why you called, but you mixed discovery and pitching without answering his question. This made the call feel less controlled.\n\n### What Would Work Here\n- **Answer his question first**: give a clear reason for the call in one sentence\n- **Keep it concrete**: describe the category in practical terms, not vague value language\n- **Ask one simple question**: once Marcus understands why you called\n\n> \"Quick reason for the call: we help sales teams practice real buyer conversations instead of just sitting through training. How are you currently training reps?\"\n\n> \"I'll keep it brief. We're building a more practical alternative to traditional sales training. Worth a quick question?\"\n\n### The Key Mechanic\nWhen a buyer asks 'What do you want?', they're testing for clarity and relevance. Answering directly with concrete differentiation shows you respect their time and understand the category."
 }
 
 Now generate YOUR coaching based on the actual moment above.`}

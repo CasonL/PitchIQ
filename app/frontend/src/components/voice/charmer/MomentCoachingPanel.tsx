@@ -358,6 +358,14 @@ STYLE RULES:
       try {
         brief = JSON.parse(sanitized);
         console.log(' Successfully parsed coaching brief');
+        
+        // Unescape literal \n sequences that LLM may have output instead of actual newlines
+        if (brief.whyItWorked) {
+          brief.whyItWorked = brief.whyItWorked.replace(/\\n/g, '\n');
+        }
+        if (brief.whyItDidntWork) {
+          brief.whyItDidntWork = brief.whyItDidntWork.replace(/\\n/g, '\n');
+        }
       } catch (parseError) {
         console.error(' Failed to parse coaching brief:', parseError);
         console.log('Raw content:', content);

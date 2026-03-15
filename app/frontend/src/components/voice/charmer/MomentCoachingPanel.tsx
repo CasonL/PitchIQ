@@ -212,6 +212,13 @@ Structure your response like this:
 ### The Core Issue
 Brief explanation of the mechanical mismatch (what Marcus needed vs what you gave). If the user's response had TACTICAL problems (weak language, rambling, ignored his question), CALL THESE OUT SPECIFICALLY with examples from their actual words.
 
+WORDING PRECISION: Instead of vague "increased resistance", use precise language like:
+- "made the call feel less clear and less controlled"
+- "reduced clarity"
+- "lowered confidence"
+- "made Marcus less willing to engage"
+Only say "increased resistance" if you have clear state evidence that resistance actually rose.
+
 ### What Would Work Here
 - **First action**: [specific behavior] - why this works
 - **Second action**: [specific behavior] - why this works
@@ -251,10 +258,12 @@ CRITICAL GUIDANCE FOR EXAMPLES:
 - Match the buyer's energy - if they're skeptical, be crisp and clear, not wordy
 - Don't make outcome claims ("drives results") at the opening - just explain what you do differently
 - Use concrete, category-specific language and avoid generic value claims in examples
+- For follow-up questions, prefer concrete and natural: "How are you currently training reps?" over abstract "What's your current approach to training?"
+- Questions should be short, direct, and conversational - not formal or consultative
 
 Example output for opening clarity:
 {
-  "whyItDidntWork": "Marcus asked a blunt question because he wanted a fast reason to keep listening. Your answer was hesitant and tried to do too much at once.\n\n### The Core Issue\nMarcus needed clarity about why you called, but you mixed discovery and pitching without answering his question. This made the call feel less controlled.\n\n### What Would Work Here\n- **Answer his question first**: give a clear reason for the call in one sentence\n- **Keep it concrete**: describe the category in practical terms, not vague value language\n- **Ask one simple question**: once Marcus understands why you called\n\n> \"Quick reason for the call: we help sales teams practice real buyer conversations instead of just sitting through training. How are you currently training reps?\"\n\n> \"I'll keep it brief. We're building a more practical alternative to traditional sales training. Worth a quick question?\"\n\n### The Key Mechanic\nWhen a buyer asks 'What do you want?', they're testing for clarity and relevance. Answering directly with concrete differentiation shows you respect their time and understand the category."
+  "whyItDidntWork": "Marcus asked a blunt question because he wanted a fast reason to keep listening. Your answer was hesitant and tried to do too much at once.\n\n### The Core Issue\nMarcus needed clarity about why you called, but you mixed discovery and pitching without answering his question. The phrases 'could you maybe' and 'a little bit' conveyed hesitation, which made the call feel less clear and less controlled.\n\n### What Would Work Here\n- **Answer his question first**: give a clear reason for the call in one sentence\n- **Keep it concrete**: describe the category in practical terms, not vague value language\n- **Ask one simple question**: once Marcus understands why you called\n\n> \"Quick reason for the call: we help sales teams practice real buyer conversations instead of just sitting through training. How are you currently training reps?\"\n\n> \"I'll keep it brief. We offer hands-on sales training that's different from traditional methods. How do you currently support your sales team?\"\n\n### The Key Mechanic\nWhen a buyer asks 'What do you want?', they're testing for clarity and relevance. Answering directly with concrete differentiation shows you respect their time and understand the category."
 }
 
 Now generate YOUR coaching based on the actual moment above.`}

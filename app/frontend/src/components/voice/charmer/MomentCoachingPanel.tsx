@@ -208,7 +208,12 @@ Brief explanation of the mechanical mismatch (what Marcus needed vs what you gav
 - **First action**: [specific behavior] - why this works
 - **Second action**: [specific behavior] - why this works
 - If applicable, contrast what they said vs what they should have said ("You said X, which is weak. Instead say Y, which is direct.")
-- CRITICAL: Include 2-3 verbatim examples in blockquotes that demonstrate these actions AND are SHORTER/CLEANER than what the user said
+- CRITICAL: Include 2-3 verbatim examples in blockquotes that demonstrate these actions
+- Examples MUST be SHORTER/CLEANER than what the user said
+- Examples MUST sound CONVERSATIONAL and NATURAL, not formal or corporate
+- Examples MUST be CONCRETE and SPECIFIC to this moment, not generic value statements
+- AVOID: "enhance", "discuss", "explore", "effectiveness" - these are too polished/boardroom
+- PREFER: short, direct language that sounds like real cold-call conversation
 
 > "Example response 1 that would work"
 
@@ -218,7 +223,14 @@ Brief explanation of the mechanical mismatch (what Marcus needed vs what you gav
 - The underlying principle that makes the working approach effective
 - How it addresses Marcus's actual need at this point in the call
 
-CRITICAL: Your verbatim examples in blockquotes are the "gold standard" that will be evaluated. Make them CONCRETE and SPECIFIC to this exact moment.
+CRITICAL GUIDANCE FOR EXAMPLES:
+- Your verbatim examples are the "gold standard" that will be evaluated
+- Make them CONCRETE and SPECIFIC to this exact moment
+- They should sound like REAL conversation, not polished sales copy
+- Shorter is better - if Marcus was impatient, your example should be brief
+- Use natural language: "Quick reason for the call" not "I'd like to discuss"
+- Avoid asking for pain/challenges too early - earn the right first
+- Match the buyer's energy - if they're skeptical, be crisp and clear, not wordy
 
 Example output:
 {

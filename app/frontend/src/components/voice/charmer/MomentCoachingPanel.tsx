@@ -274,9 +274,10 @@ STYLE RULES:
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [
-            { role: 'system', content: 'You are a sales coach. Output ONLY valid JSON with a single string field. ALL markdown including headers (###), bullet points (-), and blockquotes (>) must be INSIDE the string value as escaped text. DO NOT put markdown outside the JSON structure. Example: {"whyItDidntWork": "Text here\\n\\n### Header\\nMore text\\n\\n> \\"Quote here\\""}. The entire response with all markdown formatting must be contained within the JSON string value.' },
+            { role: 'system', content: 'You are a sales coach. You must respond with valid JSON only.' },
             { role: 'user', content: prompt }
           ],
+          response_format: { type: 'json_object' },
           temperature: 0.7,
           max_tokens: 1500
         })
@@ -298,22 +299,15 @@ STYLE RULES:
       // Remove any leading/trailing whitespace
       content = content.trim();
       
-      // Sanitize JSON: replace unescaped newlines and control characters
-      // This handles cases where LLM didn't properly escape them
+      // With json_object mode, OpenAI should return valid JSON
       let brief;
       try {
         brief = JSON.parse(content);
         console.log('✅ Successfully parsed coaching brief');
       } catch (parseError) {
-        console.warn('⚠️ Initial JSON parse failed, attempting sanitization...', parseError);
-        // Fix common JSON issues: escape newlines, tabs, and other control characters
-        content = content
-          .replace(/\n/g, '\\n')
-          .replace(/\r/g, '\\r')
-          .replace(/\t/g, '\\t');
-        
-        brief = JSON.parse(content);
-        console.log('✅ Successfully parsed coaching brief after sanitization');
+        console.error('❌ Failed to parse coaching brief:', parseError);
+        console.log('Raw content:', content);
+        throw new Error('Invalid JSON response from LLM');
       }
       
       // Post-process markdown to fix common LLM formatting issues

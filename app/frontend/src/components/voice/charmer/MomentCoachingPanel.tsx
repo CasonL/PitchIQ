@@ -83,6 +83,7 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
   const [coachingBrief, setCoachingBrief] = useState<CoachingBrief | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const briefCacheRef = useRef<Map<string, CoachingBrief>>(new Map());
+  const generatingForMomentRef = useRef<string | null>(null);
   
   // Retry flow state
   const [isPracticeModeActive, setIsPracticeModeActive] = useState(false);
@@ -116,14 +117,24 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
         console.log('📦 Using cached coaching brief for moment:', moment.id);
         setCoachingBrief(cached);
       } else {
-        setCoachingBrief(null);
-        generateCoachingBrief(moment);
+        // Prevent duplicate generations for the same moment
+        if (generatingForMomentRef.current !== moment.id) {
+          setCoachingBrief(null);
+          generateCoachingBrief(moment);
+        }
       }
     }
   }, [moment?.id]);
   
   
   const generateCoachingBrief = async (moment: KeyMoment) => {
+    // Guard against duplicate calls
+    if (generatingForMomentRef.current === moment.id) {
+      console.log('⏭️  Already generating coaching for moment:', moment.id);
+      return;
+    }
+    
+    generatingForMomentRef.current = moment.id;
     setIsLoading(true);
     
     try {
@@ -311,6 +322,7 @@ STYLE RULES:
       });
     } finally {
       setIsLoading(false);
+      generatingForMomentRef.current = null;
     }
   };
   

@@ -42,10 +42,14 @@ interface StructuralHint {
 }
 
 interface CoachingSections {
-  header?: string;      // First sentence/paragraph before sections
-  coreIssue?: string;   // ### The Core Issue section
-  whatWorks?: string;   // ### What Would Work Here section
-  keyMechanic?: string; // ### The Key Mechanic section
+  header?: string;           // First sentence/paragraph before sections
+  coreIssue?: string;        // ### The Core Issue section (negative)
+  whatWorks?: string;        // ### What Would Work Here section (negative)
+  keyMechanic?: string;      // ### The Key Mechanic section (both)
+  whatYouDidWell?: string;   // ### What You Did Well section (positive)
+  whatLimited?: string;      // ### What Limited the Moment section (positive)
+  whyItLanded?: string;      // ### Why It Partially Landed section (positive)
+  howToExecute?: string;     // ### How to Execute This Move Better section (positive)
 }
 
 const getClassificationLabel = (classification: MomentClassification): string => {
@@ -592,19 +596,39 @@ Be consistent and deterministic. Same input should give same output.`;
       sections.header = headerMatch[1].trim();
     }
     
-    // Extract The Core Issue
+    // NEGATIVE moment sections
     const coreIssueMatch = text.match(/### The Core Issue([\s\S]*?)(?=###|$)/i);
     if (coreIssueMatch) {
       sections.coreIssue = '### The Core Issue' + coreIssueMatch[1];
     }
     
-    // Extract What Would Work Here
     const whatWorksMatch = text.match(/### What Would Work Here([\s\S]*?)(?=###|$)/i);
     if (whatWorksMatch) {
       sections.whatWorks = '### What Would Work Here' + whatWorksMatch[1];
     }
     
-    // Extract The Key Mechanic
+    // POSITIVE moment sections
+    const whatYouDidWellMatch = text.match(/### What You Did Well([\s\S]*?)(?=###|$)/i);
+    if (whatYouDidWellMatch) {
+      sections.whatYouDidWell = '### What You Did Well' + whatYouDidWellMatch[1];
+    }
+    
+    const whatLimitedMatch = text.match(/### What Limited the Moment([\s\S]*?)(?=###|$)/i);
+    if (whatLimitedMatch) {
+      sections.whatLimited = '### What Limited the Moment' + whatLimitedMatch[1];
+    }
+    
+    const whyItLandedMatch = text.match(/### Why It (?:Partially |Fully )?Landed([\s\S]*?)(?=###|$)/i);
+    if (whyItLandedMatch) {
+      sections.whyItLanded = whyItLandedMatch[0];
+    }
+    
+    const howToExecuteMatch = text.match(/### How to Execute This Move Better([\s\S]*?)(?=###|$)/i);
+    if (howToExecuteMatch) {
+      sections.howToExecute = '### How to Execute This Move Better' + howToExecuteMatch[1];
+    }
+    
+    // The Key Mechanic (used by both)
     const keyMechanicMatch = text.match(/### The Key Mechanic([\s\S]*?)$/i);
     if (keyMechanicMatch) {
       sections.keyMechanic = '### The Key Mechanic' + keyMechanicMatch[1];
@@ -854,39 +878,102 @@ Be consistent and deterministic. Same input should give same output.`;
         )}
         
         {/* Why This Worked - For turning points (BLUE) */}
-        {coachingBrief && coachingBrief.whyItWorked && moment.classification === 'turning_point' && (
-          <div className={`mb-6 bg-gradient-to-br border-2 rounded-lg p-5 ${
-            theme === 'dark'
-              ? 'from-blue-500/10 to-cyan-500/10 border-blue-500/30'
-              : 'from-blue-50 to-cyan-50 border-blue-300'
-          }`}>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-6 h-6 rounded bg-blue-500 flex items-center justify-center text-white text-xs font-bold">↻</div>
-              <h3 className={`font-bold text-base uppercase tracking-wide ${
-                theme === 'dark' ? 'text-blue-400' : 'text-blue-700'
-              }`}>Why This Worked</h3>
-            </div>
-            <div className={`text-sm leading-relaxed prose prose-sm max-w-none ${
-              theme === 'dark' ? 'prose-invert text-white' : 'text-gray-800'
+        {coachingBrief && coachingBrief.whyItWorked && moment.classification === 'turning_point' && (() => {
+          const sections = parseCoachingSections(coachingBrief.whyItWorked);
+          
+          return (
+            <div className={`mb-6 bg-gradient-to-br border-2 rounded-lg p-5 ${
+              theme === 'dark'
+                ? 'from-blue-500/10 to-cyan-500/10 border-blue-500/30'
+                : 'from-blue-50 to-cyan-50 border-blue-300'
             }`}>
-              <ReactMarkdown
-                components={{
-                  h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-6 mb-3 first:mt-0 ${
-                    theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
-                  }`} {...props} />,
-                  p: ({node, ...props}) => <p className="mb-3 leading-relaxed" {...props} />,
-                  ul: ({node, ...props}) => <ul className="my-2 space-y-1 list-none pl-0" {...props} />,
-                  li: ({node, ...props}) => <li className="flex items-start gap-2" {...props}><span className={`mt-0.5 ${
-                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                  }`}>•</span><span className="flex-1">{props.children}</span></li>,
-                  strong: ({node, ...props}) => <strong className={`font-bold ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`} {...props} />,
-                }}
-              >{coachingBrief.whyItWorked}</ReactMarkdown>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-6 h-6 rounded bg-blue-500 flex items-center justify-center text-white text-xs font-bold">↻</div>
+                <h3 className={`font-bold text-base uppercase tracking-wide ${
+                  theme === 'dark' ? 'text-blue-400' : 'text-blue-700'
+                }`}>Coaching Breakdown</h3>
+              </div>
+              <div className={`text-sm leading-relaxed prose prose-sm max-w-none ${
+                theme === 'dark' ? 'prose-invert text-white' : 'text-gray-800'
+              }`}>
+                {sections.header && (
+                  <div className="mb-4">
+                    <ReactMarkdown>{sections.header}</ReactMarkdown>
+                  </div>
+                )}
+                {sections.whatYouDidWell && (
+                  <div className="mb-4">
+                    <ReactMarkdown
+                      components={{
+                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 first:mt-0 ${
+                          theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
+                        }`} {...props} />,
+                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                      }}
+                    >{sections.whatYouDidWell}</ReactMarkdown>
+                  </div>
+                )}
+                {sections.whatLimited && (
+                  <div className="mb-4">
+                    <ReactMarkdown
+                      components={{
+                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
+                          theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
+                        }`} {...props} />,
+                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                      }}
+                    >{sections.whatLimited}</ReactMarkdown>
+                  </div>
+                )}
+                {sections.whyItLanded && (
+                  <div className="mb-4">
+                    <ReactMarkdown
+                      components={{
+                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
+                          theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
+                        }`} {...props} />,
+                        ul: ({node, ...props}) => <ul className="my-2 space-y-1 list-none pl-0" {...props} />,
+                        li: ({node, ...props}) => <li className="flex items-start gap-2" {...props}><span className={`mt-0.5 ${
+                          theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                        }`}>•</span><span className="flex-1">{props.children}</span></li>,
+                        strong: ({node, ...props}) => <strong className={`font-bold ${
+                          theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`} {...props} />,
+                      }}
+                    >{sections.whyItLanded}</ReactMarkdown>
+                  </div>
+                )}
+                {sections.howToExecute && (
+                  <div className="mb-4">
+                    <ReactMarkdown
+                      components={{
+                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
+                          theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
+                        }`} {...props} />,
+                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                        blockquote: ({node, ...props}) => <blockquote className={`border-l-2 pl-3 my-2 italic ${
+                          theme === 'dark' ? 'border-blue-500 text-blue-200' : 'border-blue-400 text-blue-800'
+                        }`} {...props} />,
+                      }}
+                    >{sections.howToExecute}</ReactMarkdown>
+                  </div>
+                )}
+                {sections.keyMechanic && (
+                  <div>
+                    <ReactMarkdown
+                      components={{
+                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
+                          theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
+                        }`} {...props} />,
+                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                      }}
+                    >{sections.keyMechanic}</ReactMarkdown>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
         
         {/* Why This Didn't Work - Always show all sections */}
         {coachingBrief && coachingBrief.whyItDidntWork && (() => {

@@ -313,7 +313,14 @@ STYLE RULES:
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [
-            { role: 'system', content: 'You are a sales coach. Output valid JSON with EXACTLY ONE field (either "whyItWorked" or "whyItDidntWork"). ALL markdown sections (### headers, bullet points, blockquotes) must be INSIDE that single string field value using \\n for line breaks. Do NOT create separate JSON fields for each section. The example shows the correct format.' },
+            { role: 'system', content: `You are a sales coach. Output valid JSON with EXACTLY ONE field:
+- For positive moments (strong_move, best_moment, turning_point): use field "whyItWorked"
+- For negative moments (mistake, missed_opportunity, blunder): use field "whyItDidntWork"
+
+Current moment type: ${moment.classification}
+Required field name: ${['strong_move', 'best_moment', 'turning_point'].includes(moment.classification) ? '"whyItWorked"' : '"whyItDidntWork"'}
+
+ALL markdown sections (### headers, bullet points, blockquotes) must be INSIDE that single string field value using \\n for line breaks. Do NOT create separate JSON fields for each section. The example shows the correct format.` },
             { role: 'user', content: prompt }
           ],
           response_format: { type: 'json_object' },

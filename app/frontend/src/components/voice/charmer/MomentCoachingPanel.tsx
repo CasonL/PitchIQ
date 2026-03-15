@@ -274,7 +274,7 @@ STYLE RULES:
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [
-            { role: 'system', content: 'You are a sales coach. Output only valid JSON. CRITICAL: When providing alternative responses in markdown, you MUST use the > character (blockquote syntax) at the start of each alternative line. Example: > "Alternative response here". Do NOT just use plain quotes.' },
+            { role: 'system', content: 'You are a sales coach. Output ONLY valid JSON with a single string field. ALL markdown including headers (###), bullet points (-), and blockquotes (>) must be INSIDE the string value as escaped text. DO NOT put markdown outside the JSON structure. Example: {"whyItDidntWork": "Text here\\n\\n### Header\\nMore text\\n\\n> \\"Quote here\\""}. The entire response with all markdown formatting must be contained within the JSON string value.' },
             { role: 'user', content: prompt }
           ],
           temperature: 0.7,

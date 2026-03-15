@@ -336,23 +336,29 @@ STYLE RULES:
       
       // Sanitize: escape actual newlines and control characters that LLM may output
       // Even with json_object mode, OpenAI sometimes outputs literal newlines in strings
-      const sanitized = content.replace(/(["'])([\s\S]*?)\1/g, (match, quote, str) => {
-        // Escape control characters inside string values
-        const escaped = str
-          .replace(/\n/g, '\\n')
-          .replace(/\r/g, '\\r')
-          .replace(/\t/g, '\\t');
-        return quote + escaped + quote;
-      });
+      // Find the string value and escape only the content between the first " and last "
+      let sanitized = content;
+      const match = content.match(/\{\s*"whyIt(?:Didnt)?Work"\s*:\s*"([\s\S]*)"\s*\}/);
+      if (match) {
+        const originalValue = match[1];
+        const escapedValue = originalValue
+          .replace(/\\/g, '\\\\')  // Escape backslashes first
+          .replace(/"/g, '\\"')     // Escape internal quotes
+          .replace(/\n/g, '\\n')     // Escape newlines
+          .replace(/\r/g, '\\r')     // Escape carriage returns  
+          .replace(/\t/g, '\\t');    // Escape tabs
+        sanitized = content.replace(originalValue, escapedValue);
+      }
       
       let brief;
       try {
         brief = JSON.parse(sanitized);
-        console.log('✅ Successfully parsed coaching brief');
+        console.log(' Successfully parsed coaching brief');
       } catch (parseError) {
-        console.error('❌ Failed to parse coaching brief:', parseError);
+        console.error(' Failed to parse coaching brief:', parseError);
         console.log('Raw content:', content);
         console.log('Sanitized:', sanitized);
+        console.log('Parse error position:', (parseError as any).message);
         throw new Error('Invalid JSON response from LLM');
       }
       

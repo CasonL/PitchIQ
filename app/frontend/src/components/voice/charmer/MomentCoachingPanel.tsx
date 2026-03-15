@@ -57,6 +57,9 @@ const getClassificationLabel = (classification: MomentClassification): string =>
     case 'best_moment': return 'Best Moment';
     case 'strong_move': return 'Strong Move';
     case 'turning_point': return 'Turning Point';
+    case 'partial_turning_point': return 'Partial Win: Right Move, Rough Execution';
+    case 'strong_attempt': return 'Strong Attempt: Good Instinct, Incomplete';
+    case 'mixed_signal': return 'Mixed Result: Addressed Need, Missed Opportunity';
     case 'missed_opportunity': return 'Missed Opportunity';
     case 'mistake': return 'Mistake';
     case 'blunder': return 'Blunder';
@@ -68,7 +71,11 @@ const getClassificationDotColor = (classification: MomentClassification): string
     case 'best_moment': return '#10b981'; // emerald-500
     case 'strong_move': return '#4ade80'; // green-400
     case 'turning_point': return '#3b82f6'; // blue-500
-    case 'missed_opportunity': return '#fbbf24'; // amber-400
+    // Nuanced moments: yellow-green gradient
+    case 'partial_turning_point': return '#eab308'; // yellow-500
+    case 'strong_attempt': return '#facc15'; // yellow-400
+    case 'mixed_signal': return '#fbbf24'; // amber-400
+    case 'missed_opportunity': return '#fb923c'; // orange-400
     case 'mistake': return '#fb923c'; // orange-400
     case 'blunder': return '#ef4444'; // red-500
   }
@@ -169,7 +176,7 @@ STRATEGIC CORRECTION GUIDANCE:
 - Pattern: impatient buyer = needs clarity, not discovery invitation
 - Don't recommend pivoting to discovery when the buyer is asking for relevance/clarity
 
-${['strong_move', 'best_moment', 'turning_point'].includes(moment.classification) ? `This moment had POTENTIAL. Analyze both the strategic choice AND the execution quality:
+${['strong_move', 'best_moment', 'turning_point', 'partial_turning_point', 'strong_attempt', 'mixed_signal'].includes(moment.classification) ? `This moment had POTENTIAL. Analyze both the strategic choice AND the execution quality:
 
 CRITICAL: Separate "right move" from "clean execution". A rep can choose the correct strategic response but deliver it poorly. Be honest about both.
 
@@ -320,11 +327,11 @@ STYLE RULES:
           model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: `You are a sales coach. Output valid JSON with EXACTLY ONE field:
-- For positive moments (strong_move, best_moment, turning_point): use field "whyItWorked"
+- For positive/nuanced moments (strong_move, best_moment, turning_point, partial_turning_point, strong_attempt, mixed_signal): use field "whyItWorked"
 - For negative moments (mistake, missed_opportunity, blunder): use field "whyItDidntWork"
 
 Current moment type: ${moment.classification}
-Required field name: ${['strong_move', 'best_moment', 'turning_point'].includes(moment.classification) ? '"whyItWorked"' : '"whyItDidntWork"'}
+Required field name: ${['strong_move', 'best_moment', 'turning_point', 'partial_turning_point', 'strong_attempt', 'mixed_signal'].includes(moment.classification) ? '"whyItWorked"' : '"whyItDidntWork"'}
 
 ALL markdown sections (### headers, bullet points, blockquotes) must be INSIDE that single string field value using \\n for line breaks. Do NOT create separate JSON fields for each section. The example shows the correct format.` },
             { role: 'user', content: prompt }
@@ -897,6 +904,104 @@ Be consistent and deterministic. Same input should give same output.`;
             </div>
           </div>
         )}
+        
+        {/* Nuanced Moments - Yellow/Amber for partial wins (YELLOW) */}
+        {coachingBrief && coachingBrief.whyItWorked && ['partial_turning_point', 'strong_attempt', 'mixed_signal'].includes(moment.classification) && (() => {
+          const sections = parseCoachingSections(coachingBrief.whyItWorked);
+          
+          return (
+            <div className={`mb-6 bg-gradient-to-br border-2 rounded-lg p-5 ${
+              theme === 'dark'
+                ? 'from-yellow-500/10 to-amber-500/10 border-yellow-500/30'
+                : 'from-yellow-50 to-amber-50 border-yellow-300'
+            }`}>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-6 h-6 rounded bg-yellow-500 flex items-center justify-center text-white text-xs font-bold">≈</div>
+                <h3 className={`font-bold text-base uppercase tracking-wide ${
+                  theme === 'dark' ? 'text-yellow-400' : 'text-yellow-700'
+                }`}>Nuanced Moment</h3>
+              </div>
+              <div className={`text-sm leading-relaxed prose prose-sm max-w-none ${
+                theme === 'dark' ? 'prose-invert text-white' : 'text-gray-800'
+              }`}>
+                {sections.header && (
+                  <div className="mb-4">
+                    <ReactMarkdown>{sections.header}</ReactMarkdown>
+                  </div>
+                )}
+                {sections.whatYouDidWell && (
+                  <div className="mb-4">
+                    <ReactMarkdown
+                      components={{
+                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 first:mt-0 ${
+                          theme === 'dark' ? 'text-green-300' : 'text-green-700'
+                        }`} {...props} />,
+                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                      }}
+                    >{sections.whatYouDidWell}</ReactMarkdown>
+                  </div>
+                )}
+                {sections.whatLimited && (
+                  <div className="mb-4">
+                    <ReactMarkdown
+                      components={{
+                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
+                          theme === 'dark' ? 'text-orange-300' : 'text-orange-700'
+                        }`} {...props} />,
+                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                      }}
+                    >{sections.whatLimited}</ReactMarkdown>
+                  </div>
+                )}
+                {sections.whyItLanded && (
+                  <div className="mb-4">
+                    <ReactMarkdown
+                      components={{
+                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
+                          theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700'
+                        }`} {...props} />,
+                        ul: ({node, ...props}) => <ul className="my-2 space-y-1 list-none pl-0" {...props} />,
+                        li: ({node, ...props}) => <li className="flex items-start gap-2" {...props}><span className={`mt-0.5 ${
+                          theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
+                        }`}>•</span><span className="flex-1">{props.children}</span></li>,
+                        strong: ({node, ...props}) => <strong className={`font-bold ${
+                          theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`} {...props} />,
+                      }}
+                    >{sections.whyItLanded}</ReactMarkdown>
+                  </div>
+                )}
+                {sections.howToExecute && (
+                  <div className="mb-4">
+                    <ReactMarkdown
+                      components={{
+                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
+                          theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700'
+                        }`} {...props} />,
+                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                        blockquote: ({node, ...props}) => <blockquote className={`border-l-2 pl-3 my-2 italic ${
+                          theme === 'dark' ? 'border-yellow-500 text-yellow-200' : 'border-yellow-400 text-yellow-800'
+                        }`} {...props} />,
+                      }}
+                    >{sections.howToExecute}</ReactMarkdown>
+                  </div>
+                )}
+                {sections.keyMechanic && (
+                  <div>
+                    <ReactMarkdown
+                      components={{
+                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
+                          theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700'
+                        }`} {...props} />,
+                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                      }}
+                    >{sections.keyMechanic}</ReactMarkdown>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
         
         {/* Why This Worked - For turning points (BLUE) */}
         {coachingBrief && coachingBrief.whyItWorked && moment.classification === 'turning_point' && (() => {

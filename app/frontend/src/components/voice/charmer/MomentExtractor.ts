@@ -8,8 +8,20 @@ import { ObjectionType } from './StrategyLayer';
 
 export type MomentType = 'positive_shift' | 'negative_shift' | 'missed_leverage' | 'unresolved_concern';
 
-// Chess.com-style moment classifications
-export type MomentClassification = 'best_moment' | 'strong_move' | 'turning_point' | 'missed_opportunity' | 'mistake' | 'blunder';
+// Moment classifications with nuance support
+export type MomentClassification = 
+  // Clean wins
+  | 'best_moment' 
+  | 'strong_move' 
+  | 'turning_point'
+  // Nuanced (right move, rough execution)
+  | 'partial_turning_point'
+  | 'strong_attempt'
+  | 'mixed_signal'
+  // Clean losses
+  | 'missed_opportunity' 
+  | 'mistake' 
+  | 'blunder';
 
 export type ReasonTag = 'Trust' | 'Proof' | 'Discovery' | 'Urgency' | 'Clarity' | 'Fit' | 'Value';
 
@@ -116,35 +128,97 @@ export class MomentExtractor {
     
     console.log(`🔍 Evaluating ${candidateMoments.length} candidate moments with LLM...`);
     
-    // DEDUPLICATE: One turn should produce at most one moment
-    // Priority: positive_shift > negative_shift > missed_opportunity > unresolved_concern
-    const momentsByTurn = new Map<number, KeyMoment>();
-    const typePriority = {
-      'positive_shift': 1,
-      'negative_shift': 2,
-      'missed_leverage': 3,
-      'unresolved_concern': 4
-    };
+    // NUANCED MOMENT DETECTION: Detect when same turn has both positive AND negative signals
+    // This captures the nuance: right move, rough execution
+    const momentsByTurn = new Map<number, KeyMoment[]>();
     
+    // Group moments by turn number
     for (const moment of candidateMoments) {
-      const existing = momentsByTurn.get(moment.turnNumber);
-      if (!existing || typePriority[moment.type] < typePriority[existing.type]) {
-        momentsByTurn.set(moment.turnNumber, moment);
+      const existing = momentsByTurn.get(moment.turnNumber) || [];
+      existing.push(moment);
+      momentsByTurn.set(moment.turnNumber, existing);
+    }
+    
+    // Merge moments from same turn into nuanced classifications when appropriate
+    const finalMoments: KeyMoment[] = [];
+    
+    for (const [turnNumber, moments] of momentsByTurn.entries()) {
+      if (moments.length === 1) {
+        // Single moment for this turn - use as-is
+        finalMoments.push(moments[0]);
+      } else {
+        // Multiple moments for same turn - check if we should merge into nuanced type
+        const hasPositive = moments.some(m => m.type === 'positive_shift');
+        const hasMissed = moments.some(m => m.type === 'missed_leverage');
+        const hasNegative = moments.some(m => m.type === 'negative_shift');
+        
+        if (hasPositive && (hasMissed || hasNegative)) {
+          // NUANCED: Positive shift + missed opportunity/negative = partial win
+          const positiveMoment = moments.find(m => m.type === 'positive_shift')!;
+          const negativeMoment = moments.find(m => m.type === 'missed_leverage' || m.type === 'negative_shift')!;
+          
+          // Determine which nuanced classification to use
+          let nuancedClassification: MomentClassification;
+          if (positiveMoment.classification === 'turning_point') {
+            nuancedClassification = 'partial_turning_point';
+          } else if (positiveMoment.classification === 'strong_move') {
+            nuancedClassification = 'strong_attempt';
+          } else {
+            nuancedClassification = 'mixed_signal';
+          }
+          
+          // Use positive moment as base, upgrade to nuanced classification
+          finalMoments.push({
+            ...positiveMoment,
+            classification: nuancedClassification,
+            title: this.generateNuancedTitle(nuancedClassification, positiveMoment, negativeMoment),
+            whatChanged: `${positiveMoment.whatChanged}, but ${negativeMoment.whatChanged.toLowerCase()}`
+          });
+        } else {
+          // Multiple moments but not positive+negative - pick highest priority
+          const typePriority = {
+            'positive_shift': 1,
+            'negative_shift': 2,
+            'missed_leverage': 3,
+            'unresolved_concern': 4
+          };
+          const sorted = moments.sort((a, b) => typePriority[a.type] - typePriority[b.type]);
+          finalMoments.push(sorted[0]);
+        }
       }
     }
     
-    const deduplicated = Array.from(momentsByTurn.values());
-    console.log(`✂️ Deduplicated from ${candidateMoments.length} to ${deduplicated.length} moments (removed duplicates by turn)`);
+    console.log(`🎭 Processed ${candidateMoments.length} candidates into ${finalMoments.length} moments (${finalMoments.filter(m => ['partial_turning_point', 'strong_attempt', 'mixed_signal'].includes(m.classification)).length} nuanced)`);
     
     // Note: LLM filtering happens async in MarcusPostCallMoments
     // For now, return top candidates by resistance change magnitude
-    const sortedByImpact = deduplicated.sort((a, b) => {
+    const sortedByImpact = finalMoments.sort((a, b) => {
       const impactA = Math.abs(a.resistanceAfter - a.resistanceBefore);
       const impactB = Math.abs(b.resistanceAfter - b.resistanceBefore);
       return impactB - impactA;
     });
     
     return sortedByImpact.slice(0, 8); // Return more candidates for LLM to filter
+  }
+  
+  /**
+   * Generate title for nuanced moment that captures both positive and negative aspects
+   */
+  private static generateNuancedTitle(
+    classification: MomentClassification,
+    positiveMoment: KeyMoment,
+    negativeMoment: KeyMoment
+  ): string {
+    switch (classification) {
+      case 'partial_turning_point':
+        return 'Partial win: Right move, rough execution';
+      case 'strong_attempt':
+        return 'Strong attempt: Good instinct, incomplete follow-through';
+      case 'mixed_signal':
+        return 'Mixed result: Addressed need, left opening unexplored';
+      default:
+        return positiveMoment.title;
+    }
   }
   
   /**

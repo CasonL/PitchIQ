@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { KeyMoment, MomentClassification } from './MomentExtractor';
 import ReactMarkdown from 'react-markdown';
-import { Send, MessageSquare, X, Mic, MicOff } from 'lucide-react';
+import { MessageSquare, X, Mic, MicOff } from 'lucide-react';
 
 interface MomentCoachingPanelProps {
   moment: KeyMoment | null;
@@ -17,11 +17,6 @@ interface MomentCoachingPanelProps {
   onNavigate?: (index: number) => void;
   theme?: 'dark' | 'light';
   scenario?: any; // Marcus scenario with difficulty level
-}
-
-interface ChatMessage {
-  role: 'coach' | 'user';
-  content: string;
 }
 
 interface RetryResult {
@@ -38,11 +33,6 @@ interface CoachingBrief {
   
   // For losses - mechanical explanation
   whyItDidntWork?: string;       // Mechanics of why the response failed
-  
-  // Legacy fields for backwards compatibility
-  strategicAnalysis?: string;
-  alternativeApproach?: string;
-  openingQuestion?: string;
 }
 
 interface StructuralHint {
@@ -91,11 +81,7 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
   scenario
 }) => {
   const [coachingBrief, setCoachingBrief] = useState<CoachingBrief | null>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const briefCacheRef = useRef<Map<string, CoachingBrief>>(new Map());
   
   // Retry flow state
@@ -116,7 +102,6 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
   
   useEffect(() => {
     if (moment) {
-      setChatMessages([]);
       setIsPracticeModeActive(false);
       setRetryState('initial');
       setRetryInput('');
@@ -130,10 +115,6 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
       if (cached) {
         console.log('📦 Using cached coaching brief for moment:', moment.id);
         setCoachingBrief(cached);
-        setChatMessages([{
-          role: 'coach',
-          content: cached.openingQuestion
-        }]);
       } else {
         setCoachingBrief(null);
         generateCoachingBrief(moment);
@@ -141,9 +122,6 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
     }
   }, [moment?.id]);
   
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
   
   const generateCoachingBrief = async (moment: KeyMoment) => {
     setIsLoading(true);
@@ -316,8 +294,8 @@ STYLE RULES:
       if (brief.whyItWorked) {
         brief.whyItWorked = fixMarkdown(brief.whyItWorked);
       }
-      if (brief.alternativeApproach) {
-        brief.alternativeApproach = fixMarkdown(brief.alternativeApproach);
+      if (brief.whyItDidntWork) {
+        brief.whyItDidntWork = fixMarkdown(brief.whyItDidntWork);
       }
       
       // Cache the brief
@@ -326,25 +304,10 @@ STYLE RULES:
       
       setCoachingBrief(brief);
       
-      // Only set initial chat message for losses (wins don't have chat)
-      if (!['strong_move', 'best_moment', 'turning_point'].includes(moment.classification)) {
-        // For losses, start with practice prompt
-        const practicePrompt = `Try rewriting your response to address Marcus's concern more directly.\n\nMarcus: "${moment.marcusResponse}"`;
-        
-        setChatMessages([{
-          role: 'coach',
-          content: practicePrompt
-        }]);
-      } else {
-        // Wins don't have chat
-        setChatMessages([]);
-      }
-      
     } catch (error) {
       console.error('Error generating coaching brief:', error);
       setCoachingBrief({
-        alternativeApproach: 'Unable to generate coaching brief. Please try again.',
-        openingQuestion: 'What questions do you have about this moment?'
+        whyItDidntWork: 'Unable to generate coaching brief. Please try again.'
       });
     } finally {
       setIsLoading(false);
@@ -663,81 +626,6 @@ Be consistent and deterministic. Same input should give same output.`;
     setRetryResult(null);
   };
 
-  const handleSendMessage = async () => {
-    if (!userInput.trim() || !moment) return;
-    
-    const newUserMessage: ChatMessage = {
-      role: 'user',
-      content: userInput.trim()
-    };
-    
-    setChatMessages(prev => [...prev, newUserMessage]);
-    setUserInput('');
-    setIsLoading(true);
-    
-    try {
-      const conversationHistory = [...chatMessages, newUserMessage].map(msg => ({
-        role: msg.role === 'coach' ? 'assistant' : 'user',
-        content: msg.content
-      }));
-      
-      // User is submitting an alternative response - evaluate it and simulate Marcus
-      const systemPrompt = `You are a sales coach evaluating a rewrite of the user's response.
-
-ORIGINAL EXCHANGE:
-Marcus said: "${moment.marcusResponse}"
-User originally said: "${moment.userMessage}"
-
-MARCUS'S STATE:
-Trust: ${moment.marcusState.trust} | Curiosity: ${moment.marcusState.curiosity} | Urgency: ${moment.marcusState.urgency}
-
-CONTEXT: ${moment.whatChanged}
-
-The user just submitted a REWRITE. Your job:
-1. Briefly evaluate it (1-2 sentences on what's better/worse)
-2. Simulate how Marcus would likely respond based on his state and the moment dynamics
-
-Format:
-**Evaluation:** [your assessment]
-
-**Marcus likely responds:** "[simulated Marcus response]"
-
-Be grounded and specific. If the rewrite is weak, say so directly. If it's stronger, explain why based on Marcus's state.`;
-
-      const response = await fetch('/api/openai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...conversationHistory
-          ],
-          temperature: 0.7,
-          max_tokens: 300
-        })
-      });
-      
-      if (!response.ok) throw new Error('Failed to get coaching response');
-      
-      const data = await response.json();
-      const coachResponse = data.choices?.[0]?.message?.content || 'Sorry, I encountered an error. Please try again.';
-      
-      setChatMessages(prev => [...prev, {
-        role: 'coach',
-        content: coachResponse
-      }]);
-      
-    } catch (error) {
-      console.error('Error in coaching chat:', error);
-      setChatMessages(prev => [...prev, {
-        role: 'coach',
-        content: 'Sorry, I encountered an error. Please try again.'
-      }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
   
   const formatTimestamp = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -983,28 +871,18 @@ Be grounded and specific. If the rewrite is weak, say so directly. If it's stron
                 )}
                 {isPracticeModeActive && (
                   <div className={`mt-4 pt-4 border-t text-xs ${
-                    theme === 'dark' ? 'border-orange-500/20 text-gray-400' : 'border-orange-300 text-gray-600'
+                    theme === 'dark' ? 'border-blue-500/20 text-gray-400' : 'border-blue-300 text-gray-600'
                   }`}>
-                    Unlocked {retryAttempts} of 4 coaching levels
+                    {retryAttempts === 1 && 'Showing broader structure'}
+                    {retryAttempts === 2 && 'Showing specific template'}
+                    {retryAttempts === 3 && 'Showing detailed example'}
+                    {retryAttempts >= 4 && 'Showing full coaching details'}
                   </div>
                 )}
               </div>
             </div>
           );
         })()}
-        
-        {/* Legacy fallback for old format */}
-        {coachingBrief && coachingBrief.alternativeApproach && !coachingBrief.strategicAnalysis && (
-          <div className="mb-6 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-2 border-blue-500/30 rounded-lg p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-6 h-6 rounded bg-blue-500 flex items-center justify-center text-white text-xs font-bold">✓</div>
-              <h3 className="text-blue-400 font-bold text-base uppercase tracking-wide">Better Response</h3>
-            </div>
-            <div className="text-white text-sm leading-relaxed prose prose-sm prose-invert max-w-none">
-              <ReactMarkdown>{coachingBrief.alternativeApproach}</ReactMarkdown>
-            </div>
-          </div>
-        )}
       </div>
       </div>
       
@@ -1268,29 +1146,32 @@ Be grounded and specific. If the rewrite is weak, say so directly. If it's stron
                   </button>
                 </div>
                 
-                {/* Give Up button - only show if not succeeded */}
+                {/* Exit Practice button - only show if not succeeded */}
                 {retryResult.label !== 'better' && retryResult.label !== 'strong_improvement' && (
                   <button
                     onClick={() => setShowGiveUpWarning(true)}
                     className={`w-full py-2 border rounded-lg text-xs font-medium transition-colors ${
                       theme === 'dark'
-                        ? 'bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-400'
-                        : 'bg-red-50 hover:bg-red-100 border-red-300 text-red-700'
+                        ? 'bg-white/5 hover:bg-white/10 border-white/10 text-gray-400'
+                        : 'bg-gray-50 hover:bg-gray-100 border-gray-300 text-gray-700'
                     }`}
                   >
-                    Give Up
+                    Exit Practice
                   </button>
                 )}
               </div>
               
-              {/* Hint to unlock more coaching */}
+              {/* Hint for next level */}
               {(retryResult.label === 'partial' || retryResult.label === 'still_missed') && retryAttempts < 4 && (
                 <div className={`mt-4 p-3 rounded-lg border text-xs ${
                   theme === 'dark' 
-                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' 
-                    : 'bg-amber-50 border-amber-300 text-amber-700'
+                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' 
+                    : 'bg-blue-50 border-blue-300 text-blue-700'
                 }`}>
-                  💡 Try again to unlock more coaching details ({4 - retryAttempts} levels remaining)
+                  💡 {retryAttempts === 0 && 'Try again for a more specific hint'}
+                  {retryAttempts === 1 && 'Try again for a response template'}
+                  {retryAttempts === 2 && 'Try again for a detailed example'}
+                  {retryAttempts === 3 && 'Try again for the full coaching breakdown'}
                 </div>
               )}
             </div>
@@ -1298,25 +1179,27 @@ Be grounded and specific. If the rewrite is weak, say so directly. If it's stron
         </div>
       )}
       
-      {/* Give Up Warning Modal */}
+      {/* Exit Practice Modal */}
       {showGiveUpWarning && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className={`max-w-md w-full rounded-xl p-6 shadow-2xl ${
             theme === 'dark' ? 'bg-[#1a1a1a] border border-white/10' : 'bg-white border border-gray-200'
           }`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-                <span className="text-red-500 text-xl">⚠️</span>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'
+              }`}>
+                <X size={18} />
               </div>
               <h3 className={`text-lg font-bold ${
                 theme === 'dark' ? 'text-white' : 'text-gray-900'
-              }`}>Give Up Practice?</h3>
+              }`}>Exit Practice?</h3>
             </div>
             
             <p className={`text-sm mb-6 leading-relaxed ${
-              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
             }`}>
-              You won't be able to practice this moment again. All progress will be lost and you'll return to viewing mode.
+              You can return to practice this moment anytime. Your progress will reset when you come back.
             </p>
             
             <div className="flex gap-2">
@@ -1337,113 +1220,20 @@ Be grounded and specific. If the rewrite is weak, say so directly. If it's stron
                   setRetryState('initial');
                   setRetryInput('');
                   setRetryResult(null);
-                  setRetryAttempts(0);
                 }}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex-1 py-2.5 border rounded-lg text-sm font-medium transition-colors ${
                   theme === 'dark'
-                    ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400'
-                    : 'bg-red-500 hover:bg-red-600 text-white'
+                    ? 'bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30 text-blue-400'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
                 }`}
               >
-                Give Up
+                Exit Practice
               </button>
             </div>
           </div>
         </div>
       )}
       
-      {/* Practice Chat Sidebar */}
-      {!['strong_move', 'best_moment', 'turning_point'].includes(moment.classification) && isSidebarOpen && (
-        <div className="fixed inset-y-0 right-0 w-96 bg-[#1a1a1a] border-l border-white/10 shadow-2xl z-50 flex flex-col animate-slide-in">
-          {/* Sidebar Header */}
-          <div className="flex items-center justify-between p-4 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <MessageSquare size={18} className="text-blue-400" />
-              <h3 className="text-white font-bold text-sm uppercase tracking-wide">Practice This Moment</h3>
-            </div>
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="p-1 hover:bg-white/10 rounded transition-colors"
-            >
-              <X size={18} className="text-gray-400" />
-            </button>
-          </div>
-          
-          {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {chatMessages.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`
-                    rounded-xl p-4 text-sm leading-relaxed max-w-[85%]
-                    ${msg.role === 'coach' 
-                      ? 'bg-white/5 text-gray-300' 
-                      : 'bg-blue-500/20 text-white'
-                    }
-                  `}
-                >
-                  {msg.role === 'coach' ? (
-                    <ReactMarkdown
-                      components={{
-                        p: ({node, ...props}) => <p className="mb-4 leading-relaxed last:mb-0" {...props} />,
-                        ul: ({node, ...props}) => <ul className="my-4 space-y-2 list-disc list-inside" {...props} />,
-                        ol: ({node, ...props}) => <ol className="my-4 space-y-2 list-decimal list-inside" {...props} />,
-                        li: ({node, ...props}) => <li className="ml-2" {...props} />,
-                        strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
-                        blockquote: ({node, ...props}) => <blockquote className="my-4 pl-4 border-l-2 border-white/30 italic text-gray-400" {...props} />,
-                      }}
-                    >{msg.content}</ReactMarkdown>
-                  ) : (
-                    msg.content
-                  )}
-                </div>
-              </div>
-            ))}
-            
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-white/5 rounded-xl p-4 text-sm text-gray-500">
-                  Coach is typing...
-                </div>
-              </div>
-            )}
-            
-            <div ref={chatEndRef} />
-          </div>
-          
-          {/* Input Area */}
-          <div className="p-4 border-t border-white/10">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSendMessage()}
-                placeholder="Type your alternative response..."
-                disabled={isLoading}
-                className="
-                  flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2
-                  text-white placeholder-gray-500 text-sm
-                  focus:outline-none focus:border-white/30
-                  disabled:opacity-50
-                "
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={!userInput.trim() || isLoading}
-                className="
-                  bg-blue-500 hover:bg-blue-600
-                  disabled:bg-gray-600 disabled:cursor-not-allowed
-                  text-white rounded-lg px-4 py-2 transition-colors
-                  flex items-center gap-2
-                "
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

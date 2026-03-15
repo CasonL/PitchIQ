@@ -274,7 +274,7 @@ STYLE RULES:
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [
-            { role: 'system', content: 'You are a sales coach. You must respond with valid JSON only.' },
+            { role: 'system', content: 'You are a sales coach. Output valid JSON with EXACTLY ONE field (either "whyItWorked" or "whyItDidntWork"). ALL markdown sections (### headers, bullet points, blockquotes) must be INSIDE that single string field value using \\n for line breaks. Do NOT create separate JSON fields for each section. The example shows the correct format.' },
             { role: 'user', content: prompt }
           ],
           response_format: { type: 'json_object' },

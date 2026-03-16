@@ -403,7 +403,7 @@ export class MomentExtractor {
           shifts.push({
             id: `pos_${pair.index}`,
             type: 'positive_shift',
-            classification: this.classifyPositiveMoment(resistanceDrop, marcusState),
+            classification: this.classifyPositiveMoment(resistanceDrop, marcusState, pair.userResponse.text),
             reasonTag: this.inferReasonTag(pair.userResponse.text, pair.outcome.objectionTriggered),
             timestamp: pair.userResponse.timestamp,
             turnNumber: Math.floor(pair.index / 2) + 1,
@@ -660,20 +660,60 @@ export class MomentExtractor {
   }
   
   /**
-   * Classify positive moment as best_moment, strong_move, or turning_point
+   * Detect execution quality issues that indicate poor delivery
    */
-  private static classifyPositiveMoment(resistanceDrop: number, marcusState: any): MomentClassification {
-    // Best moment: huge drop + high trust/curiosity
-    if (resistanceDrop >= 4.0 && (marcusState.trust === 'high' || marcusState.curiosity === 'high')) {
+  private static hasExecutionIssues(userText: string): boolean {
+    const text = userText.toLowerCase();
+    
+    // Detect word repetition ("through their through their", "your your")
+    const wordRepetitionPattern = /\b(\w+)\s+\1\b/g;
+    const hasRepetition = wordRepetitionPattern.test(text);
+    
+    // Detect excessive filler words
+    const fillerWords = (text.match(/\b(um|uh|like|you know|basically|actually)\b/g) || []).length;
+    const hasExcessiveFillers = fillerWords >= 3;
+    
+    // Detect very long run-on sentences (> 30 words without period)
+    const sentences = userText.split(/[.!?]+/);
+    const hasRunOnSentence = sentences.some(s => s.trim().split(/\s+/).length > 30);
+    
+    // Detect grammatical awkwardness patterns
+    const awkwardPatterns = [
+      /\b(are you are you|do you do you|is there is there)\b/i, // stammering
+      /\b(any one existing|some one existing)\b/i, // "any one" instead of "anyone"
+      /\bhope people companies\b/i, // confused phrase structure
+      /\b(gain|get) more (clients|customers) through their through their\b/i // specific repetition
+    ];
+    const hasAwkwardPhrasing = awkwardPatterns.some(p => p.test(text));
+    
+    return hasRepetition || hasExcessiveFillers || hasRunOnSentence || hasAwkwardPhrasing;
+  }
+  
+  /**
+   * Classify positive moment as best_moment, strong_move, or turning_point
+   * Now considers execution quality to prevent over-generous classifications
+   */
+  private static classifyPositiveMoment(resistanceDrop: number, marcusState: any, userText?: string): MomentClassification {
+    // Check execution quality first
+    const poorExecution = userText ? this.hasExecutionIssues(userText) : false;
+    
+    // Best moment: huge drop + high trust/curiosity + clean execution
+    if (resistanceDrop >= 4.0 && (marcusState.trust === 'high' || marcusState.curiosity === 'high') && !poorExecution) {
       return 'best_moment';
     }
     
-    // Turning point: significant shift in buyer state
-    if (resistanceDrop >= 3.5) {
+    // Turning point: significant shift + clean execution
+    if (resistanceDrop >= 3.5 && !poorExecution) {
       return 'turning_point';
     }
     
-    // Strong move: solid improvement
+    // Poor execution detected: downgrade to nuanced classification
+    if (poorExecution) {
+      console.log(`⚠️ Execution issues detected, downgrading to strong_attempt`);
+      return 'strong_attempt'; // Right move, rough execution
+    }
+    
+    // Strong move: solid improvement with clean execution
     return 'strong_move';
   }
   

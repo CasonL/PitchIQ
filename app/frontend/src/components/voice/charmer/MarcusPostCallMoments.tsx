@@ -68,18 +68,29 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
   
   const getMomentColor = (moment: KeyMoment): string => {
     switch (moment.classification) {
+      // INCREDIBLE (Blue)
       case 'best_moment':
-      case 'strong_move':
-        return '#22c55e'; // green
       case 'turning_point':
-        return '#3b82f6'; // blue
+        return '#3b82f6'; // blue-500
+      
+      // GREAT (Green)
+      case 'strong_move':
+        return '#22c55e'; // green-500
+      
+      // GOOD ATTEMPT (Yellow)
+      case 'partial_turning_point':
+      case 'strong_attempt':
+      case 'mixed_signal':
+        return '#eab308'; // yellow-500
+      
+      // MISTAKES (Red)
+      case 'missed_opportunity':
       case 'mistake':
       case 'blunder':
-        return '#f97316'; // orange
-      case 'missed_opportunity':
-        return '#fbbf24'; // amber
+        return '#ef4444'; // red-500
+      
       default:
-        return '#6b7280'; // gray
+        return '#6b7280'; // gray (should never happen)
     }
   };
   const [showMetrics, setShowMetrics] = useState(false);
@@ -499,6 +510,20 @@ Return ONLY a single integer 1-10, nothing else.`;
             <div className={`absolute left-0 right-0 h-0.5 ${
               theme === 'dark' ? 'bg-white/10' : 'bg-gray-300'
             } `} style={{ top: '50%', transform: 'translateY(-50%)' }}></div>
+            
+            {/* Turn tick marks */}
+            {conversationExchanges.map((exchange, idx) => {
+              const position = (exchange.timestamp / duration) * 100;
+              return (
+                <div
+                  key={`tick-${idx}`}
+                  className={`absolute top-1/2 -translate-y-1/2 w-px h-2 ${
+                    theme === 'dark' ? 'bg-white/20' : 'bg-gray-400'
+                  }`}
+                  style={{ left: `${position}%` }}
+                />
+              );
+            })}
             
             {/* All moment dots positioned by timestamp */}
             {keyMoments.map((moment, index) => {

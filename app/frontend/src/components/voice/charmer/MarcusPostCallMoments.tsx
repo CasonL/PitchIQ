@@ -11,6 +11,7 @@ import { KeyMoment, MomentExtractor } from './MomentExtractor';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MomentCoachingPanel } from './MomentCoachingPanel';
 import { PostCallOverview } from './PostCallOverview';
+import { PostCallCTA } from './PostCallCTA';
 import type { MomentClassification } from './MomentExtractor';
 
 const getClassificationLabel = (classification: MomentClassification): string => {
@@ -56,7 +57,7 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
   onTryAgain,
   preAnalyzedMoments
 }) => {
-  const [phase, setPhase] = useState<'overview' | 'review'>('overview');
+  const [phase, setPhase] = useState<'overview' | 'review' | 'cta'>('overview');
   const [keyMoments, setKeyMoments] = useState<KeyMoment[]>(preAnalyzedMoments || []);
   const [currentMomentIndex, setCurrentMomentIndex] = useState(0);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -67,6 +68,8 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
   const goToNextMoment = () => {
     if (currentMomentIndex < keyMoments.length - 1) {
       setCurrentMomentIndex(currentMomentIndex + 1);
+    } else {
+      setPhase('cta');
     }
   };
   
@@ -438,6 +441,23 @@ Return ONLY a single integer 1-10, nothing else.`;
     return { incredible, great, goodAttempt, mistakes };
   };
   
+  // Show CTA screen after reviewing all moments
+  if (phase === 'cta') {
+    return (
+      <PostCallCTA
+        theme={theme}
+        onTryAgain={() => {
+          setPhase('overview');
+          setCurrentMomentIndex(0);
+          onTryAgain();
+        }}
+        onSignUp={() => {
+          window.location.href = '/signup';
+        }}
+      />
+    );
+  }
+
   // Show overview screen first
   if (phase === 'overview' && keyMoments.length > 0 && !isEvaluatingMoments) {
     return (

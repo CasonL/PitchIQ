@@ -129,12 +129,26 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
       if (cached) {
         console.log('📦 Using cached coaching brief for moment:', moment.id);
         setCoachingBrief(cached);
+        setIsLoading(false);
       } else {
-        // Prevent duplicate generations for the same moment
-        if (generatingForMomentRef.current !== moment.id) {
-          setCoachingBrief(null);
-          generateCoachingBrief(moment);
+        // Clear brief and trigger generation
+        setCoachingBrief(null);
+        setIsLoading(true);
+        
+        // If we're already generating for a different moment, reset the flag
+        if (generatingForMomentRef.current && generatingForMomentRef.current !== moment.id) {
+          console.log('🔄 Canceling previous generation for:', generatingForMomentRef.current);
+          generatingForMomentRef.current = null;
         }
+        
+        // Generate with a small delay to ensure state updates
+        setTimeout(() => {
+          if (generatingForMomentRef.current !== moment.id) {
+            generateCoachingBrief(moment);
+          } else {
+            console.log('⏳ Already generating for this moment:', moment.id);
+          }
+        }, 0);
       }
     }
   }, [moment?.id]);

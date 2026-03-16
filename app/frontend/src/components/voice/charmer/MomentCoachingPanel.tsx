@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { KeyMoment, MomentClassification } from './MomentExtractor';
 import ReactMarkdown from 'react-markdown';
-import { MessageSquare, X, Mic, MicOff } from 'lucide-react';
+import { MessageSquare, X, Mic, MicOff, Info } from 'lucide-react';
 
 interface MomentCoachingPanelProps {
   moment: KeyMoment | null;
@@ -106,6 +106,7 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
   const [retryAttempts, setRetryAttempts] = useState(0);
   const [showGiveUpWarning, setShowGiveUpWarning] = useState(false);
   const [showHintResponse, setShowHintResponse] = useState(false);
+  const [expandedTooltip, setExpandedTooltip] = useState<string | null>(null);
   
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -851,6 +852,114 @@ Be consistent and deterministic. Same input should give same output.`;
     return Math.min(100, (timestamp / callDuration) * 100);
   };
   
+  const renderInteractiveExplanation = (explanation: string) => {
+    // Replace "state" and "needs" with interactive buttons
+    const parts = explanation.split(/\b(state|needs)\b/gi);
+    
+    return parts.map((part, index) => {
+      const lowerPart = part.toLowerCase();
+      
+      if (lowerPart === 'state') {
+        const tooltipKey = 'state';
+        const isExpanded = expandedTooltip === tooltipKey;
+        
+        return (
+          <span key={index} className="inline-flex items-center">
+            <button
+              onClick={() => setExpandedTooltip(isExpanded ? null : tooltipKey)}
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-sm font-medium transition-colors ${
+                theme === 'dark'
+                  ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30'
+                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
+              }`}
+            >
+              {part}
+              <Info size={12} />
+            </button>
+            {isExpanded && moment?.marcusState && (
+              <span className={`inline-flex items-center gap-2 ml-2 px-2 py-1 rounded text-xs ${
+                theme === 'dark'
+                  ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                  : 'bg-blue-50 border border-blue-200 text-blue-700'
+              }`}>
+                Trust: <strong>{moment.marcusState.trust}</strong>
+                <span className={theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}>|</span>
+                Curiosity: <strong>{moment.marcusState.curiosity}</strong>
+                <span className={theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}>|</span>
+                Urgency: <strong>{moment.marcusState.urgency}</strong>
+              </span>
+            )}
+          </span>
+        );
+      }
+      
+      if (lowerPart === 'needs') {
+        const tooltipKey = 'needs';
+        const isExpanded = expandedTooltip === tooltipKey;
+        
+        // Infer needs from moment context
+        const inferredNeeds = inferMarcusNeeds();
+        
+        return (
+          <span key={index} className="inline-flex items-center">
+            <button
+              onClick={() => setExpandedTooltip(isExpanded ? null : tooltipKey)}
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-sm font-medium transition-colors ${
+                theme === 'dark'
+                  ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30'
+                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300'
+              }`}
+            >
+              {part}
+              <Info size={12} />
+            </button>
+            {isExpanded && (
+              <span className={`inline-flex items-center gap-1 ml-2 px-2 py-1 rounded text-xs ${
+                theme === 'dark'
+                  ? 'bg-purple-500/10 border border-purple-500/20 text-purple-300'
+                  : 'bg-purple-50 border border-purple-200 text-purple-700'
+              }`}>
+                {inferredNeeds}
+              </span>
+            )}
+          </span>
+        );
+      }
+      
+      return <span key={index}>{part}</span>;
+    });
+  };
+  
+  const inferMarcusNeeds = (): string => {
+    if (!moment) return 'Unknown';
+    
+    const state = moment.marcusState;
+    const marcusText = moment.marcusResponse?.toLowerCase() || '';
+    
+    // Infer needs based on state and context
+    if (state?.trust === 'low') {
+      return 'Credibility, proof, reassurance';
+    }
+    
+    if (state?.curiosity === 'low' && state?.urgency === 'low') {
+      return 'Clear value proposition, relevance';
+    }
+    
+    if (marcusText.includes('busy') || marcusText.includes('time')) {
+      return 'Quick, concise explanation';
+    }
+    
+    if (marcusText.includes('not sure') || marcusText.includes('maybe')) {
+      return 'Clarity on next steps';
+    }
+    
+    if (marcusText.includes('how') || marcusText.includes('what')) {
+      return 'Specific details, examples';
+    }
+    
+    return 'Understanding of his situation';
+  };
+  
   if (!moment) {
     return (
       <div className="flex items-center justify-center h-full text-gray-500">
@@ -1389,11 +1498,11 @@ Be consistent and deterministic. Same input should give same output.`;
                 </div>
               </div>
               
-              <p className={`text-sm mb-4 leading-relaxed ${
+              <div className={`text-sm mb-4 leading-relaxed ${
                 theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
               }`}>
-                {retryResult.explanation}
-              </p>
+                {renderInteractiveExplanation(retryResult.explanation)}
+              </div>
               
               <div className={`rounded-lg p-3 mb-4 border-l-2 border-blue-500 ${
                 theme === 'dark' ? 'bg-white/5' : 'bg-blue-50'

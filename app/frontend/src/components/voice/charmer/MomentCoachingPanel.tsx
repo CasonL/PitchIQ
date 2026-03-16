@@ -167,6 +167,7 @@ TACTICAL PATTERN CHECKS (analyze the user's response for these):
 4. **Too presumptive**: Asking "are you having issues" or diagnosing pain before earning the right
 5. **Length mismatch**: Marcus gave short/impatient response → you gave long explanation (bad)
 6. **Mixing modes**: Trying to ask discovery AND pitch AND explain all in the same sentence
+7. **Exit overtalking**: If Marcus said "send me something" or "I'll look later", he already gave you the next step - did you keep the handoff SHORT or did you add a mini-pitch?
 
 STRATEGIC CORRECTION GUIDANCE:
 - If Marcus asks "What do you want?" or "Why are you calling?" → he's asking for CLARITY, not inviting discovery
@@ -175,6 +176,15 @@ STRATEGIC CORRECTION GUIDANCE:
 - RIGHT: answer directly ("Quick reason for the call: [concrete value prop]. [One clean question]")
 - Pattern: impatient buyer = needs clarity, not discovery invitation
 - Don't recommend pivoting to discovery when the buyer is asking for relevance/clarity
+
+EXIT MOMENT GUIDANCE:
+- If Marcus says "Send me something", "I'll look later", "I've got to run", or similar soft exit → he ALREADY gave you the next step
+- This is a HANDOFF moment, not a persuasion moment
+- Correct move: Accept exit cleanly + State what you'll send briefly + Done
+- WRONG: Add mini-pitch, pile on claims, ask permission for something he already allowed, keep selling
+- RIGHT: "I'll send over [specific thing]. You can review it when you have time."
+- Don't mistake "not fighting the exit" for "handled it well" - if you overtalked the handoff, that's still a mistake
+- These moments should usually be classified as NUANCED at best (accepted exit but overtalked), not clean wins
 
 ${['strong_move', 'best_moment', 'turning_point', 'partial_turning_point', 'strong_attempt', 'mixed_signal'].includes(moment.classification) ? `This moment had POTENTIAL. Analyze both the strategic choice AND the execution quality:
 
@@ -193,8 +203,10 @@ CLASSIFY THE WIN:
 - **Full clean win**: Right move + clean execution
 - **Partial win**: Right move + rough execution (MOST COMMON)
 - **Decent move**: Right instinct + clumsy delivery
+- **Exit overtalked**: Accepted the exit (good) but added unnecessary pitch during handoff (mistake)
 
 Don't call something "clear and concise" if it was unfinished or awkward. Be honest.
+Don't reward "maintaining dialogue" if Marcus had already given the next step and the user just needed to make the handoff simple.
 
 FORMAT RULES:
 - Start with 1 sentence on the core strategic choice

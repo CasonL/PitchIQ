@@ -151,14 +151,14 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
         })
       );
       
-      // Filter for coaching-worthy moments (score >= 5/10) and sort chronologically
+      // Filter for coaching-worthy moments (score >= 4/10) and sort chronologically
       const impactfulMoments = evaluatedMoments
-        .filter(({ score }) => score >= 5)
+        .filter(({ score }) => score >= 4)
         .sort((a, b) => a.moment.turnNumber - b.moment.turnNumber) // Chronological order
         .slice(0, 5)
         .map(({ moment }) => moment);
       
-      console.log(`✅ Filtered to ${impactfulMoments.length} coaching-worthy moments (threshold: 5/10)`);
+      console.log(`✅ Filtered to ${impactfulMoments.length} coaching-worthy moments (threshold: 4/10)`);
       
       setKeyMoments(impactfulMoments);
       setCurrentMomentIndex(0);

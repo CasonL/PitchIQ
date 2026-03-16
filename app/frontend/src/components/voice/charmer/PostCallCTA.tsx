@@ -83,6 +83,7 @@ export const PostCallCTA: React.FC<PostCallCTAProps> = ({
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
+                type="button"
                 onClick={() => handleRatingClick(star)}
                 onMouseEnter={() => setHoverRating(star)}
                 onMouseLeave={() => setHoverRating(0)}

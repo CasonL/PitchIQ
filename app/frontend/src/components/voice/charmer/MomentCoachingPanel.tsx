@@ -1670,14 +1670,22 @@ Be consistent and deterministic. Same input should give same output.`;
                     </button>
                   ) : (
                     <button
-                      onClick={() => setShowHintResponse(!showHintResponse)}
+                      onClick={() => {
+                        // Extract hint if not already available
+                        if (!structuralHint && coachingBrief) {
+                          const hint = extractStructuralHint(coachingBrief);
+                          setStructuralHint(hint);
+                          console.log('🔧 Extracted hint on-demand:', hint);
+                        }
+                        setShowHintResponse(!showHintResponse);
+                      }}
                       className={`flex-1 py-2 border rounded-lg text-sm font-medium transition-colors ${
                         theme === 'dark'
                           ? 'bg-orange-500/20 hover:bg-orange-500/30 border-orange-500/50 text-orange-400'
                           : 'bg-orange-50 hover:bg-orange-100 border-orange-300 text-orange-700'
                       }`}
                     >
-                      {showHintResponse ? '👁️ Hide Hint' : '� Get Hint'}
+                      {showHintResponse ? '👁️ Hide Hint' : '💡 Get Hint'}
                     </button>
                   )}
                 </div>
@@ -1698,7 +1706,7 @@ Be consistent and deterministic. Same input should give same output.`;
               </div>
               
               {/* Show Hint Response Below Marcus's Reaction */}
-              {showHintResponse && structuralHint && (
+              {showHintResponse && (
                 <div className={`mt-4 p-4 rounded-lg border-l-4 ${
                   theme === 'dark'
                     ? 'bg-orange-500/10 border-orange-500 text-orange-200'
@@ -1707,9 +1715,17 @@ Be consistent and deterministic. Same input should give same output.`;
                   <div className={`text-xs font-bold mb-2 uppercase tracking-wide ${
                     theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
                   }`}>💡 Potential Response:</div>
-                  <div className={`text-sm italic ${
-                    theme === 'dark' ? 'text-orange-100' : 'text-orange-900'
-                  }`}>"{structuralHint.level3}"</div>
+                  {structuralHint ? (
+                    <div className={`text-sm italic ${
+                      theme === 'dark' ? 'text-orange-100' : 'text-orange-900'
+                    }`}>"{structuralHint.level3}"</div>
+                  ) : (
+                    <div className={`text-sm ${
+                      theme === 'dark' ? 'text-orange-200' : 'text-orange-800'
+                    }`}>
+                      Based on what Marcus said ("{moment?.marcusResponse?.substring(0, 60)}..."), try addressing his specific concern directly and concisely.
+                    </div>
+                  )}
                 </div>
               )}
             </div>

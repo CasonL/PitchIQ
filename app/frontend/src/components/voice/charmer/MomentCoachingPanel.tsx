@@ -573,6 +573,30 @@ If Marcus says "I'm busy" and user launches into a 3-sentence pitch:
 4. Diagnose the ACTUAL problem (verbosity vs relevance vs timing vs tone)
 5. Avoid vague terms like "state", "needs", "connection" without specifics
 
+**CRITICAL: STAGE-APPROPRIATE EXPECTATIONS**
+
+Different call stages have different goals. Don't demand later-stage qualities too early.
+
+**EARLY CALL ("Who's this?" / "What do you want?"):**
+Goal: Clarity + credible reason + permission to continue
+✅ ACCEPT: "Hey Marcus, reason for my call is we help improve website performance. Got a minute?"
+❌ DON'T DEMAND: Specific value prop, urgency creation, personalized business case
+❌ BAD CRITIQUE: "lacks urgency" or "not specific to his needs" (too early for that)
+
+**MID CALL (Discovery/qualification):**
+Goal: Understand needs, build relevance, earn next step
+✅ ACCEPT: Questions that uncover situation, acknowledgment of concerns
+❌ DON'T DEMAND: Full pitch, closing language
+
+**LATE CALL (Handling objections/closing):**
+Goal: Address concerns, create next step, handle resistance
+✅ NOW expect: Specificity, handling objections directly, clear next steps
+
+**JUDGE IMPROVEMENT, NOT PERFECTION:**
+- Ask: "Is this better than the original?" NOT "Is this perfect?"
+- If user fixed the main issue from the original moment → that's success
+- Don't penalize for not solving everything at once
+
 EVALUATION CRITERIA - OUTCOME-BASED, NOT CHECKLIST-BASED:
 **Judge by whether this would realistically work, not by whether it matches a formula.**
 

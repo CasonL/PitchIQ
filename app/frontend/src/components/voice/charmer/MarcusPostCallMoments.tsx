@@ -672,7 +672,7 @@ Return ONLY a single integer 1-10, nothing else.`;
           {/* MOBILE LAYOUT - Single column with Trust cards at top, fixed nav at bottom */}
           <div className="md:hidden flex flex-col h-full overflow-hidden">
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto pb-20">
+            <div className="flex-1 overflow-y-auto pb-32">
               {/* Classification Card at TOP */}
               {selectedMoment && (
                 <div className="p-3 border-b" style={{

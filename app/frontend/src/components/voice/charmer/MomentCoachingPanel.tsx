@@ -105,6 +105,7 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
   const [structuralHint, setStructuralHint] = useState<StructuralHint | null>(null);
   const [retryAttempts, setRetryAttempts] = useState(0);
   const [showGiveUpWarning, setShowGiveUpWarning] = useState(false);
+  const [showHintResponse, setShowHintResponse] = useState(false);
   
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -121,6 +122,7 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
       setShowStrongerExample(false);
       setStructuralHint(null);
       setRetryAttempts(0);
+      setShowHintResponse(false);
       
       // Check cache first
       const cached = briefCacheRef.current.get(moment.id);
@@ -798,6 +800,7 @@ Be consistent and deterministic. Same input should give same output.`;
     setRetryState('initial');
     setRetryInput('');
     setRetryResult(null);
+    setShowHintResponse(false);
   };
 
   
@@ -1253,23 +1256,6 @@ Be consistent and deterministic. Same input should give same output.`;
         }`}>
           {retryState === 'initial' && (
             <div className="p-6">
-              {/* Single Hint Button - Generates potential response */}
-              {structuralHint && !retryInput && (
-                <div className="mb-4">
-                  <button
-                    onClick={() => setRetryInput(structuralHint.level3)}
-                    className={`w-full p-4 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
-                      theme === 'dark'
-                        ? 'bg-orange-500/10 border-orange-500/50 hover:bg-orange-500/20 hover:border-orange-500'
-                        : 'bg-orange-50 border-orange-300 hover:bg-orange-100 hover:border-orange-400'
-                    }`}
-                  >
-                    <span className={`text-sm font-medium ${
-                      theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                    }`}>💡 Get Hint - Show Potential Response</span>
-                  </button>
-                </div>
-              )}
               
               <div className="mb-4">
                 <label className={`text-xs font-medium mb-2 block ${
@@ -1419,20 +1405,30 @@ Be consistent and deterministic. Same input should give same output.`;
                   >
                     Try Again
                   </button>
-                  {/* Continue button - only enabled on success */}
-                  <button
-                    onClick={() => setIsPracticeModeActive(false)}
-                    disabled={retryResult.label !== 'better' && retryResult.label !== 'strong_improvement'}
-                    className={`flex-1 py-2 border rounded-lg text-sm font-medium transition-colors ${
-                      retryResult.label === 'better' || retryResult.label === 'strong_improvement'
-                        ? theme === 'dark'
+                  {/* Hint or Continue button */}
+                  {retryResult.label === 'better' || retryResult.label === 'strong_improvement' ? (
+                    <button
+                      onClick={() => setIsPracticeModeActive(false)}
+                      className={`flex-1 py-2 border rounded-lg text-sm font-medium transition-colors ${
+                        theme === 'dark'
                           ? 'bg-green-500/20 hover:bg-green-500/30 border-green-500/50 text-green-400'
                           : 'bg-green-50 hover:bg-green-100 border-green-300 text-green-700'
-                        : 'opacity-50 cursor-not-allowed bg-gray-500/10 border-gray-500/30 text-gray-500'
-                    }`}
-                  >
-                    {retryResult.label === 'better' || retryResult.label === 'strong_improvement' ? '✓ Continue' : '🔒 Locked'}
-                  </button>
+                      }`}
+                    >
+                      ✓ Continue
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowHintResponse(!showHintResponse)}
+                      className={`flex-1 py-2 border rounded-lg text-sm font-medium transition-colors ${
+                        theme === 'dark'
+                          ? 'bg-orange-500/20 hover:bg-orange-500/30 border-orange-500/50 text-orange-400'
+                          : 'bg-orange-50 hover:bg-orange-100 border-orange-300 text-orange-700'
+                      }`}
+                    >
+                      {showHintResponse ? '👁️ Hide Hint' : '� Get Hint'}
+                    </button>
+                  )}
                 </div>
                 
                 {/* Exit Practice button - only show if not succeeded */}
@@ -1450,17 +1446,19 @@ Be consistent and deterministic. Same input should give same output.`;
                 )}
               </div>
               
-              {/* Hint for next level */}
-              {(retryResult.label === 'partial' || retryResult.label === 'still_missed') && retryAttempts < 4 && (
-                <div className={`mt-4 p-3 rounded-lg border text-xs ${
-                  theme === 'dark' 
-                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' 
-                    : 'bg-blue-50 border-blue-300 text-blue-700'
+              {/* Show Hint Response Below Marcus's Reaction */}
+              {showHintResponse && structuralHint && (
+                <div className={`mt-4 p-4 rounded-lg border-l-4 ${
+                  theme === 'dark'
+                    ? 'bg-orange-500/10 border-orange-500 text-orange-200'
+                    : 'bg-orange-50 border-orange-400 text-orange-800'
                 }`}>
-                  💡 {retryAttempts === 0 && 'Try again for a more specific hint'}
-                  {retryAttempts === 1 && 'Try again for a response template'}
-                  {retryAttempts === 2 && 'Try again for a detailed example'}
-                  {retryAttempts === 3 && 'Try again for the full coaching breakdown'}
+                  <div className={`text-xs font-bold mb-2 uppercase tracking-wide ${
+                    theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                  }`}>💡 Potential Response:</div>
+                  <div className={`text-sm italic ${
+                    theme === 'dark' ? 'text-orange-100' : 'text-orange-900'
+                  }`}>"{structuralHint.level3}"</div>
                 </div>
               )}
             </div>

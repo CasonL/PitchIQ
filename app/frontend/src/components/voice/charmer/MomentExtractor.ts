@@ -400,14 +400,15 @@ export class MomentExtractor {
           });
         } else {
           // Normal positive shift
+          const classification = this.classifyPositiveMoment(resistanceDrop, marcusState, pair.userResponse.text);
           shifts.push({
             id: `pos_${pair.index}`,
             type: 'positive_shift',
-            classification: this.classifyPositiveMoment(resistanceDrop, marcusState, pair.userResponse.text),
+            classification,
             reasonTag: this.inferReasonTag(pair.userResponse.text, pair.outcome.objectionTriggered),
             timestamp: pair.userResponse.timestamp,
             turnNumber: Math.floor(pair.index / 2) + 1,
-            title: this.generateDecisiveTitle('positive', pair.userResponse.text, pair.outcome.text, resistanceDrop),
+            title: this.generateDecisiveTitle('positive', pair.userResponse.text, pair.outcome.text, resistanceDrop, classification),
             userMessage: pair.userResponse.text,
             marcusResponse: pair.marcusStatement.text,
             surroundingContext: this.extractSurroundingContext(pair.index),
@@ -733,25 +734,35 @@ export class MomentExtractor {
   /**
    * Generate decisive, chess-style title
    */
-  private static generateDecisiveTitle(type: 'positive' | 'negative', userText: string, outcomeText: string, delta: number): string {
+  private static generateDecisiveTitle(type: 'positive' | 'negative', userText: string, outcomeText: string, delta: number, classification?: MomentClassification): string {
     const outcome = outcomeText.toLowerCase();
     const user = userText.toLowerCase();
     
     if (type === 'positive') {
+      // Determine prefix based on classification
+      let prefix = 'Strong move';
+      if (classification === 'strong_attempt') {
+        prefix = 'Strong attempt';
+      } else if (classification === 'best_moment') {
+        prefix = 'Best moment';
+      } else if (classification === 'turning_point') {
+        prefix = 'Turning point';
+      }
+      
       // Look for specific positive signals
       if (/interesting|intrigued|sounds good|i like/.test(outcome)) {
-        return 'Strong move: you sparked genuine interest';
+        return `${prefix}: you sparked genuine interest`;
       }
       if (/make sense|understand|clear|get it/.test(outcome)) {
-        return 'Strong move: you made it concrete';
+        return `${prefix}: you made it concrete`;
       }
       if (/tell me more|what about|how does/.test(outcome)) {
-        return 'Turning point: Marcus leaned in';
+        return classification === 'turning_point' ? 'Turning point: Marcus leaned in' : `${prefix}: Marcus leaned in`;
       }
-      if (delta >= 4.0) {
+      if (delta >= 4.0 && classification === 'best_moment') {
         return 'Best moment: major breakthrough';
       }
-      return 'Strong move: you created momentum';
+      return `${prefix}: you created momentum`;
     } else {
       // Negative signals
       if (/proof|evidence|case stud|track record/.test(outcome)) {

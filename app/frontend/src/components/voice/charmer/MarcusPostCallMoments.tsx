@@ -535,7 +535,7 @@ Return ONLY a single integer 1-10, nothing else.`;
                 <button
                   key={moment.id}
                   onClick={() => goToMoment(index)}
-                  className="absolute top-1/2 -translate-y-1/2 group z-10 transition-all"
+                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group z-10 transition-all"
                   style={{ left: `${position}%` }}
                   title={moment.title}
                 >

@@ -533,12 +533,57 @@ ${suggestedResponses.length > 0 ? suggestedResponses.map((r, i) => `${i + 1}. "$
 "${userResponse}"
 
 # YOUR TASK
-Evaluate this retry and return ONLY valid JSON with this structure:
+Evaluate this retry using ONE PRIMARY QUESTION:
+
+🎯 **DID THIS IMPROVE THE POSITION RELATIVE TO THE ORIGINAL MOMENT?**
+
+NOT: "Is this perfect?"
+NOT: "Does this maximize the entire call?"
+NOT: "Does this match the coaching examples exactly?"
+
+# EVALUATION FRAMEWORK
+
+**STEP 1: COMPARE ORIGINAL → RETRY**
+
+Original Response: "${moment!.userMessage}"
+Retry Response: "${userResponse}"
+
+Ask yourself:
+1. What was the MAIN problem with the original?
+2. Did the retry fix or improve that specific problem?
+3. Is the retry response better positioned than the original (even if not perfect)?
+
+**STEP 2: APPLY STAGE-APPROPRIATE LENS**
+
+**EARLY CALL ("Who's this?" / "What do you want?"):**
+- Original problem likely: unclear identity, no reason for call, or added fluff
+- Retry success: clearer identity, stated reason, removed fluff
+- DON'T demand: urgency, specific value prop, personalized pitch (too early)
+
+**MID CALL (Discovery/qualification):**
+- Original problem likely: didn't uncover needs, missed concern, pushed too hard
+- Retry success: better question, acknowledged concern, earned next step
+- DON'T demand: full solution, closing language (wrong stage)
+
+**LATE CALL (Objections/closing):**
+- Original problem likely: didn't address objection, missed commitment opportunity
+- Retry success: handled concern, created next step
+- NOW you can expect: specificity, direct handling
+
+**STEP 3: VERDICT**
+
+Return ONLY valid JSON:
 {
   "label": "better" | "strong_improvement" | "partial" | "still_missed",
-  "explanation": "One specific sentence about what improved or what's missing - MUST reference Marcus's actual words or business context",
-  "marcusReaction": "A short (1-2 sentence) simulated response Marcus would give to this retry"
+  "explanation": "One specific sentence about what improved or what's still limiting",
+  "marcusReaction": "A short (1-2 sentence) simulated response Marcus would give"
 }
+
+**LABEL GUIDE (relative to original):**
+- "better" = Fixed the main issue, would move conversation forward
+- "strong_improvement" = Fixed main issue + added value
+- "partial" = Improved something but main issue still present
+- "still_missed" = Didn't improve the core problem
 
 **EXPLANATION QUALITY REQUIREMENTS:**
 - ❌ GENERIC: "lacks connection to Marcus's current state of urgency"
@@ -566,89 +611,61 @@ If Marcus says "I'm busy" and user launches into a 3-sentence pitch:
 - "Wrong answer" = user answered the wrong question or misread the situation
 - "Right direction but incomplete" = user started well but didn't finish the thought
 
-**RULES FOR EXPLANATION:**
-1. Reference what Marcus actually said (use quotes)
-2. Include his business context (role, company type) when relevant
-3. Be concrete about what's missing or what worked
-4. Diagnose the ACTUAL problem (verbosity vs relevance vs timing vs tone)
+**EXPLANATION RULES:**
+1. Focus on what CHANGED between original and retry
+2. Reference what Marcus actually said (use quotes)
+3. Be concrete: "removed unnecessary small talk" not "improved connection"
+4. If it's better, say what improved. If partial, say what main issue remains.
 5. Avoid vague terms like "state", "needs", "connection" without specifics
 
-**CRITICAL: STAGE-APPROPRIATE EXPECTATIONS**
+**COMMON EVALUATION MISTAKES TO AVOID:**
 
-Different call stages have different goals. Don't demand later-stage qualities too early.
+❌ DEMANDING PERFECTION:
+- "lacks specific value prop" (when original just needed clarity)
+- "doesn't create urgency" (at early identification moment)
+- "not personalized to his business" (too early for that)
 
-**EARLY CALL ("Who's this?" / "What do you want?"):**
-Goal: Clarity + credible reason + permission to continue
-✅ ACCEPT: "Hey Marcus, reason for my call is we help improve website performance. Got a minute?"
-❌ DON'T DEMAND: Specific value prop, urgency creation, personalized business case
-❌ BAD CRITIQUE: "lacks urgency" or "not specific to his needs" (too early for that)
+✅ JUDGING IMPROVEMENT:
+- "removed the small talk that made original unclear"
+- "stated reason for call which original didn't do"
+- "clearer than original, though could still be tightened"
 
-**MID CALL (Discovery/qualification):**
-Goal: Understand needs, build relevance, earn next step
-✅ ACCEPT: Questions that uncover situation, acknowledgment of concerns
-❌ DON'T DEMAND: Full pitch, closing language
+❌ CHECKLIST MENTALITY:
+- Checking if retry has: value prop + urgency + personalization + next step
 
-**LATE CALL (Handling objections/closing):**
-Goal: Address concerns, create next step, handle resistance
-✅ NOW expect: Specificity, handling objections directly, clear next steps
+✅ RELATIVE IMPROVEMENT:
+- Did this fix the thing that made the original weak?
 
-**JUDGE IMPROVEMENT, NOT PERFECTION:**
-- Ask: "Is this better than the original?" NOT "Is this perfect?"
-- If user fixed the main issue from the original moment → that's success
-- Don't penalize for not solving everything at once
+EXAMPLES OF GOOD EVALUATION:
 
-EVALUATION CRITERIA - OUTCOME-BASED, NOT CHECKLIST-BASED:
-**Judge by whether this would realistically work, not by whether it matches a formula.**
+Original: "Hey Marcus, how are you doing today? I'm calling about your website."
+Retry: "Hey Marcus, reason for my call is we help improve website performance. Got a minute?"
+Verdict: **"better"** - Removed fluff, stated clear reason (don't demand urgency/specificity at this stage)
 
-PRIMARY QUESTION: Given Marcus's state (trust/curiosity/urgency) and difficulty level, would this response realistically move the conversation forward in a positive way?
+Original: "I can help with your challenges."
+Retry: "What's currently frustrating about your website?"
+Verdict: **"strong_improvement"** - Shifted from claim to discovery question
 
-ACCEPT AS "BETTER" IF ANY OF THESE ARE TRUE:
-1. **It addresses Marcus's core concern** in any reasonable way (even if approach differs from coaching)
-2. **It shows situational awareness** - user understands what Marcus needs right now
-3. **It's a valid sales technique** that would work with someone at this state (even if not the "textbook" answer)
-4. **Marcus would likely respond positively or neutrally** instead of pushing back harder
+Original: "We do SEO and content."
+Retry: "We do SEO, content, design, analytics, and consulting."
+Verdict: **"still_missed"** - Added more features but didn't fix relevance problem
 
-REJECT AS "STILL_MISSED" ONLY IF:
-- Ignores Marcus's stated position entirely
-- Pushes harder when Marcus has clearly disengaged
-- Uses a technique completely inappropriate for his state (e.g., aggressive pitch to low-trust prospect)
+OUTCOME-BASED CRITERIA:
+Ask: Would this retry work better than the original in moving the conversation forward?
 
-**The coaching examples show ONE path, not THE ONLY path. Don't penalize creative solutions that would work.**
+ACCEPT AS "BETTER" IF:
+- Fixed the main issue from the original (even if not perfect)
+- Marcus would respond more positively to this than the original
+- It's positioned better for the next exchange
 
-Examples of ACCEPTING different approaches:
+**The coaching examples show ONE possible path. Accept any approach that improves on the original.**
+
+Examples:
 - Coaching: "Acknowledge, then offer to send info"
-- User: "Got it, let's connect in a few months when timing's better" → ACCEPT (graceful exit works too)
-- User: "What specifically makes this bad timing?" → ACCEPT (diagnostic question can work)
-- User: "Fair enough, I appreciate your honesty" → ACCEPT (respectful close is valid)
+- User: "Let's connect in a few months" → ACCEPT if original was pushy
+- User: "What makes this bad timing?" → ACCEPT if original didn't diagnose
 
-DETERMINISTIC DECISION FRAMEWORK (to reduce evaluation randomness):
-
-**STEP 1: Would Marcus respond positively to this in real life?**
-- YES → Likely "better" or "strong_improvement"
-- NEUTRAL (doesn't hurt, doesn't help) → "partial"
-- NO (makes things worse) → "still_missed"
-
-**STEP 2: Check difficulty-specific outcomes:**
-
-**EASY DIFFICULTY** (Winnable prospect):
-- Better/Strong: Marcus shows openness (agrees to send info, asks clarifying question, shows interest)
-- Partial: Marcus acknowledges but doesn't commit
-- Missed: Marcus declines, passes, or shows more resistance
-→ If Marcus declines = user FAILED (should've been salvageable)
-
-**MEDIUM DIFFICULTY** (Requires skill):
-- Better/Strong: Marcus moves forward (agrees to next step, provides useful info, lowers guard)
-- Partial: Marcus stays engaged but neutral
-- Missed: Marcus holds position or declines
-→ Polite decline = likely user FAILED (needed stronger technique)
-
-**HARD DIFFICULTY** (Dead-end by design):
-- Better/Strong: User recognizes dead-end and exits gracefully OR gets clarity on why it's not a fit
-- Partial: User softens but still tries to push
-- Missed: User ignores signals and pushes harder
-→ Graceful exit = user SUCCEEDED (recognized unwinnable)
-
-**STEP 3: Generate Marcus's reaction that MATCHES the label:**
+**GENERATE MARCUS'S REACTION THAT MATCHES THE LABEL:**
 - "better"/"strong_improvement" → Marcus reacts POSITIVELY or with INTEREST
 - "partial" → Marcus is POLITE but NON-COMMITTAL
 - "still_missed" → Marcus DECLINES, PUSHES BACK, or SHOWS RESISTANCE

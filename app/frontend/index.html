@@ -170,7 +170,7 @@
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- Netlify hidden form for early access -->
+    <!-- Netlify hidden forms -->
     <form 
       name="early-access-signup" 
       netlify 
@@ -183,6 +183,13 @@
       <input type="text" name="product_updates_opt_in" />
       <input type="text" name="computer_fingerprint_field" />
     </form>
-    <!-- End Netlify hidden form -->
+
+    <!-- Post-call feedback form for Netlify Forms detection -->
+    <form name="post-call-feedback" netlify hidden>
+      <input type="number" name="rating" />
+      <input type="text" name="feedback" />
+      <input type="text" name="timestamp" />
+    </form>
+    <!-- End Netlify hidden forms -->
   </body>
 </html>

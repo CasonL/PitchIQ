@@ -758,6 +758,7 @@ Return ONLY a single integer 1-10, nothing else.`;
               {/* Coaching Content */}
               <div className="p-3">
                 <MomentCoachingPanel 
+                  key={selectedMoment?.id || 'no-moment'}
                   moment={selectedMoment} 
                   callDuration={duration}
                   allMoments={keyMoments}
@@ -1002,6 +1003,7 @@ Return ONLY a single integer 1-10, nothing else.`;
             {/* Right: Coaching Panel */}
             <div className="flex-1 flex flex-col overflow-hidden min-h-0 w-full">
               <MomentCoachingPanel 
+                key={selectedMoment?.id || 'no-moment'}
                 moment={selectedMoment} 
                 callDuration={duration}
                 allMoments={keyMoments}

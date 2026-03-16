@@ -527,11 +527,28 @@ Evaluate this retry and return ONLY valid JSON with this structure:
 - ❌ GENERIC: "still doesn't connect to his current state"
 - ✅ SPECIFIC: "Marcus asked 'What do you want?' - your response didn't give him a quick, clear reason to keep listening"
 
+**CRITICAL: DISTINGUISH BETWEEN "DIDN'T ANSWER" VS "TOO VERBOSE"**
+
+If Marcus asks "What do you want?" and user says "The reason for my call is [service details]":
+- ❌ WRONG DIAGNOSIS: "you didn't address Marcus's question"
+- ✅ RIGHT DIAGNOSIS: "you answered but packed too much detail for someone asking 'What do you want?' - shorter and crisper would work better"
+
+If Marcus says "I'm busy" and user launches into a 3-sentence pitch:
+- ❌ WRONG: "you didn't acknowledge his concern"
+- ✅ RIGHT: "you acknowledged it but then gave too long an explanation for someone who just said they're busy"
+
+**PRECISION MATTERS:**
+- "Didn't answer" = user completely ignored the question/concern
+- "Answered too verbosely" = user addressed it but with too much detail/length
+- "Wrong answer" = user answered the wrong question or misread the situation
+- "Right direction but incomplete" = user started well but didn't finish the thought
+
 **RULES FOR EXPLANATION:**
 1. Reference what Marcus actually said (use quotes)
 2. Include his business context (role, company type) when relevant
 3. Be concrete about what's missing or what worked
-4. Avoid vague terms like "state", "needs", "connection" without specifics
+4. Diagnose the ACTUAL problem (verbosity vs relevance vs timing vs tone)
+5. Avoid vague terms like "state", "needs", "connection" without specifics
 
 EVALUATION CRITERIA - OUTCOME-BASED, NOT CHECKLIST-BASED:
 **Judge by whether this would realistically work, not by whether it matches a formula.**
@@ -591,6 +608,20 @@ DETERMINISTIC DECISION FRAMEWORK (to reduce evaluation randomness):
 
 **CRITICAL CONSISTENCY RULE:**
 If you label it "better" but Marcus declines/passes in your reaction → YOU MADE AN ERROR. The label and reaction must be aligned.
+
+**MARCUS REACTION MUST BE CONTEXTUAL TO USER'S ACTUAL WORDS:**
+
+❌ GENERIC REACTION: "I appreciate the information, but I'm still not sure how this directly benefits my company right now."
+✅ CONTEXTUAL REACTION: "Maybe, but I'm not really following. What exactly are you trying to help with?" (responds to specific wording/structure)
+
+❌ GENERIC: "That sounds interesting, but can you tell me more?"
+✅ CONTEXTUAL: "SEO and content, got it. We already have someone doing that though." (references specific service mentioned)
+
+**HOW TO MAKE REACTIONS CONTEXTUAL:**
+1. Reference specific words/phrases the user actually said (e.g., "SEO", "online presence", "improve visibility")
+2. React to the LENGTH of their response (if too long: "That's a lot to take in", if crisp: natural engagement)
+3. React to the TONE (pushy vs consultative vs rushed)
+4. Avoid cookie-cutter phrases like "I appreciate the information" unless they truly fit
 
 Be consistent and deterministic. Same input should give same output.`;
 

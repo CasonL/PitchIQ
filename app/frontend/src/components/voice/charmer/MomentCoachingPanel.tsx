@@ -106,7 +106,6 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
   const [retryAttempts, setRetryAttempts] = useState(0);
   const [showGiveUpWarning, setShowGiveUpWarning] = useState(false);
   const [showHintResponse, setShowHintResponse] = useState(false);
-  const [expandedTooltip, setExpandedTooltip] = useState<string | null>(null);
   
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -828,10 +827,9 @@ Be consistent and deterministic. Same input should give same output.`;
   const extractStructuralHint = (brief: CoachingBrief): StructuralHint | null => {
     if (!brief.whyItDidntWork) return null;
 
-    console.log('🔍 Extracting 3-level hints from coaching brief');
-    console.log('📄 Full coaching brief:', brief.whyItDidntWork);
+    console.log('🔍 Extracting verbatim response hint from coaching brief');
     
-    // Extract blockquote examples (suggested responses) - try multiple quote patterns
+    // Extract ALL blockquote examples (suggested responses) - try multiple quote patterns
     let suggestions: string[] = [];
     
     // Try pattern 1: > "text" (straight quotes)
@@ -865,45 +863,20 @@ Be consistent and deterministic. Same input should give same output.`;
       }
     }
     
-    console.log('💬 Extracted suggestions:', suggestions);
+    console.log('💬 Extracted verbatim suggestions:', suggestions);
     
-    // Extract bold actions from "What Would Work Here" section
-    const whatWorksMatch = brief.whyItDidntWork.match(/### What Would Work Here([\s\S]*?)(?=###|$)/i);
-    const boldActions = whatWorksMatch ? 
-      [...whatWorksMatch[1].matchAll(/\*\*([^*]+)\*\*/g)].map(m => m[1].trim()).filter(a => !a.includes(':')) : [];
+    // Return FIRST suggestion verbatim - this is what they should say
+    const verbatimResponse = suggestions.length > 0 ? suggestions[0] : 
+      'Address his concern directly and provide a clear next step.';
     
-    console.log('🎯 Extracted bold actions:', boldActions);
+    console.log('✅ Verbatim hint to display:', verbatimResponse);
     
-    // Level 1: Extract high-level structure from bold actions or bullet points
-    let level1Parts: string[] = [];
-    if (boldActions.length >= 2) {
-      level1Parts = boldActions.slice(0, 2);
-    } else {
-      // Fallback: extract from bullet points
-      const bulletMatches = [...brief.whyItDidntWork.matchAll(/- \*\*([^*:]+)\*\*/g)];
-      level1Parts = bulletMatches.slice(0, 2).map(m => m[1].trim());
-    }
-    const level1 = level1Parts.length >= 2 ? level1Parts.join(', ') : 'Address his concern, Provide value';
-    
-    // Level 2: Create template from first suggestion if available
-    let level2 = '';
-    if (suggestions.length > 0) {
-      const suggestion = suggestions[0];
-      // Take first ~half of the suggestion as a template hint
-      const words = suggestion.split(' ');
-      const midpoint = Math.ceil(words.length / 2);
-      level2 = words.slice(0, midpoint).join(' ') + '...';
-    } else {
-      level2 = 'Start with acknowledgment, then offer next step';
-    }
-    
-    // Level 3: Full suggested response (first blockquote)
-    const level3 = suggestions.length > 0 ? suggestions[0] : 
-      'Address his concern directly, then provide a clear path forward that matches his current state.';
-    
-    console.log('✅ Generated hints:', { level1, level2, level3: level3.substring(0, 60) });
-    
-    return { level1, level2, level3 };
+    // Return as level3 (interface kept for compatibility)
+    return { 
+      level1: '', 
+      level2: '', 
+      level3: verbatimResponse 
+    };
   };
 
   const handleRetrySubmit = async () => {
@@ -964,223 +937,8 @@ Be consistent and deterministic. Same input should give same output.`;
   };
   
   const renderInteractiveExplanation = (explanation: string) => {
-    // Detect compound phrases first (more specific matches)
-    const compoundPatterns = [
-      { pattern: /\b(state of urgency|urgency state)\b/gi, type: 'urgency' },
-      { pattern: /\b(state of trust|trust state)\b/gi, type: 'trust' },
-      { pattern: /\b(state of curiosity|curiosity state)\b/gi, type: 'curiosity' },
-      { pattern: /\b(current state|Marcus'?s? state)\b/gi, type: 'state' },
-      { pattern: /\b(current needs|Marcus'?s? needs|his needs)\b/gi, type: 'needs' }
-    ];
-    
-    // Check for compound phrases
-    for (const { pattern, type } of compoundPatterns) {
-      if (pattern.test(explanation)) {
-        // Split on the compound phrase
-        const parts = explanation.split(pattern);
-        return parts.map((part, index) => {
-          if (index % 2 === 1) {
-            // This is the matched phrase
-            return renderTooltipButton(part, type, index);
-          }
-          return <span key={index}>{part}</span>;
-        });
-      }
-    }
-    
-    // Fallback to simple word matching
-    const parts = explanation.split(/\b(state|needs|urgency|trust|curiosity)\b/gi);
-    
-    return parts.map((part, index) => {
-      const lowerPart = part.toLowerCase();
-      
-      if (lowerPart === 'urgency') {
-        return renderTooltipButton(part, 'urgency', index);
-      }
-      
-      if (lowerPart === 'trust') {
-        return renderTooltipButton(part, 'trust', index);
-      }
-      
-      if (lowerPart === 'curiosity') {
-        return renderTooltipButton(part, 'curiosity', index);
-      }
-      
-      if (lowerPart === 'state') {
-        return renderTooltipButton(part, 'state', index);
-      }
-      
-      if (lowerPart === 'needs') {
-        return renderTooltipButton(part, 'needs', index);
-      }
-      
-      return <span key={index}>{part}</span>;
-    });
-  };
-  
-  const renderTooltipButton = (text: string, type: string, index: number) => {
-    const tooltipKey = `${type}-${index}`;
-    const isExpanded = expandedTooltip === tooltipKey;
-    
-    if (type === 'urgency' || type === 'trust' || type === 'curiosity') {
-      // Single metric tooltip
-      const metricValue = moment?.marcusState?.[type as 'trust' | 'curiosity' | 'urgency'];
-      
-      return (
-        <span key={index} className="inline-flex items-center">
-          <button
-            onClick={() => setExpandedTooltip(isExpanded ? null : tooltipKey)}
-            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-sm font-medium transition-colors ${
-              theme === 'dark'
-                ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30'
-                : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
-            }`}
-          >
-            {text}
-            <Info size={12} />
-          </button>
-          {isExpanded && metricValue && (
-            <span className={`inline-flex items-center gap-1 ml-2 px-2 py-1 rounded text-xs font-medium ${
-              theme === 'dark'
-                ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
-                : 'bg-blue-50 border border-blue-200 text-blue-700'
-            }`}>
-              {type.charAt(0).toUpperCase() + type.slice(1)}: <strong>{metricValue}</strong>
-            </span>
-          )}
-        </span>
-      );
-    }
-    
-    if (type === 'state') {
-      return (
-        <span key={index} className="inline-flex items-center">
-          <button
-            onClick={() => setExpandedTooltip(isExpanded ? null : tooltipKey)}
-            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-sm font-medium transition-colors ${
-              theme === 'dark'
-                ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30'
-                : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
-            }`}
-          >
-            {text}
-            <Info size={12} />
-          </button>
-          {isExpanded && moment?.marcusState && (
-            <span className={`inline-flex items-center gap-2 ml-2 px-2 py-1 rounded text-xs ${
-              theme === 'dark'
-                ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
-                : 'bg-blue-50 border border-blue-200 text-blue-700'
-            }`}>
-              Trust: <strong>{moment.marcusState.trust}</strong>
-              <span className={theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}>|</span>
-              Curiosity: <strong>{moment.marcusState.curiosity}</strong>
-              <span className={theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}>|</span>
-              Urgency: <strong>{moment.marcusState.urgency}</strong>
-            </span>
-          )}
-        </span>
-      );
-    }
-    
-    if (type === 'needs') {
-      // Infer needs from moment context
-      const inferredNeeds = inferMarcusNeeds();
-      
-      return (
-        <span key={index} className="inline-flex items-center">
-          <button
-            onClick={() => setExpandedTooltip(isExpanded ? null : tooltipKey)}
-            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-sm font-medium transition-colors ${
-              theme === 'dark'
-                ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30'
-                : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300'
-            }`}
-          >
-            {text}
-            <Info size={12} />
-          </button>
-          {isExpanded && (
-            <span className={`inline-flex items-center gap-1 ml-2 px-2 py-1 rounded text-xs ${
-              theme === 'dark'
-                ? 'bg-purple-500/10 border border-purple-500/20 text-purple-300'
-                : 'bg-purple-50 border border-purple-200 text-purple-700'
-            }`}>
-              {inferredNeeds}
-            </span>
-          )}
-        </span>
-      );
-    }
-    
-    return <span key={index}>{text}</span>;
-  };
-  
-  const inferMarcusNeeds = (): string => {
-    if (!moment) return 'Unknown';
-    
-    const state = moment.marcusState;
-    const marcusText = moment.marcusResponse?.toLowerCase() || '';
-    const userText = moment.userMessage?.toLowerCase() || '';
-    
-    // Extract Marcus's actual business context from scenario or moment
-    const businessContext = scenario?.persona?.company || scenario?.persona?.role || '';
-    const marcusRole = scenario?.persona?.role || 'decision maker';
-    
-    // Build context-specific needs based on what Marcus actually said
-    const needs: string[] = [];
-    
-    // 1. Direct quote analysis - what did Marcus actually express?
-    if (marcusText.includes('not sure') || marcusText.includes('maybe') || marcusText.includes("don't know")) {
-      needs.push(`Why this matters specifically for ${businessContext || 'his business'}`);
-    }
-    
-    if (marcusText.includes('busy') || marcusText.includes('time') || marcusText.includes('got to go')) {
-      needs.push('Quick, concrete value - not explanations');
-    }
-    
-    if (marcusText.includes('send') || marcusText.includes('email') || marcusText.includes('later')) {
-      needs.push('Reason to engage now vs. just receiving info');
-    }
-    
-    // 2. State-based needs with Marcus context
-    if (state?.trust === 'low') {
-      needs.push(`Proof that you've helped companies like ${businessContext || 'his'}`);
-    }
-    
-    if (state?.curiosity === 'low') {
-      needs.push(`Relevance to his role as ${marcusRole}`);
-    }
-    
-    if (state?.urgency === 'low' && !marcusText.includes('not interested')) {
-      needs.push('Urgency - what happens if he waits?');
-    }
-    
-    // 3. Question type analysis - what is Marcus asking for?
-    if (marcusText.includes('what') && marcusText.includes('do')) {
-      needs.push('Specific examples of outcomes, not processes');
-    }
-    
-    if (marcusText.includes('how') && (marcusText.includes('work') || marcusText.includes('help'))) {
-      needs.push('Concrete steps or proof points, not theories');
-    }
-    
-    if (marcusText.includes('why') || marcusText.includes('what for')) {
-      needs.push('Clear ROI or business impact');
-    }
-    
-    // 4. Objection signals
-    if (marcusText.includes('already have') || marcusText.includes('not need')) {
-      needs.push('Differentiation - what you offer that others don\'t');
-    }
-    
-    // Return top 2-3 most specific needs
-    if (needs.length > 0) {
-      return needs.slice(0, 3).join('; ');
-    }
-    
-    // Fallback with context
-    return `Understanding of ${businessContext || 'his specific situation'}`;
+    // Simple text rendering without tooltips
+    return explanation;
   };
   
   if (!moment) {

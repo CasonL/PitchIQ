@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { KeyMoment, MomentClassification } from './MomentExtractor';
 import ReactMarkdown from 'react-markdown';
-import { MessageSquare, X, Mic, MicOff, Info } from 'lucide-react';
+import { MessageSquare, X, Mic, MicOff, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface MomentCoachingPanelProps {
   moment: KeyMoment | null;
@@ -96,6 +96,9 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
   const briefCacheRef = useRef<Map<string, CoachingBrief>>(new Map());
   const generatingForMomentRef = useRef<string | null>(null);
   
+  // Card navigation state
+  const [currentCard, setCurrentCard] = useState(0);
+  
   // Retry flow state
   const [isPracticeModeActive, setIsPracticeModeActive] = useState(false);
   const [retryState, setRetryState] = useState<RetryState>('initial');
@@ -115,6 +118,7 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
   
   useEffect(() => {
     if (moment) {
+      setCurrentCard(0);
       setIsPracticeModeActive(false);
       setRetryState('initial');
       setRetryInput('');
@@ -824,6 +828,156 @@ Be consistent and deterministic. Same input should give same output.`;
     return sections;
   };
 
+  // Determine card structure based on moment type
+  const getCardStructure = (classification: MomentClassification, isWin: boolean) => {
+    // Wins: 2 cards (Why It Worked + Principle)
+    if (['strong_move', 'best_moment'].includes(classification)) {
+      return ['why-worked', 'principle'];
+    }
+    
+    // Nuanced/Losses: 4 cards (Read + Problem + Better Move + Principle)
+    // Practice is separate, triggered by button
+    return ['read', 'problem', 'better-move', 'principle'];
+  };
+
+  // Render individual card content
+  const renderCard = (cardType: string, sections: CoachingSections, classification: MomentClassification) => {
+    const isWin = ['strong_move', 'best_moment'].includes(classification);
+    const isNuanced = ['partial_turning_point', 'strong_attempt', 'mixed_signal'].includes(classification);
+    
+    // Card colors
+    const cardColors = isWin 
+      ? { bg: theme === 'dark' ? 'from-green-500/10 to-emerald-500/10' : 'from-green-50 to-emerald-50', border: theme === 'dark' ? 'border-green-500/30' : 'border-green-300', text: theme === 'dark' ? 'text-green-400' : 'text-green-700', heading: theme === 'dark' ? 'text-green-300' : 'text-green-700' }
+      : isNuanced
+      ? { bg: theme === 'dark' ? 'from-yellow-500/10 to-amber-500/10' : 'from-yellow-50 to-amber-50', border: theme === 'dark' ? 'border-yellow-500/30' : 'border-yellow-300', text: theme === 'dark' ? 'text-yellow-400' : 'text-yellow-700', heading: theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700' }
+      : { bg: theme === 'dark' ? 'from-orange-500/10 to-red-500/10' : 'from-orange-50 to-red-50', border: theme === 'dark' ? 'border-orange-500/30' : 'border-orange-300', text: theme === 'dark' ? 'text-orange-400' : 'text-orange-700', heading: theme === 'dark' ? 'text-orange-300' : 'text-orange-700' };
+
+    switch (cardType) {
+      case 'read':
+        // Card 1: The Read (what happened + what you did well)
+        return (
+          <div>
+            {sections.header && (
+              <div className="mb-4">
+                <ReactMarkdown>{sections.header}</ReactMarkdown>
+              </div>
+            )}
+            {sections.whatYouDidWell && (
+              <ReactMarkdown
+                components={{
+                  h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 first:mt-0 ${cardColors.heading}`} {...props} />,
+                  p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                }}
+              >{sections.whatYouDidWell}</ReactMarkdown>
+            )}
+          </div>
+        );
+      
+      case 'problem':
+        // Card 2: The Problem (what limited it + why it only partially landed)
+        return (
+          <div>
+            {sections.whatLimited && (
+              <ReactMarkdown
+                components={{
+                  h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mb-2 ${cardColors.heading}`} {...props} />,
+                  p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                }}
+              >{sections.whatLimited}</ReactMarkdown>
+            )}
+            {sections.whyItLanded && (
+              <div className="mt-4">
+                <ReactMarkdown
+                  components={{
+                    h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${cardColors.heading}`} {...props} />,
+                    ul: ({node, ...props}) => <ul className="my-2 space-y-1 list-none pl-0" {...props} />,
+                    li: ({node, ...props}) => <li className="flex items-start gap-2" {...props}><span className={`mt-0.5 ${cardColors.text}`}>•</span><span className="flex-1">{props.children}</span></li>,
+                  }}
+                >{sections.whyItLanded}</ReactMarkdown>
+              </div>
+            )}
+            {sections.coreIssue && (
+              <ReactMarkdown
+                components={{
+                  h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mb-2 ${cardColors.heading}`} {...props} />,
+                  p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                }}
+              >{sections.coreIssue}</ReactMarkdown>
+            )}
+          </div>
+        );
+      
+      case 'better-move':
+        // Card 3: The Better Move (how to execute better with verbatim examples)
+        return (
+          <div>
+            {sections.howToExecute && (
+              <ReactMarkdown
+                components={{
+                  h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mb-2 ${cardColors.heading}`} {...props} />,
+                  p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                  blockquote: ({node, ...props}) => <blockquote className={`border-l-2 pl-3 my-2 italic ${
+                    theme === 'dark' ? 'border-blue-500 text-blue-200' : 'border-blue-400 text-blue-800'
+                  }`} {...props} />,
+                }}
+              >{sections.howToExecute}</ReactMarkdown>
+            )}
+            {sections.whatWorks && (
+              <ReactMarkdown
+                components={{
+                  h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mb-2 ${cardColors.heading}`} {...props} />,
+                  ul: ({node, ...props}) => <ul className="my-2 space-y-1 list-none pl-0" {...props} />,
+                  li: ({node, ...props}) => <li className="flex items-start gap-2" {...props}><span className={`mt-0.5 ${cardColors.text}`}>•</span><span className="flex-1">{props.children}</span></li>,
+                }}
+              >{sections.whatWorks}</ReactMarkdown>
+            )}
+          </div>
+        );
+      
+      case 'principle':
+        // Card 4: The Principle (key mechanic - when to use this again)
+        return (
+          <div>
+            {sections.keyMechanic && (
+              <ReactMarkdown
+                components={{
+                  h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mb-2 ${cardColors.heading}`} {...props} />,
+                  p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                }}
+              >{sections.keyMechanic}</ReactMarkdown>
+            )}
+          </div>
+        );
+      
+      case 'why-worked':
+        // Win Card 1: Why This Worked (full positive feedback)
+        return (
+          <div>
+            <ReactMarkdown
+              components={{
+                h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-6 mb-3 first:mt-0 ${cardColors.heading}`} {...props} />,
+                p: ({node, ...props}) => <p className="mb-3 leading-relaxed" {...props} />,
+                ul: ({node, ...props}) => <ul className="my-2 space-y-1 list-none pl-0" {...props} />,
+                li: ({node, ...props}) => <li className="flex items-start gap-2" {...props}><span className={`mt-0.5 ${cardColors.text}`}>•</span><span className="flex-1">{props.children}</span></li>,
+                strong: ({node, ...props}) => <strong className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`} {...props} />,
+              }}
+            >{sections.header || ''}</ReactMarkdown>
+            {sections.whatYouDidWell && (
+              <ReactMarkdown
+                components={{
+                  h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${cardColors.heading}`} {...props} />,
+                  p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                }}
+              >{sections.whatYouDidWell}</ReactMarkdown>
+            )}
+          </div>
+        );
+      
+      default:
+        return null;
+    }
+  };
+
   const extractStructuralHint = (brief: CoachingBrief): StructuralHint | null => {
     if (!brief.whyItDidntWork) return null;
 
@@ -1007,327 +1161,130 @@ Be consistent and deterministic. Same input should give same output.`;
           </div>
         )}
         
-        {/* Coaching Brief Display - Hidden/collapsed during practice mode */}
-        {!isPracticeModeActive && (
-          <>
-          {/* Win Analysis - Only for strong_move, best_moment, turning_point */}
-          {coachingBrief && coachingBrief.whyItWorked && ['strong_move', 'best_moment'].includes(moment.classification) && (
-            <div className={`mb-6 bg-gradient-to-br border-2 rounded-lg p-5 ${
-              theme === 'dark'
-                ? 'from-green-500/10 to-emerald-500/10 border-green-500/30'
-                : 'from-green-50 to-emerald-50 border-green-300'
-            }`}>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-5 h-5 md:w-6 md:h-6 rounded bg-green-500 flex items-center justify-center text-white text-xs font-bold">✓</div>
-              <h3 className={`font-bold text-sm md:text-base uppercase tracking-wide ${
-                theme === 'dark' ? 'text-green-400' : 'text-green-700'
-              }`}>Why This Worked</h3>
-            </div>
-            <div className={`text-sm leading-relaxed prose prose-sm max-w-none ${
-              theme === 'dark' ? 'prose-invert text-white' : 'text-gray-800'
-            }`}>
-              <ReactMarkdown
-                components={{
-                  h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-6 mb-3 first:mt-0 ${
-                    theme === 'dark' ? 'text-green-300' : 'text-green-700'
-                  }`} {...props} />,
-                  p: ({node, ...props}) => <p className="mb-3 leading-relaxed" {...props} />,
-                  ul: ({node, ...props}) => <ul className="my-2 space-y-1 list-none pl-0" {...props} />,
-                  li: ({node, ...props}) => <li className="flex items-start gap-2" {...props}><span className={`mt-0.5 ${
-                    theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                  }`}>•</span><span className="flex-1">{props.children}</span></li>,
-                  strong: ({node, ...props}) => <strong className={`font-bold ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`} {...props} />,
-                }}
-              >{coachingBrief.whyItWorked}</ReactMarkdown>
+        {/* Pinned Transcript Context - Always visible above cards */}
+        {coachingBrief && !isPracticeModeActive && (
+          <div className={`mb-4 p-4 rounded-lg border ${
+            theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'
+          }`}>
+            <div className="space-y-3">
+              {/* Marcus said */}
+              <div className={`p-3 rounded-lg border-l-4 ${
+                theme === 'dark' ? 'bg-white/5 border-blue-500' : 'bg-gray-50 border-blue-400'
+              }`}>
+                <div className={`text-xs font-semibold mb-1 ${
+                  theme === 'dark' ? 'text-blue-400' : 'text-blue-700'
+                }`}>Marcus said:</div>
+                <div className={`text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                  "{moment.marcusResponse || ''}"
+                </div>
+              </div>
+              
+              {/* You responded */}
+              <div className={`p-3 rounded-lg border-l-4 ${
+                theme === 'dark' ? 'bg-white/5 border-purple-500' : 'bg-gray-50 border-purple-400'
+              }`}>
+                <div className={`text-xs font-semibold mb-1 ${
+                  theme === 'dark' ? 'text-purple-400' : 'text-purple-700'
+                }`}>You responded:</div>
+                <div className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                  "{moment.userMessage || ''}"
+                </div>
+              </div>
             </div>
           </div>
         )}
         
-        {/* Nuanced Moments - Yellow/Amber for partial wins (YELLOW) */}
-        {coachingBrief && coachingBrief.whyItWorked && ['partial_turning_point', 'strong_attempt', 'mixed_signal'].includes(moment.classification) && (() => {
-          const sections = parseCoachingSections(coachingBrief.whyItWorked);
+        {/* Card-Based Coaching Display */}
+        {!isPracticeModeActive && coachingBrief && (() => {
+          const isWin = ['strong_move', 'best_moment'].includes(moment.classification);
+          const isNuanced = ['partial_turning_point', 'strong_attempt', 'mixed_signal'].includes(moment.classification);
+          const text = isWin || isNuanced ? coachingBrief.whyItWorked : coachingBrief.whyItDidntWork;
+          
+          if (!text) return null;
+          
+          const sections = parseCoachingSections(text);
+          const cardStructure = getCardStructure(moment.classification, isWin);
+          const totalCards = cardStructure.length;
+          
+          // Card colors based on moment type
+          const cardColors = isWin 
+            ? { bg: theme === 'dark' ? 'from-green-500/10 to-emerald-500/10' : 'from-green-50 to-emerald-50', border: theme === 'dark' ? 'border-green-500/30' : 'border-green-300', text: theme === 'dark' ? 'text-green-400' : 'text-green-700', icon: '✓', iconBg: 'bg-green-500' }
+            : isNuanced
+            ? { bg: theme === 'dark' ? 'from-yellow-500/10 to-amber-500/10' : 'from-yellow-50 to-amber-50', border: theme === 'dark' ? 'border-yellow-500/30' : 'border-yellow-300', text: theme === 'dark' ? 'text-yellow-400' : 'text-yellow-700', icon: '≈', iconBg: 'bg-yellow-500' }
+            : { bg: theme === 'dark' ? 'from-orange-500/10 to-red-500/10' : 'from-orange-50 to-red-50', border: theme === 'dark' ? 'border-orange-500/30' : 'border-orange-300', text: theme === 'dark' ? 'text-orange-400' : 'text-orange-700', icon: '!', iconBg: 'bg-orange-500' };
           
           return (
-            <div className={`mb-6 bg-gradient-to-br border-2 rounded-lg p-5 ${
-              theme === 'dark'
-                ? 'from-yellow-500/10 to-amber-500/10 border-yellow-500/30'
-                : 'from-yellow-50 to-amber-50 border-yellow-300'
-            }`}>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-6 h-6 rounded bg-yellow-500 flex items-center justify-center text-white text-xs font-bold">≈</div>
-                <h3 className={`font-bold text-base uppercase tracking-wide ${
-                  theme === 'dark' ? 'text-yellow-400' : 'text-yellow-700'
-                }`}>Nuanced Moment</h3>
+            <div className={`mb-6 bg-gradient-to-br border-2 rounded-lg overflow-hidden ${cardColors.bg} ${cardColors.border}`}>
+              {/* Card Header */}
+              <div className="p-4 border-b" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(229,231,235,1)' }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded ${cardColors.iconBg} flex items-center justify-center text-white text-xs font-bold`}>{cardColors.icon}</div>
+                    <h3 className={`font-bold text-sm uppercase tracking-wide ${cardColors.text}`}>
+                      {isWin ? 'Why This Worked' : isNuanced ? 'Nuanced Moment' : 'Coaching Breakdown'}
+                    </h3>
+                  </div>
+                  <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {currentCard + 1} / {totalCards}
+                  </div>
+                </div>
               </div>
-              <div className={`text-sm leading-relaxed prose prose-sm max-w-none ${
+              
+              {/* Card Content */}
+              <div className={`p-5 text-sm leading-relaxed prose prose-sm max-w-none ${
                 theme === 'dark' ? 'prose-invert text-white' : 'text-gray-800'
               }`}>
-                {sections.header && (
-                  <div className="mb-4">
-                    <ReactMarkdown>{sections.header}</ReactMarkdown>
+                {renderCard(cardStructure[currentCard], sections, moment.classification)}
+              </div>
+              
+              {/* Card Navigation */}
+              <div className="p-4 border-t" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(229,231,235,1)' }}>
+                <div className="flex items-center justify-between">
+                  {/* Previous Button */}
+                  <button
+                    onClick={() => setCurrentCard(Math.max(0, currentCard - 1))}
+                    disabled={currentCard === 0}
+                    className={`p-2 rounded-lg transition-colors ${
+                      currentCard === 0
+                        ? theme === 'dark' ? 'text-gray-600 cursor-not-allowed' : 'text-gray-300 cursor-not-allowed'
+                        : theme === 'dark' ? 'text-gray-400 hover:bg-white/10 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  
+                  {/* Dot Indicators */}
+                  <div className="flex items-center gap-2">
+                    {cardStructure.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentCard(index)}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          index === currentCard
+                            ? `${cardColors.iconBg} w-6`
+                            : theme === 'dark' ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-300 hover:bg-gray-400'
+                        }`}
+                      />
+                    ))}
                   </div>
-                )}
-                {sections.whatYouDidWell && (
-                  <div className="mb-4">
-                    <ReactMarkdown
-                      components={{
-                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 first:mt-0 ${
-                          theme === 'dark' ? 'text-green-300' : 'text-green-700'
-                        }`} {...props} />,
-                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                      }}
-                    >{sections.whatYouDidWell}</ReactMarkdown>
-                  </div>
-                )}
-                {sections.whatLimited && (
-                  <div className="mb-4">
-                    <ReactMarkdown
-                      components={{
-                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
-                          theme === 'dark' ? 'text-orange-300' : 'text-orange-700'
-                        }`} {...props} />,
-                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                      }}
-                    >{sections.whatLimited}</ReactMarkdown>
-                  </div>
-                )}
-                {sections.whyItLanded && (
-                  <div className="mb-4">
-                    <ReactMarkdown
-                      components={{
-                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
-                          theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700'
-                        }`} {...props} />,
-                        ul: ({node, ...props}) => <ul className="my-2 space-y-1 list-none pl-0" {...props} />,
-                        li: ({node, ...props}) => <li className="flex items-start gap-2" {...props}><span className={`mt-0.5 ${
-                          theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
-                        }`}>•</span><span className="flex-1">{props.children}</span></li>,
-                        strong: ({node, ...props}) => <strong className={`font-bold ${
-                          theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`} {...props} />,
-                      }}
-                    >{sections.whyItLanded}</ReactMarkdown>
-                  </div>
-                )}
-                {sections.howToExecute && (
-                  <div className="mb-4">
-                    <ReactMarkdown
-                      components={{
-                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
-                          theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700'
-                        }`} {...props} />,
-                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                        blockquote: ({node, ...props}) => <blockquote className={`border-l-2 pl-3 my-2 italic ${
-                          theme === 'dark' ? 'border-yellow-500 text-yellow-200' : 'border-yellow-400 text-yellow-800'
-                        }`} {...props} />,
-                      }}
-                    >{sections.howToExecute}</ReactMarkdown>
-                  </div>
-                )}
-                {sections.keyMechanic && (
-                  <div>
-                    <ReactMarkdown
-                      components={{
-                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
-                          theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700'
-                        }`} {...props} />,
-                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                      }}
-                    >{sections.keyMechanic}</ReactMarkdown>
-                  </div>
-                )}
+                  
+                  {/* Next Button */}
+                  <button
+                    onClick={() => setCurrentCard(Math.min(totalCards - 1, currentCard + 1))}
+                    disabled={currentCard === totalCards - 1}
+                    className={`p-2 rounded-lg transition-colors ${
+                      currentCard === totalCards - 1
+                        ? theme === 'dark' ? 'text-gray-600 cursor-not-allowed' : 'text-gray-300 cursor-not-allowed'
+                        : theme === 'dark' ? 'text-gray-400 hover:bg-white/10 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
               </div>
             </div>
           );
         })()}
-        
-        {/* Why This Worked - For turning points (BLUE) */}
-        {coachingBrief && coachingBrief.whyItWorked && moment.classification === 'turning_point' && (() => {
-          const sections = parseCoachingSections(coachingBrief.whyItWorked);
-          
-          return (
-            <div className={`mb-6 bg-gradient-to-br border-2 rounded-lg p-5 ${
-              theme === 'dark'
-                ? 'from-blue-500/10 to-cyan-500/10 border-blue-500/30'
-                : 'from-blue-50 to-cyan-50 border-blue-300'
-            }`}>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-6 h-6 rounded bg-blue-500 flex items-center justify-center text-white text-xs font-bold">↻</div>
-                <h3 className={`font-bold text-base uppercase tracking-wide ${
-                  theme === 'dark' ? 'text-blue-400' : 'text-blue-700'
-                }`}>Coaching Breakdown</h3>
-              </div>
-              <div className={`text-sm leading-relaxed prose prose-sm max-w-none ${
-                theme === 'dark' ? 'prose-invert text-white' : 'text-gray-800'
-              }`}>
-                {sections.header && (
-                  <div className="mb-4">
-                    <ReactMarkdown>{sections.header}</ReactMarkdown>
-                  </div>
-                )}
-                {sections.whatYouDidWell && (
-                  <div className="mb-4">
-                    <ReactMarkdown
-                      components={{
-                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 first:mt-0 ${
-                          theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
-                        }`} {...props} />,
-                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                      }}
-                    >{sections.whatYouDidWell}</ReactMarkdown>
-                  </div>
-                )}
-                {sections.whatLimited && (
-                  <div className="mb-4">
-                    <ReactMarkdown
-                      components={{
-                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
-                          theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
-                        }`} {...props} />,
-                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                      }}
-                    >{sections.whatLimited}</ReactMarkdown>
-                  </div>
-                )}
-                {sections.whyItLanded && (
-                  <div className="mb-4">
-                    <ReactMarkdown
-                      components={{
-                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
-                          theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
-                        }`} {...props} />,
-                        ul: ({node, ...props}) => <ul className="my-2 space-y-1 list-none pl-0" {...props} />,
-                        li: ({node, ...props}) => <li className="flex items-start gap-2" {...props}><span className={`mt-0.5 ${
-                          theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                        }`}>•</span><span className="flex-1">{props.children}</span></li>,
-                        strong: ({node, ...props}) => <strong className={`font-bold ${
-                          theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`} {...props} />,
-                      }}
-                    >{sections.whyItLanded}</ReactMarkdown>
-                  </div>
-                )}
-                {sections.howToExecute && (
-                  <div className="mb-4">
-                    <ReactMarkdown
-                      components={{
-                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
-                          theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
-                        }`} {...props} />,
-                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                        blockquote: ({node, ...props}) => <blockquote className={`border-l-2 pl-3 my-2 italic ${
-                          theme === 'dark' ? 'border-blue-500 text-blue-200' : 'border-blue-400 text-blue-800'
-                        }`} {...props} />,
-                      }}
-                    >{sections.howToExecute}</ReactMarkdown>
-                  </div>
-                )}
-                {sections.keyMechanic && (
-                  <div>
-                    <ReactMarkdown
-                      components={{
-                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
-                          theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
-                        }`} {...props} />,
-                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                      }}
-                    >{sections.keyMechanic}</ReactMarkdown>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-        
-        {/* Why This Didn't Work - Always show all sections */}
-        {coachingBrief && coachingBrief.whyItDidntWork && (() => {
-          const sections = parseCoachingSections(coachingBrief.whyItDidntWork);
-          // Show all sections immediately - no progressive unlock
-          const showHeader = true;
-          const showCoreIssue = true;
-          const showWhatWorks = true;
-          const showKeyMechanic = true;
-          
-          return (
-            <div className={`mb-6 bg-gradient-to-br border-2 rounded-lg p-5 ${
-              theme === 'dark'
-                ? 'from-orange-500/10 to-red-500/10 border-orange-500/30'
-                : 'from-orange-50 to-red-50 border-orange-300'
-            }`}>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-6 h-6 rounded bg-orange-500 flex items-center justify-center text-white text-xs font-bold">!</div>
-                <h3 className={`font-bold text-base uppercase tracking-wide ${
-                  theme === 'dark' ? 'text-orange-400' : 'text-orange-700'
-                }`}>Coaching Breakdown</h3>
-              </div>
-              <div className={`text-sm leading-relaxed prose prose-sm max-w-none ${
-                theme === 'dark' ? 'prose-invert text-white' : 'text-gray-800'
-              }`}>
-                {showHeader && sections.header && (
-                  <div className="mb-4">
-                    <ReactMarkdown>{sections.header}</ReactMarkdown>
-                  </div>
-                )}
-                {showCoreIssue && sections.coreIssue && (
-                  <div className="mb-4">
-                    <ReactMarkdown
-                      components={{
-                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 first:mt-0 ${
-                          theme === 'dark' ? 'text-orange-300' : 'text-orange-700'
-                        }`} {...props} />,
-                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                      }}
-                    >{sections.coreIssue}</ReactMarkdown>
-                  </div>
-                )}
-                {showWhatWorks && sections.whatWorks && (
-                  <div className="mb-4">
-                    <ReactMarkdown
-                      components={{
-                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
-                          theme === 'dark' ? 'text-orange-300' : 'text-orange-700'
-                        }`} {...props} />,
-                        ul: ({node, ...props}) => <ul className="my-2 space-y-1 list-none pl-0" {...props} />,
-                        li: ({node, ...props}) => <li className="flex items-start gap-2" {...props}><span className={`mt-0.5 ${
-                          theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                        }`}>•</span><span className="flex-1">{props.children}</span></li>,
-                        strong: ({node, ...props}) => <strong className={`font-bold ${
-                          theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        }`} {...props} />,
-                      }}
-                    >{sections.whatWorks}</ReactMarkdown>
-                  </div>
-                )}
-                {showKeyMechanic && sections.keyMechanic && (
-                  <div>
-                    <ReactMarkdown
-                      components={{
-                        h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mt-4 mb-2 ${
-                          theme === 'dark' ? 'text-orange-300' : 'text-orange-700'
-                        }`} {...props} />,
-                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                      }}
-                    >{sections.keyMechanic}</ReactMarkdown>
-                  </div>
-                )}
-                {isPracticeModeActive && (
-                  <div className={`mt-4 pt-4 border-t text-xs ${
-                    theme === 'dark' ? 'border-blue-500/20 text-gray-400' : 'border-blue-300 text-gray-600'
-                  }`}>
-                    {retryAttempts === 1 && 'Showing broader structure'}
-                    {retryAttempts === 2 && 'Showing specific template'}
-                    {retryAttempts === 3 && 'Showing detailed example'}
-                    {retryAttempts >= 4 && 'Showing full coaching details'}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-        </>
-        )}
       </div>
       
       {/* Practice Button - Only for losses (mobile: in scroll area, desktop: separate section) */}

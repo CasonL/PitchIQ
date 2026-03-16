@@ -9,3 +9,4 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  VITE_API_BASE_URL = "https://8b6f43fdae68.ngrok-free.app"

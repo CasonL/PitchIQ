@@ -846,12 +846,12 @@ Be consistent and deterministic. Same input should give same output.`;
     <div className={`flex flex-col h-full overflow-hidden ${
       theme === 'dark' ? 'bg-[#0a0e13]' : 'bg-gray-50'
     }`}>
-      {/* Coaching Content - Scrollable */}
-      <div className={`flex-1 overflow-y-auto p-4 md:p-6 border-b ${
-        theme === 'dark' ? 'border-white/10' : 'border-gray-200'
+      {/* Coaching Content - Scrollable (mobile: no padding, no border as it's handled by parent) */}
+      <div className={`flex-1 overflow-y-auto md:p-6 md:border-b ${
+        theme === 'dark' ? 'md:border-white/10' : 'md:border-gray-200'
       }`}>
-        {/* Marcus's State */}
-        <div className="flex gap-2 md:gap-3 text-xs mb-4 md:mb-6">
+        {/* Marcus's State - Hidden on mobile (shown at top of mobile layout) */}
+        <div className="hidden md:flex gap-2 md:gap-3 text-xs mb-4 md:mb-6">
           <div className={`flex-1 rounded-lg p-2 ${
             theme === 'dark' ? 'bg-white/5' : 'bg-gray-50 border border-gray-200'
           }`}>
@@ -1221,9 +1221,9 @@ Be consistent and deterministic. Same input should give same output.`;
       </div>
       </div>
       
-      {/* Practice Button - Only for losses */}
+      {/* Practice Button - Only for losses (mobile: in scroll area, desktop: separate section) */}
       {!['strong_move', 'best_moment', 'turning_point'].includes(moment.classification) && !isPracticeModeActive && coachingBrief && (
-        <div className="px-4 md:px-6 pb-4 md:pb-6">
+        <div className="md:px-6 md:pb-6">
           <button
             onClick={() => {
               setIsPracticeModeActive(true);

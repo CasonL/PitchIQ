@@ -634,8 +634,133 @@ Return ONLY a single integer 1-10, nothing else.`;
         </div>
       ) : (
         <>
-          {/* Left: Moment List + Exchange */}
-          <div className={`w-full md:w-2/5 border-b md:border-b-0 md:border-r flex flex-col overflow-hidden ${
+          {/* MOBILE LAYOUT - Single column with Trust cards at top, fixed nav at bottom */}
+          <div className="md:hidden flex flex-col h-full overflow-hidden">
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto pb-20">
+              {/* Trust/Curiosity/Urgency Cards at TOP */}
+              {selectedMoment && (
+                <div className="p-4 border-b" style={{
+                  borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(229,231,235,1)'
+                }}>
+                  <div className="flex gap-2 text-xs mb-4">
+                    <div className="flex-1 rounded-lg p-2" style={{
+                      backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
+                      border: theme === 'light' ? '1px solid rgba(229,231,235,1)' : 'none'
+                    }}>
+                      <div className={`mb-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>Trust</div>
+                      <div className={`font-medium capitalize ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                        {selectedMoment.marcusState?.trust || 'unknown'}
+                      </div>
+                    </div>
+                    <div className="flex-1 rounded-lg p-2" style={{
+                      backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
+                      border: theme === 'light' ? '1px solid rgba(229,231,235,1)' : 'none'
+                    }}>
+                      <div className={`mb-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>Curiosity</div>
+                      <div className={`font-medium capitalize ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                        {selectedMoment.marcusState?.curiosity || 'unknown'}
+                      </div>
+                    </div>
+                    <div className="flex-1 rounded-lg p-2" style={{
+                      backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
+                      border: theme === 'light' ? '1px solid rgba(229,231,235,1)' : 'none'
+                    }}>
+                      <div className={`mb-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>Urgency</div>
+                      <div className={`font-medium capitalize ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                        {selectedMoment.marcusState?.urgency || 'unknown'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Exchange Context - Responses */}
+              {selectedMoment && (
+                <div className="p-4 border-b space-y-3" style={{
+                  borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(229,231,235,1)'
+                }}>
+                  <div className="rounded-lg p-3 border-l-2" style={{
+                    backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
+                    borderColor: getMomentColor(selectedMoment)
+                  }}>
+                    <div className="font-semibold text-xs mb-1" style={{ color: getMomentColor(selectedMoment) }}>Marcus said:</div>
+                    <div className={`text-xs leading-relaxed ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                      "{selectedMoment.marcusResponse || ''}"
+                    </div>
+                  </div>
+                  
+                  <div className="rounded-lg p-3 border-l-2 border-blue-500" style={{
+                    backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)'
+                  }}>
+                    <div className="font-semibold text-xs mb-1" style={{ color: getMomentColor(selectedMoment) }}>You responded:</div>
+                    <div className={`text-xs leading-relaxed font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                      "{selectedMoment.userMessage || ''}"
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Coaching Content */}
+              <div className="p-4">
+                <MomentCoachingPanel 
+                  moment={selectedMoment} 
+                  callDuration={duration}
+                  allMoments={keyMoments}
+                  currentIndex={currentMomentIndex}
+                  scenario={scenario}
+                  onNavigate={goToMoment}
+                  theme={theme}
+                />
+              </div>
+            </div>
+            
+            {/* Fixed Navigation at Bottom */}
+            <div className="fixed bottom-0 left-0 right-0 p-4" style={{
+              backgroundColor: theme === 'dark' ? '#0a0e13' : '#ffffff',
+              borderTop: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(229,231,235,1)'}`,
+              boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}>
+              <div className="flex gap-2">
+                <button
+                  onClick={goToPreviousMoment}
+                  disabled={currentMomentIndex === 0}
+                  className={`flex-1 py-2.5 rounded-lg border flex items-center justify-center gap-2 transition-all ${
+                    currentMomentIndex === 0
+                      ? theme === 'dark'
+                        ? 'border-white/10 bg-white/5 text-gray-600 cursor-not-allowed'
+                        : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : theme === 'dark'
+                        ? 'border-white/30 bg-white/5 text-white hover:bg-white/10 active:scale-95'
+                        : 'border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 active:scale-95'
+                  }`}
+                >
+                  <ChevronLeft size={14} />
+                  <span className="text-xs font-medium">Previous</span>
+                </button>
+                
+                <button
+                  onClick={goToNextMoment}
+                  disabled={currentMomentIndex === keyMoments.length - 1}
+                  className={`flex-1 py-2.5 rounded-lg border flex items-center justify-center gap-2 transition-all ${
+                    currentMomentIndex === keyMoments.length - 1
+                      ? theme === 'dark'
+                        ? 'border-white/10 bg-white/5 text-gray-600 cursor-not-allowed'
+                        : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : theme === 'dark'
+                        ? 'border-white/30 bg-white/5 text-white hover:bg-white/10 active:scale-95'
+                        : 'border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 active:scale-95'
+                  }`}
+                >
+                  <span className="text-xs font-medium">Next</span>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* DESKTOP LAYOUT - Two columns */}
+          <div className={`hidden md:flex w-full md:w-2/5 border-b md:border-b-0 md:border-r flex-col overflow-hidden ${
             theme === 'dark' ? 'border-white/10' : 'border-gray-200'
           }`}>
             {/* Scrollable content area */}

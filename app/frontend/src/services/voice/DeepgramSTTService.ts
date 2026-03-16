@@ -10,7 +10,10 @@ export interface DeepgramConfig {
   onTranscript: (text: string, isFinal: boolean) => void;
   onError: (error: Error) => void;
   onSpeechStart?: () => void; // Called immediately when speech detected (VAD)
+  onConnectionChange?: (connected: boolean, reconnecting: boolean) => void; // Connection state changes
   apiKey?: string; // Optional - will fetch from backend if not provided
+  enableReconnection?: boolean; // Enable automatic reconnection (default: true)
+  maxReconnectAttempts?: number; // Max reconnection attempts (default: 5)
 }
 
 export class DeepgramSTTService {
@@ -23,9 +26,19 @@ export class DeepgramSTTService {
   private isPaused: boolean = false; // Pause STT to prevent echo
   private lastTTSTranscript: string = ''; // Track recent TTS output for echo detection
   private ttsEndTime: number = 0; // Track when TTS playback ended
+  
+  // Reconnection state
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 5;
+  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private isReconnecting: boolean = false;
+  private enableReconnection: boolean = true;
+  private shouldStayConnected: boolean = false; // Track if we should reconnect on disconnect
 
   constructor(config: DeepgramConfig) {
     this.config = config;
+    this.enableReconnection = config.enableReconnection !== false;
+    this.maxReconnectAttempts = config.maxReconnectAttempts || 5;
   }
 
   /**
@@ -50,6 +63,15 @@ export class DeepgramSTTService {
    * Connect to Deepgram streaming endpoint using official SDK
    */
   async connect(): Promise<void> {
+    this.shouldStayConnected = true;
+    this.reconnectAttempts = 0;
+    return this.attemptConnection();
+  }
+
+  /**
+   * Internal method to attempt connection with reconnection support
+   */
+  private async attemptConnection(): Promise<void> {
     try {
       // Fetch API key if not provided
       const apiKey = this.config.apiKey || await this.fetchApiKey();
@@ -80,6 +102,11 @@ export class DeepgramSTTService {
       this.liveClient.on(LiveTranscriptionEvents.Open, () => {
         console.log('[Deepgram] SDK WebSocket connected');
         this.isConnected = true;
+        this.reconnectAttempts = 0;
+        this.isReconnecting = false;
+        if (this.config.onConnectionChange) {
+          this.config.onConnectionChange(true, false);
+        }
       });
 
       this.liveClient.on(LiveTranscriptionEvents.Transcript, (data: any) => {
@@ -114,12 +141,13 @@ export class DeepgramSTTService {
       this.liveClient.on(LiveTranscriptionEvents.Error, (error: any) => {
         console.error('[Deepgram] SDK error:', error);
         this.config.onError(new Error(error.message || 'Deepgram SDK error'));
+        this.handleDisconnection('error');
       });
 
       this.liveClient.on(LiveTranscriptionEvents.Close, () => {
         console.log('[Deepgram] SDK WebSocket closed');
         this.isConnected = false;
-        this.stopMicrophone();
+        this.handleDisconnection('close');
       });
 
       // Get microphone access and start streaming
@@ -137,7 +165,77 @@ export class DeepgramSTTService {
     } catch (error) {
       console.error('[Deepgram] Connection failed:', error);
       this.config.onError(error as Error);
+      this.handleDisconnection('error');
     }
+  }
+
+  /**
+   * Handle disconnection and attempt reconnection if enabled
+   */
+  private handleDisconnection(reason: 'error' | 'close'): void {
+    if (!this.shouldStayConnected) {
+      console.log('[Deepgram] Disconnection expected (manual disconnect)');
+      return;
+    }
+
+    if (!this.enableReconnection) {
+      console.log('[Deepgram] Reconnection disabled');
+      return;
+    }
+
+    if (this.isReconnecting) {
+      console.log('[Deepgram] Already attempting reconnection');
+      return;
+    }
+
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error(`[Deepgram] ❌ Max reconnection attempts (${this.maxReconnectAttempts}) reached`);
+      this.shouldStayConnected = false;
+      if (this.config.onConnectionChange) {
+        this.config.onConnectionChange(false, false);
+      }
+      this.config.onError(new Error(`Failed to reconnect after ${this.maxReconnectAttempts} attempts`));
+      return;
+    }
+
+    this.reconnectAttempts++;
+    this.isReconnecting = true;
+
+    // Calculate exponential backoff: 1s, 2s, 4s, 8s, 16s
+    const backoffMs = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 16000);
+    
+    console.log(`[Deepgram] 🔄 Reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${backoffMs}ms...`);
+    
+    if (this.config.onConnectionChange) {
+      this.config.onConnectionChange(false, true);
+    }
+
+    // Clear any existing timeout
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+    }
+
+    this.reconnectTimeout = setTimeout(async () => {
+      try {
+        console.log('[Deepgram] Attempting to reconnect...');
+        // Clean up old connection first
+        if (this.liveClient) {
+          try {
+            this.liveClient.finish();
+          } catch (e) {
+            console.warn('[Deepgram] Error finishing old client:', e);
+          }
+          this.liveClient = null;
+        }
+        
+        // Attempt new connection
+        await this.attemptConnection();
+      } catch (error) {
+        console.error('[Deepgram] Reconnection attempt failed:', error);
+        this.isReconnecting = false;
+        // Will trigger handleDisconnection again via error handler
+      }
+    }, backoffMs);
   }
 
   /**
@@ -330,6 +428,16 @@ export class DeepgramSTTService {
   async disconnect(): Promise<void> {
     console.log('[Deepgram] Disconnecting SDK...');
     
+    // Mark that we should NOT reconnect
+    this.shouldStayConnected = false;
+    this.isReconnecting = false;
+    
+    // Clear any pending reconnection
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    
     this.stopMicrophone();
 
     if (this.liveClient) {
@@ -338,6 +446,10 @@ export class DeepgramSTTService {
     }
 
     this.isConnected = false;
+    
+    if (this.config.onConnectionChange) {
+      this.config.onConnectionChange(false, false);
+    }
   }
 
   /**

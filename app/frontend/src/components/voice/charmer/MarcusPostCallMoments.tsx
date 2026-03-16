@@ -979,18 +979,19 @@ Return ONLY a single integer 1-10, nothing else.`;
                   
                   <button
                     onClick={goToNextMoment}
-                    disabled={currentMomentIndex === keyMoments.length - 1}
                     className={`flex-1 py-2.5 md:py-2 rounded-lg border flex items-center justify-center gap-1 md:gap-2 transition-all active:scale-95 ${
                       currentMomentIndex === keyMoments.length - 1
                         ? theme === 'dark'
-                          ? 'border-white/10 bg-white/5 text-gray-600 cursor-not-allowed'
-                          : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                          ? 'border-blue-500/50 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
+                          : 'border-blue-500 bg-blue-50 text-blue-700 hover:bg-blue-100'
                         : theme === 'dark'
                           ? 'border-white/30 bg-white/5 text-white hover:bg-white/10'
                           : 'border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    <span className="text-[11px] md:text-xs font-medium">Next</span>
+                    <span className="text-[11px] md:text-xs font-medium">
+                      {currentMomentIndex === keyMoments.length - 1 ? 'Complete Review' : 'Next'}
+                    </span>
                     <ChevronRight size={14} className="md:w-4 md:h-4" />
                   </button>
                   </div>

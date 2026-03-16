@@ -253,7 +253,15 @@ FORMAT RULES - CRITICAL FOR EVALUATION ALIGNMENT:
 Structure your response like this:
 
 ### The Core Issue
-Brief explanation of the mechanical mismatch (what Marcus needed vs what you gave). If the user's response had TACTICAL problems (weak language, rambling, ignored his question), CALL THESE OUT SPECIFICALLY with examples from their actual words.
+Brief explanation of the mechanical mismatch (what Marcus needed vs what you gave).
+
+CRITICAL DISTINCTION:
+- Did the user aim at the WRONG thing entirely? (e.g., asked discovery when Marcus wanted clarity)
+- Or did they aim at the RIGHT thing but execute POORLY? (e.g., tried to explain differentiation but explanation was tangled)
+
+Be precise about which one. Don't say "you failed to address" if they actually tried to address it - say "you aimed at the right answer but your explanation was too fragmented/abstract to land."
+
+If the user's response had TACTICAL problems (weak language, rambling, incomplete thoughts), CALL THESE OUT SPECIFICALLY with quotes from their actual words.
 
 WORDING PRECISION: Instead of vague "increased resistance", use precise language like:
 - "made the call feel less clear and less controlled"
@@ -263,6 +271,18 @@ WORDING PRECISION: Instead of vague "increased resistance", use precise language
 Only say "increased resistance" if you have clear state evidence that resistance actually rose.
 
 ### What Would Work Here
+
+SPECIAL CASE - DIFFERENTIATION QUESTIONS:
+If Marcus asked "what makes this different from other [X]?" or "I've seen a bunch of those before", he is NOT asking for a cleaner generic explanation. He's asking for EXPLICIT CONTRAST.
+
+- Lead with the differentiator: state the ONE thing that makes it unlike what he's seen
+- Make the contrast explicit: directly compare to seminars/static roleplay/generic training
+- Keep it concrete: explain what happens differently in practice
+- Examples MUST show contrast structure: "Unlike X, we do Y" or "This isn't X. It's Y because Z."
+- DO NOT give polished generic value props - Marcus is already skeptical of those
+- DO NOT default to "answer + question" - sometimes the right move is just to nail the differentiation and stop
+
+GENERAL GUIDANCE:
 - **First action**: [specific behavior] - why this works
 - **Second action**: [specific behavior] - why this works
 - If applicable, contrast what they said vs what they should have said ("You said X, which is weak. Instead say Y, which is direct.")
@@ -270,14 +290,14 @@ Only say "increased resistance" if you have clear state evidence that resistance
 - Examples MUST be SHORTER/CLEANER than what the user said
 - Examples MUST sound CONVERSATIONAL and NATURAL, not formal or corporate
 - Examples MUST be CONCRETE and SPECIFIC to this moment, not generic value statements
-- AVOID generic value language: "improve performance", "boost results", "drive growth", "innovative solutions", "enhance effectiveness"
+- AVOID generic value language: "improve performance", "boost results", "drive growth", "innovative solutions", "enhance effectiveness", "realistic practice environment", "stress-free setting"
 - AVOID outcome claims too early: "drives results", "guaranteed success" - these sound like pitches
 - PREFER concrete activities: "practice real conversations" not "improve performance"
-- PREFER category differentiation with contrast: "we do X instead of Y" (e.g., "practice real buyer conversations instead of just sitting through training")
+- PREFER category differentiation with contrast: "we do X instead of Y" (e.g., "the AI prospect adapts and pushes back in real time, not canned roleplay scenarios")
 - AVOID: "enhance", "discuss", "explore", "effectiveness", "I want to understand" - these are too polished/boardroom
 - PREFER: short, direct language that sounds like real cold-call conversation
 - If Marcus asked for clarity ("What do you want?"), examples should ANSWER his question, not deflect into discovery
-- Structure: [Crisp reason for call] + [One transition question], NOT [Discovery question] alone
+- NOT EVERY MOMENT NEEDS A QUESTION: Sometimes the right move is just to answer the objection well and stop
 
 > "Example response 1 that would work"
 

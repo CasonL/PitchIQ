@@ -511,9 +511,10 @@ Return ONLY a single integer 1-10, nothing else.`;
               theme === 'dark' ? 'bg-white/10' : 'bg-gray-300'
             } `} style={{ top: '50%', transform: 'translateY(-50%)' }}></div>
             
-            {/* Turn tick marks */}
+            {/* Turn tick marks - evenly spaced */}
             {conversationExchanges.map((exchange, idx) => {
-              const position = (exchange.timestamp / duration) * 100;
+              const totalTurns = conversationExchanges.length;
+              const position = ((idx + 1) / (totalTurns + 1)) * 100; // Evenly divide the timeline
               return (
                 <div
                   key={`tick-${idx}`}

@@ -389,35 +389,27 @@ Return ONLY a single integer 1-10, nothing else.`;
   };
   
   const getKeyMomentCounts = () => {
-    // WINS: green shades
-    const bestMoments = keyMoments.filter(m => m.classification === 'best_moment').length;
-    const strongMoves = keyMoments.filter(m => m.classification === 'strong_move').length;
-    const turningPoints = keyMoments.filter(m => m.classification === 'turning_point').length;
+    // INCREDIBLE (Blue): Best moments and turning points
+    const incredible = keyMoments.filter(m => 
+      ['best_moment', 'turning_point'].includes(m.classification)
+    ).length;
     
-    // NUANCED: yellow shades
-    const partialWins = keyMoments.filter(m => m.classification === 'partial_turning_point').length;
-    const strongAttempts = keyMoments.filter(m => m.classification === 'strong_attempt').length;
-    const mixedSignals = keyMoments.filter(m => m.classification === 'mixed_signal').length;
+    // GREAT (Green): Strong moves
+    const great = keyMoments.filter(m => 
+      m.classification === 'strong_move'
+    ).length;
     
-    // LOSSES: orange/red shades
-    const missedOpportunities = keyMoments.filter(m => m.classification === 'missed_opportunity').length;
-    const mistakes = keyMoments.filter(m => m.classification === 'mistake').length;
-    const blunders = keyMoments.filter(m => m.classification === 'blunder').length;
+    // GOOD ATTEMPT (Yellow): Partial wins, strong attempts, mixed signals
+    const goodAttempt = keyMoments.filter(m => 
+      ['partial_turning_point', 'strong_attempt', 'mixed_signal'].includes(m.classification)
+    ).length;
     
-    return {
-      // Wins
-      bestMoments,
-      strongMoves,
-      turningPoints,
-      // Nuanced
-      partialWins,
-      strongAttempts,
-      mixedSignals,
-      // Losses
-      missedOpportunities,
-      mistakes,
-      blunders
-    };
+    // MISTAKES (Red): Missed opportunities, mistakes, blunders
+    const mistakes = keyMoments.filter(m => 
+      ['missed_opportunity', 'mistake', 'blunder'].includes(m.classification)
+    ).length;
+    
+    return { incredible, great, goodAttempt, mistakes };
   };
   
   // Show overview screen first

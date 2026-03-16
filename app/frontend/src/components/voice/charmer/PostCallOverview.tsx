@@ -20,18 +20,10 @@ interface PostCallOverviewProps {
   summary: string;
   categoryScores: CategoryScore[];
   keyMomentCounts: {
-    // Wins (green shades)
-    bestMoments: number;
-    strongMoves: number;
-    turningPoints: number;
-    // Nuanced (yellow shades)
-    partialWins: number;
-    strongAttempts: number;
-    mixedSignals: number;
-    // Losses (orange/red shades)
-    missedOpportunities: number;
-    mistakes: number;
-    blunders: number;
+    incredible: number;   // Blue: best_moment, turning_point
+    great: number;        // Green: strong_move
+    goodAttempt: number;  // Yellow: partial_turning_point, strong_attempt, mixed_signal
+    mistakes: number;     // Red: missed_opportunity, mistake, blunder
   };
   onStartReview: () => void;
   onTryAgain?: () => void;
@@ -234,69 +226,36 @@ export const PostCallOverview: React.FC<PostCallOverviewProps> = ({
             theme === 'dark' ? 'text-white' : 'text-gray-800'
           }`}>Key Moments</h3>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 text-xs md:text-sm">
-            {/* WINS - Green shades */}
-            {keyMomentCounts.bestMoments > 0 && (
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{keyMomentCounts.bestMoments} best {keyMomentCounts.bestMoments === 1 ? 'moment' : 'moments'}</span>
-              </div>
-            )}
-            {keyMomentCounts.strongMoves > 0 && (
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-400"></div>
-                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{keyMomentCounts.strongMoves} strong {keyMomentCounts.strongMoves === 1 ? 'move' : 'moves'}</span>
-              </div>
-            )}
-            {keyMomentCounts.turningPoints > 0 && (
+            {keyMomentCounts.incredible > 0 && (
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                 <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
-                  {keyMomentCounts.turningPoints} turning {keyMomentCounts.turningPoints === 1 ? 'point' : 'points'}
+                  {keyMomentCounts.incredible} incredible {keyMomentCounts.incredible === 1 ? 'moment' : 'moments'}
                 </span>
               </div>
             )}
-            
-            {/* NUANCED - Yellow shades */}
-            {keyMomentCounts.partialWins > 0 && (
+            {keyMomentCounts.great > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                  {keyMomentCounts.great} great {keyMomentCounts.great === 1 ? 'move' : 'moves'}
+                </span>
+              </div>
+            )}
+            {keyMomentCounts.goodAttempt > 0 && (
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{keyMomentCounts.partialWins} partial {keyMomentCounts.partialWins === 1 ? 'win' : 'wins'}</span>
-              </div>
-            )}
-            {keyMomentCounts.strongAttempts > 0 && (
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{keyMomentCounts.strongAttempts} strong {keyMomentCounts.strongAttempts === 1 ? 'attempt' : 'attempts'}</span>
-              </div>
-            )}
-            {keyMomentCounts.mixedSignals > 0 && (
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-amber-400"></div>
                 <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
-                  {keyMomentCounts.mixedSignals} mixed {keyMomentCounts.mixedSignals === 1 ? 'signal' : 'signals'}
-                </span>
-              </div>
-            )}
-            
-            {/* LOSSES - Orange/Red shades */}
-            {keyMomentCounts.missedOpportunities > 0 && (
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-orange-400"></div>
-                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
-                  {keyMomentCounts.missedOpportunities} missed {keyMomentCounts.missedOpportunities === 1 ? 'opportunity' : 'opportunities'}
+                  {keyMomentCounts.goodAttempt} good {keyMomentCounts.goodAttempt === 1 ? 'attempt' : 'attempts'}
                 </span>
               </div>
             )}
             {keyMomentCounts.mistakes > 0 && (
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{keyMomentCounts.mistakes} {keyMomentCounts.mistakes === 1 ? 'mistake' : 'mistakes'}</span>
-              </div>
-            )}
-            {keyMomentCounts.blunders > 0 && (
-              <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{keyMomentCounts.blunders} {keyMomentCounts.blunders === 1 ? 'blunder' : 'blunders'}</span>
+                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                  {keyMomentCounts.mistakes} {keyMomentCounts.mistakes === 1 ? 'mistake' : 'mistakes'}
+                </span>
               </div>
             )}
           </div>

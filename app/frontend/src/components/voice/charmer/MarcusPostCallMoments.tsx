@@ -11,6 +11,21 @@ import { KeyMoment, MomentExtractor } from './MomentExtractor';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MomentCoachingPanel } from './MomentCoachingPanel';
 import { PostCallOverview } from './PostCallOverview';
+import type { MomentClassification } from './MomentExtractor';
+
+const getClassificationLabel = (classification: MomentClassification): string => {
+  switch (classification) {
+    case 'best_moment': return 'Best Moment';
+    case 'strong_move': return 'Strong Move';
+    case 'turning_point': return 'Turning Point';
+    case 'partial_turning_point': return 'Partial Win';
+    case 'strong_attempt': return 'Strong Attempt';
+    case 'mixed_signal': return 'Mixed Result';
+    case 'missed_opportunity': return 'Missed Opportunity';
+    case 'mistake': return 'Mistake';
+    case 'blunder': return 'Blunder';
+  }
+};
 
 interface MarcusPostCallMomentsProps {
   duration: number;
@@ -640,10 +655,10 @@ Return ONLY a single integer 1-10, nothing else.`;
             <div className="flex-1 overflow-y-auto pb-20">
               {/* Trust/Curiosity/Urgency Cards at TOP */}
               {selectedMoment && (
-                <div className="p-4 border-b" style={{
+                <div className="p-3 border-b" style={{
                   borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(229,231,235,1)'
                 }}>
-                  <div className="flex gap-2 text-xs mb-4">
+                  <div className="flex gap-2 text-xs mb-2">
                     <div className="flex-1 rounded-lg p-2" style={{
                       backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
                       border: theme === 'light' ? '1px solid rgba(229,231,235,1)' : 'none'
@@ -672,12 +687,25 @@ Return ONLY a single integer 1-10, nothing else.`;
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Classification Card */}
+                  <div className="rounded-lg p-2.5 border-l-4 mt-2" style={{
+                    backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
+                    borderColor: getMomentColor(selectedMoment)
+                  }}>
+                    <div className="font-bold text-xs" style={{ color: getMomentColor(selectedMoment) }}>
+                      {getClassificationLabel(selectedMoment.classification)}
+                    </div>
+                    <div className={`text-xs mt-0.5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {selectedMoment.title}
+                    </div>
+                  </div>
                 </div>
               )}
               
               {/* Exchange Context - Responses */}
               {selectedMoment && (
-                <div className="p-4 border-b space-y-3" style={{
+                <div className="p-3 border-b space-y-2" style={{
                   borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(229,231,235,1)'
                 }}>
                   <div className="rounded-lg p-3 border-l-2" style={{
@@ -702,7 +730,7 @@ Return ONLY a single integer 1-10, nothing else.`;
               )}
               
               {/* Coaching Content */}
-              <div className="p-4">
+              <div className="p-3">
                 <MomentCoachingPanel 
                   moment={selectedMoment} 
                   callDuration={duration}

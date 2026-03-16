@@ -3,7 +3,7 @@
  * Two-pane moment-based coaching interface
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@mui/material';
 import { RotateCcw, ChevronDown, ChevronUp, Sun, Moon } from 'lucide-react';
 import { ConversationExchange } from './ConversationTranscript';
@@ -57,6 +57,15 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
   onTryAgain,
   preAnalyzedMoments
 }) => {
+  // Detect mobile vs desktop to conditionally render only one MomentCoachingPanel
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
   const [phase, setPhase] = useState<'overview' | 'review' | 'cta'>('overview');
   const [keyMoments, setKeyMoments] = useState<KeyMoment[]>(preAnalyzedMoments || []);
   const [currentMomentIndex, setCurrentMomentIndex] = useState(0);
@@ -755,19 +764,21 @@ Return ONLY a single integer 1-10, nothing else.`;
                 </div>
               )}
               
-              {/* Coaching Content */}
-              <div className="p-3">
-                <MomentCoachingPanel 
-                  key={selectedMoment?.id || 'no-moment'}
-                  moment={selectedMoment} 
-                  callDuration={duration}
-                  allMoments={keyMoments}
-                  currentIndex={currentMomentIndex}
-                  scenario={scenario}
-                  onNavigate={goToMoment}
-                  theme={theme}
-                />
-              </div>
+              {/* Coaching Content - Only render on mobile */}
+              {isMobile && (
+                <div className="p-3">
+                  <MomentCoachingPanel 
+                    key={selectedMoment?.id || 'no-moment'}
+                    moment={selectedMoment} 
+                    callDuration={duration}
+                    allMoments={keyMoments}
+                    currentIndex={currentMomentIndex}
+                    scenario={scenario}
+                    onNavigate={goToMoment}
+                    theme={theme}
+                  />
+                </div>
+              )}
             </div>
             
             {/* Fixed Navigation at Bottom */}
@@ -1000,19 +1011,21 @@ Return ONLY a single integer 1-10, nothing else.`;
               </div>
             </div>
             
-            {/* Right: Coaching Panel */}
-            <div className="flex-1 flex flex-col overflow-hidden min-h-0 w-full">
-              <MomentCoachingPanel 
-                key={selectedMoment?.id || 'no-moment'}
-                moment={selectedMoment} 
-                callDuration={duration}
-                allMoments={keyMoments}
-                currentIndex={currentMomentIndex}
-                scenario={scenario}
-                onNavigate={goToMoment}
-                theme={theme}
-              />
-            </div>
+            {/* Right: Coaching Panel - Only render on desktop */}
+            {!isMobile && (
+              <div className="flex-1 flex flex-col overflow-hidden min-h-0 w-full">
+                <MomentCoachingPanel 
+                  key={selectedMoment?.id || 'no-moment'}
+                  moment={selectedMoment} 
+                  callDuration={duration}
+                  allMoments={keyMoments}
+                  currentIndex={currentMomentIndex}
+                  scenario={scenario}
+                  onNavigate={goToMoment}
+                  theme={theme}
+                />
+              </div>
+            )}
           </>
         )}
       </div>

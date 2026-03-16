@@ -896,7 +896,7 @@ export class MomentExtractor {
    */
   private static levelToString(value: number): string {
     if (value < 0.35) return 'low';
-    if (value < 0.65) return 'moderate';
+    if (value < 0.65) return 'mid';
     return 'high';
   }
   

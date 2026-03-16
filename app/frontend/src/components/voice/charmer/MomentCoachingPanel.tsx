@@ -900,8 +900,9 @@ Be consistent and deterministic. Same input should give same output.`;
           </div>
         )}
         
-        {/* Coaching Brief Display - Blurred during entire practice mode */}
-        <div className={`transition-all ${isPracticeModeActive ? 'blur-lg opacity-30 pointer-events-none' : ''}`}>
+        {/* Coaching Brief Display - Hidden/collapsed during practice mode */}
+        {!isPracticeModeActive && (
+          <>
           {/* Win Analysis - Only for strong_move, best_moment, turning_point */}
           {coachingBrief && coachingBrief.whyItWorked && ['strong_move', 'best_moment'].includes(moment.classification) && (
             <div className={`mb-6 bg-gradient-to-br border-2 rounded-lg p-5 ${
@@ -1218,7 +1219,8 @@ Be consistent and deterministic. Same input should give same output.`;
             </div>
           );
         })()}
-      </div>
+        </>
+        )}
       </div>
       
       {/* Practice Button - Only for losses (mobile: in scroll area, desktop: separate section) */}
@@ -1251,69 +1253,21 @@ Be consistent and deterministic. Same input should give same output.`;
         }`}>
           {retryState === 'initial' && (
             <div className="p-6">
-              {/* Progressive Structural Hints */}
-              {structuralHint && (
-                <div className="mb-4 space-y-3">
-                  <div className={`text-xs font-bold uppercase tracking-wide ${
-                    theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                  }`}>Structure Hint</div>
-                  
-                  {/* Level 1: Always show broad structure */}
-                  {retryAttempts >= 0 && (
-                    <div className={`p-3 rounded-lg border ${
-                      theme === 'dark' 
-                        ? 'bg-orange-500/10 border-orange-500/30' 
-                        : 'bg-orange-50 border-orange-300'
-                    }`}>
-                      <div className={`text-xs mb-1 ${
-                        theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                      }`}>Broad Structure:</div>
-                      <div className={`text-base font-bold ${
-                        theme === 'dark' ? 'text-orange-300' : 'text-orange-700'
-                      }`}>
-                        {structuralHint.level1}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Level 2: Show after 1st failed attempt */}
-                  {retryAttempts >= 1 && (
-                    <div className={`p-3 rounded-lg border ${
-                      theme === 'dark' 
-                        ? 'bg-orange-500/10 border-orange-500/30' 
-                        : 'bg-orange-50 border-orange-300'
-                    }`}>
-                      <div className={`text-xs mb-1 ${
-                        theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                      }`}>Template:</div>
-                      <div className={`text-sm italic ${
-                        theme === 'dark' ? 'text-orange-200' : 'text-orange-700'
-                      }`}>
-                        "{structuralHint.level2}"
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Level 3: Show full answer button after 2nd failed attempt */}
-                  {retryAttempts >= 2 && (
-                    <button
-                      onClick={() => setRetryInput(structuralHint.level3)}
-                      className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
-                        theme === 'dark'
-                          ? 'bg-orange-500/5 border-orange-500/50 hover:bg-orange-500/10 hover:border-orange-500'
-                          : 'bg-orange-50 border-orange-300 hover:bg-orange-100 hover:border-orange-400'
-                      }`}
-                    >
-                      <div className={`text-xs mb-1 font-medium ${
-                        theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                      }`}>Click to use suggested response:</div>
-                      <div className={`text-sm ${
-                        theme === 'dark' ? 'text-orange-200' : 'text-orange-700'
-                      }`}>
-                        "{structuralHint.level3}"
-                      </div>
-                    </button>
-                  )}
+              {/* Single Hint Button - Generates potential response */}
+              {structuralHint && !retryInput && (
+                <div className="mb-4">
+                  <button
+                    onClick={() => setRetryInput(structuralHint.level3)}
+                    className={`w-full p-4 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
+                      theme === 'dark'
+                        ? 'bg-orange-500/10 border-orange-500/50 hover:bg-orange-500/20 hover:border-orange-500'
+                        : 'bg-orange-50 border-orange-300 hover:bg-orange-100 hover:border-orange-400'
+                    }`}
+                  >
+                    <span className={`text-sm font-medium ${
+                      theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                    }`}>💡 Get Hint - Show Potential Response</span>
+                  </button>
                 </div>
               )}
               

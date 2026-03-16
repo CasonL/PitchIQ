@@ -259,38 +259,55 @@ FORMAT RULES:
 - Use **bold** for key concepts
 - ALWAYS include a concrete improvement example if execution was rough
 
-Structure your response like this:
+ADAPTIVE STRUCTURE - Choose based on moment complexity:
 
-### What You Did Well
-The strategic choice (what you attempted to address and why it was the right move)
+SIMPLE MOMENTS (basic identification, routine answers):
+### Summary
+1-2 sentences on what happened and whether it was handled cleanly.
 
-### What Limited the Moment
-Execution quality issues (rough phrasing, incomplete thoughts, missed strategic threads)
-Be specific: quote actual awkward phrases if present
+### Better Move (if execution was rough)
+One verbatim example showing cleaner delivery.
+> "Example"
 
-### Why It Partially Landed (use "Why It Fully Landed" ONLY if execution was clean)
-For partial wins (rough execution):
-- Marcus's state made him receptive to this move type
-- Which parts of your response worked
-- Which parts reduced clarity or impact
+MEDIUM MOMENTS (nuanced execution issues, partial wins):
+### Summary
+1 sentence: what you attempted and whether it landed.
 
-For full wins (clean execution):
-- Why the move matched Marcus's immediate need
-- How your execution amplified the strategic choice
+### What Limited It
+Specific execution issues with quotes from actual words if rough.
 
-### How to Execute This Move Better
-Provide 1-2 concrete examples showing cleaner execution of the same strategic move
-Use blockquotes for verbatim examples
+### Better Move
+1-2 verbatim examples of cleaner execution.
+> "Example 1"
+> "Example 2"
 
-> "Example of cleaner execution"
+DEEP MOMENTS (strategic pivots, major missed opportunities):
+### Summary
+What happened in this exchange.
 
-### The Key Mechanic
-The underlying principle that makes this move type effective when executed well.
-Avoid overstating outcomes: use "builds credibility" or "maintains engagement" instead of "builds trust".
+### Why It Mattered
+The strategic significance or cost of the move.
 
-Example output for partial win:
+### Better Move
+Multiple concrete examples with the underlying principle baked in.
+> "Example 1"
+> "Example 2"
+
+CRITICAL RULES:
+- DO NOT create 4+ sections for simple moments
+- MERGE "what you did well" into the summary sentence
+- DO NOT separate "Why It Landed" from "What Limited" - they're the same diagnosis
+- DO NOT add a standalone "Key Mechanic" section - weave it into Better Move
+- Cap at 2-3 sections for 80% of moments
+
+Example output for SIMPLE moment (basic answer with rough execution):
 {
-  "whyItWorked": "You made the right strategic choice by answering Marcus's direct question instead of dodging it.\\n\\n### What You Did Well\\nYou attempted to explain your offer directly when Marcus asked 'What exactly are you offering?' This was important because he needed clarity before deciding whether to keep listening.\\n\\n### What Limited the Moment\\nYour explanation introduced the right concept, but the phrasing was rough and unfinished. The line 'Where you can generate a persona exactly like your IT customer persona in your business' is clunky and awkward. You also trailed off mid-thought: 'afterwards, they get,' - this incomplete delivery reduced the clarity of your answer.\\n\\n### Why It Partially Landed\\n- Marcus had enough curiosity to hear a concrete explanation\\n- The simulated-prospect idea is relevant and differentiated\\n- But the rough phrasing prevented it from landing as cleanly as it could have\\n\\n### How to Execute This Move Better\\n\\n> \\"We let your reps practice against AI prospects modeled after your real buyers, so they can sharpen conversations before talking to actual customers.\\"\\n\\n> \\"Sales training that feels like real calls. Your team practices on AI prospects that match your buyer personas.\\"\\n\\n### The Key Mechanic\\nWhen a buyer asks for clarity, answering directly with a concrete, complete explanation demonstrates responsiveness and builds credibility. Execution matters - rough phrasing reduces impact even when the strategic choice is correct."
+  "whyItWorked": "You answered Marcus's question by identifying yourself, which was necessary. The added small talk ('How are you doing today?') made it less focused than it needed to be.\\n\\n### Better Move\\nAnswer directly and move forward without social filler.\\n\\n> \\"Hey Marcus, it's Kayson from Website Refresh Co. Quick reason for the call...\\""
+}
+
+Example output for MEDIUM moment (strategic move with execution issues):
+{
+  "whyItWorked": "You attempted to explain your offer when Marcus asked, which was the right move.\\n\\n### What Limited It\\nThe phrasing was rough and unfinished. 'Where you can generate a persona exactly like your IT customer persona' is clunky. You trailed off: 'afterwards, they get,' - incomplete delivery reduced clarity.\\n\\n### Better Move\\nAnswer with a complete, concrete explanation. When a buyer asks for clarity, being direct and finishing your thought builds credibility.\\n\\n> \\"We let your reps practice against AI prospects modeled after your real buyers, so they can sharpen conversations before talking to actual customers.\\"\\n\\n> \\"Sales training that feels like real calls. Your team practices on AI prospects that match your buyer personas.\\""
 }
 
 Now generate YOUR coaching based on the actual moment above.` : `Explain what MECHANICALLY would work here instead:
@@ -305,27 +322,23 @@ FORMAT RULES - CRITICAL FOR EVALUATION ALIGNMENT:
 - Use **bold** for key concepts AND key actions
 - ALWAYS include 2-3 blockquote examples (> "exact verbatim response") that would score as "better"
 
-Structure your response like this:
+ADAPTIVE STRUCTURE - Choose based on moment severity:
 
-### The Core Issue
-Brief explanation of the mechanical mismatch (what Marcus needed vs what you gave).
+SIMPLE MISTAKE (minor tactical error):
+### The Issue
+1-2 sentences on what went wrong.
 
-CRITICAL DISTINCTION:
-- Did the user aim at the WRONG thing entirely? (e.g., asked discovery when Marcus wanted clarity)
-- Or did they aim at the RIGHT thing but execute POORLY? (e.g., tried to explain differentiation but explanation was tangled)
+### Better Move
+One concrete verbatim example.
+> "Example"
 
-Be precise about which one. Don't say "you failed to address" if they actually tried to address it - say "you aimed at the right answer but your explanation was too fragmented/abstract to land."
+MEDIUM MISTAKE (strategic mismatch or poor execution):
+### The Issue
+What Marcus needed vs what you gave. Quote actual awkward phrases if present.
 
-If the user's response had TACTICAL problems (weak language, rambling, incomplete thoughts), CALL THESE OUT SPECIFICALLY with quotes from their actual words.
+WORDING PRECISION: Use "reduced clarity" or "made the call feel less controlled" instead of vague "increased resistance".
 
-WORDING PRECISION: Instead of vague "increased resistance", use precise language like:
-- "made the call feel less clear and less controlled"
-- "reduced clarity"
-- "lowered confidence"
-- "made Marcus less willing to engage"
-Only say "increased resistance" if you have clear state evidence that resistance actually rose.
-
-### What Would Work Here
+### Better Move
 
 SPECIAL CASE - DIFFERENTIATION QUESTIONS:
 If Marcus asked "what makes this different from other [X]?" or "I've seen a bunch of those before", he is NOT asking for a cleaner generic explanation. He's asking for EXPLICIT CONTRAST.
@@ -354,13 +367,13 @@ GENERAL GUIDANCE:
 - If Marcus asked for clarity ("What do you want?"), examples should ANSWER his question, not deflect into discovery
 - NOT EVERY MOMENT NEEDS A QUESTION: Sometimes the right move is just to answer the objection well and stop
 
+1-2 verbatim examples with the underlying principle woven in (not as separate section).
+
 > "Example response 1 that would work"
 
 > "Example response 2 that would work"
 
-### The Key Mechanic
-- The underlying principle that makes the working approach effective
-- How it addresses Marcus's actual need at this point in the call
+Weave in why this works: the principle that makes this approach effective for Marcus's actual need.
 
 CRITICAL GUIDANCE FOR EXAMPLES:
 - Your verbatim examples are the "gold standard" that will be evaluated
@@ -379,9 +392,14 @@ CRITICAL GUIDANCE FOR EXAMPLES:
 - For follow-up questions, prefer concrete and natural: "How are you currently training reps?" over abstract "What's your current approach to training?"
 - Questions should be short, direct, and conversational - not formal or consultative
 
-Example output for opening clarity:
+Example output for SIMPLE mistake:
 {
-  "whyItDidntWork": "Marcus asked a blunt question because he wanted a fast reason to keep listening. Your answer was hesitant and tried to do too much at once.\n\n### The Core Issue\nMarcus needed clarity about why you called, but you mixed discovery and pitching without answering his question. The phrases 'could you maybe' and 'a little bit' conveyed hesitation, which made the call feel less clear and less controlled.\n\n### What Would Work Here\n- **Answer his question first**: give a clear reason for the call in one sentence\n- **Keep it concrete**: describe the category in practical terms, not vague value language\n- **Ask one simple question**: once Marcus understands why you called\n\n> \"Quick reason for the call: we help sales teams practice real buyer conversations instead of just sitting through training. How are you currently training reps?\"\n\n> \"I'll keep it brief. We offer hands-on sales training that's different from traditional methods. How do you currently support your sales team?\"\n\n### The Key Mechanic\nWhen a buyer asks 'What do you want?', they're testing for clarity and relevance. Answering directly with concrete differentiation shows you respect their time and understand the category."
+  "whyItDidntWork": "Marcus asked 'What do you want?' and needed a fast, clear answer. You hesitated with 'could you maybe' and 'a little bit', which made the call feel less controlled.\n\n### Better Move\nAnswer directly with concrete differentiation - this shows you respect his time.\n\n> \"Quick reason for the call: we help sales teams practice real buyer conversations instead of just sitting through training. How are you currently training reps?\"\n\n> \"I'll keep it brief. We offer hands-on sales training that's different from traditional methods. How do you currently support your sales team?\""
+}
+
+Example output for MEDIUM mistake:
+{
+  "whyItDidntWork": "Marcus asked what makes this different from other training he's seen. You gave a generic explanation instead of explicit contrast.\n\n### The Issue\nMarcus wasn't asking for a cleaner pitch - he was asking for differentiation. Your answer didn't show how this is UNLIKE what he's seen before.\n\n### Better Move\nLead with the differentiator using contrast structure. This directly addresses his skepticism.\n\n> \"Unlike seminars where reps just listen, this is live practice against AI prospects that push back in real time.\"\n\n> \"This isn't roleplay with a coworker reading a script. The AI adapts based on what your rep says, so they get real objection handling.\""
 }
 
 Now generate YOUR coaching based on the actual moment above.`}

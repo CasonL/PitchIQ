@@ -1754,7 +1754,13 @@ Be consistent and deterministic. Same input should give same output.`;
                   {/* Hint or Continue button */}
                   {retryResult.label === 'better' || retryResult.label === 'strong_improvement' ? (
                     <button
-                      onClick={() => setIsPracticeModeActive(false)}
+                      onClick={() => {
+                        setIsPracticeModeActive(false);
+                        // Navigate to next moment if available
+                        if (allMoments && currentIndex !== undefined && currentIndex < allMoments.length - 1 && onNavigate) {
+                          onNavigate(currentIndex + 1);
+                        }
+                      }}
                       className={`flex-1 py-2 border rounded-lg text-sm font-medium transition-colors ${
                         theme === 'dark'
                           ? 'bg-green-500/20 hover:bg-green-500/30 border-green-500/50 text-green-400'

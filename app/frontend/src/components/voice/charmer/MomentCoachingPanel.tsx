@@ -42,14 +42,16 @@ interface StructuralHint {
 }
 
 interface CoachingSections {
-  header?: string;           // First sentence/paragraph before sections
-  coreIssue?: string;        // ### The Core Issue section (negative)
+  header?: string;           // Everything before first ### (summary)
+  coreIssue?: string;        // ### The Core Issue section (negative) or ### The Issue
   whatWorks?: string;        // ### What Would Work Here section (negative)
   keyMechanic?: string;      // ### The Key Mechanic section (both)
   whatYouDidWell?: string;   // ### What You Did Well section (positive)
-  whatLimited?: string;      // ### What Limited the Moment section (positive)
+  whatLimited?: string;      // ### What Limited the Moment or ### What Limited It section (positive)
   whyItLanded?: string;      // ### Why It Partially Landed section (positive)
-  howToExecute?: string;     // ### How to Execute This Move Better section (positive)
+  howToExecute?: string;     // ### How to Execute This Move Better section (old format - backwards compat)
+  betterMove?: string;       // ### Better Move section (new adaptive format)
+  summary?: string;          // ### Summary section (new)
 }
 
 const getClassificationLabel = (classification: MomentClassification): string => {
@@ -822,9 +824,11 @@ Be consistent and deterministic. Same input should give same output.`;
       sections.whatYouDidWell = '### What You Did Well' + whatYouDidWellMatch[1];
     }
     
-    const whatLimitedMatch = text.match(/### What Limited the Moment([\s\S]*?)(?=###|$)/i);
+    // Match both old and new section names
+    const whatLimitedMatch = text.match(/### (?:What Limited the Moment|What Limited It)([\s\S]*?)(?=###|$)/i);
     if (whatLimitedMatch) {
-      sections.whatLimited = '### What Limited the Moment' + whatLimitedMatch[1];
+      const heading = whatLimitedMatch[0].match(/### [^\n]+/)?.[0] || '### What Limited It';
+      sections.whatLimited = heading + whatLimitedMatch[1];
     }
     
     const whyItLandedMatch = text.match(/### Why It (?:Partially |Fully )?Landed([\s\S]*?)(?=###|$)/i);
@@ -832,9 +836,13 @@ Be consistent and deterministic. Same input should give same output.`;
       sections.whyItLanded = whyItLandedMatch[0];
     }
     
-    const howToExecuteMatch = text.match(/### How to Execute This Move Better([\s\S]*?)(?=###|$)/i);
-    if (howToExecuteMatch) {
-      sections.howToExecute = '### How to Execute This Move Better' + howToExecuteMatch[1];
+    // Match Better Move (new) or How to Execute (old)
+    const betterMoveMatch = text.match(/### (?:Better Move|How to Execute This Move Better)([\s\S]*?)(?=###|$)/i);
+    if (betterMoveMatch) {
+      const heading = betterMoveMatch[0].match(/### [^\n]+/)?.[0] || '### Better Move';
+      sections.betterMove = heading + betterMoveMatch[1];
+      // Also store in howToExecute for backwards compatibility
+      sections.howToExecute = sections.betterMove;
     }
     
     // The Key Mechanic (used by both)
@@ -846,16 +854,48 @@ Be consistent and deterministic. Same input should give same output.`;
     return sections;
   };
 
-  // Determine card structure based on moment type
-  const getCardStructure = (classification: MomentClassification, isWin: boolean) => {
-    // Wins: 2 cards (Why It Worked + Principle)
+  // Determine card structure ADAPTIVELY based on what sections actually exist
+  const getCardStructure = (classification: MomentClassification, sections: CoachingSections) => {
+    const cards: string[] = [];
+    
+    // For wins: use simplified structure
     if (['strong_move', 'best_moment'].includes(classification)) {
-      return ['why-worked', 'principle'];
+      // Always show summary/why-worked as first card
+      cards.push('why-worked');
+      
+      // Add Better Move if it exists (should always exist)
+      if (sections.betterMove || sections.howToExecute || sections.whatWorks) {
+        cards.push('better-move');
+      }
+      
+      // Add principle only if it exists as separate section
+      if (sections.keyMechanic) {
+        cards.push('principle');
+      }
+      
+      return cards;
     }
     
-    // Nuanced/Losses: 4 cards (Read + Problem + Better Move + Principle)
-    // Practice is separate, triggered by button
-    return ['read', 'problem', 'better-move', 'principle'];
+    // For nuanced/losses: adaptive based on what exists
+    // Always start with summary/read
+    cards.push('read');
+    
+    // Add problem diagnosis if it exists
+    if (sections.whatLimited || sections.whyItLanded || sections.coreIssue) {
+      cards.push('problem');
+    }
+    
+    // ALWAYS add Better Move (critical - verbatim examples)
+    if (sections.betterMove || sections.howToExecute || sections.whatWorks) {
+      cards.push('better-move');
+    }
+    
+    // Add principle only if it exists as separate section
+    if (sections.keyMechanic) {
+      cards.push('principle');
+    }
+    
+    return cards;
   };
 
   // Render individual card content
@@ -926,10 +966,11 @@ Be consistent and deterministic. Same input should give same output.`;
         );
       
       case 'better-move':
-        // Card 3: The Better Move (how to execute better with verbatim examples)
+        // Card: The Better Move (verbatim examples - ALWAYS SHOW)
+        const betterMoveContent = sections.betterMove || sections.howToExecute || sections.whatWorks;
         return (
           <div>
-            {sections.howToExecute && (
+            {betterMoveContent && (
               <ReactMarkdown
                 components={{
                   h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mb-2 ${cardColors.heading}`} {...props} />,
@@ -937,17 +978,10 @@ Be consistent and deterministic. Same input should give same output.`;
                   blockquote: ({node, ...props}) => <blockquote className={`border-l-2 pl-3 my-2 italic ${
                     theme === 'dark' ? 'border-blue-500 text-blue-200' : 'border-blue-400 text-blue-800'
                   }`} {...props} />,
-                }}
-              >{sections.howToExecute}</ReactMarkdown>
-            )}
-            {sections.whatWorks && (
-              <ReactMarkdown
-                components={{
-                  h3: ({node, ...props}) => <h3 className={`font-bold text-xs uppercase tracking-wide mb-2 ${cardColors.heading}`} {...props} />,
                   ul: ({node, ...props}) => <ul className="my-2 space-y-1 list-none pl-0" {...props} />,
                   li: ({node, ...props}) => <li className="flex items-start gap-2" {...props}><span className={`mt-0.5 ${cardColors.text}`}>•</span><span className="flex-1">{props.children}</span></li>,
                 }}
-              >{sections.whatWorks}</ReactMarkdown>
+              >{betterMoveContent}</ReactMarkdown>
             )}
           </div>
         );
@@ -1188,7 +1222,7 @@ Be consistent and deterministic. Same input should give same output.`;
           if (!text) return null;
           
           const sections = parseCoachingSections(text);
-          const cardStructure = getCardStructure(moment.classification, isWin);
+          const cardStructure = getCardStructure(moment.classification, sections);
           const totalCards = cardStructure.length;
           
           // Card colors based on moment type

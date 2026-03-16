@@ -372,24 +372,53 @@ export class MomentExtractor {
       // Resistance dropped meaningfully after user's response
       if (resistanceDrop >= 1.0) {
         const marcusState = this.inferMarcusState(afterRes, pair.outcome, context);
-        shifts.push({
-          id: `pos_${pair.index}`,
-          type: 'positive_shift',
-          classification: this.classifyPositiveMoment(resistanceDrop, marcusState),
-          reasonTag: this.inferReasonTag(pair.userResponse.text, pair.outcome.objectionTriggered),
-          timestamp: pair.userResponse.timestamp,
-          turnNumber: Math.floor(pair.index / 2) + 1,
-          title: this.generateDecisiveTitle('positive', pair.userResponse.text, pair.outcome.text, resistanceDrop),
-          userMessage: pair.userResponse.text,
-          marcusResponse: pair.marcusStatement.text,
-          surroundingContext: this.extractSurroundingContext(pair.index),
-          resistanceBefore: beforeRes,
-          resistanceAfter: afterRes,
-          whatChanged: `Resistance dropped from ${beforeRes.toFixed(1)} to ${afterRes.toFixed(1)}`,
-          humanConsequence: this.generateHumanConsequence(beforeRes, afterRes, marcusState),
-          whyItMatters: this.explainPositiveShift(pair.outcome.text, resistanceDrop),
-          marcusState
-        });
+        
+        // DETECT EXIT MOMENTS: Marcus gives soft exit ("send me something", "I'll look later")
+        // These should NOT be classified as clean wins even if resistance dropped slightly
+        const marcusText = pair.marcusStatement.text.toLowerCase();
+        const isExitMoment = /send (me )?(something|info)|i'll (take a )?look later|i've got to (run|go)|not a fit right now|call.*later|email.*later/.test(marcusText);
+        
+        if (isExitMoment) {
+          // This is an exit handoff moment - should be nuanced at best, not a clean win
+          shifts.push({
+            id: `pos_${pair.index}`,
+            type: 'positive_shift',
+            classification: 'mixed_signal', // Exit moments are nuanced: accepted exit but how was execution?
+            reasonTag: 'Clarity',
+            timestamp: pair.userResponse.timestamp,
+            turnNumber: Math.floor(pair.index / 2) + 1,
+            title: 'Exit handoff: Marcus gave next step',
+            userMessage: pair.userResponse.text,
+            marcusResponse: pair.marcusStatement.text,
+            surroundingContext: this.extractSurroundingContext(pair.index),
+            resistanceBefore: beforeRes,
+            resistanceAfter: afterRes,
+            whatChanged: `Marcus gave soft exit - next step is to send follow-up`,
+            humanConsequence: 'Call ended with path forward, but no commitment',
+            whyItMatters: 'Exit handoffs are critical - keep them short and clear to maintain credibility',
+            marcusState
+          });
+        } else {
+          // Normal positive shift
+          shifts.push({
+            id: `pos_${pair.index}`,
+            type: 'positive_shift',
+            classification: this.classifyPositiveMoment(resistanceDrop, marcusState),
+            reasonTag: this.inferReasonTag(pair.userResponse.text, pair.outcome.objectionTriggered),
+            timestamp: pair.userResponse.timestamp,
+            turnNumber: Math.floor(pair.index / 2) + 1,
+            title: this.generateDecisiveTitle('positive', pair.userResponse.text, pair.outcome.text, resistanceDrop),
+            userMessage: pair.userResponse.text,
+            marcusResponse: pair.marcusStatement.text,
+            surroundingContext: this.extractSurroundingContext(pair.index),
+            resistanceBefore: beforeRes,
+            resistanceAfter: afterRes,
+            whatChanged: `Resistance dropped from ${beforeRes.toFixed(1)} to ${afterRes.toFixed(1)}`,
+            humanConsequence: this.generateHumanConsequence(beforeRes, afterRes, marcusState),
+            whyItMatters: this.explainPositiveShift(pair.outcome.text, resistanceDrop),
+            marcusState
+          });
+        }
       }
       
       // Pain point revealed after user's response

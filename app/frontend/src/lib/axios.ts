@@ -1,8 +1,13 @@
 import axios from 'axios';
 import { toast } from "@/components/ui/use-toast";
 
+// Get API base URL from environment variable
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+console.log(' API Base URL:', API_BASE_URL);
+
 const api = axios.create({
-  // baseURL: 'http://localhost:8080/api', // No longer needed, Vite proxy will handle it.
+  baseURL: API_BASE_URL,
   withCredentials: true, // Important for sending cookies
 });
 

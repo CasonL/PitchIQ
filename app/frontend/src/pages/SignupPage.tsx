@@ -75,7 +75,9 @@ const SignupPage: React.FC = () => {
 
     try {
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      const registerUrl = `${API_BASE_URL}/auth/register`;
+      console.log('📝 Signup URL:', registerUrl);
+      const response = await fetch(registerUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

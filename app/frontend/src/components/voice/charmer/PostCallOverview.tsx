@@ -20,9 +20,18 @@ interface PostCallOverviewProps {
   summary: string;
   categoryScores: CategoryScore[];
   keyMomentCounts: {
-    strong: number;
-    pivotal: number;
-    retry: number;
+    // Wins (green shades)
+    bestMoments: number;
+    strongMoves: number;
+    turningPoints: number;
+    // Nuanced (yellow shades)
+    partialWins: number;
+    strongAttempts: number;
+    mixedSignals: number;
+    // Losses (orange/red shades)
+    missedOpportunities: number;
+    mistakes: number;
+    blunders: number;
   };
   onStartReview: () => void;
   onTryAgain?: () => void;
@@ -63,7 +72,8 @@ export const PostCallOverview: React.FC<PostCallOverviewProps> = ({
 
   // Check if call was too brief (invalid scores or no moments)
   const hasInvalidScores = categoryScores.some(c => isNaN(c.score) || c.score === 0);
-  const hasNoMoments = keyMomentCounts.strong === 0 && keyMomentCounts.pivotal === 0 && keyMomentCounts.retry === 0;
+  const totalMoments = Object.values(keyMomentCounts).reduce((sum, count) => sum + count, 0);
+  const hasNoMoments = totalMoments === 0;
   const isCallTooBrief = hasInvalidScores || (hasNoMoments && overallScore < 30);
 
   if (isCallTooBrief) {
@@ -224,26 +234,69 @@ export const PostCallOverview: React.FC<PostCallOverviewProps> = ({
             theme === 'dark' ? 'text-white' : 'text-gray-800'
           }`}>Key Moments</h3>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 text-xs md:text-sm">
-            {keyMomentCounts.strong > 0 && (
+            {/* WINS - Green shades */}
+            {keyMomentCounts.bestMoments > 0 && (
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{keyMomentCounts.strong} strong {keyMomentCounts.strong === 1 ? 'move' : 'moves'}</span>
+                <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{keyMomentCounts.bestMoments} best {keyMomentCounts.bestMoments === 1 ? 'moment' : 'moments'}</span>
               </div>
             )}
-            {keyMomentCounts.pivotal > 0 && (
+            {keyMomentCounts.strongMoves > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{keyMomentCounts.strongMoves} strong {keyMomentCounts.strongMoves === 1 ? 'move' : 'moves'}</span>
+              </div>
+            )}
+            {keyMomentCounts.turningPoints > 0 && (
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                 <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
-                  {keyMomentCounts.pivotal} pivotal {keyMomentCounts.pivotal === 1 ? 'moment' : 'moments'}
+                  {keyMomentCounts.turningPoints} turning {keyMomentCounts.turningPoints === 1 ? 'point' : 'points'}
                 </span>
               </div>
             )}
-            {keyMomentCounts.retry > 0 && (
+            
+            {/* NUANCED - Yellow shades */}
+            {keyMomentCounts.partialWins > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{keyMomentCounts.partialWins} partial {keyMomentCounts.partialWins === 1 ? 'win' : 'wins'}</span>
+              </div>
+            )}
+            {keyMomentCounts.strongAttempts > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{keyMomentCounts.strongAttempts} strong {keyMomentCounts.strongAttempts === 1 ? 'attempt' : 'attempts'}</span>
+              </div>
+            )}
+            {keyMomentCounts.mixedSignals > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-amber-400"></div>
+                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                  {keyMomentCounts.mixedSignals} mixed {keyMomentCounts.mixedSignals === 1 ? 'signal' : 'signals'}
+                </span>
+              </div>
+            )}
+            
+            {/* LOSSES - Orange/Red shades */}
+            {keyMomentCounts.missedOpportunities > 0 && (
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-orange-400"></div>
                 <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
-                  {keyMomentCounts.retry} {keyMomentCounts.retry === 1 ? 'moment' : 'moments'} to retry
+                  {keyMomentCounts.missedOpportunities} missed {keyMomentCounts.missedOpportunities === 1 ? 'opportunity' : 'opportunities'}
                 </span>
+              </div>
+            )}
+            {keyMomentCounts.mistakes > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{keyMomentCounts.mistakes} {keyMomentCounts.mistakes === 1 ? 'mistake' : 'mistakes'}</span>
+              </div>
+            )}
+            {keyMomentCounts.blunders > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>{keyMomentCounts.blunders} {keyMomentCounts.blunders === 1 ? 'blunder' : 'blunders'}</span>
               </div>
             )}
           </div>

@@ -935,29 +935,66 @@ Be consistent and deterministic. Same input should give same output.`;
     
     const state = moment.marcusState;
     const marcusText = moment.marcusResponse?.toLowerCase() || '';
+    const userText = moment.userMessage?.toLowerCase() || '';
     
-    // Infer needs based on state and context
+    // Extract Marcus's actual business context from scenario or moment
+    const businessContext = scenario?.persona?.company || scenario?.persona?.role || '';
+    const marcusRole = scenario?.persona?.role || 'decision maker';
+    
+    // Build context-specific needs based on what Marcus actually said
+    const needs: string[] = [];
+    
+    // 1. Direct quote analysis - what did Marcus actually express?
+    if (marcusText.includes('not sure') || marcusText.includes('maybe') || marcusText.includes("don't know")) {
+      needs.push(`Why this matters specifically for ${businessContext || 'his business'}`);
+    }
+    
+    if (marcusText.includes('busy') || marcusText.includes('time') || marcusText.includes('got to go')) {
+      needs.push('Quick, concrete value - not explanations');
+    }
+    
+    if (marcusText.includes('send') || marcusText.includes('email') || marcusText.includes('later')) {
+      needs.push('Reason to engage now vs. just receiving info');
+    }
+    
+    // 2. State-based needs with Marcus context
     if (state?.trust === 'low') {
-      return 'Credibility, proof, reassurance';
+      needs.push(`Proof that you've helped companies like ${businessContext || 'his'}`);
     }
     
-    if (state?.curiosity === 'low' && state?.urgency === 'low') {
-      return 'Clear value proposition, relevance';
+    if (state?.curiosity === 'low') {
+      needs.push(`Relevance to his role as ${marcusRole}`);
     }
     
-    if (marcusText.includes('busy') || marcusText.includes('time')) {
-      return 'Quick, concise explanation';
+    if (state?.urgency === 'low' && !marcusText.includes('not interested')) {
+      needs.push('Urgency - what happens if he waits?');
     }
     
-    if (marcusText.includes('not sure') || marcusText.includes('maybe')) {
-      return 'Clarity on next steps';
+    // 3. Question type analysis - what is Marcus asking for?
+    if (marcusText.includes('what') && marcusText.includes('do')) {
+      needs.push('Specific examples of outcomes, not processes');
     }
     
-    if (marcusText.includes('how') || marcusText.includes('what')) {
-      return 'Specific details, examples';
+    if (marcusText.includes('how') && (marcusText.includes('work') || marcusText.includes('help'))) {
+      needs.push('Concrete steps or proof points, not theories');
     }
     
-    return 'Understanding of his situation';
+    if (marcusText.includes('why') || marcusText.includes('what for')) {
+      needs.push('Clear ROI or business impact');
+    }
+    
+    // 4. Objection signals
+    if (marcusText.includes('already have') || marcusText.includes('not need')) {
+      needs.push('Differentiation - what you offer that others don\'t');
+    }
+    
+    // Return top 2-3 most specific needs
+    if (needs.length > 0) {
+      return needs.slice(0, 3).join('; ');
+    }
+    
+    // Fallback with context
+    return `Understanding of ${businessContext || 'his specific situation'}`;
   };
   
   if (!moment) {

@@ -653,43 +653,12 @@ Return ONLY a single integer 1-10, nothing else.`;
           <div className="md:hidden flex flex-col h-full overflow-hidden">
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto pb-20">
-              {/* Trust/Curiosity/Urgency Cards at TOP */}
+              {/* Classification Card at TOP */}
               {selectedMoment && (
                 <div className="p-3 border-b" style={{
                   borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(229,231,235,1)'
                 }}>
-                  <div className="flex gap-2 text-xs mb-2">
-                    <div className="flex-1 rounded-lg p-2" style={{
-                      backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
-                      border: theme === 'light' ? '1px solid rgba(229,231,235,1)' : 'none'
-                    }}>
-                      <div className={`mb-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>Trust</div>
-                      <div className={`font-medium capitalize ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                        {selectedMoment.marcusState?.trust || 'unknown'}
-                      </div>
-                    </div>
-                    <div className="flex-1 rounded-lg p-2" style={{
-                      backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
-                      border: theme === 'light' ? '1px solid rgba(229,231,235,1)' : 'none'
-                    }}>
-                      <div className={`mb-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>Curiosity</div>
-                      <div className={`font-medium capitalize ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                        {selectedMoment.marcusState?.curiosity || 'unknown'}
-                      </div>
-                    </div>
-                    <div className="flex-1 rounded-lg p-2" style={{
-                      backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
-                      border: theme === 'light' ? '1px solid rgba(229,231,235,1)' : 'none'
-                    }}>
-                      <div className={`mb-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>Urgency</div>
-                      <div className={`font-medium capitalize ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                        {selectedMoment.marcusState?.urgency || 'unknown'}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Classification Card */}
-                  <div className="rounded-lg p-2.5 border-l-4 mt-2" style={{
+                  <div className="rounded-lg p-2.5 border-l-4" style={{
                     backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
                     borderColor: getMomentColor(selectedMoment)
                   }}>
@@ -724,6 +693,43 @@ Return ONLY a single integer 1-10, nothing else.`;
                     <div className="font-semibold text-xs mb-1" style={{ color: getMomentColor(selectedMoment) }}>You responded:</div>
                     <div className={`text-xs leading-relaxed font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                       "{selectedMoment.userMessage || ''}"
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Trust/Curiosity/Urgency - Inline format below responses */}
+              {selectedMoment && (
+                <div className="p-3 border-b" style={{
+                  borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(229,231,235,1)'
+                }}>
+                  <div className="flex gap-3 text-xs">
+                    <div className="flex-1 rounded-lg p-2" style={{
+                      backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
+                      border: theme === 'light' ? '1px solid rgba(229,231,235,1)' : 'none'
+                    }}>
+                      <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>Trust: </span>
+                      <span className={`font-medium capitalize ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                        {selectedMoment.marcusState?.trust || 'unknown'}
+                      </span>
+                    </div>
+                    <div className="flex-1 rounded-lg p-2" style={{
+                      backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
+                      border: theme === 'light' ? '1px solid rgba(229,231,235,1)' : 'none'
+                    }}>
+                      <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>Curiosity: </span>
+                      <span className={`font-medium capitalize ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                        {selectedMoment.marcusState?.curiosity || 'unknown'}
+                      </span>
+                    </div>
+                    <div className="flex-1 rounded-lg p-2" style={{
+                      backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
+                      border: theme === 'light' ? '1px solid rgba(229,231,235,1)' : 'none'
+                    }}>
+                      <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}>Urgency: </span>
+                      <span className={`font-medium capitalize ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                        {selectedMoment.marcusState?.urgency || 'unknown'}
+                      </span>
                     </div>
                   </div>
                 </div>

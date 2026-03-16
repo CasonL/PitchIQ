@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Star, TrendingUp, Target, Users } from 'lucide-react';
+import { Star, TrendingUp, Target, Users, CheckCircle } from 'lucide-react';
 
 interface PostCallCTAProps {
   theme: 'dark' | 'light';
@@ -65,78 +65,102 @@ export const PostCallCTA: React.FC<PostCallCTAProps> = ({
           <input type="text" name="timestamp" />
         </form>
 
-        <form onSubmit={handleSubmitFeedback} className={`rounded-xl p-8 mb-6 ${
+        <form onSubmit={handleSubmitFeedback} className={`rounded-xl p-8 mb-6 transition-all duration-500 ${
           theme === 'dark' ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'
         }`}>
-          <h2 className={`text-2xl font-bold mb-2 text-center ${
-            theme === 'dark' ? 'text-white' : 'text-gray-900'
-          }`}>
-            How helpful was this session?
-          </h2>
-          <p className={`text-sm mb-6 text-center ${
-            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-          }`}>
-            Your feedback helps us improve PitchIQ
-          </p>
-
-          <div className="flex gap-2 mb-6 justify-center">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                type="button"
-                onClick={() => handleRatingClick(star)}
-                onMouseEnter={() => setHoverRating(star)}
-                onMouseLeave={() => setHoverRating(0)}
-                className="transition-transform hover:scale-110 active:scale-95"
-              >
-                <Star
-                  size={48}
-                  className={`${
-                    star <= (hoverRating || rating)
-                      ? 'fill-yellow-500 text-yellow-500'
-                      : theme === 'dark'
-                        ? 'text-gray-600'
-                        : 'text-gray-300'
-                  } transition-colors`}
-                />
-              </button>
-            ))}
-          </div>
-
-          {showFeedback && (
-            <>
-              <div className="mb-4">
-                <textarea
-                  name="feedback"
-                  value={feedback}
-                  onChange={(e) => setFeedback(e.target.value)}
-                  placeholder="Any specific feedback? (optional)"
-                  className={`w-full h-20 p-3 rounded-lg border text-sm resize-none ${
-                    theme === 'dark'
-                      ? 'bg-white/5 border-white/10 text-white placeholder-gray-500'
-                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-                  }`}
+          {submitted ? (
+            // Success state with green checkmark
+            <div className="flex flex-col items-center justify-center py-8 animate-in fade-in duration-500">
+              <div className={`rounded-full p-4 mb-4 ${
+                theme === 'dark' ? 'bg-green-500/20' : 'bg-green-50'
+              }`}>
+                <CheckCircle 
+                  size={64} 
+                  className={theme === 'dark' ? 'text-green-400' : 'text-green-600'}
+                  strokeWidth={2}
                 />
               </div>
-              <button
-                type="submit"
-                disabled={!rating || isSubmitting || submitted}
-                className={`w-full py-3 rounded-lg font-medium text-sm transition-all ${
-                  !rating || isSubmitting || submitted
-                    ? 'opacity-50 cursor-not-allowed'
-                    : 'active:scale-98'
-                } ${
-                  submitted
-                    ? theme === 'dark'
-                      ? 'bg-green-500/20 border-2 border-green-500/50 text-green-400'
-                      : 'bg-green-50 border-2 border-green-500 text-green-700'
-                    : theme === 'dark'
-                      ? 'bg-white/10 hover:bg-white/20 border-2 border-white/20 text-white'
-                      : 'bg-gray-100 hover:bg-gray-200 border-2 border-gray-300 text-gray-900'
-                }`}
-              >
-                {submitted ? '✓ Feedback Submitted' : isSubmitting ? 'Submitting...' : 'Submit Feedback'}
-              </button>
+              <h2 className={`text-3xl font-bold mb-2 ${
+                theme === 'dark' ? 'text-white' : 'text-gray-900'
+              }`}>
+                Thank You!
+              </h2>
+              <p className={`text-base text-center ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Your feedback helps us make PitchIQ better
+              </p>
+            </div>
+          ) : (
+            // Rating form
+            <>
+              <h2 className={`text-2xl font-bold mb-2 text-center ${
+                theme === 'dark' ? 'text-white' : 'text-gray-900'
+              }`}>
+                How helpful was this session?
+              </h2>
+              <p className={`text-sm mb-6 text-center ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Your feedback helps us improve PitchIQ
+              </p>
+
+              <div className="flex gap-2 mb-6 justify-center">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => handleRatingClick(star)}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(0)}
+                    className="transition-transform hover:scale-110 active:scale-95"
+                  >
+                    <Star
+                      size={48}
+                      className={`${
+                        star <= (hoverRating || rating)
+                          ? 'fill-yellow-500 text-yellow-500'
+                          : theme === 'dark'
+                            ? 'text-gray-600'
+                            : 'text-gray-300'
+                      } transition-colors`}
+                    />
+                  </button>
+                ))}
+              </div>
+
+              {showFeedback && (
+                <>
+                  <div className="mb-4">
+                    <textarea
+                      name="feedback"
+                      value={feedback}
+                      onChange={(e) => setFeedback(e.target.value)}
+                      placeholder="Any specific feedback? (optional)"
+                      className={`w-full h-20 p-3 rounded-lg border text-sm resize-none ${
+                        theme === 'dark'
+                          ? 'bg-white/5 border-white/10 text-white placeholder-gray-500'
+                          : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                      }`}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={!rating || isSubmitting}
+                    className={`w-full py-3 rounded-lg font-medium text-sm transition-all ${
+                      !rating || isSubmitting
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'active:scale-98'
+                    } ${
+                      theme === 'dark'
+                        ? 'bg-white/10 hover:bg-white/20 border-2 border-white/20 text-white'
+                        : 'bg-gray-100 hover:bg-gray-200 border-2 border-gray-300 text-gray-900'
+                    }`}
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
+                  </button>
+                </>
+              )}
             </>
           )}
         </form>

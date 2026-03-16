@@ -207,7 +207,28 @@ ${['strong_move', 'best_moment', 'turning_point', 'partial_turning_point', 'stro
 
 CRITICAL: Separate "right move" from "clean execution". A rep can choose the correct strategic response but deliver it poorly. Be honest about both.
 
-TONE: Rigorous coach who sees nuance. Give credit for good instincts, but don't oversell rough execution.
+ALSO CRITICAL: Distinguish "baseline competence" from "momentum-creating move". Don't oversell basic expected behavior.
+
+TONE: Rigorous coach who sees nuance. Give credit for good instincts, but don't oversell rough execution OR basic table-stakes behavior.
+
+BASELINE VS MOMENTUM:
+**Baseline competence** (necessary but not pivotal):
+- Answering "who's this?" with your name and company = basic identification, not trust-building masterstroke
+- Saying "how are you doing?" = small talk, not rapport-building genius
+- Responding to a question = minimum expected behavior, not strategic brilliance
+
+**Momentum-creating moves** (actually shifts the dynamic):
+- Getting Marcus to reveal a pain point he wasn't planning to share
+- Earning permission to send something when he was ready to decline
+- Shifting from skeptical to curious through a well-crafted question
+- Creating genuine interest where there was none
+
+DON'T OVERSELL:
+- ❌ "You established credibility and trust" (just said your name)
+- ❌ "You created momentum" (just answered basic question)
+- ❌ "You built rapport" (just added unnecessary small talk)
+- ✅ "You handled the baseline checkpoint" (accurate)
+- ✅ "You answered competently but didn't create real shift yet" (honest)
 
 EXECUTION QUALITY CHECKS:
 1. **Clarity**: Was the response actually clear, or just directionally relevant but clunky?
@@ -217,13 +238,15 @@ EXECUTION QUALITY CHECKS:
 5. **Strategic alignment**: Did they actually pick up the buyer's thread, or just answer generally?
 
 CLASSIFY THE WIN:
-- **Full clean win**: Right move + clean execution
+- **Full clean win**: Right move + clean execution + created real shift
 - **Partial win**: Right move + rough execution (MOST COMMON)
+- **Baseline competence**: Did the expected thing adequately (not a "win", just necessary)
 - **Decent move**: Right instinct + clumsy delivery
 - **Exit overtalked**: Accepted the exit (good) but added unnecessary pitch during handoff (mistake)
 
 Don't call something "clear and concise" if it was unfinished or awkward. Be honest.
 Don't reward "maintaining dialogue" if Marcus had already given the next step and the user just needed to make the handoff simple.
+Don't call basic identification a "trust-building" or "momentum-creating" moment. That's just showing up to the game.
 
 FORMAT RULES:
 - Start with 1 sentence on the core strategic choice

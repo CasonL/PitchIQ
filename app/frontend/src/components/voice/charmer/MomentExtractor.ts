@@ -692,7 +692,7 @@ export class MomentExtractor {
   
   /**
    * Classify positive moment as best_moment, strong_move, or turning_point
-   * Now considers execution quality to prevent over-generous classifications
+   * Now considers execution quality AND resistance magnitude to prevent over-generous classifications
    */
   private static classifyPositiveMoment(resistanceDrop: number, marcusState: any, userText?: string): MomentClassification {
     // Check execution quality first
@@ -714,8 +714,16 @@ export class MomentExtractor {
       return 'strong_attempt'; // Right move, rough execution
     }
     
-    // Strong move: solid improvement with clean execution
-    return 'strong_move';
+    // Strong move: meaningful improvement (resistance drop >= 2.0) with clean execution
+    // Small drops (< 2.0) are baseline competence, not momentum-creating
+    if (resistanceDrop >= 2.0) {
+      return 'strong_move';
+    }
+    
+    // Baseline move: small positive shift (answered question, basic competence)
+    // This is "doing the job" but not creating real momentum
+    console.log(`📊 Small resistance drop (${resistanceDrop.toFixed(1)}), classifying as strong_attempt (baseline competence)`);
+    return 'strong_attempt';
   }
   
   /**

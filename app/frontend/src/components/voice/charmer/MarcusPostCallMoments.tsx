@@ -526,9 +526,10 @@ Return ONLY a single integer 1-10, nothing else.`;
               );
             })}
             
-            {/* All moment dots positioned by timestamp */}
+            {/* All moment dots positioned by turn number to match tick marks */}
             {keyMoments.map((moment, index) => {
-              const position = (moment.timestamp / duration) * 100;
+              const totalTurns = conversationExchanges.length;
+              const position = ((moment.turnNumber) / (totalTurns + 1)) * 100; // Match tick mark positioning
               const dotColor = getMomentColor(moment);
               return (
                 <button

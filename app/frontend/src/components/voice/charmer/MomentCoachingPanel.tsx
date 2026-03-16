@@ -513,9 +513,25 @@ ${suggestedResponses.length > 0 ? suggestedResponses.map((r, i) => `${i + 1}. "$
 Evaluate this retry and return ONLY valid JSON with this structure:
 {
   "label": "better" | "strong_improvement" | "partial" | "still_missed",
-  "explanation": "One sentence explaining what improved or what's still missing",
+  "explanation": "One specific sentence about what improved or what's missing - MUST reference Marcus's actual words or business context",
   "marcusReaction": "A short (1-2 sentence) simulated response Marcus would give to this retry"
 }
+
+**EXPLANATION QUALITY REQUIREMENTS:**
+- ❌ GENERIC: "lacks connection to Marcus's current state of urgency"
+- ✅ SPECIFIC: "doesn't address Marcus's direct question 'What do you want?' with a clear, concise value proposition"
+
+- ❌ GENERIC: "improved clarity about the service but still lacks connection to needs"
+- ✅ SPECIFIC: "better explains the service, but Marcus still hasn't heard why this matters for his [company type/role] specifically"
+
+- ❌ GENERIC: "still doesn't connect to his current state"
+- ✅ SPECIFIC: "Marcus asked 'What do you want?' - your response didn't give him a quick, clear reason to keep listening"
+
+**RULES FOR EXPLANATION:**
+1. Reference what Marcus actually said (use quotes)
+2. Include his business context (role, company type) when relevant
+3. Be concrete about what's missing or what worked
+4. Avoid vague terms like "state", "needs", "connection" without specifics
 
 EVALUATION CRITERIA - OUTCOME-BASED, NOT CHECKLIST-BASED:
 **Judge by whether this would realistically work, not by whether it matches a formula.**
@@ -853,81 +869,156 @@ Be consistent and deterministic. Same input should give same output.`;
   };
   
   const renderInteractiveExplanation = (explanation: string) => {
-    // Replace "state" and "needs" with interactive buttons
-    const parts = explanation.split(/\b(state|needs)\b/gi);
+    // Detect compound phrases first (more specific matches)
+    const compoundPatterns = [
+      { pattern: /\b(state of urgency|urgency state)\b/gi, type: 'urgency' },
+      { pattern: /\b(state of trust|trust state)\b/gi, type: 'trust' },
+      { pattern: /\b(state of curiosity|curiosity state)\b/gi, type: 'curiosity' },
+      { pattern: /\b(current state|Marcus'?s? state)\b/gi, type: 'state' },
+      { pattern: /\b(current needs|Marcus'?s? needs|his needs)\b/gi, type: 'needs' }
+    ];
+    
+    // Check for compound phrases
+    for (const { pattern, type } of compoundPatterns) {
+      if (pattern.test(explanation)) {
+        // Split on the compound phrase
+        const parts = explanation.split(pattern);
+        return parts.map((part, index) => {
+          if (index % 2 === 1) {
+            // This is the matched phrase
+            return renderTooltipButton(part, type, index);
+          }
+          return <span key={index}>{part}</span>;
+        });
+      }
+    }
+    
+    // Fallback to simple word matching
+    const parts = explanation.split(/\b(state|needs|urgency|trust|curiosity)\b/gi);
     
     return parts.map((part, index) => {
       const lowerPart = part.toLowerCase();
       
+      if (lowerPart === 'urgency') {
+        return renderTooltipButton(part, 'urgency', index);
+      }
+      
+      if (lowerPart === 'trust') {
+        return renderTooltipButton(part, 'trust', index);
+      }
+      
+      if (lowerPart === 'curiosity') {
+        return renderTooltipButton(part, 'curiosity', index);
+      }
+      
       if (lowerPart === 'state') {
-        const tooltipKey = 'state';
-        const isExpanded = expandedTooltip === tooltipKey;
-        
-        return (
-          <span key={index} className="inline-flex items-center">
-            <button
-              onClick={() => setExpandedTooltip(isExpanded ? null : tooltipKey)}
-              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-sm font-medium transition-colors ${
-                theme === 'dark'
-                  ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30'
-                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
-              }`}
-            >
-              {part}
-              <Info size={12} />
-            </button>
-            {isExpanded && moment?.marcusState && (
-              <span className={`inline-flex items-center gap-2 ml-2 px-2 py-1 rounded text-xs ${
-                theme === 'dark'
-                  ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
-                  : 'bg-blue-50 border border-blue-200 text-blue-700'
-              }`}>
-                Trust: <strong>{moment.marcusState.trust}</strong>
-                <span className={theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}>|</span>
-                Curiosity: <strong>{moment.marcusState.curiosity}</strong>
-                <span className={theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}>|</span>
-                Urgency: <strong>{moment.marcusState.urgency}</strong>
-              </span>
-            )}
-          </span>
-        );
+        return renderTooltipButton(part, 'state', index);
       }
       
       if (lowerPart === 'needs') {
-        const tooltipKey = 'needs';
-        const isExpanded = expandedTooltip === tooltipKey;
-        
-        // Infer needs from moment context
-        const inferredNeeds = inferMarcusNeeds();
-        
-        return (
-          <span key={index} className="inline-flex items-center">
-            <button
-              onClick={() => setExpandedTooltip(isExpanded ? null : tooltipKey)}
-              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-sm font-medium transition-colors ${
-                theme === 'dark'
-                  ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30'
-                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300'
-              }`}
-            >
-              {part}
-              <Info size={12} />
-            </button>
-            {isExpanded && (
-              <span className={`inline-flex items-center gap-1 ml-2 px-2 py-1 rounded text-xs ${
-                theme === 'dark'
-                  ? 'bg-purple-500/10 border border-purple-500/20 text-purple-300'
-                  : 'bg-purple-50 border border-purple-200 text-purple-700'
-              }`}>
-                {inferredNeeds}
-              </span>
-            )}
-          </span>
-        );
+        return renderTooltipButton(part, 'needs', index);
       }
       
       return <span key={index}>{part}</span>;
     });
+  };
+  
+  const renderTooltipButton = (text: string, type: string, index: number) => {
+    const tooltipKey = `${type}-${index}`;
+    const isExpanded = expandedTooltip === tooltipKey;
+    
+    if (type === 'urgency' || type === 'trust' || type === 'curiosity') {
+      // Single metric tooltip
+      const metricValue = moment?.marcusState?.[type as 'trust' | 'curiosity' | 'urgency'];
+      
+      return (
+        <span key={index} className="inline-flex items-center">
+          <button
+            onClick={() => setExpandedTooltip(isExpanded ? null : tooltipKey)}
+            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-sm font-medium transition-colors ${
+              theme === 'dark'
+                ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30'
+                : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
+            }`}
+          >
+            {text}
+            <Info size={12} />
+          </button>
+          {isExpanded && metricValue && (
+            <span className={`inline-flex items-center gap-1 ml-2 px-2 py-1 rounded text-xs font-medium ${
+              theme === 'dark'
+                ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                : 'bg-blue-50 border border-blue-200 text-blue-700'
+            }`}>
+              {type.charAt(0).toUpperCase() + type.slice(1)}: <strong>{metricValue}</strong>
+            </span>
+          )}
+        </span>
+      );
+    }
+    
+    if (type === 'state') {
+      return (
+        <span key={index} className="inline-flex items-center">
+          <button
+            onClick={() => setExpandedTooltip(isExpanded ? null : tooltipKey)}
+            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-sm font-medium transition-colors ${
+              theme === 'dark'
+                ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30'
+                : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
+            }`}
+          >
+            {text}
+            <Info size={12} />
+          </button>
+          {isExpanded && moment?.marcusState && (
+            <span className={`inline-flex items-center gap-2 ml-2 px-2 py-1 rounded text-xs ${
+              theme === 'dark'
+                ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                : 'bg-blue-50 border border-blue-200 text-blue-700'
+            }`}>
+              Trust: <strong>{moment.marcusState.trust}</strong>
+              <span className={theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}>|</span>
+              Curiosity: <strong>{moment.marcusState.curiosity}</strong>
+              <span className={theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}>|</span>
+              Urgency: <strong>{moment.marcusState.urgency}</strong>
+            </span>
+          )}
+        </span>
+      );
+    }
+    
+    if (type === 'needs') {
+      // Infer needs from moment context
+      const inferredNeeds = inferMarcusNeeds();
+      
+      return (
+        <span key={index} className="inline-flex items-center">
+          <button
+            onClick={() => setExpandedTooltip(isExpanded ? null : tooltipKey)}
+            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-sm font-medium transition-colors ${
+              theme === 'dark'
+                ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30'
+                : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300'
+            }`}
+          >
+            {text}
+            <Info size={12} />
+          </button>
+          {isExpanded && (
+            <span className={`inline-flex items-center gap-1 ml-2 px-2 py-1 rounded text-xs ${
+              theme === 'dark'
+                ? 'bg-purple-500/10 border border-purple-500/20 text-purple-300'
+                : 'bg-purple-50 border border-purple-200 text-purple-700'
+            }`}>
+              {inferredNeeds}
+            </span>
+          )}
+        </span>
+      );
+    }
+    
+    return <span key={index}>{text}</span>;
   };
   
   const inferMarcusNeeds = (): string => {

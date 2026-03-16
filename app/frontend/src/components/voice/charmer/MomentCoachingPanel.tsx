@@ -1161,39 +1161,6 @@ Be consistent and deterministic. Same input should give same output.`;
           </div>
         )}
         
-        {/* Pinned Transcript Context - Always visible above cards */}
-        {coachingBrief && !isPracticeModeActive && (
-          <div className={`mb-4 p-4 rounded-lg border ${
-            theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'
-          }`}>
-            <div className="space-y-3">
-              {/* Marcus said */}
-              <div className={`p-3 rounded-lg border-l-4 ${
-                theme === 'dark' ? 'bg-white/5 border-blue-500' : 'bg-gray-50 border-blue-400'
-              }`}>
-                <div className={`text-xs font-semibold mb-1 ${
-                  theme === 'dark' ? 'text-blue-400' : 'text-blue-700'
-                }`}>Marcus said:</div>
-                <div className={`text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                  "{moment.marcusResponse || ''}"
-                </div>
-              </div>
-              
-              {/* You responded */}
-              <div className={`p-3 rounded-lg border-l-4 ${
-                theme === 'dark' ? 'bg-white/5 border-purple-500' : 'bg-gray-50 border-purple-400'
-              }`}>
-                <div className={`text-xs font-semibold mb-1 ${
-                  theme === 'dark' ? 'text-purple-400' : 'text-purple-700'
-                }`}>You responded:</div>
-                <div className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                  "{moment.userMessage || ''}"
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        
         {/* Card-Based Coaching Display */}
         {!isPracticeModeActive && coachingBrief && (() => {
           const isWin = ['strong_move', 'best_moment'].includes(moment.classification);

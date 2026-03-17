@@ -276,6 +276,7 @@ def create_app(config_name='dev'):
     # This must be done after csrf.init_app() is called
     csrf.exempt(api_main_bp)
     csrf.exempt(auth_api_bp)
+    csrf.exempt(auth_bp)
     csrf.exempt(openai_bp)
     csrf.exempt(email_signup_bp)
     csrf.exempt(contact_bp)

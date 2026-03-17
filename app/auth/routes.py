@@ -156,7 +156,6 @@ def register():
         # Create user profile with reasonable defaults
         profile = UserProfile(
             user_id=new_user.id,
-            emotional_intelligence_score=7.5,
             experience_level='intermediate',
             product_type='Software',
             target_market='B2B',

@@ -276,7 +276,6 @@ def create_app(config_name='dev'):
     # This must be done after csrf.init_app() is called
     csrf.exempt(api_main_bp)
     csrf.exempt(auth_api_bp)
-    csrf.exempt(auth_bp)
     csrf.exempt(openai_bp)
     csrf.exempt(email_signup_bp)
     csrf.exempt(contact_bp)
@@ -362,6 +361,9 @@ def create_app(config_name='dev'):
     from app.voice import voice as voice_blueprint
     from app.training import training as training_blueprint
     from app.dashboard import dashboard as dashboard_blueprint
+    # Exempt auth_bp from CSRF (must be after import)
+    csrf.exempt(auth_bp)
+    
     flask_instance.register_blueprint(auth_bp, url_prefix='/auth') # Register auth routes first
     flask_instance.register_blueprint(main_blueprint)
     flask_instance.register_blueprint(chat_blueprint, url_prefix='/chat')

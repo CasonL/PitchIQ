@@ -8,6 +8,8 @@ import { KeyMoment, MomentClassification } from './MomentExtractor';
 import ReactMarkdown from 'react-markdown';
 import { MessageSquare, X, Mic, MicOff, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 interface MomentCoachingPanelProps {
   moment: KeyMoment | null;
   callDuration: number;
@@ -781,12 +783,17 @@ Be consistent and deterministic. Same input should give same output.`;
       const formData = new FormData();
       formData.append('audio', audioBlob, 'audio.webm');
 
-      const response = await fetch('/api/voice/transcribe', {
+      const response = await fetch(`${API_BASE_URL}/api/voice/transcribe`, {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'include'
       });
 
-      if (!response.ok) throw new Error('Transcription failed');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Transcription API error:', errorData);
+        throw new Error(errorData.error || 'Transcription failed');
+      }
 
       const data = await response.json();
       setRetryInput(data.transcript || '');

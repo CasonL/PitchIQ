@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+console.log('🔧 SimpleVoiceTraining API_BASE_URL:', API_BASE_URL);
+
 interface SimpleVoiceTrainingProps {
   onClose?: () => void;
 }
@@ -61,13 +64,16 @@ export default function SimpleVoiceTraining({ onClose }: SimpleVoiceTrainingProp
       const formData = new FormData();
       formData.append('audio', audioBlob);
       
-      const sttResponse = await fetch('/api/voice/transcribe', {
+      const sttResponse = await fetch(`${API_BASE_URL}/api/voice/transcribe`, {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'include'
       });
       
       if (!sttResponse.ok) {
-        throw new Error('Failed to transcribe audio');
+        const errorData = await sttResponse.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Transcription API error:', errorData);
+        throw new Error(errorData.error || 'Failed to transcribe audio');
       }
       
       const { transcript: transcriptText } = await sttResponse.json();
@@ -88,13 +94,14 @@ export default function SimpleVoiceTraining({ onClose }: SimpleVoiceTrainingProp
       setResponse('Generating response...');
       
       // Get AI response
-      const aiResponse = await fetch('/api/voice/respond', {
+      const aiResponse = await fetch(`${API_BASE_URL}/api/voice/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           message: userText,
           context: 'sales training scenario'
-        })
+        }),
+        credentials: 'include'
       });
       
       if (!aiResponse.ok) {
@@ -116,10 +123,11 @@ export default function SimpleVoiceTraining({ onClose }: SimpleVoiceTrainingProp
     try {
       setIsPlaying(true);
       
-      const ttsResponse = await fetch('/api/voice/speak', {
+      const ttsResponse = await fetch(`${API_BASE_URL}/api/voice/speak`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text }),
+        credentials: 'include'
       });
       
       if (!ttsResponse.ok) {

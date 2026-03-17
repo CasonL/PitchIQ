@@ -558,7 +558,7 @@ Return ONLY a single integer 1-10, nothing else.`;
             {/* Turn tick marks - evenly spaced */}
             {conversationExchanges.map((exchange, idx) => {
               const totalTurns = conversationExchanges.length;
-              const position = ((idx + 1) / (totalTurns + 1)) * 100; // Evenly divide the timeline
+              const position = ((idx + 1) / totalTurns) * 100; // Position by actual turn count
               return (
                 <div
                   key={`tick-${idx}`}
@@ -573,7 +573,7 @@ Return ONLY a single integer 1-10, nothing else.`;
             {/* All moment dots positioned by turn number to match tick marks */}
             {keyMoments.map((moment, index) => {
               const totalTurns = conversationExchanges.length;
-              const position = ((moment.turnNumber) / (totalTurns + 1)) * 100; // Match tick mark positioning
+              const position = (moment.turnNumber / totalTurns) * 100; // Match tick mark positioning
               const dotColor = getMomentColor(moment);
               return (
                 <button

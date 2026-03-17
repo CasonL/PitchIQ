@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Star, TrendingUp, Target, Users, CheckCircle } from 'lucide-react';
 
 interface PostCallCTAProps {
@@ -18,6 +18,22 @@ export const PostCallCTA: React.FC<PostCallCTAProps> = ({
   const [showFeedback, setShowFeedback] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [shareSessionConsent, setShareSessionConsent] = useState(true);
+
+  // Save consent to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      const savedData = localStorage.getItem('marcusFeedbackData');
+      if (savedData) {
+        const feedbackData = JSON.parse(savedData);
+        feedbackData.shareSessionConsent = shareSessionConsent;
+        localStorage.setItem('marcusFeedbackData', JSON.stringify(feedbackData));
+        console.log('💾 Updated session consent:', shareSessionConsent);
+      }
+    } catch (err) {
+      console.error('❌ Failed to save consent to localStorage:', err);
+    }
+  }, [shareSessionConsent]);
 
   const handleRatingClick = (star: number) => {
     setRating(star);
@@ -38,6 +54,7 @@ export const PostCallCTA: React.FC<PostCallCTAProps> = ({
       formData.append('rating', rating.toString());
       formData.append('feedback', feedback);
       formData.append('timestamp', new Date().toISOString());
+      formData.append('share_session', shareSessionConsent.toString());
 
       await fetch('/', {
         method: 'POST',
@@ -63,6 +80,7 @@ export const PostCallCTA: React.FC<PostCallCTAProps> = ({
           <input type="number" name="rating" />
           <input type="text" name="feedback" />
           <input type="text" name="timestamp" />
+          <input type="text" name="share_session" />
         </form>
 
         <form onSubmit={handleSubmitFeedback} className={`rounded-xl p-8 mb-6 transition-all duration-500 ${
@@ -143,6 +161,31 @@ export const PostCallCTA: React.FC<PostCallCTAProps> = ({
                           : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
                       }`}
                     />
+                  </div>
+                  <div className="mb-4">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={shareSessionConsent}
+                        onChange={(e) => setShareSessionConsent(e.target.checked)}
+                        className="mt-1 w-4 h-4 rounded border-2 cursor-pointer"
+                        style={{
+                          accentColor: theme === 'dark' ? '#EF4444' : '#DC2626'
+                        }}
+                      />
+                      <div>
+                        <span className={`text-sm font-medium ${
+                          theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          Help improve PitchIQ
+                        </span>
+                        <p className={`text-xs mt-1 ${
+                          theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                          Share this practice session anonymously to train better coaching models
+                        </p>
+                      </div>
+                    </label>
                   </div>
                   <button
                     type="submit"

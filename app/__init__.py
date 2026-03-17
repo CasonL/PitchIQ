@@ -361,7 +361,7 @@ def create_app(config_name='dev'):
     from app.voice import voice as voice_blueprint
     from app.training import training as training_blueprint
     from app.dashboard import dashboard as dashboard_blueprint
-    flask_instance.register_blueprint(auth_bp) # Register auth routes first
+    flask_instance.register_blueprint(auth_bp, url_prefix='/auth') # Register auth routes first
     flask_instance.register_blueprint(main_blueprint)
     flask_instance.register_blueprint(chat_blueprint, url_prefix='/chat')
     flask_instance.register_blueprint(voice_blueprint, url_prefix='/voice')

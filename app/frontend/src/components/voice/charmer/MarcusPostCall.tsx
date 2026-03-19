@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@mui/material';
 import { RotateCcw, TrendingUp, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { SimplifiedMessageAnalysis } from './SimplifiedMessageAnalysis';
-import { CallMetrics, RubricScore, calculateTalkRatio, scoreTalkRatio, scoreDiscovery, scoreObjectionHandling } from './CallMetrics';
+import { CallMetrics, RubricScore, calculateTalkRatio, scoreTalkBalanceHeuristic, scoreDiscovery, scoreObjectionHandling } from './CallMetrics';
 import { MetricColorBar } from './MetricColorBar';
 import { RubricEvaluator } from './RubricEvaluator';
 import { assessDataSufficiency, getFeedbackDisclaimer, shouldShowFeedback, getInsufficientDataMessage } from './CallDataSufficiency';
@@ -44,9 +44,9 @@ export const MarcusPostCall: React.FC<MarcusPostCallProps> = ({
   
   // Calculate metric scores
   const talkRatio = calculateTalkRatio(metrics);
-  const talkRatioScore = scoreTalkRatio(talkRatio);
-  const discoveryScore = scoreDiscovery(metrics);
-  const objectionScore = scoreObjectionHandling(metrics);
+  const talkRatioScore = scoreTalkBalanceHeuristic(talkRatio);
+  const discoveryScore = scoreDiscovery(metrics) ?? 5; // Fallback for missing data
+  const objectionScore = scoreObjectionHandling(metrics) ?? 7; // N/A or missing
   
   // Evaluate rubric on mount (only if we have sufficient data)
   useEffect(() => {

@@ -73,6 +73,8 @@ export class CartesiaService {
   private minBufferChunks: number = 2; // Wait for at least 2 chunks before playing
   private playbackCompleteResolve: (() => void) | null = null; // Resolve when playback actually finishes
   private streamingComplete: boolean = false; // Track if streaming is done
+  private playbackResolved: boolean = false; // Track if we've already resolved (prevent double-resolution)
+  private timeoutHandle: NodeJS.Timeout | null = null; // Safety timeout handle
 
   // Voice options (from Cartesia's library)
   private static readonly VOICES = {
@@ -144,6 +146,13 @@ export class CartesiaService {
       this.audioQueue = [];
       this.scheduledEndTime = 0;
       this.streamingComplete = false;
+      this.playbackResolved = false;
+      
+      // Clear any existing timeout
+      if (this.timeoutHandle) {
+        clearTimeout(this.timeoutHandle);
+        this.timeoutHandle = null;
+      }
 
       this.config.onSpeakingStart();
 
@@ -168,8 +177,28 @@ export class CartesiaService {
       // Start streaming synthesis
       await this.streamSynthesize(text, voiceId, emotionTags, speed, startTime);
 
-      // Wait for playback to actually complete
-      await playbackCompletePromise;
+      // Dynamic safety timeout based on text length
+      // Estimate: ~60ms per character for typical speech
+      const estimatedMs = Math.max(6000, Math.min(15000, text.length * 60));
+      console.log(`[Cartesia] Setting safety timeout: ${estimatedMs}ms (text length: ${text.length})`);
+      
+      const timeoutPromise = new Promise<void>((resolve) => {
+        this.timeoutHandle = setTimeout(() => {
+          console.warn('[Cartesia] ⚠️ Safety timeout fired - force resolving playback');
+          this.resolvePlaybackOnce('timeout');
+          resolve();
+        }, estimatedMs);
+      });
+
+      // Wait for playback with safety timeout
+      await Promise.race([playbackCompletePromise, timeoutPromise]);
+      
+      // Clear timeout if playback completed naturally
+      if (this.timeoutHandle) {
+        clearTimeout(this.timeoutHandle);
+        this.timeoutHandle = null;
+      }
+      
       console.log('[Cartesia] ✅ Audio playback fully complete');
 
     } catch (error) {
@@ -178,10 +207,7 @@ export class CartesiaService {
       this.config.onSpeakingEnd();
       
       // Resolve playback promise on error to prevent hanging
-      if (this.playbackCompleteResolve) {
-        this.playbackCompleteResolve();
-        this.playbackCompleteResolve = null;
-      }
+      this.resolvePlaybackOnce('error');
     }
   }
 
@@ -196,11 +222,14 @@ export class CartesiaService {
     this.isPlaying = false;
     this.streamingComplete = false;
     
-    // Resolve playback promise on stop to prevent hanging
-    if (this.playbackCompleteResolve) {
-      this.playbackCompleteResolve();
-      this.playbackCompleteResolve = null;
+    // Clear timeout
+    if (this.timeoutHandle) {
+      clearTimeout(this.timeoutHandle);
+      this.timeoutHandle = null;
     }
+    
+    // Resolve playback promise on stop to prevent hanging
+    this.resolvePlaybackOnce('stop');
     
     // Stop current audio source immediately
     if (this.currentSource) {
@@ -328,9 +357,13 @@ export class CartesiaService {
             }
           } else if (message.type === 'done') {
             const totalTime = performance.now() - startTime;
-            console.log(`[Cartesia] Streaming complete in ${totalTime.toFixed(0)}ms (audio still playing)`);
+            console.log(`[Cartesia] 📥 Streaming complete in ${totalTime.toFixed(0)}ms (audio still playing)`);
             this.streamingComplete = true;
             this.ws!.onmessage = originalHandler;
+            
+            // Check for completion immediately after marking stream complete
+            this.checkForPlaybackCompletion();
+            
             resolve();
           } else if (message.type === 'error') {
             console.error('[Cartesia] Streaming error:', message.error);
@@ -406,44 +439,82 @@ export class CartesiaService {
   }
 
   /**
+   * Central completion check - called whenever state changes that might indicate completion
+   */
+  private checkForPlaybackCompletion(): void {
+    console.log(`[Cartesia] 🔍 Checking completion: queue=${this.audioQueue.length}, streaming=${this.streamingComplete}, playing=${this.isPlaying}, resolved=${this.playbackResolved}`);
+    
+    // Only check if we haven't already resolved
+    if (this.playbackResolved) {
+      return;
+    }
+    
+    // Check if queue is empty AND streaming is complete
+    if (this.audioQueue.length === 0 && this.streamingComplete) {
+      // Wait for scheduled audio to finish playing
+      const now = this.audioContext?.currentTime || 0;
+      const remainingTime = Math.max(0, this.scheduledEndTime - now);
+      
+      console.log(`[Cartesia] 📊 Audio timing: now=${now.toFixed(2)}s, scheduled=${this.scheduledEndTime.toFixed(2)}s, remaining=${remainingTime.toFixed(2)}s`);
+      
+      if (remainingTime > 0.01) {
+        // Audio still playing - wait for it to finish
+        const waitMs = Math.ceil(remainingTime * 1000) + 50; // Add 50ms buffer
+        console.log(`[Cartesia] ⏳ Waiting ${waitMs}ms for scheduled audio to finish`);
+        setTimeout(() => {
+          this.isPlaying = false;
+          this.config.onSpeakingEnd();
+          this.resolvePlaybackOnce('scheduled_audio_complete');
+        }, waitMs);
+      } else {
+        // Audio finished - resolve immediately
+        console.log(`[Cartesia] 🎵 Audio finished immediately (no remaining time)`);
+        this.isPlaying = false;
+        this.config.onSpeakingEnd();
+        this.resolvePlaybackOnce('immediate_complete');
+      }
+    }
+  }
+  
+  /**
+   * Resolve playback promise exactly once (prevents double-resolution)
+   */
+  private resolvePlaybackOnce(reason: string): void {
+    if (this.playbackResolved) {
+      console.log(`[Cartesia] ⏭️ Already resolved, ignoring: ${reason}`);
+      return;
+    }
+    
+    this.playbackResolved = true;
+    console.log(`[Cartesia] ✅ Resolving playback: ${reason}`);
+    
+    if (this.playbackCompleteResolve) {
+      this.playbackCompleteResolve();
+      this.playbackCompleteResolve = null;
+    }
+    
+    // Clear timeout on resolution
+    if (this.timeoutHandle) {
+      clearTimeout(this.timeoutHandle);
+      this.timeoutHandle = null;
+    }
+  }
+
+  /**
    * Play queued audio chunks in real-time with smooth scheduling
    */
   private playQueuedAudio(): void {
     if (this.audioQueue.length === 0) {
+      console.log(`[Cartesia] 📭 Queue empty, checking for completion...`);
+      
+      // Check for completion when queue empties
+      this.checkForPlaybackCompletion();
+      
       // Check again in a moment in case more chunks are coming
       setTimeout(() => {
         if (this.audioQueue.length > 0) {
+          console.log(`[Cartesia] 📥 More chunks arrived, resuming playback`);
           this.playQueuedAudio();
-        } else if (this.streamingComplete) {
-          // CRITICAL: Wait for scheduled audio to finish playing, not just queue to empty
-          const now = this.audioContext?.currentTime || 0;
-          const remainingTime = Math.max(0, this.scheduledEndTime - now);
-          
-          if (remainingTime > 0.01) {
-            // Audio still playing - wait for it to finish
-            const waitMs = Math.ceil(remainingTime * 1000) + 50; // Add 50ms buffer
-            console.log(`[Cartesia] ⏳ Waiting ${waitMs}ms for audio playback to complete`);
-            setTimeout(() => {
-              this.isPlaying = false;
-              this.config.onSpeakingEnd();
-              
-              if (this.playbackCompleteResolve) {
-                console.log('[Cartesia] 🎵 All audio chunks played, resolving promise');
-                this.playbackCompleteResolve();
-                this.playbackCompleteResolve = null;
-              }
-            }, waitMs);
-          } else {
-            // Audio finished - resolve immediately
-            this.isPlaying = false;
-            this.config.onSpeakingEnd();
-            
-            if (this.playbackCompleteResolve) {
-              console.log('[Cartesia] 🎵 All audio chunks played, resolving promise');
-              this.playbackCompleteResolve();
-              this.playbackCompleteResolve = null;
-            }
-          }
         }
       }, 50);
       return;
@@ -487,6 +558,8 @@ export class CartesiaService {
     }, nextChunkDelay);
 
     this.currentSource = source;
+    
+    console.log(`[Cartesia] 🔊 Playing chunk: ${chunk.length} samples, duration=${audioBuffer.duration.toFixed(2)}s, next in ${nextChunkDelay.toFixed(0)}ms`);
   }
 
   private async playAudio(audioData: ArrayBuffer): Promise<void> {

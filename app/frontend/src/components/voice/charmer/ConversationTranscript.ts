@@ -40,6 +40,11 @@ export interface CriticalMoment {
         'rambling' | 'repetition' | 'tone_issue' | 'missed_pain' | 'repeated_objection';
   severity: number; // 0-1, how critical was this? (from rules)
   
+  // Source identity (for stable matching)
+  sourcePairId: string; // The ExchangePair.id this moment came from
+  sourceUserId: string; // The user exchange ID
+  sourceMarcusId: string; // The Marcus exchange ID
+  
   // The actual exchange
   userMessage: string;
   marcusResponse: string;
@@ -68,6 +73,11 @@ export interface SuccessfulMoment {
   type: 'resistance_drop' | 'pain_discovery' | 'objection_handled' | 'active_listening' | 
         'brevity_win' | 'permission_opener';
   impact: number; // 0-1, how impactful was this win?
+  
+  // Source identity (for stable matching)
+  sourcePairId: string; // The ExchangePair.id this moment came from
+  sourceUserId: string; // The user exchange ID
+  sourceMarcusId: string; // The Marcus exchange ID
   
   // The actual exchange
   userMessage: string;

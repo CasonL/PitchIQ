@@ -50,7 +50,7 @@ export interface CallMetrics {
   // Call metadata
   totalExchanges: number;
   callDuration: number; // seconds
-  winCondition: 'booked' | 'soft_yes' | 'not_yet';
+  winCondition: 'booked' | 'soft_yes' | 'not_yet' | 'disqualified' | 'hard_no';
   
   // Advanced framework analysis
   frameworkInsights?: FrameworkInsights;
@@ -81,11 +81,12 @@ export function calculateTalkRatio(metrics: CallMetrics | undefined): number {
 
 /**
  * Get talk ratio quality score (0-10)
+ * HEURISTIC: Context-light baseline, not universal truth
  * Green zone: 40-60% user
  * Yellow: 30-40% or 60-70%
  * Red: <30% or >70%
  */
-export function scoreTalkRatio(ratio: number): number {
+export function scoreTalkBalanceHeuristic(ratio: number): number {
   const percent = ratio * 100;
   
   // Perfect zone: 40-60%
@@ -114,9 +115,11 @@ export function scoreTalkRatio(ratio: number): number {
 
 /**
  * Score discovery quality (0-10)
+ * HEURISTIC: Quantity-based, does not assess quality or progression
+ * Returns null for missing data
  */
-export function scoreDiscovery(metrics: CallMetrics | undefined): number {
-  if (!metrics) return 5;
+export function scoreDiscovery(metrics: CallMetrics | undefined): number | null {
+  if (!metrics) return null;
   const { openEndedCount, followUpCount } = metrics;
   
   // Strong: 5+ open-ended + 2+ follow-ups = 9-10
@@ -137,22 +140,25 @@ export function scoreDiscovery(metrics: CallMetrics | undefined): number {
 
 /**
  * Score objection handling (0-10)
+ * HEURISTIC: Favors resolution over mere response
+ * Returns null for missing data or no objections (N/A case)
  */
-export function scoreObjectionHandling(metrics: CallMetrics | undefined): number {
-  if (!metrics) return 7;
+export function scoreObjectionHandling(metrics: CallMetrics | undefined): number | null {
+  if (!metrics) return null;
   const { objectionsRaised, objectionsAddressed, objectionsResolved } = metrics;
   
-  if (objectionsRaised === 0) return 7; // No objections to handle
+  if (objectionsRaised === 0) return null; // N/A - no objections to handle
   
   const addressedRatio = objectionsAddressed / objectionsRaised;
   const resolvedRatio = objectionsResolved / objectionsRaised;
   
-  // Addressed all = 6-7
+  // Rebalanced: resolution matters more than acknowledgement
+  // Addressed all = 4-5
   // Resolved all = 9-10
-  // Mixed = 4-8
+  // Mixed = 4-9
   
-  const addressedScore = addressedRatio * 6;
-  const resolvedBonus = resolvedRatio * 4;
+  const addressedScore = addressedRatio * 4;
+  const resolvedBonus = resolvedRatio * 6;
   
   return Math.min(addressedScore + resolvedBonus, 10);
 }

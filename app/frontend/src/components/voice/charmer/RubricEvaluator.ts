@@ -4,24 +4,21 @@
  */
 
 import { CallMetrics, RubricScore } from './CallMetrics';
-import { FrameworkAnalyzer } from './FrameworkAnalyzer';
+import { API_ENDPOINTS } from '../../../config/apiEndpoints';
 
 export class RubricEvaluator {
-  private apiKey: string;
   private baseUrl: string;
-  private frameworkAnalyzer: FrameworkAnalyzer;
   
-  constructor(apiKey?: string) {
-    this.apiKey = apiKey || '';
-    this.baseUrl = '/api/openai/chat';
-    this.frameworkAnalyzer = new FrameworkAnalyzer();
+  constructor() {
+    this.baseUrl = API_ENDPOINTS.OPENAI_CHAT;
   }
   
   /**
    * Generate rubric score using LLM judgment
    */
   async evaluateCall(metrics: CallMetrics): Promise<RubricScore> {
-    const talkRatio = metrics.userSpeakingTime / (metrics.userSpeakingTime + metrics.marcusSpeakingTime);
+    const totalSpeakingTime = metrics.userSpeakingTime + metrics.marcusSpeakingTime;
+    const talkRatio = totalSpeakingTime > 0 ? metrics.userSpeakingTime / totalSpeakingTime : 0.5;
     
     // Build framework insights section if available
     let frameworkSection = '';
@@ -91,7 +88,7 @@ Return ONLY the JSON, no other text.`;
             { role: 'system', content: 'You are a sales coach providing judgment-based assessments. Output only valid JSON.' },
             { role: 'user', content: prompt }
           ],
-          temperature: 0.7,
+          temperature: 0.3,
           max_tokens: 500
         })
       });
@@ -101,10 +98,19 @@ Return ONLY the JSON, no other text.`;
       }
       
       const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '{}';
+      let content = data.choices?.[0]?.message?.content || '{}';
+      
+      // Strip markdown code fences if present
+      content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       
       // Parse LLM response
       const evaluation = JSON.parse(content);
+      
+      // Basic schema validation
+      if (!this.isValidRubricScore(evaluation)) {
+        console.warn('Invalid rubric score shape from LLM, using fallback');
+        return this.generateFallbackScore(metrics);
+      }
       
       return evaluation as RubricScore;
       
@@ -120,7 +126,8 @@ Return ONLY the JSON, no other text.`;
    * Fallback scoring if LLM fails
    */
   private generateFallbackScore(metrics: CallMetrics): RubricScore {
-    const talkRatio = metrics.userSpeakingTime / (metrics.userSpeakingTime + metrics.marcusSpeakingTime);
+    const totalSpeakingTime = metrics.userSpeakingTime + metrics.marcusSpeakingTime;
+    const talkRatio = totalSpeakingTime > 0 ? metrics.userSpeakingTime / totalSpeakingTime : 0.5;
     const talkPercent = Math.round(talkRatio * 100);
     
     // Use framework insights if available
@@ -190,9 +197,9 @@ Return ONLY the JSON, no other text.`;
     if (metrics.followUpCount >= 2) strengths.push('Active listening');
     if (metrics.winCondition === 'booked') strengths.push('Secured commitment');
     
-    // Default if no clear strengths
+    // Default if no clear strengths - neutral, not flattering
     if (strengths.length === 0) {
-      strengths.push('Clear communication', 'Professional presence');
+      strengths.push('Maintained conversation flow', 'Stayed engaged through the call');
     }
     
     return strengths.slice(0, 2);
@@ -254,8 +261,45 @@ Return ONLY the JSON, no other text.`;
     if (fw?.questionPattern.feedback && score >= 7) {
       return fw.questionPattern.whatToTryNext;
     }
-    if (score >= 8) return 'You sound credible and confident. Keep that energy.';
-    if (score >= 6) return 'You sound credible. You just need sharper pattern recognition.';
-    return 'Solid foundation. Focus on reading between the lines.';
+    
+    // Tie to actual patterns, not generic praise
+    const talkPercent = Math.round((metrics.userSpeakingTime / (metrics.userSpeakingTime + metrics.marcusSpeakingTime || 1)) * 100);
+    
+    if (metrics.objectionsRaised > 0 && metrics.objectionsResolved === 0) {
+      return 'You maintained dialogue but missed the moment they pushed back';
+    }
+    if (metrics.openEndedCount < 2) {
+      return 'You stayed credible but asked too few questions to uncover urgency';
+    }
+    if (talkPercent > 70) {
+      return 'You drove the conversation but gave them little space to reveal concerns';
+    }
+    if (score >= 7) {
+      return 'You built trust early - now maintain that energy when they resist';
+    }
+    
+    return 'Solid foundation - sharpen your read on what they\'re not saying';
+  }
+  
+  /**
+   * Validate rubric score shape
+   */
+  private isValidRubricScore(obj: any): obj is RubricScore {
+    return (
+      obj &&
+      typeof obj === 'object' &&
+      ['Developing', 'Solid', 'Strong', 'Advanced'].includes(obj.level) &&
+      typeof obj.score === 'number' &&
+      obj.score >= 0 &&
+      obj.score <= 10 &&
+      Array.isArray(obj.strengths) &&
+      obj.strengths.length > 0 &&
+      typeof obj.bottleneck === 'string' &&
+      obj.trainingPlan &&
+      Array.isArray(obj.trainingPlan.teach) &&
+      Array.isArray(obj.trainingPlan.challenge) &&
+      typeof obj.oneLiner === 'string' &&
+      typeof obj.salesDNA === 'string'
+    );
   }
 }

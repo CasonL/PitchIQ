@@ -21,6 +21,7 @@ import { MarcusPostCallMoments } from './MarcusPostCallMoments';
 import { ConversationTracker } from './ConversationTranscript';
 import { CriticalMomentDetector } from './CriticalMomentDetector';
 import { MomentFeedbackGenerator } from './MomentFeedbackGenerator';
+import { MomentViewModelMapper } from './MomentViewModelMapper';
 import { analyzeUserQuestions } from './QuestionDetector';
 import { CallMetrics, QuestionAnalysis } from './CallMetrics';
 import { MarcusScenario } from './MarcusScenarios';
@@ -246,10 +247,13 @@ const CharmerControllerContent = memo(({
    * Process user's speech input
    */
   const processUserInput = useCallback(async (userText: string, utteranceSnapshot: number) => {
+    console.log(`🔧 [DEBUG] processUserInput called: utterance #${utteranceSnapshot}, isProcessing=${isProcessing}, text="${userText.substring(0, 60)}..."`);
+    
     if (isProcessing) {
       // Accumulate fragments - user is continuing their thought while Marcus processes
       console.log(`⏸️ Already processing - queuing utterance #${utteranceSnapshot}`);
       queuedUtterancesRef.current.push({ text: userText, count: utteranceSnapshot });
+      console.log(`📦 Queue size: ${queuedUtterancesRef.current.length}`);
       return;
     }
     
@@ -873,6 +877,7 @@ const CharmerControllerContent = memo(({
       const currentUtterance = utteranceCountRef.current;
       console.log(`📊 Utterance #${currentUtterance} complete (${wordCount} words)`);
       console.log(`🎙️ User speech: "${newContent}"`);
+      console.log(`🔧 [DEBUG] Calling processUserInput for utterance #${currentUtterance}, isProcessing=${isProcessing}`);
       processUserInput(newContent, currentUtterance);
       lastTranscriptRef.current = transcript;
       return;
@@ -1132,6 +1137,7 @@ const CharmerControllerContent = memo(({
     // Detect critical moments and successful moments
     let momentPuzzles: any[] = [];
     let successfulMoments: any[] = [];
+    let criticalMoments: any[] = [];
     let callSummary: any = null;
     
     if (transcript && conversationTrackerRef.current) {
@@ -1146,7 +1152,7 @@ const CharmerControllerContent = memo(({
           conversationTrackerRef.current
         );
         
-        const criticalMoments = hybridResults.criticalMoments;
+        criticalMoments = hybridResults.criticalMoments;
         const successMoments = hybridResults.successfulMoments;
         const topPositive = hybridResults.topPositive;
         const topNegative = hybridResults.topNegative;
@@ -1318,6 +1324,18 @@ const CharmerControllerContent = memo(({
       objections
     );
     
+    // Get objection and buyer state data from StrategyLayer
+    const objectionData = strategyLayerRef.current?.getObjectionData() || {
+      objectionSatisfaction: {},
+      objectionCounts: {},
+      activeObjection: undefined
+    };
+    
+    // Calculate addressed/resolved counts from satisfaction data
+    const satisfactionEntries = Object.entries(objectionData.objectionSatisfaction);
+    const objectionsAddressed = satisfactionEntries.filter(([_, satisfaction]) => satisfaction >= 0.5).length;
+    const objectionsResolved = satisfactionEntries.filter(([_, satisfaction]) => satisfaction >= 0.8).length;
+    
     // Build complete metrics
     const metrics: CallMetrics = {
       callDuration: duration,
@@ -1328,8 +1346,8 @@ const CharmerControllerContent = memo(({
       followUpCount,
       objections,
       objectionsRaised,
-      objectionsAddressed: 0, // TODO: Detect if user responded to objection in next turn
-      objectionsResolved: 0, // TODO: Track if resistance dropped after objection
+      objectionsAddressed,
+      objectionsResolved,
       totalExchanges: conversationHistory.length / 2,
       winCondition: 'not_yet' as const,
       frameworkInsights
@@ -1338,15 +1356,8 @@ const CharmerControllerContent = memo(({
     console.log('✅ Real metrics calculated:', {
       talkRatio: `${Math.round((userSpeakingTime / (userSpeakingTime + marcusSpeakingTime)) * 100)}% user`,
       discovery: `${openEndedCount} open-ended, ${followUpCount} follow-ups`,
-      objections: objectionsRaised
+      objections: `${objectionsRaised} raised, ${objectionsAddressed} addressed, ${objectionsResolved} resolved`
     });
-    
-    // Get objection and buyer state data from StrategyLayer
-    const objectionData = strategyLayerRef.current?.getObjectionData() || {
-      objectionSatisfaction: {},
-      objectionCounts: {},
-      activeObjection: undefined
-    };
     
     const buyerState = strategyLayerRef.current ? {
       clarity: strategyLayerRef.current['buyerState']?.clarity,
@@ -1375,8 +1386,16 @@ const CharmerControllerContent = memo(({
     };
     
     // Store feedback data and show UI
-    // Combine critical and successful moments for pre-analysis
-    const allAnalyzedMoments = [...(momentPuzzles || []), ...(successfulMoments || [])];
+    // Transform domain models to UI view models (single source of truth)
+    const viewModels = criticalMoments && successfulMoments && conversationExchanges.length > 0
+      ? MomentViewModelMapper.mapToViewModels(
+          criticalMoments,
+          successfulMoments,
+          conversationExchanges
+        )
+      : [];
+    
+    console.log(`📊 Transformed ${criticalMoments?.length || 0} critical + ${successfulMoments?.length || 0} successful → ${viewModels.length} view models`);
     
     setMomentFeedbackData({
       duration,
@@ -1385,7 +1404,7 @@ const CharmerControllerContent = memo(({
       buyerState,
       finalResistance,
       metrics,
-      preAnalyzedMoments: allAnalyzedMoments.length > 0 ? allAnalyzedMoments : undefined
+      preAnalyzedMoments: viewModels.length > 0 ? viewModels : undefined
     });
     
     // End loading state and show feedback

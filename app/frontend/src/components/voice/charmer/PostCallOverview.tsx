@@ -28,6 +28,15 @@ interface PostCallOverviewProps {
   onStartReview: () => void;
   onTryAgain?: () => void;
   theme?: 'dark' | 'light';
+  coachingData?: {
+    identifiedIssue: string | null;
+    whatWorked: string;
+  };
+  callMetadata?: {
+    durationSeconds: number;
+    exchangeCount: number;
+    analysisConfidence: 'high' | 'medium' | 'low';
+  };
 }
 
 export const PostCallOverview: React.FC<PostCallOverviewProps> = ({
@@ -37,8 +46,27 @@ export const PostCallOverview: React.FC<PostCallOverviewProps> = ({
   keyMomentCounts,
   onStartReview,
   onTryAgain,
-  theme = 'dark'
+  theme = 'dark',
+  coachingData,
+  callMetadata
 }) => {
+  
+  // Map coaching issues to readable labels
+  const getCoachingLabel = (issue: string | null): string => {
+    if (!issue) return '';
+    const labels: Record<string, string> = {
+      'no-discovery': 'Ask discovery questions instead of pitching',
+      'premature-pitch': 'Build rapport before diving into features',
+      'close-ended': 'Use open-ended questions to create dialogue',
+      'feature-dump': 'Focus on their needs, not your features',
+      'weak-opening': 'Strengthen your opening to capture attention',
+      'vague': 'Be specific with examples and proof points',
+      'too-fast': 'Slow down and listen more',
+      'apologetic': 'Show confidence in your solution',
+      'feature-focus': 'Connect features to their actual problems'
+    };
+    return labels[issue] || issue;
+  };
   const getScoreBand = (score: number): string => {
     if (score >= 80) return 'Strong';
     if (score >= 60) return 'Developing';
@@ -51,22 +79,46 @@ export const PostCallOverview: React.FC<PostCallOverviewProps> = ({
     return '#f97316'; // orange
   };
   
-  const getMomentFocusArea = (): string | null => {
-    const weakestCategory = categoryScores.find(c => c.isWeakest);
-    if (!weakestCategory) return null;
-    
-    if (weakestCategory.label === 'Discovery') return 'deepen discovery';
-    if (weakestCategory.label === 'Objection Handling') return 'address objections';
-    if (weakestCategory.label === 'Positioning') return 'improve positioning';
-    if (weakestCategory.label === 'Opening') return 'build rapport';
-    return null;
+  // Check if call was too brief using actual metadata, not UI inference
+  const isCallTooBrief = callMetadata
+    ? callMetadata.durationSeconds < 90 ||
+      callMetadata.exchangeCount < 4 ||
+      callMetadata.analysisConfidence === 'low'
+    : false; // Fallback: trust the data if metadata unavailable
+  
+  const totalMoments = Object.values(keyMomentCounts).reduce((sum, count) => sum + count, 0);
+  
+  // Dynamic CTA text based on state
+  const getReviewCTA = (): string => {
+    if (coachingData?.identifiedIssue) return 'Review Biggest Opportunity';
+    if (keyMomentCounts.incredible > 0) return 'See What Worked';
+    if (keyMomentCounts.mistakes > 0) return 'Review Key Moments';
+    return 'Start Review';
+  };
+  
+  // Add context below moment counts when useful
+  const getMomentContext = (): string => {
+    const weakestCat = categoryScores.find(c => c.isWeakest);
+    if (keyMomentCounts.mistakes > keyMomentCounts.incredible + keyMomentCounts.great) {
+      return 'Most leverage is in your missed opportunities';
+    }
+    if (keyMomentCounts.incredible >= 2 && weakestCat?.label === 'Discovery') {
+      return 'Your strongest moments came early—maintain that energy into discovery';
+    }
+    if (weakestCat) {
+      return `Focus your review on ${weakestCat.label.toLowerCase()} patterns`;
+    }
+    return '';
   };
 
-  // Check if call was too brief (invalid scores or no moments)
-  const hasInvalidScores = categoryScores.some(c => isNaN(c.score) || c.score === 0);
-  const totalMoments = Object.values(keyMomentCounts).reduce((sum, count) => sum + count, 0);
-  const hasNoMoments = totalMoments === 0;
-  const isCallTooBrief = hasInvalidScores || (hasNoMoments && overallScore < 30);
+  console.log('🔍 PostCallOverview Debug:', {
+    coachingData,
+    hasCoaching: !!coachingData?.identifiedIssue,
+    isCallTooBrief,
+    callMetadata,
+    overallScore,
+    totalMoments
+  });
 
   if (isCallTooBrief) {
     return (
@@ -97,6 +149,38 @@ export const PostCallOverview: React.FC<PostCallOverviewProps> = ({
             </p>
           </div>
           
+          {/* Coaching Feedback - Show even for brief calls */}
+          {coachingData?.identifiedIssue && (
+            <div className={`rounded-lg p-5 text-left space-y-3 ${
+              theme === 'dark' ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'
+            }`}>
+              <div className={`text-xs font-semibold uppercase tracking-wider ${
+                theme === 'dark' ? 'text-red-400' : 'text-red-600'
+              }`}>
+                Biggest Opportunity:
+              </div>
+              <div className={`text-base font-medium ${
+                theme === 'dark' ? 'text-red-300' : 'text-red-700'
+              }`}>
+                {getCoachingLabel(coachingData.identifiedIssue)}
+              </div>
+              {coachingData.whatWorked && (
+                <div className="pt-2 mt-2 border-t border-white/10">
+                  <div className={`text-xs font-semibold uppercase tracking-wider mb-1 ${
+                    theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                  }`}>
+                    What Worked:
+                  </div>
+                  <div className={`text-sm ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    {coachingData.whatWorked}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
           {/* Tips */}
           <div className={`rounded-lg p-5 text-left space-y-3 ${
             theme === 'dark' ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'
@@ -104,7 +188,7 @@ export const PostCallOverview: React.FC<PostCallOverviewProps> = ({
             <div className={`text-xs font-semibold uppercase tracking-wider ${
               theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
             }`}>
-              For Better Coaching:
+              Next Time:
             </div>
             <ul className={`text-sm space-y-2 ${
               theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
@@ -259,7 +343,46 @@ export const PostCallOverview: React.FC<PostCallOverviewProps> = ({
               </div>
             )}
           </div>
+          {totalMoments > 0 && getMomentContext() && (
+            <p className={`text-xs mt-3 ${
+              theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
+            }`}>
+              {getMomentContext()}
+            </p>
+          )}
         </div>
+
+        {/* Coaching Feedback - Main Issue Detected */}
+        {coachingData?.identifiedIssue && (
+          <div className={`rounded-lg md:rounded-xl p-5 md:p-6 mb-6 md:mb-8 border ${
+            theme === 'dark' ? 'bg-red-500/10 border-red-500/20' : 'bg-red-50 border-red-200'
+          }`}>
+            <div className={`text-xs font-semibold uppercase tracking-wider mb-3 ${
+              theme === 'dark' ? 'text-red-400' : 'text-red-600'
+            }`}>
+              Biggest Opportunity:
+            </div>
+            <div className={`text-base md:text-lg font-medium mb-4 ${
+              theme === 'dark' ? 'text-red-300' : 'text-red-700'
+            }`}>
+              {getCoachingLabel(coachingData.identifiedIssue)}
+            </div>
+            {coachingData.whatWorked && (
+              <div className="pt-3 mt-3 border-t border-white/10">
+                <div className={`text-xs font-semibold uppercase tracking-wider mb-2 ${
+                  theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                }`}>
+                  What Worked:
+                </div>
+                <div className={`text-sm md:text-base ${
+                  theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  {coachingData.whatWorked}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Start Review Button */}
         <button
@@ -267,7 +390,7 @@ export const PostCallOverview: React.FC<PostCallOverviewProps> = ({
           className="w-full py-3 md:py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-bold text-base md:text-lg rounded-lg md:rounded-xl transition-all flex items-center justify-center gap-2 md:gap-3 shadow-lg hover:shadow-xl"
         >
           <Play size={18} className="md:w-5 md:h-5" />
-          Start Review
+          {getReviewCTA()}
         </button>
       </div>
     </div>

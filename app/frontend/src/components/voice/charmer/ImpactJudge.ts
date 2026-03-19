@@ -7,6 +7,7 @@
 import { ExchangePair, ImpactCategory } from './ConversationTranscript';
 
 export interface ImpactJudgment {
+  sourcePairId: string; // Stable ID linking judgment to exchange pair
   impactScore: number; // -5 to +5
   direction: 'positive' | 'negative' | 'neutral';
   category: ImpactCategory;
@@ -194,6 +195,7 @@ Return ONLY valid JSON in this exact format:
       const parsed = JSON.parse(jsonMatch[0]);
 
       return {
+        sourcePairId: pair.id, // Attach stable pair ID
         impactScore: parsed.impactScore || 0,
         direction: parsed.direction || 'neutral',
         category: parsed.category || 'clarity',
@@ -213,6 +215,7 @@ Return ONLY valid JSON in this exact format:
    */
   private createFallbackJudgment(pair: ExchangePair): ImpactJudgment {
     return {
+      sourcePairId: pair.id, // Attach stable pair ID
       impactScore: 0,
       direction: 'neutral',
       category: 'clarity',

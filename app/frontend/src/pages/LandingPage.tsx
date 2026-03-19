@@ -3,6 +3,7 @@ import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import HowItWorksSolutionSection from "@/components/HowItWorksSolutionSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
+import PricingSection from "@/components/PricingSection";
 import Footer from "@/components/Footer";
 import EmailSignupModal from "@/components/EmailSignupModal";
 
@@ -18,6 +19,7 @@ const LandingPage = () => {
         <HeroSection onOpenEmailModal={openEmailSignupModal} />
         <HowItWorksSection onOpenEmailModal={openEmailSignupModal} />
         <HowItWorksSolutionSection />
+        <PricingSection />
       </main>
       <Footer />
       

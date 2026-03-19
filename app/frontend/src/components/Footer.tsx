@@ -71,7 +71,7 @@ const Footer = ({ emailSignupAnchorRef }: FooterProps) => {
             <h3 className="font-semibold mb-3 text-base">Product</h3>
             <ul className="space-y-2 text-sm text-white/70">
               <li><a href="#how-it-works" className="hover:text-white transition-colors">How It Works</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
+              <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Demo</a></li>
             </ul>
           </div>

@@ -27,6 +27,12 @@ export interface ConversationContext {
   
   // Full pitch transcript for AI analysis
   userPitchTranscript: string;
+  
+  // State tracking (behavioral hierarchy system)
+  trustLevel?: number;      // 0-1 scale
+  resistanceLevel?: number; // 0-1 scale
+  openness?: number;        // 0-1 scale
+  patience?: number;        // 0-1 scale
 }
 
 export interface PhaseTransition {

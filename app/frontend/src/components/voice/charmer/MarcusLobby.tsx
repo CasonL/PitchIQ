@@ -115,12 +115,9 @@ export const MarcusLobby: React.FC<MarcusLobbyProps> = ({
               />
             </div>
             
-            <h1 className="text-4xl font-bold text-gray-900 text-center lg:text-left mb-2">
+            <h1 className="text-4xl font-bold text-gray-900 text-center lg:text-left mb-6">
               Marcus Stindle
             </h1>
-            <p className="text-2xl text-red-600 font-medium mb-3">
-              The Charmer
-            </p>
             <p className="text-gray-600 text-sm text-center lg:text-left mb-6 max-w-md">
               <span className="font-semibold text-gray-900">Runs Stindle Consulting out of Portland.</span> Plays trumpet, drinks too much coffee, loves helping salespeople grow.
             </p>

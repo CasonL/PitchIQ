@@ -7,12 +7,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@mui/material';
 import { RotateCcw, ChevronDown, ChevronUp, Sun, Moon } from 'lucide-react';
 import { ConversationExchange } from './ConversationTranscript';
-import { KeyMoment, MomentExtractor } from './MomentExtractor';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MomentCoachingPanel } from './MomentCoachingPanel';
 import { PostCallOverview } from './PostCallOverview';
 import { PostCallCTA } from './PostCallCTA';
-import type { MomentClassification } from './MomentExtractor';
+import type { PostCallMomentViewModel, MomentClassification } from './PostCallMomentViewModel';
+import type { CallMetrics } from './CallMetrics';
 
 const getClassificationLabel = (classification: MomentClassification): string => {
   switch (classification) {
@@ -42,9 +42,14 @@ interface MarcusPostCallMomentsProps {
     relevance?: number;
   };
   finalResistance: number;
+  metrics?: CallMetrics; // Rich metrics: questions, talk ratio, objections, framework insights
   scenario?: any;
   onTryAgain: () => void;
-  preAnalyzedMoments?: KeyMoment[]; // Skip LLM re-analysis if already analyzed
+  preAnalyzedMoments?: PostCallMomentViewModel[]; // UI view models from CriticalMomentDetector
+  coachingData?: {
+    identifiedIssue: string | null;
+    whatWorked: string;
+  };
 }
 
 export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
@@ -53,10 +58,29 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
   objectionData,
   buyerState,
   finalResistance,
+  metrics,
   scenario,
   onTryAgain,
-  preAnalyzedMoments
+  preAnalyzedMoments,
+  coachingData
 }) => {
+  // Map coaching issues to readable labels
+  const getCoachingLabel = (issue: string | null): string => {
+    if (!issue) return '';
+    const labels: Record<string, string> = {
+      'no-discovery': 'Ask discovery questions instead of pitching',
+      'premature-pitch': 'Build rapport before diving into features',
+      'close-ended': 'Use open-ended questions to create dialogue',
+      'feature-dump': 'Focus on their needs, not your features',
+      'weak-opening': 'Strengthen your opening to capture attention',
+      'vague': 'Be specific with examples and proof points',
+      'too-fast': 'Slow down and listen more',
+      'apologetic': 'Show confidence in your solution',
+      'feature-focus': 'Connect features to their actual problems'
+    };
+    return labels[issue] || issue;
+  };
+  
   // Detect mobile vs desktop to conditionally render only one MomentCoachingPanel
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
@@ -67,7 +91,7 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
   }, []);
   
   const [phase, setPhase] = useState<'overview' | 'review' | 'cta'>('overview');
-  const [keyMoments, setKeyMoments] = useState<KeyMoment[]>(preAnalyzedMoments || []);
+  const [keyMoments, setKeyMoments] = useState<PostCallMomentViewModel[]>(preAnalyzedMoments || []);
   const [currentMomentIndex, setCurrentMomentIndex] = useState(0);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isExchangeExpanded, setIsExchangeExpanded] = useState(false);
@@ -124,117 +148,17 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
   const [isEvaluatingMoments, setIsEvaluatingMoments] = useState(!preAnalyzedMoments);
   
   useEffect(() => {
-    // ALWAYS use MomentExtractor for consistent moment detection
-    // preAnalyzedMoments from CriticalMomentDetector have incompatible structure
-    if (conversationExchanges.length > 0) {
-      console.log('🔍 Running MomentExtractor analysis...');
-      evaluateMomentsWithLLM();
-    }
-  }, [conversationExchanges, objectionData, finalResistance, buyerState]);
-  
-  const evaluateMomentsWithLLM = async () => {
-    setIsEvaluatingMoments(true);
-    
-    // Extract candidate moments
-    const candidateMoments = MomentExtractor.extractKeyMoments({
-      conversationExchanges,
-      objectionData,
-      finalResistance,
-      buyerState
-    });
-    
-    console.log(`🔍 Evaluating ${candidateMoments.length} candidate moments with GPT-4o...`);
-    
-    if (candidateMoments.length === 0) {
+    // Use view models from CriticalMomentDetector (single source of truth)
+    if (preAnalyzedMoments && preAnalyzedMoments.length > 0) {
+      console.log(`✅ Using ${preAnalyzedMoments.length} view models from CriticalMomentDetector`);
+      setKeyMoments(preAnalyzedMoments);
+      setIsEvaluatingMoments(false);
+    } else {
+      // No moments available - this is fine for very short calls
       setKeyMoments([]);
       setIsEvaluatingMoments(false);
-      return;
     }
-    
-    try {
-      // Evaluate each moment for sales impact
-      const evaluatedMoments = await Promise.all(
-        candidateMoments.map(async (moment) => {
-          const score = await scoreMomentImpact(moment);
-          return { moment, score };
-        })
-      );
-      
-      // Filter for coaching-worthy moments (score >= 4/10) and sort chronologically
-      const impactfulMoments = evaluatedMoments
-        .filter(({ score }) => score >= 4)
-        .sort((a, b) => a.moment.turnNumber - b.moment.turnNumber) // Chronological order
-        .slice(0, 5)
-        .map(({ moment }) => moment);
-      
-      console.log(`✅ Filtered to ${impactfulMoments.length} coaching-worthy moments (threshold: 4/10)`);
-      
-      setKeyMoments(impactfulMoments);
-      setCurrentMomentIndex(0);
-    } catch (error) {
-      console.error('❌ LLM evaluation failed, using all candidates:', error);
-      setKeyMoments(candidateMoments.slice(0, 5));
-      setCurrentMomentIndex(0);
-    }
-    
-    setIsEvaluatingMoments(false);
-  };
-  
-  const scoreMomentImpact = async (moment: KeyMoment): Promise<number> => {
-    const prompt = `You are a sales training expert evaluating whether a moment from a call is worth coaching on.
-
-MOMENT:
-Turn ${moment.turnNumber}: "${moment.userMessage}" → "${moment.marcusResponse}"
-
-CONTEXT:
-- Type: ${moment.type.replace(/_/g, ' ')}
-- What changed: ${moment.whatChanged}
-- Why it matters: ${moment.whyItMatters}
-- Resistance shift: ${moment.resistanceBefore.toFixed(1)} → ${moment.resistanceAfter.toFixed(1)}
-
-Evaluate this moment on a 1-10 scale:
-- 1-3: Not worth coaching (greeting, filler, technical issue, no real sales impact)
-- 4-6: Minor moment (small resistance change, but not a learning opportunity)
-- 7-8: Good coaching moment (clear mistake or win, actionable insight)
-- 9-10: Critical moment (major turning point, make-or-break exchange)
-
-Consider:
-- Is this a real sales exchange or just pleasantries/greetings?
-- Did the rep's choice meaningfully affect buyer state?
-- Would coaching on this moment improve future performance?
-- Is there a clear alternative approach that would work better?
-
-Return ONLY a single integer 1-10, nothing else.`;
-    
-    try {
-      const response = await fetch('/api/openai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            { role: 'system', content: 'You are a sales training expert. Return only a single integer score.' },
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.3,
-          max_tokens: 10
-        })
-      });
-      
-      if (!response.ok) throw new Error('Failed to score moment');
-      
-      const data = await response.json();
-      const scoreText = data.choices?.[0]?.message?.content?.trim() || '5';
-      const score = parseInt(scoreText, 10);
-      
-      console.log(`📊 Turn ${moment.turnNumber} scored ${score}/10`);
-      
-      return isNaN(score) ? 5 : Math.max(1, Math.min(10, score));
-    } catch (error) {
-      console.error('Error scoring moment:', error);
-      return 5; // Default to middle score if LLM fails
-    }
-  };
+  }, [preAnalyzedMoments]);
   
   const formatDuration = (): string => {
     const mins = Math.floor(duration / 60);
@@ -333,10 +257,43 @@ Return ONLY a single integer 1-10, nothing else.`;
   };
   
   const calculateObjectionScore = (): number => {
-    const satisfactionValues = Object.values(objectionData.objectionSatisfaction);
-    if (satisfactionValues.length === 0) return 70;
-    const avgSatisfaction = satisfactionValues.reduce((sum, val) => sum + val, 0) / satisfactionValues.length;
-    return Math.max(0, Math.min(100, avgSatisfaction * 100));
+    // Objection handling based on recognition, acknowledgment, and resolution
+    let score = 0;
+    
+    if (metrics) {
+      const raised = metrics.objectionsRaised;
+      const addressed = metrics.objectionsAddressed;
+      const resolved = metrics.objectionsResolved;
+      
+      // No objections = neutral score (not a weakness, but not a strength either)
+      if (raised === 0) return 70;
+      
+      // 1. Recognition & acknowledgment (0-50 points) - did you notice and respond?
+      const acknowledgeRatio = addressed / raised;
+      score += Math.round(acknowledgeRatio * 50);
+      
+      // 2. Resolution (0-50 points) - did you actually satisfy the concerns?
+      const resolveRatio = resolved / raised;
+      score += Math.round(resolveRatio * 50);
+      
+      // Bonus: Full resolution of all objections
+      if (resolved === raised && raised > 0) {
+        score = Math.min(100, score + 10);
+      }
+      
+      // Penalty: Ignored objections (acknowledged < 50%)
+      if (acknowledgeRatio < 0.5 && raised >= 2) {
+        score = Math.min(score, 30);
+      }
+    } else {
+      // Fallback to satisfaction data if metrics unavailable
+      const satisfactionValues = Object.values(objectionData.objectionSatisfaction);
+      if (satisfactionValues.length === 0) return 70;
+      const avgSatisfaction = satisfactionValues.reduce((sum, val) => sum + val, 0) / satisfactionValues.length;
+      score = avgSatisfaction * 100;
+    }
+    
+    return Math.max(0, Math.min(100, Math.round(score)));
   };
   
   const calculateMomentScore = (): number => {
@@ -385,45 +342,121 @@ Return ONLY a single integer 1-10, nothing else.`;
   };
   
   const calculateOpeningScore = (): number => {
-    // Opening based on initial resistance and trust building
-    const resistanceScore = Math.max(0, 100 - (finalResistance * 10));
-    const trustScore = Math.max(0, Math.min(100, ((buyerState?.trustLevel || 0) / 10) * 100));
+    // Opening score based on: initial resistance, early questions, talk balance, trust signals
+    let score = 0;
     
-    // Weight resistance more heavily as it reflects how the opening landed
-    return Math.round((resistanceScore * 0.6) + (trustScore * 0.4));
+    // 1. Initial resistance (0-40 points) - how guarded Marcus started
+    const initialResistance = conversationExchanges.length > 0
+      ? (conversationExchanges[0]?.resistanceLevel ?? finalResistance)
+      : finalResistance;
+    const resistancePoints = Math.max(0, 40 - (initialResistance * 4));
+    score += resistancePoints;
+    
+    // 2. Early trust building (0-30 points) - warm/interested signals in first 3 exchanges
+    const earlyExchanges = conversationExchanges.slice(0, 3);
+    const earlyTrustSignals = earlyExchanges.filter(ex => 
+      ex.speaker === 'marcus' && (ex.emotion === 'warm' || ex.emotion === 'interested')
+    ).length;
+    score += Math.min(30, earlyTrustSignals * 10);
+    
+    // 3. Early discovery (0-20 points) - asked questions in first 3 turns
+    if (metrics) {
+      const earlyQuestions = metrics.questions.filter(q => q.timestamp < 30).length; // First 30 seconds
+      score += Math.min(20, earlyQuestions * 10);
+    }
+    
+    // 4. Talk ratio in opening (0-10 points) - didn't dominate
+    if (metrics && conversationExchanges.length >= 3) {
+      const openingDuration = Math.min(duration, 60); // First minute
+      const userOpeningTime = metrics.userSpeakingTime > 0 
+        ? (metrics.userSpeakingTime / duration) * openingDuration
+        : 0;
+      const openingRatio = openingDuration > 0 ? userOpeningTime / openingDuration : 0.5;
+      
+      // Good opening: 30-60% user talk
+      if (openingRatio >= 0.3 && openingRatio <= 0.6) {
+        score += 10;
+      } else if (openingRatio >= 0.2 && openingRatio <= 0.7) {
+        score += 5;
+      }
+    }
+    
+    return Math.min(100, Math.round(score));
   };
   
   const calculatePositioningScore = (): number => {
-    // Positioning based on clarity, relevance, and moment quality
-    const clarityScore = Math.max(0, Math.min(100, ((buyerState?.clarity || 0.5) * 100)));
-    const relevanceScore = Math.max(0, Math.min(100, ((buyerState?.relevance || 0.5) * 100)));
-    const momentScore = calculateMomentScore();
+    // Positioning based on value articulation: clarity, relevance, talk balance, and moments
+    let score = 0;
     
-    // Clarity and relevance are key positioning indicators
-    return Math.round((clarityScore * 0.4) + (relevanceScore * 0.4) + (momentScore * 0.2));
+    // 1. Clarity achieved (0-35 points) - Marcus understands what you offer
+    const rawClarity = buyerState?.clarity || 0.5;
+    const normalizedClarity = rawClarity > 1 ? rawClarity / 10 : rawClarity;
+    score += Math.round(normalizedClarity * 35);
+    
+    // 2. Relevance achieved (0-35 points) - Marcus sees how it fits his needs
+    const rawRelevance = buyerState?.relevance || 0.5;
+    const normalizedRelevance = rawRelevance > 1 ? rawRelevance / 10 : rawRelevance;
+    score += Math.round(normalizedRelevance * 35);
+    
+    // 3. Talk balance (0-15 points) - didn't monologue about features
+    if (metrics) {
+      const total = metrics.userSpeakingTime + metrics.marcusSpeakingTime;
+      if (total > 0) {
+        const userRatio = metrics.userSpeakingTime / total;
+        // Good positioning: 40-60% user talk (balanced conversation)
+        if (userRatio >= 0.4 && userRatio <= 0.6) {
+          score += 15;
+        } else if (userRatio >= 0.3 && userRatio <= 0.7) {
+          score += 10;
+        } else if (userRatio >= 0.2 && userRatio <= 0.8) {
+          score += 5;
+        }
+        // Penalty for dominating (>75% user talk = feature dumping)
+        if (userRatio > 0.75) {
+          score = Math.min(score, 50);
+        }
+      }
+    }
+    
+    // 4. Moment quality (0-15 points) - positive positioning moments
+    const momentScore = calculateMomentScore();
+    score += Math.round(momentScore * 0.15);
+    
+    return Math.max(0, Math.min(100, Math.round(score)));
   };
   
   const calculateDiscoveryScore = (): number => {
-    // Discovery quality based on missed leverage opportunities
-    const discoveryMisses = keyMoments.filter(m => m.type === 'missed_leverage').length;
-    const totalMoments = keyMoments.length || 1;
+    // Discovery quality based on question quality, clarity achieved, and missed opportunities
+    let score = 0;
     
-    // If we have many discovery misses, score should be low
-    const missRatio = discoveryMisses / totalMoments;
-    const baseScore = Math.max(0, Math.round((1 - missRatio) * 100));
+    if (metrics) {
+      // 1. Open-ended questions (0-40 points)
+      const openEndedRatio = metrics.questions.length > 0 
+        ? metrics.openEndedCount / metrics.questions.length 
+        : 0;
+      score += Math.round(openEndedRatio * 40);
+      
+      // 2. Follow-up questions (0-20 points) - shows active listening
+      score += Math.min(20, metrics.followUpCount * 5);
+      
+      // 3. Question volume (0-20 points) - asked enough questions
+      if (metrics.questions.length >= 5) score += 20;
+      else if (metrics.questions.length >= 3) score += 15;
+      else if (metrics.questions.length >= 2) score += 10;
+      else if (metrics.questions.length >= 1) score += 5;
+    }
     
-    // Penalize if discovery misses are present
-    if (discoveryMisses >= 2) return Math.min(baseScore, 40);
-    if (discoveryMisses === 1) return Math.min(baseScore, 60);
-    
-    // If clarity is low, discovery was likely shallow regardless of moments
-    // Normalize clarity to 0-1 range (in case it's passed as 0-10 or 0-100)
+    // 4. Clarity achieved (0-20 points) - discovery led to understanding
     const rawClarity = buyerState?.clarity || 0.5;
     const normalizedClarity = rawClarity > 1 ? rawClarity / 10 : rawClarity;
-    const clarityScore = Math.min(100, normalizedClarity * 100);
+    score += Math.round(normalizedClarity * 20);
     
-    // Cap final score at 100
-    return Math.min(100, Math.round((baseScore + clarityScore) / 2));
+    // Penalties for missed opportunities
+    const discoveryMisses = keyMoments.filter(m => m.type === 'missed_leverage').length;
+    if (discoveryMisses >= 2) score = Math.min(score, 40);
+    else if (discoveryMisses === 1) score = Math.min(score, 70);
+    
+    return Math.min(100, Math.round(score));
   };
   
   const getKeyMomentCounts = () => {
@@ -467,8 +500,8 @@ Return ONLY a single integer 1-10, nothing else.`;
     );
   }
 
-  // Show overview screen first
-  if (phase === 'overview' && keyMoments.length > 0 && !isEvaluatingMoments) {
+  // Show overview screen first (always show, PostCallOverview handles no-moments internally)
+  if (phase === 'overview' && !isEvaluatingMoments) {
     return (
       <div className={theme === 'dark' ? 'bg-[#0a0e13]' : 'bg-gray-50'}>
         <div className="absolute top-4 right-4 z-50">
@@ -491,6 +524,16 @@ Return ONLY a single integer 1-10, nothing else.`;
           onStartReview={() => setPhase('review')}
           onTryAgain={onTryAgain}
           theme={theme}
+          coachingData={coachingData}
+          callMetadata={{
+            durationSeconds: duration,
+            exchangeCount: conversationExchanges.length,
+            analysisConfidence: conversationExchanges.length >= 8 && duration >= 120
+              ? 'high'
+              : conversationExchanges.length >= 4 && duration >= 60
+              ? 'medium'
+              : 'low'
+          }}
         />
       </div>
     );
@@ -635,6 +678,38 @@ Return ONLY a single integer 1-10, nothing else.`;
                 No critical moments were detected in this conversation. This usually means the call was too brief or didn't reach key decision points.
               </p>
             </div>
+            
+            {/* Coaching Feedback - Primary Issue */}
+            {coachingData?.identifiedIssue && (
+              <div className={`rounded-lg p-4 text-left space-y-3 ${
+                theme === 'dark' ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'
+              }`}>
+                <div className={`text-xs font-semibold uppercase tracking-wider ${
+                  theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                }`}>
+                  Primary Issue Detected:
+                </div>
+                <div className={`text-base font-medium ${
+                  theme === 'dark' ? 'text-red-300' : 'text-red-700'
+                }`}>
+                  {getCoachingLabel(coachingData.identifiedIssue)}
+                </div>
+                {coachingData.whatWorked && (
+                  <div className="pt-2 mt-2 border-t border-white/10">
+                    <div className={`text-xs font-semibold uppercase tracking-wider mb-1 ${
+                      theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                    }`}>
+                      What Worked:
+                    </div>
+                    <div className={`text-sm ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      {coachingData.whatWorked}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             
             {/* Suggestions */}
             <div className={`rounded-lg p-4 text-left space-y-3 ${

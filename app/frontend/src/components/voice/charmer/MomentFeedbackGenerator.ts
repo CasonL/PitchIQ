@@ -114,9 +114,9 @@ ${i + 1}. ${m.type.replace(/_/g, ' ')}
 
 Your job: Tell them EXACTLY what they did wrong and right, using THEIR ACTUAL WORDS from the call.
 
-1. overallTakeaway: 2-3 sentences. CITE specific things they said. Example: "When Marcus mentioned his outdated website, you asked 'Do you have someone who works on it?' - a closed question that went nowhere. You needed to ask WHY it matters to him or HOW it's affecting his business." NO vague shit like "deepen the conversation" or "build rapport." USE THEIR WORDS.
+1. overallTakeaway: 2-3 sentences. CITE specific things they said AND tie advice to Marcus's state. Example: "When Marcus mentioned his outdated website, you asked 'Do you have someone who works on it?' - a closed question that went nowhere. Marcus's curiosity was medium at that point. You needed to ask WHY it matters to him or HOW it's affecting his business to raise it." NO vague shit like "deepen the conversation" or "build rapport." USE THEIR WORDS. EXPLAIN THE STATE-BASED REASONING.
 
-2. encouragement: One punchy line. Make it about what they'll do NEXT time, not generic motivation. Example: "Next call, ask one 'why' question and see what happens." NOT "Keep up the good work!"
+2. encouragement: One punchy line. Make it about what they'll do NEXT time, not generic motivation. Example: "Next call, watch for resistance spikes and back off when you see them." NOT "Keep up the good work!"
 
 ${marcusTraits ? `3. traitAnalysis: 2-3 sentences. Tell them if this prospect was even worth their time based on Marcus's hidden traits. Example: "Marcus had high pain and budget but you never uncovered it because you stayed surface-level. This was winnable if you'd asked about business impact instead of technical details."
 
@@ -133,9 +133,11 @@ Return ONLY valid JSON in this format:
 CRITICAL RULES:
 - CITE their actual words from the call in "quotes"
 - NO phrases like "deepen the conversation", "build rapport", "keep it up", "good effort"
+- ALWAYS explain WHY an approach would work based on Marcus's state (urgency, pain, resistance, curiosity)
 - Be SPECIFIC about what question they should have asked instead
 - If they fucked up, say it. If they did well, say what they did.
-- Write like you're texting them, not writing a corporate performance review`;
+- Write like you're texting them, not writing a corporate performance review
+- Never give advice without state-based reasoning ("Marcus's urgency was low, so..." or "His resistance spiked to 8, so...")`;
 
     try {
       const response = await fetch(this.baseUrl, {
@@ -196,13 +198,13 @@ CONTEXT:
 ${moment.hiddenOpportunity ? `- Hidden opportunity: ${moment.hiddenOpportunity}` : ''}
 
 Generate coaching feedback in puzzle format:
-1. context: One sentence explaining why this exchange mattered (what was really going on beneath the surface)
+1. context: One sentence explaining why this exchange mattered (what was really going on beneath the surface). INCLUDE Marcus's state (resistance level, emotional shift) as context.
 2. puzzleQuestions: Exactly 3 Socratic questions that guide them to discover the issue themselves. Each question should:
    - Build on the previous one
    - Lead them toward the insight
    - NOT give away the answer
    - Be specific to THIS exchange (use actual words from the exchange)
-3. possiblePath: One possible better approach (2-3 sentences). This is hidden until they tap. Focus on the NEXT question they could have asked or the reframe they could have used. ${scenario?.productName ? `Connect to how ${scenario.productName} solves the underlying problem.` : ''}
+3. possiblePath: One possible better approach (2-3 sentences). This is hidden until they tap. CRITICAL: Tie your advice to Marcus's STATE. Example: "Marcus's resistance went from 3→6 here. Pushing harder would spike it further. Instead, [specific alternative] would have kept him open." Focus on the NEXT question they could have asked or the reframe they could have used. ${scenario?.productName ? `Connect to how ${scenario.productName} solves the underlying problem.` : ''}
 
 Return ONLY valid JSON:
 {
@@ -214,6 +216,8 @@ Return ONLY valid JSON:
 IMPORTANT:
 - Be specific, not generic
 - Questions should make them think, not feel judged
+- possiblePath MUST explain why the alternative would work based on Marcus's resistance/emotional state at that moment
+- Never say "do X" without explaining "because Marcus's [state] was [Y], so X would have [outcome]"
 - possiblePath should hint at product value without explicitly stating it`;
 
     const response = await fetch(this.baseUrl, {

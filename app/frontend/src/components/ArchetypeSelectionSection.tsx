@@ -16,9 +16,9 @@ interface Archetype {
 const ARCHETYPES: Archetype[] = [
   {
     id: 'charmer',
-    name: 'The Charmer',
-    tagline: 'Tests you with wit and playful chaos',
-    description: 'Uses humor and quick wit to test your adaptability. Wins people over in five seconds. Charismatic and playful with friendly danger.',
+    name: 'Marcus Stindle',
+    tagline: 'Busy, Direct, Skeptical',
+    description: 'Impatient decision-maker who guards his time fiercely. Tests your ability to earn attention fast. Low trust, high pressure—a tough buyer archetype.',
     imagePath: '/archetypes/sage.png',
     isUnlocked: true
   },

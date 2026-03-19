@@ -18,9 +18,12 @@ export type SignalType =
   | 'value_statement'
   | 'context_statement'
   | 'relevance_claim'
-  | 'specificity_high'
-  | 'specificity_medium'
-  | 'specificity_low'
+  | 'topic_specificity_high'
+  | 'topic_specificity_medium'
+  | 'topic_specificity_low'
+  | 'outcome_specificity_high'
+  | 'outcome_specificity_medium'
+  | 'outcome_specificity_low'
   | 'discovery_question'
   | 'close_ended_question'
   | 'feature_mention'
@@ -32,7 +35,7 @@ export type SignalType =
   | 'assumption_marker'
   | 'filler_opening'
   | 'apologetic_language'
-  | 'pitch_marker'
+  | 'identity_marker'
   | 'rapport_token';
 
 interface SignalPattern {
@@ -80,19 +83,19 @@ export class SignalDetector {
       extractText: (match) => match[0]
     },
     {
-      type: 'specificity_high',
+      type: 'outcome_specificity_high',
       regex: /\b\d+(%|percent|x|times|\$|dollars|days|weeks|months|hours)\b/gi,
       confidence: 0.95,
       extractText: (match) => match[0]
     },
     {
-      type: 'specificity_medium',
+      type: 'topic_specificity_medium',
       regex: /\b(sales teams?|onboarding|ramp time|cold calls?|discovery|objection handling|positioning)\b/gi,
       confidence: 0.70,
       extractText: (match) => match[0]
     },
     {
-      type: 'specificity_low',
+      type: 'topic_specificity_low',
       regex: /\b(your (business|company|team|process)|talk about your|discuss your|about your)\b/gi,
       confidence: 0.85,
       extractText: (match) => match[0]
@@ -170,8 +173,8 @@ export class SignalDetector {
       extractText: (match) => match[0]
     },
     {
-      type: 'pitch_marker',
-      regex: /\b(from ([\w\s]+)?(company|corp|inc|llc|solutions)|calling (from|about)|i'm with)\b/gi,
+      type: 'identity_marker',
+      regex: /\b(from ([\w\s]+)?(company|corp|inc|llc|solutions)|calling (from|about)|i'm with|it's [A-Z][a-z]+ from)\b/gi,
       confidence: 0.85,
       extractText: (match) => match[0]
     },

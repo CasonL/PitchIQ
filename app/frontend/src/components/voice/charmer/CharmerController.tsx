@@ -22,6 +22,8 @@ import { ConversationTracker } from './ConversationTranscript';
 import { CriticalMomentDetector } from './CriticalMomentDetector';
 import { MomentFeedbackGenerator } from './MomentFeedbackGenerator';
 import { MomentViewModelMapper } from './MomentViewModelMapper';
+import { HybridFeedbackGenerator } from './HybridFeedbackGenerator';
+import { MomentFeedbackIntegration } from './MomentFeedbackIntegration';
 import { analyzeUserQuestions } from './QuestionDetector';
 import { CallMetrics, QuestionAnalysis } from './CallMetrics';
 import { MarcusScenario } from './MarcusScenarios';
@@ -188,6 +190,7 @@ const CharmerControllerContent = memo(({
   const lastClassificationRef = useRef<QuestionClassification | null>(null);
   const judgmentGateRef = useRef(new JudgmentGate());
   const strategyLayerRef = useRef(new StrategyLayer());
+  const hybridFeedbackRef = useRef(new MomentFeedbackIntegration());
   const lastObjectionRef = useRef<string | undefined>(undefined); // Track last objection for escalation
   const utteranceCountRef = useRef(0); // Track number of complete utterances
   const processingTranscriptRef = useRef<string>(''); // Track which transcript we're processing
@@ -413,6 +416,22 @@ const CharmerControllerContent = memo(({
       
       strategyOutput = await strategyLayerRef.current.determineStrategy(strategyContext);
       buyerState = strategyOutput.buyerState;
+      
+      // HYBRID FEEDBACK: Analyze utterance with context-aware LLM reasoning
+      // This runs async and doesn't block Marcus's response
+      hybridFeedbackRef.current.analyzeUtterance(
+        userText,
+        utteranceSnapshot,
+        buyerState,
+        conversationHistory
+      ).then(analysis => {
+        if (analysis) {
+          console.log('🔍 Hybrid feedback analysis:');
+          console.log(hybridFeedbackRef.current.formatForLog(analysis));
+        }
+      }).catch(err => {
+        console.error('⚠️ Hybrid feedback analysis failed:', err);
+      });
       
       // Update training wheels state
       if (trainingWheelsEnabled) {
@@ -1091,6 +1110,10 @@ const CharmerControllerContent = memo(({
     
     // Reset utterance counter for new call
     utteranceCountRef.current = 0;
+    
+    // Reset hybrid feedback analyzer for new call
+    hybridFeedbackRef.current.reset();
+    console.log('🔄 Hybrid feedback analyzer reset');
     
     // Reset phase manager with scenario context
     phaseManagerRef.current.reset();

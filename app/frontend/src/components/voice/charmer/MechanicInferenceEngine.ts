@@ -24,11 +24,12 @@ export type MechanicType =
   | 'discovery_without_context'
   | 'close_ended_with_value'
   | 'close_ended_without_value'
-  | 'pitch_before_rapport'
-  | 'context_before_pitch'
+  | 'identity_without_payoff'
+  | 'identity_with_relevance'
   | 'vague_relevance_claim'
   | 'specific_value_proposition'
   | 'generic_business_topic'
+  | 'low_outcome_specificity'
   | 'softened_authority'
   | 'definitive_overclaim'
   | 'apologetic_opening'
@@ -131,35 +132,46 @@ export class MechanicInferenceEngine {
     const mechanics: InferredMechanic[] = [];
 
     const valueSignals = signals.filter(s => s.type === 'value_statement');
-    const specificityHigh = signals.filter(s => s.type === 'specificity_high');
-    const specificityLow = signals.filter(s => s.type === 'specificity_low');
+    const outcomeSpecificityHigh = signals.filter(s => s.type === 'outcome_specificity_high');
+    const topicSpecificityLow = signals.filter(s => s.type === 'topic_specificity_low');
     const relevanceClaims = signals.filter(s => s.type === 'relevance_claim');
 
-    if (valueSignals.length > 0 && specificityHigh.length > 0) {
+    if (valueSignals.length > 0 && outcomeSpecificityHigh.length > 0) {
       mechanics.push({
         type: 'specific_value_proposition',
         confidence: 0.90,
-        supportingSignals: [...valueSignals, ...specificityHigh],
+        supportingSignals: [...valueSignals, ...outcomeSpecificityHigh],
         effectDirection: 'positive',
         priority: 2,
         explanation: 'Specific, measurable value stated'
       });
-    } else if (valueSignals.length > 0 && specificityLow.length > 0) {
+    } else if (valueSignals.length > 0 && topicSpecificityLow.length > 0) {
       mechanics.push({
         type: 'generic_business_topic',
         confidence: 0.85,
-        supportingSignals: [...valueSignals, ...specificityLow],
+        supportingSignals: [...valueSignals, ...topicSpecificityLow],
         effectDirection: 'negative',
         priority: 2,
         explanation: 'Value mentioned but too vague/generic'
       });
     }
 
-    if (relevanceClaims.length > 0 && specificityLow.length > 0) {
+    if (outcomeSpecificityHigh.length === 0 && valueSignals.length > 0) {
+      mechanics.push({
+        type: 'low_outcome_specificity',
+        confidence: 0.75,
+        supportingSignals: valueSignals,
+        effectDirection: 'mixed',
+        priority: 3,
+        explanation: 'Value mentioned but no specific metrics/outcomes'
+      });
+    }
+
+    if (relevanceClaims.length > 0 && topicSpecificityLow.length > 0) {
       mechanics.push({
         type: 'vague_relevance_claim',
         confidence: 0.80,
-        supportingSignals: [...relevanceClaims, ...specificityLow],
+        supportingSignals: [...relevanceClaims, ...topicSpecificityLow],
         effectDirection: 'mixed',
         priority: 3,
         explanation: 'Claimed relevance but without specificity'
@@ -232,34 +244,34 @@ export class MechanicInferenceEngine {
   private analyzePitchTiming(signals: DetectedSignal[]): InferredMechanic[] {
     const mechanics: InferredMechanic[] = [];
 
-    const pitchMarkers = signals.filter(s => s.type === 'pitch_marker');
-    const greetings = signals.filter(s => s.type === 'greeting');
-    const rapportTokens = signals.filter(s => s.type === 'rapport_token');
+    const identityMarkers = signals.filter(s => s.type === 'identity_marker');
+    const valueSignals = signals.filter(s => 
+      s.type === 'value_statement' || s.type === 'context_statement'
+    );
+    const relevanceClaims = signals.filter(s => s.type === 'relevance_claim');
 
-    if (pitchMarkers.length > 0) {
-      const hasRapport = greetings.length > 0 || rapportTokens.length > 0;
-      const pitchPosition = pitchMarkers[0].position;
-      const rapportPosition = hasRapport 
-        ? Math.min(...[...greetings, ...rapportTokens].map(s => s.position))
-        : Infinity;
+    if (identityMarkers.length > 0) {
+      const identityPosition = identityMarkers[0].position;
+      const hasValueBefore = valueSignals.some(v => v.position < identityPosition);
+      const hasRelevanceBefore = relevanceClaims.some(r => r.position < identityPosition);
 
-      if (!hasRapport || pitchPosition < rapportPosition + 10) {
+      if (!hasValueBefore && !hasRelevanceBefore) {
         mechanics.push({
-          type: 'pitch_before_rapport',
+          type: 'identity_without_payoff',
           confidence: 0.90,
-          supportingSignals: pitchMarkers,
+          supportingSignals: identityMarkers,
           effectDirection: 'negative',
           priority: 1,
-          explanation: 'Led with company/pitch before establishing connection'
+          explanation: 'Named yourself/company without giving reason to care'
         });
-      } else {
+      } else if (hasValueBefore || hasRelevanceBefore) {
         mechanics.push({
-          type: 'context_before_pitch',
+          type: 'identity_with_relevance',
           confidence: 0.85,
-          supportingSignals: [...rapportTokens, ...greetings, ...pitchMarkers],
+          supportingSignals: [...identityMarkers, ...valueSignals, ...relevanceClaims],
           effectDirection: 'positive',
           priority: 3,
-          explanation: 'Established rapport before mentioning company'
+          explanation: 'Established relevance before revealing identity'
         });
       }
     }
@@ -352,9 +364,10 @@ export class MechanicInferenceEngine {
     // Re-prioritize based on effect direction and confidence
     const priorityMap: Record<string, number> = {
       'permission_without_value': 1,
-      'pitch_before_rapport': 1,
+      'identity_without_payoff': 1,
       'close_ended_without_value': 2,
       'generic_business_topic': 2,
+      'low_outcome_specificity': 2,
       'apologetic_opening': 2,
       'assumption_without_discovery': 2,
       'feature_without_outcome': 2,
@@ -369,7 +382,7 @@ export class MechanicInferenceEngine {
       'specific_value_proposition': 2,
       'outcome_focused': 2,
       'value_without_ask': 2,
-      'context_before_pitch': 3,
+      'identity_with_relevance': 3,
       'confident_opening': 3
     };
 

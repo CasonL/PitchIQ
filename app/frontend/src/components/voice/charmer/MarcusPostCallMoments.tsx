@@ -46,6 +46,7 @@ interface MarcusPostCallMomentsProps {
   scenario?: any;
   onTryAgain: () => void;
   preAnalyzedMoments?: PostCallMomentViewModel[]; // UI view models from CriticalMomentDetector
+  hybridFeedbackAnalyses?: any[]; // Structured feedback from hybrid system
   coachingData?: {
     identifiedIssue: string | null;
     whatWorked: string;
@@ -62,8 +63,15 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
   scenario,
   onTryAgain,
   preAnalyzedMoments,
+  hybridFeedbackAnalyses,
   coachingData
 }) => {
+  // Log hybrid feedback availability
+  useEffect(() => {
+    if (hybridFeedbackAnalyses && hybridFeedbackAnalyses.length > 0) {
+      console.log(`📊 Post-call UI has ${hybridFeedbackAnalyses.length} hybrid feedback analyses available`);
+    }
+  }, [hybridFeedbackAnalyses]);
   // Map coaching issues to readable labels
   const getCoachingLabel = (issue: string | null): string => {
     if (!issue) return '';
@@ -851,6 +859,7 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
                     scenario={scenario}
                     onNavigate={goToMoment}
                     theme={theme}
+                    hybridFeedbackAnalyses={hybridFeedbackAnalyses}
                   />
                 </div>
               )}
@@ -1098,6 +1107,7 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
                   scenario={scenario}
                   onNavigate={goToMoment}
                   theme={theme}
+                  hybridFeedbackAnalyses={hybridFeedbackAnalyses}
                 />
               </div>
             )}

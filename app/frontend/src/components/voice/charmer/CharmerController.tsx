@@ -142,6 +142,7 @@ const CharmerControllerContent = memo(({
     finalResistance?: number;
     metrics?: CallMetrics;
     preAnalyzedMoments?: any[];
+    hybridFeedbackAnalyses?: any[];
   } | null>(() => {
     // Restore feedback data from localStorage on mount
     try {
@@ -1420,6 +1421,10 @@ const CharmerControllerContent = memo(({
     
     console.log(`📊 Transformed ${criticalMoments?.length || 0} critical + ${successfulMoments?.length || 0} successful → ${viewModels.length} view models`);
     
+    // Get hybrid feedback analyses collected during the call
+    const hybridAnalyses = hybridFeedbackRef.current.getAllAnalyses();
+    console.log(`🔍 Collected ${hybridAnalyses.length} hybrid feedback analyses from live call`);
+    
     setMomentFeedbackData({
       duration,
       conversationExchanges,
@@ -1427,7 +1432,8 @@ const CharmerControllerContent = memo(({
       buyerState,
       finalResistance,
       metrics,
-      preAnalyzedMoments: viewModels.length > 0 ? viewModels : undefined
+      preAnalyzedMoments: viewModels.length > 0 ? viewModels : undefined,
+      hybridFeedbackAnalyses: hybridAnalyses.length > 0 ? hybridAnalyses : undefined
     });
     
     // End loading state and show feedback
@@ -1551,6 +1557,7 @@ const CharmerControllerContent = memo(({
           scenario={selectedScenario}
           onTryAgain={handleCloseMomentFeedback}
           preAnalyzedMoments={momentFeedbackData.preAnalyzedMoments}
+          hybridFeedbackAnalyses={momentFeedbackData.hybridFeedbackAnalyses}
         />
       )}
       

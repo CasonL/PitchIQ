@@ -19,6 +19,7 @@ interface MomentCoachingPanelProps {
   onNavigate?: (index: number) => void;
   theme?: 'dark' | 'light';
   scenario?: any; // Marcus scenario with difficulty level
+  hybridFeedbackAnalyses?: any[]; // Structured feedback from hybrid system
 }
 
 interface RetryResult {
@@ -93,7 +94,8 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
   currentIndex, 
   onNavigate,
   theme = 'dark',
-  scenario
+  scenario,
+  hybridFeedbackAnalyses
 }) => {
   const [coachingBrief, setCoachingBrief] = useState<CoachingBrief | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -173,6 +175,32 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
     setIsLoading(true);
     
     try {
+      // PRIORITY 1: Check if we have hybrid feedback for this moment
+      if (hybridFeedbackAnalyses && hybridFeedbackAnalyses.length > 0) {
+        // Try to match by turn number (utterance number in hybrid system)
+        const matchedFeedback = hybridFeedbackAnalyses.find(
+          analysis => analysis.utteranceNumber === moment.turnNumber
+        );
+        
+        if (matchedFeedback && matchedFeedback.feedback) {
+          console.log(`🔍 Using hybrid feedback for turn ${moment.turnNumber}:`, matchedFeedback.feedback.primaryIssue);
+          
+          // Convert hybrid feedback to coaching brief format
+          const brief: CoachingBrief = {
+            whyItDidntWork: `${matchedFeedback.feedback.primaryIssue}\n\n**Evidence:**\n${matchedFeedback.feedback.evidence.map((e: string) => `- "${e}"`).join('\n')}\n\n**Why this matters:**\n${matchedFeedback.feedback.mechanisticExplanation}\n\n**Better approach:**\n${matchedFeedback.feedback.betterApproach}\n\n**Sequence pattern:**\n${matchedFeedback.feedback.sequence}`
+          };
+          
+          setCoachingBrief(brief);
+          briefCacheRef.current.set(moment.id, brief);
+          setIsLoading(false);
+          generatingForMomentRef.current = null;
+          return;
+        }
+      }
+      
+      // FALLBACK: Generate LLM coaching if no hybrid feedback available
+      console.log(`📝 No hybrid feedback for turn ${moment.turnNumber}, generating LLM coaching...`);
+      
       const prompt = `You are a strategic sales coach analyzing a pivotal call moment. Be direct, grounded, and specific. No generic advice.
 
 THE MOMENT:

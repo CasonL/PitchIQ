@@ -863,40 +863,67 @@ const CharmerControllerContent = memo(({
       // Track user speech timing for Judgment Gate
       lastUserSpeechTimeRef.current = Date.now();
       
-      // EARLY DETECTION: Question patterns (used throughout pipeline)
-      const endsWithQuestion = newContent.trim().endsWith('?');
-      const isShortQuestion = newContent.length < 75 && endsWithQuestion;
-      
-      // Parse words for analysis
-      const words = newContent.split(/\s+/);
-      const wordCount = words.length;
-      
       // Filter out echo by comparing transcript to what Marcus actually said
-      // Much more reliable than timing-based filtering
       if (lastMarcusMessageRef.current) {
         const marcusText = lastMarcusMessageRef.current.toLowerCase().trim();
         const userText = newContent.toLowerCase().trim();
         
-        // Check for exact match or very high similarity (handles transcription variations)
         const isSimilar = userText === marcusText || 
                          marcusText.includes(userText) || 
                          userText.includes(marcusText) ||
                          (userText.length > 10 && marcusText.startsWith(userText.slice(0, 10)));
         
         if (isSimilar) {
-          console.log(`🔇 Filtered Marcus echo: "${newContent}" (matches Marcus: "${lastMarcusMessageRef.current.substring(0, 50)}...")`);
-          lastTranscriptRef.current = transcript;
+          console.log(`🔇 Filtered Marcus echo: "${newContent}" (matches Marcus: "${lastMarcusMessageRef.current.substring(0, 50)}...")`);          lastTranscriptRef.current = transcript;
           return;
         }
       }
       
-      // Process the complete utterance immediately
+      // INTELLIGENT BUFFERING: Wait for user to finish speaking
+      // If user continues within 1s, merge utterances before processing
+      
+      // Cancel any existing grace timer
+      if (utteranceGraceTimerRef.current) {
+        clearTimeout(utteranceGraceTimerRef.current);
+        utteranceGraceTimerRef.current = null;
+      }
+      
+      // Merge with pending utterance if exists
+      const mergedContent = pendingUtteranceRef.current 
+        ? `${pendingUtteranceRef.current.text} ${newContent}`.trim()
+        : newContent;
+      
+      if (pendingUtteranceRef.current) {
+        console.log(`🔗 Merging continuation: "${newContent}" → "${mergedContent}"`);
+      }
+      
+      // Buffer this utterance
+      const words = mergedContent.split(/\s+/);
+      const wordCount = words.length;
       utteranceCountRef.current++;
       const currentUtterance = utteranceCountRef.current;
-      console.log(`📊 Utterance #${currentUtterance} complete (${wordCount} words)`);
-      console.log(`🎙️ User speech: "${newContent}"`);
-      console.log(`🔧 [DEBUG] Calling processUserInput for utterance #${currentUtterance}, isProcessing=${isProcessing}`);
-      processUserInput(newContent, currentUtterance);
+      
+      pendingUtteranceRef.current = {
+        text: mergedContent,
+        count: currentUtterance
+      };
+      
+      console.log(`⏳ Buffering utterance #${currentUtterance} (${wordCount} words) - waiting 1s for continuation...`);
+      
+      // Start grace period timer
+      utteranceGraceTimerRef.current = setTimeout(() => {
+        if (pendingUtteranceRef.current) {
+          const buffered = pendingUtteranceRef.current;
+          console.log(`⏰ Grace period expired - processing utterance #${buffered.count}`);
+          console.log(`🎙️ User speech: "${buffered.text}"`);
+          console.log(`🔧 [DEBUG] Calling processUserInput for utterance #${buffered.count}, isProcessing=${isProcessing}`);
+          
+          processUserInput(buffered.text, buffered.count);
+          pendingUtteranceRef.current = null;
+        }
+        utteranceGraceTimerRef.current = null;
+      }, 1000); // 1 second grace period
+      
       lastTranscriptRef.current = transcript;
       return;
     }

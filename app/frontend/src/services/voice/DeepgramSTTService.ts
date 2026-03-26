@@ -29,6 +29,7 @@ export class DeepgramSTTService {
   private ttsEndTime: number = 0; // Track when TTS playback ended
   private previousUtterance: string = ''; // Buffer previous utterance for merging
   private previousUtteranceTime: number = 0; // When previous utterance ended
+  private pendingUtteranceTimer: NodeJS.Timeout | null = null; // Timer for incomplete sentence detection
   
   // Reconnection state
   private reconnectAttempts: number = 0;
@@ -132,38 +133,7 @@ export class DeepgramSTTService {
       this.liveClient.on(LiveTranscriptionEvents.UtteranceEnd, () => {
         console.log('[Deepgram] ✅ Utterance ended');
         if (this.accumulatedTranscript) {
-          const now = Date.now();
-          const timeSincePrevious = now - this.previousUtteranceTime;
-          const currentWords = this.accumulatedTranscript.trim().split(/\s+/).length;
-          
-          // Check if this looks like a premature split (very short utterance within 3s of previous)
-          const isProbablySplit = currentWords <= 2 && 
-                                   this.previousUtterance && 
-                                   timeSincePrevious < 3000;
-          
-          if (isProbablySplit) {
-            // Merge with previous utterance instead of sending separately
-            const merged = `${this.previousUtterance} ${this.accumulatedTranscript}`.trim();
-            console.log(`[Deepgram] 🔗 Merged short utterance: "${this.accumulatedTranscript}" → "${merged}"`);
-            this.previousUtterance = merged;
-            this.previousUtteranceTime = now;
-            this.accumulatedTranscript = '';
-            return;
-          }
-          
-          // Normal utterance - send it
-          console.log(`[Deepgram] 📝 Complete utterance (UtteranceEnd): "${this.accumulatedTranscript}"`);
-          try {
-            this.config.onTranscript(this.accumulatedTranscript, true);
-          } catch (error) {
-            console.error('[Deepgram] ❌ CRITICAL: onTranscript callback threw error:', error);
-            this.config.onError(error as Error);
-          }
-          
-          // Buffer this utterance in case next one is a continuation
-          this.previousUtterance = this.accumulatedTranscript;
-          this.previousUtteranceTime = now;
-          this.accumulatedTranscript = '';
+          this.handleUtteranceEnd();
         }
       });
 
@@ -399,6 +369,103 @@ export class DeepgramSTTService {
   }
 
   /**
+   * Check if transcript ends with an incomplete sentence pattern
+   */
+  private endsWithIncompletePattern(text: string): boolean {
+    const trimmed = text.trim().toLowerCase();
+    
+    // Patterns that indicate the sentence likely continues:
+    // - Conjunctions: and, or, but, so
+    // - Prepositions: with, in, on, at, to, for, from, of, like
+    // - Adverbs: mainly, primarily, basically, just, only, really
+    // - Question words mid-sentence: is it, are you, do you, can you
+    // - Incomplete phrases: "such as", "as well as"
+    const incompletePatterns = [
+      /\b(and|or|but|so)$/i,
+      /\b(with|in|on|at|to|for|from|of|like)$/i,
+      /\b(mainly|primarily|basically|just|only|really|actually|literally)$/i,
+      /\bis\s+it$/i,
+      /\bare\s+you$/i,
+      /\bdo\s+you$/i,
+      /\bcan\s+you$/i,
+      /\bhave\s+you$/i,
+      /\bsuch\s+as$/i,
+      /\bas\s+well\s+as$/i,
+      /\bkind\s+of$/i,
+      /\bsort\s+of$/i,
+    ];
+    
+    return incompletePatterns.some(pattern => pattern.test(trimmed));
+  }
+
+  /**
+   * Handle UtteranceEnd event with incomplete sentence detection
+   */
+  private handleUtteranceEnd(): void {
+    // Clear any existing pending timer
+    if (this.pendingUtteranceTimer) {
+      clearTimeout(this.pendingUtteranceTimer);
+      this.pendingUtteranceTimer = null;
+    }
+    
+    const transcript = this.accumulatedTranscript;
+    const now = Date.now();
+    const timeSincePrevious = now - this.previousUtteranceTime;
+    const currentWords = transcript.trim().split(/\s+/).length;
+    
+    // Check if this looks like a premature split (very short utterance within 3s of previous)
+    const isProbablySplit = currentWords <= 2 && 
+                             this.previousUtterance && 
+                             timeSincePrevious < 3000;
+    
+    if (isProbablySplit) {
+      // Merge with previous utterance instead of sending separately
+      const merged = `${this.previousUtterance} ${transcript}`.trim();
+      console.log(`[Deepgram] 🔗 Merged short utterance: "${transcript}" → "${merged}"`);
+      this.previousUtterance = merged;
+      this.previousUtteranceTime = now;
+      this.accumulatedTranscript = '';
+      return;
+    }
+    
+    // Check if sentence ends with incomplete pattern
+    const isIncomplete = this.endsWithIncompletePattern(transcript);
+    
+    if (isIncomplete) {
+      // Wait 800ms for continuation before sending
+      console.log(`[Deepgram] ⏳ Incomplete sentence detected: "${transcript}" - waiting for continuation...`);
+      this.pendingUtteranceTimer = setTimeout(() => {
+        console.log(`[Deepgram] ⏱️ Timeout reached - sending incomplete utterance: "${this.accumulatedTranscript}"`);
+        this.sendUtterance(this.accumulatedTranscript);
+        this.accumulatedTranscript = '';
+        this.pendingUtteranceTimer = null;
+      }, 800); // 800ms window for continuation
+      return;
+    }
+    
+    // Normal complete utterance - send immediately
+    console.log(`[Deepgram] 📝 Complete utterance (UtteranceEnd): "${transcript}"`);
+    this.sendUtterance(transcript);
+    this.accumulatedTranscript = '';
+  }
+
+  /**
+   * Send utterance to callback
+   */
+  private sendUtterance(text: string): void {
+    try {
+      this.config.onTranscript(text, true);
+    } catch (error) {
+      console.error('[Deepgram] ❌ CRITICAL: onTranscript callback threw error:', error);
+      this.config.onError(error as Error);
+    }
+    
+    // Buffer this utterance in case next one is a continuation
+    this.previousUtterance = text;
+    this.previousUtteranceTime = Date.now();
+  }
+
+  /**
    * Handle transcript from Deepgram SDK
    */
   private handleTranscript(data: any): void {
@@ -441,12 +508,17 @@ export class DeepgramSTTService {
         return;
       }
       
-      // Accumulate incremental final transcripts
-      if (!this.accumulatedTranscript) {
+      // If we have a pending incomplete utterance, merge this continuation
+      if (this.pendingUtteranceTimer && this.accumulatedTranscript) {
+        clearTimeout(this.pendingUtteranceTimer);
+        this.pendingUtteranceTimer = null;
+        this.accumulatedTranscript = this.accumulatedTranscript.trim() + ' ' + transcript.trim();
+        console.log(`[Deepgram] 🔗 Merged continuation: "${transcript}" → "${this.accumulatedTranscript}"`);
+      } else if (!this.accumulatedTranscript) {
         this.accumulatedTranscript = transcript;
         console.log(`[Deepgram] 🎬 First final: "${transcript}"`);
       } else {
-        // Append with space - Deepgram sends incremental chunks
+        // Normal append - Deepgram sends incremental chunks
         this.accumulatedTranscript = this.accumulatedTranscript.trim() + ' ' + transcript.trim();
         console.log(`[Deepgram] ➕ Appending final: "${transcript}"`);
       }
@@ -477,6 +549,12 @@ export class DeepgramSTTService {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
+    }
+    
+    // Clear any pending utterance timer
+    if (this.pendingUtteranceTimer) {
+      clearTimeout(this.pendingUtteranceTimer);
+      this.pendingUtteranceTimer = null;
     }
     
     this.stopMicrophone();

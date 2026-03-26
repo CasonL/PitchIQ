@@ -441,15 +441,12 @@ export class DeepgramSTTService {
         return;
       }
       
-      // Accumulate only final transcripts
-      if (!this.accumulatedTranscript) {
-        this.accumulatedTranscript = transcript;
-        console.log(`[Deepgram] � First final: "${transcript}"`);
-      } else {
-        // Append final transcripts with a space
-        this.accumulatedTranscript = this.accumulatedTranscript.trim() + ' ' + transcript.trim();
-        console.log(`[Deepgram] ➕ Appending final: "${transcript}"`);
-      }
+      // REPLACE with latest final (don't append)
+      // Deepgram sends multiple overlapping finals that re-transcribe the same audio
+      // Only the LAST final before UtteranceEnd is the complete accurate transcription
+      this.accumulatedTranscript = transcript;
+      console.log(`[Deepgram] 📝 Latest final: "${transcript}"`);
+
       
       // DISABLED: Don't send interim transcripts - wait for utterance_end only
       // This prevents duplication caused by Deepgram changing transcriptions mid-stream

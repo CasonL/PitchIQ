@@ -178,8 +178,8 @@ export class CartesiaService {
       await this.streamSynthesize(text, voiceId, emotionTags, speed, startTime);
 
       // Dynamic safety timeout based on text length
-      // Estimate: ~60ms per character for typical speech
-      const estimatedMs = Math.max(6000, Math.min(15000, text.length * 60));
+      // Realistic speech: ~150ms per character + 2s buffer for network/processing
+      const estimatedMs = Math.max(8000, Math.min(20000, (text.length * 150) + 2000));
       console.log(`[Cartesia] Setting safety timeout: ${estimatedMs}ms (text length: ${text.length})`);
       
       const timeoutPromise = new Promise<void>((resolve) => {
@@ -216,6 +216,9 @@ export class CartesiaService {
    */
   async stop(): Promise<void> {
     console.log('[Cartesia] 🛑 IMMEDIATE STOP requested');
+    
+    // Reset resolved flag so we can properly clean up
+    this.playbackResolved = false;
     
     // Clear audio queue to prevent any more chunks from playing
     this.audioQueue = [];

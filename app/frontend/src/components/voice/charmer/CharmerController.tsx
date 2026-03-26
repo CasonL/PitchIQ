@@ -33,10 +33,12 @@ import { FirstUtterancePatternDetector } from './FirstUtterancePatternDetector';
 import { TranscriptQualityDetector } from './TranscriptQualityDetector';
 import { TrainingWheels } from './TrainingWheels';
 import { FrameworkAnalyzer } from './FrameworkAnalyzer';
+import { CallCompletionData, StoredFeedbackData, StoredCallState } from './types/CallData';
+import { LocalStorageService } from './services/LocalStorageService';
 
 interface CharmerControllerProps {
   onCallEnd?: () => void;
-  onCallComplete?: (callData: any) => void;
+  onCallComplete?: (callData: CallCompletionData) => void;
   autoStart?: boolean;
 }
 
@@ -70,27 +72,23 @@ const CharmerControllerContent = memo(({
   // Scenario state
   const [selectedScenario, setSelectedScenario] = useState<MarcusScenario | null>(() => {
     // Restore active scenario from localStorage on mount
-    try {
-      const savedCall = localStorage.getItem('marcusActiveCall');
-      if (savedCall) {
-        const parsed = JSON.parse(savedCall);
-        console.log('🔄 Restored active scenario from localStorage');
-        return parsed.scenario;
-      }
-    } catch (err) {
-      console.error('❌ Failed to restore active scenario:', err);
+    const result = LocalStorageService.getItem<StoredCallState>('activeCall');
+    if (result.success && result.data) {
+      console.log('🔄 Restored active scenario from localStorage');
+      return result.data.scenario;
+    }
+    if (!result.success && result.error) {
+      console.error('❌ Failed to restore active scenario:', result.error);
     }
     return null;
   });
   const [showScenarioSelector, setShowScenarioSelector] = useState(() => {
     // Don't show scenario selector if we have saved feedback OR active call
-    try {
-      const savedFeedback = localStorage.getItem('marcusFeedbackData');
-      const savedCall = localStorage.getItem('marcusActiveCall');
-      return !savedFeedback && !savedCall;
-    } catch {
-      return true;
-    }
+    const feedbackResult = LocalStorageService.getItem<StoredFeedbackData>('feedbackData');
+    const callResult = LocalStorageService.getItem<StoredCallState>('activeCall');
+    const hasFeedback = feedbackResult.success && feedbackResult.data !== undefined;
+    const hasActiveCall = callResult.success && callResult.data !== undefined;
+    return !hasFeedback && !hasActiveCall;
   });
   const [isRinging, setIsRinging] = useState(false);
   const ringTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -134,37 +132,22 @@ const CharmerControllerContent = memo(({
   
   // Conversation state
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
-  const [momentFeedbackData, setMomentFeedbackData] = useState<{
-    duration: number;
-    conversationExchanges?: any[];
-    objectionData?: any;
-    buyerState?: any;
-    finalResistance?: number;
-    metrics?: CallMetrics;
-    preAnalyzedMoments?: any[];
-    hybridFeedbackAnalyses?: any[];
-  } | null>(() => {
+  const [momentFeedbackData, setMomentFeedbackData] = useState<StoredFeedbackData | null>(() => {
     // Restore feedback data from localStorage on mount
-    try {
-      const saved = localStorage.getItem('marcusFeedbackData');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        console.log('🔄 Restored feedback data from localStorage');
-        return parsed;
-      }
-    } catch (err) {
-      console.error('❌ Failed to restore feedback data:', err);
+    const result = LocalStorageService.getItem<StoredFeedbackData>('feedbackData');
+    if (result.success && result.data) {
+      console.log('🔄 Restored feedback data from localStorage');
+      return result.data;
+    }
+    if (!result.success && result.error) {
+      console.error('❌ Failed to restore feedback data:', result.error);
     }
     return null;
   });
   const [showMomentFeedback, setShowMomentFeedback] = useState(() => {
     // Show feedback if we have saved feedback data in localStorage
-    try {
-      const saved = localStorage.getItem('marcusFeedbackData');
-      return saved !== null;
-    } catch {
-      return false;
-    }
+    const result = LocalStorageService.getItem<StoredFeedbackData>('feedbackData');
+    return result.success && result.data !== undefined;
   });
   const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
   
@@ -203,7 +186,7 @@ const CharmerControllerContent = memo(({
   const lastMarcusMessageRef = useRef(''); // Last thing Marcus said
   
   // Wake lock for mobile - prevent screen timeout during calls
-  const wakeLockRef = useRef<any>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   
   // Detect and fix blank state (stale localStorage blocking UI)
   useEffect(() => {
@@ -212,8 +195,8 @@ const CharmerControllerContent = memo(({
     if (isBlankState) {
       console.log('⚠️ Detected blank state - clearing stale data and showing scenario selector');
       // Clear stale localStorage
-      localStorage.removeItem('marcusFeedbackData');
-      localStorage.removeItem('marcusActiveCall');
+      LocalStorageService.removeItem('feedbackData');
+      LocalStorageService.removeItem('activeCall');
       // Show scenario selector
       setShowScenarioSelector(true);
       setShowMomentFeedback(false);
@@ -395,11 +378,26 @@ const CharmerControllerContent = memo(({
       // STRATEGY LAYER: Determine Marcus's emotional state, resistance, and what he'll reveal
       const repQualitySignals = strategyLayerRef.current.analyzeRepQuality(userText, conversationHistory);
       
+      // Build TurnContext from conversation history
+      const totalExchanges = conversationHistory.length;
+      const totalTurns = Math.floor(totalExchanges / 2);
+      const elapsedMs = callStartTimeRef.current ? Date.now() - callStartTimeRef.current : 0;
+      
+      const turnContext: TurnContext = {
+        currentTurnId: `turn-${totalTurns + 1}`,
+        currentPairIndex: totalTurns,
+        totalExchanges,
+        totalTurns,
+        elapsedSeconds: elapsedMs / 1000,
+        elapsedMs,
+        isUserTurn: false // About to be Marcus's turn
+      };
+      
       const strategyContext: StrategyContext = {
         phase: currentPhaseNum,
         conversationHistory,
         userInput: userText,
-        utteranceCount: utteranceSnapshot, // Pass current utterance count for impatience countdown
+        turnContext, // Pass turn context for impatience logic
         lastObjection: lastObjectionRef.current, // Pass last objection for escalation detection
         repQualitySignals,
         // Pass randomized traits for trait-aware resistance
@@ -987,22 +985,22 @@ const CharmerControllerContent = memo(({
    */
   const handleScenarioSelect = useCallback(async (scenario: MarcusScenario) => {
     // Clear any saved feedback when starting a new scenario
-    try {
-      localStorage.removeItem('marcusFeedbackData');
+    const clearResult = LocalStorageService.removeItem('feedbackData');
+    if (clearResult.success) {
       console.log('🗑️ Cleared old feedback data for new scenario');
-    } catch (err) {
-      console.error('❌ Failed to clear old feedback data:', err);
+    } else {
+      console.error('❌ Failed to clear old feedback data:', clearResult.error);
     }
     
     // Save active call state to localStorage
-    try {
-      localStorage.setItem('marcusActiveCall', JSON.stringify({
-        scenario,
-        timestamp: Date.now()
-      }));
+    const saveResult = LocalStorageService.setItem<StoredCallState>('activeCall', {
+      scenario,
+      timestamp: Date.now()
+    });
+    if (saveResult.success) {
       console.log('💾 Saved active call state to localStorage');
-    } catch (err) {
-      console.error('❌ Failed to save active call state:', err);
+    } else {
+      console.error('❌ Failed to save active call state:', saveResult.error);
     }
     
     // Randomize Marcus's traits for this call (weighted by difficulty)
@@ -1141,11 +1139,11 @@ const CharmerControllerContent = memo(({
     endCall();
     
     // Clear active call state from localStorage
-    try {
-      localStorage.removeItem('marcusActiveCall');
+    const clearResult = LocalStorageService.removeItem('activeCall');
+    if (clearResult.success) {
       console.log('🗑️ Cleared active call state on call end');
-    } catch (err) {
-      console.error('❌ Failed to clear active call state:', err);
+    } else {
+      console.error('❌ Failed to clear active call state:', clearResult.error);
     }
     
     // Show loading state while generating feedback
@@ -1427,13 +1425,14 @@ const CharmerControllerContent = memo(({
     
     setMomentFeedbackData({
       duration,
-      conversationExchanges,
-      objectionData,
-      buyerState,
+      conversationExchanges: conversationExchanges as any, // TODO: Align ConversationExchange types across files
+      objectionData: objectionData as any, // TODO: Standardize ObjectionData structure
+      buyerState: buyerState as any, // TODO: Unify BuyerState interface
       finalResistance,
       metrics,
-      preAnalyzedMoments: viewModels.length > 0 ? viewModels : undefined,
-      hybridFeedbackAnalyses: hybridAnalyses.length > 0 ? hybridAnalyses : undefined
+      preAnalyzedMoments: viewModels.length > 0 ? (viewModels as any) : undefined, // TODO: Create type adapter
+      hybridFeedbackAnalyses: hybridAnalyses.length > 0 ? (hybridAnalyses as any) : undefined, // TODO: Create type adapter
+      timestamp: Date.now()
     });
     
     // End loading state and show feedback
@@ -1462,17 +1461,15 @@ const CharmerControllerContent = memo(({
   }, [autoStart, isConnected, isConnecting, handleStartCall]);
   
   /**
-   * Restore feedback UI state on mount if data exists
+   * Restore feedback UI on mount if we have saved data
    */
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('marcusFeedbackData');
-      if (saved) {
-        setShowMomentFeedback(true);
-        console.log('🔄 Showing restored feedback UI');
-      }
-    } catch (err) {
-      console.error('❌ Failed to restore feedback UI:', err);
+    const result = LocalStorageService.getItem<StoredFeedbackData>('feedbackData');
+    if (result.success && result.data) {
+      setShowMomentFeedback(true);
+      console.log('🔄 Showing restored feedback UI');
+    } else if (!result.success && result.error) {
+      console.error('❌ Failed to restore feedback UI:', result.error);
     }
   }, []);
   
@@ -1481,11 +1478,11 @@ const CharmerControllerContent = memo(({
    */
   useEffect(() => {
     if (momentFeedbackData) {
-      try {
-        localStorage.setItem('marcusFeedbackData', JSON.stringify(momentFeedbackData));
+      const saveResult = LocalStorageService.setItem<StoredFeedbackData>('feedbackData', momentFeedbackData);
+      if (saveResult.success) {
         console.log('💾 Saved feedback data to localStorage');
-      } catch (err) {
-        console.error('❌ Failed to save feedback data:', err);
+      } else {
+        console.error('❌ Failed to save feedback data:', saveResult.error);
       }
     }
   }, [momentFeedbackData]);
@@ -1495,13 +1492,9 @@ const CharmerControllerContent = memo(({
    */
   const handleCloseMomentFeedback = useCallback(() => {
     // Clear localStorage when closing feedback
-    try {
-      localStorage.removeItem('marcusFeedbackData');
-      localStorage.removeItem('marcusActiveCall');
-      console.log('🗑️ Cleared feedback and active call data from localStorage');
-    } catch (err) {
-      console.error('❌ Failed to clear feedback data:', err);
-    }
+    LocalStorageService.removeItem('feedbackData');
+    LocalStorageService.removeItem('activeCall');
+    console.log('🗑️ Cleared feedback and active call data from localStorage');
     
     setShowMomentFeedback(false);
     setMomentFeedbackData(null);
@@ -1546,18 +1539,18 @@ const CharmerControllerContent = memo(({
       {showMomentFeedback && momentFeedbackData && (
         <MarcusPostCallMoments
           duration={momentFeedbackData.duration}
-          conversationExchanges={momentFeedbackData.conversationExchanges || []}
-          objectionData={momentFeedbackData.objectionData || {
+          conversationExchanges={momentFeedbackData.conversationExchanges as any || []}
+          objectionData={momentFeedbackData.objectionData as any || {
             objectionSatisfaction: {},
             objectionCounts: {},
             activeObjection: undefined
           }}
-          buyerState={momentFeedbackData.buyerState}
+          buyerState={momentFeedbackData.buyerState as any}
           finalResistance={momentFeedbackData.finalResistance || 5}
           scenario={selectedScenario}
           onTryAgain={handleCloseMomentFeedback}
-          preAnalyzedMoments={momentFeedbackData.preAnalyzedMoments}
-          hybridFeedbackAnalyses={momentFeedbackData.hybridFeedbackAnalyses}
+          preAnalyzedMoments={momentFeedbackData.preAnalyzedMoments as any}
+          hybridFeedbackAnalyses={momentFeedbackData.hybridFeedbackAnalyses as any}
         />
       )}
       

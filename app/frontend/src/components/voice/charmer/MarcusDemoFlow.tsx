@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { CharmerController } from './CharmerController';
+import { CharmerServicesProvider } from './context/CharmerServicesContext';
 
 interface MarcusDemoFlowProps {
   onComplete?: () => void;
@@ -22,14 +23,16 @@ export const MarcusDemoFlow: React.FC<MarcusDemoFlowProps> = ({
   // 3. Phone ringing + call interface
   // 4. Score reveal with retry/change difficulty
   return (
-    <CharmerController
-      onCallEnd={onComplete}
-      onCallComplete={(data) => {
-        console.log('✅ Marcus challenge completed:', data);
-        if (onComplete) onComplete();
-      }}
-      aiModel="gpt-4o"
-    />
+    <CharmerServicesProvider>
+      <CharmerController
+        onCallEnd={onComplete}
+        onCallComplete={(data) => {
+          console.log('✅ Marcus challenge completed:', data);
+          if (onComplete) onComplete();
+        }}
+        aiModel="gpt-4o"
+      />
+    </CharmerServicesProvider>
   );
 };
 

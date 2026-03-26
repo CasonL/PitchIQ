@@ -52,9 +52,16 @@ export class MarcusVoiceManager {
 
   constructor(config: VoiceManagerConfig) {
     this.config = config;
+    
+    // 🧪 A/B TEST: Set to true to test sentence streaming (cleaner, no accumulation bugs)
+    // Set to false for interim results (word-by-word with complex accumulation)
+    // NOTE: Sentence streaming (interim_results=false) appears to cause WebSocket rejection
+    const USE_SENTENCE_STREAMING = false; // <<< TOGGLE THIS FOR A/B TEST
+    
     this.sttService = new DeepgramSTTService({
       onTranscript: this.handleTranscript.bind(this),
       onError: this.handleError.bind(this),
+      useSentenceStreaming: USE_SENTENCE_STREAMING,
     });
     this.ttsService = new CartesiaService({
       onAudioReady: this.handleAudioReady.bind(this),

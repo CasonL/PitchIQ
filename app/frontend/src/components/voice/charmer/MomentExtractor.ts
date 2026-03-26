@@ -130,19 +130,22 @@ export class MomentExtractor {
     
     // NUANCED MOMENT DETECTION: Detect when same turn has both positive AND negative signals
     // This captures the nuance: right move, rough execution
-    const momentsByTurn = new Map<number, KeyMoment[]>();
+    // 🎯 Use canonicalTurnId from spine to ensure consistent grouping
+    const momentsByTurn = new Map<string, KeyMoment[]>();
     
-    // Group moments by turn number
+    // Group moments by canonical turn ID (from TurnTracker spine)
     for (const moment of candidateMoments) {
-      const existing = momentsByTurn.get(moment.turnNumber) || [];
+      // Use canonical turn ID if available, fallback to turnNumber for legacy moments
+      const turnKey = moment.id.split('_')[0] || `turn-${moment.turnNumber}`;
+      const existing = momentsByTurn.get(turnKey) || [];
       existing.push(moment);
-      momentsByTurn.set(moment.turnNumber, existing);
+      momentsByTurn.set(turnKey, existing);
     }
     
     // Merge moments from same turn into nuanced classifications when appropriate
     const finalMoments: KeyMoment[] = [];
     
-    for (const [turnNumber, moments] of momentsByTurn.entries()) {
+    for (const [turnId, moments] of momentsByTurn.entries()) {
       if (moments.length === 1) {
         // Single moment for this turn - use as-is
         finalMoments.push(moments[0]);
@@ -951,11 +954,14 @@ export class MomentExtractor {
   }
   
   /**
-   * Convert 0-1 score to human string
+   * Convert 0-1 score to human string with hysteresis buffer
+   * Prevents edge-case flipping when values hover around thresholds
    */
   private static levelToString(value: number): string {
-    if (value < 0.35) return 'low';
-    if (value < 0.65) return 'mid';
+    // Add buffer zones to prevent threshold flipping
+    // Low: < 0.33, Mid: 0.37-0.63, High: > 0.67
+    if (value < 0.33) return 'low';
+    if (value < 0.67) return 'moderate';
     return 'high';
   }
   

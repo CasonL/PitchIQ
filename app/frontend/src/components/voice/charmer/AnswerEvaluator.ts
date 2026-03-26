@@ -385,44 +385,44 @@ Respond ONLY with valid JSON:
   private static getAcknowledgment(objection: ObjectionType, strength: 'partial' | 'strong'): string {
     const acknowledgments: Record<ObjectionType, { partial: string; strong: string }> = {
       customization: {
-        partial: "I can see how that's more tailored than a generic seminar.",
-        strong: "Okay, I get it - you're adapting to our specific buyers and objections."
+        partial: "Okay, fair enough.",
+        strong: "Yeah, I hear you."
       },
       proof: {
-        partial: "That helps on the proof side.",
-        strong: "Okay, those results are convincing."
+        partial: "Alright.",
+        strong: "Okay, yeah."
       },
       fit: {
-        partial: "I see how that could work for our team.",
-        strong: "That does sound relevant to our sales process."
+        partial: "Fair.",
+        strong: "That makes sense."
       },
       trust: {
-        partial: "That adds some credibility.",
-        strong: "Okay, you've established trust there."
+        partial: "Okay.",
+        strong: "Alright, fair enough."
       },
       value: {
-        partial: "I can see the ROI angle.",
-        strong: "That makes the value clearer."
+        partial: "Got it.",
+        strong: "Yeah, okay."
       },
       time: {
-        partial: "That sounds less time-intensive than I thought.",
-        strong: "Okay, setup seems straightforward."
+        partial: "Fair enough.",
+        strong: "Okay, yeah."
       },
       budget: {
-        partial: "The pricing is more flexible than I expected.",
-        strong: "That fits our budget better than I thought."
+        partial: "Alright.",
+        strong: "Yeah, that works."
       },
       authority: {
-        partial: "I can bring that to the team.",
-        strong: "That makes it easier to get buy-in."
+        partial: "Okay.",
+        strong: "Fair enough."
       },
       timing: {
-        partial: "I see why now makes sense.",
-        strong: "Okay, the timing argument is solid."
+        partial: "Fair.",
+        strong: "Alright, I hear you."
       },
       status_quo: {
-        partial: "I see how that's different from what we're doing.",
-        strong: "That's a clear improvement over our current approach."
+        partial: "Okay, fair enough.",
+        strong: "Yeah, that makes sense."
       }
     };
 

@@ -204,8 +204,10 @@ export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({
       const prompt = `You are a strategic sales coach analyzing a pivotal call moment. Be direct, grounded, and specific. No generic advice.
 
 THE MOMENT:
-Turn ${moment.turnNumber} - Marcus said: "${moment.marcusResponse}"
-You responded: "${moment.userMessage}"
+Turn ${moment.turnNumber} - You said: "${moment.userMessage}"
+Marcus responded: "${moment.marcusResponse}"
+
+**YOU ARE GRADING THE USER'S MESSAGE ("You said"), NOT MARCUS'S RESPONSE.**
 
 CONTEXT:
 - ${moment.whatChanged}

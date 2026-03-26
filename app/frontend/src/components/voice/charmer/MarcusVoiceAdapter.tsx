@@ -21,6 +21,7 @@ interface MarcusVoiceContextType {
   startCall: () => Promise<void>;
   endCall: () => Promise<void>;
   speakAsMarcus: (text: string, options?: SpeakOptions) => Promise<void>;
+  stopSpeaking: () => Promise<void>;
   
   // Status
   isSpeaking: boolean;
@@ -250,6 +251,16 @@ export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
   }, []);
   
   /**
+   * Stop Marcus from speaking immediately (for interruptions)
+   */
+  const stopSpeaking = useCallback(async () => {
+    if (!voiceManagerRef.current) return;
+    
+    console.log('[MarcusVoiceAdapter] Stopping Marcus speech');
+    await voiceManagerRef.current.stopSpeaking();
+  }, []);
+  
+  /**
    * Cleanup on unmount
    */
   useEffect(() => {
@@ -270,6 +281,7 @@ export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
     startCall,
     endCall,
     speakAsMarcus,
+    stopSpeaking,
     isSpeaking,
     metrics
   };

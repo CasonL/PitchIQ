@@ -443,6 +443,11 @@ export class CriticalMomentDetector {
     const spikes: CriticalMoment[] = [];
     const exchanges = transcript.exchanges;
     
+    if (!exchanges || exchanges.length === 0) {
+      console.warn('[CriticalMomentDetector] No exchanges found in transcript');
+      return spikes;
+    }
+    
     for (let i = 1; i < exchanges.length; i++) {
       const prev = exchanges[i - 1];
       const curr = exchanges[i];

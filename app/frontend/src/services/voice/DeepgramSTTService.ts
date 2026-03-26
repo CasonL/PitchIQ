@@ -14,6 +14,7 @@ export interface DeepgramConfig {
   apiKey?: string; // Optional - will fetch from backend if not provided
   enableReconnection?: boolean; // Enable automatic reconnection (default: true)
   maxReconnectAttempts?: number; // Max reconnection attempts (default: 5)
+  useSentenceStreaming?: boolean; // A/B TEST: Use sentence streaming instead of interim results (default: false)
 }
 
 export class DeepgramSTTService {
@@ -26,6 +27,8 @@ export class DeepgramSTTService {
   private isPaused: boolean = false; // Pause STT to prevent echo
   private lastTTSTranscript: string = ''; // Track recent TTS output for echo detection
   private ttsEndTime: number = 0; // Track when TTS playback ended
+  private previousUtterance: string = ''; // Buffer previous utterance for merging
+  private previousUtteranceTime: number = 0; // When previous utterance ended
   
   // Reconnection state
   private reconnectAttempts: number = 0;
@@ -34,11 +37,19 @@ export class DeepgramSTTService {
   private isReconnecting: boolean = false;
   private enableReconnection: boolean = true;
   private shouldStayConnected: boolean = false; // Track if we should reconnect on disconnect
+  private useSentenceStreaming: boolean = false; // A/B test flag
 
   constructor(config: DeepgramConfig) {
     this.config = config;
     this.enableReconnection = config.enableReconnection !== false;
     this.maxReconnectAttempts = config.maxReconnectAttempts || 5;
+    this.useSentenceStreaming = config.useSentenceStreaming || false;
+    
+    if (this.useSentenceStreaming) {
+      console.log('[Deepgram] 🧪 A/B TEST: Using SENTENCE STREAMING mode (no interim results)');
+    } else {
+      console.log('[Deepgram] 📝 Using INTERIM RESULTS mode (word-by-word with accumulation)');
+    }
   }
 
   /**
@@ -88,12 +99,13 @@ export class DeepgramSTTService {
       // Start live transcription connection
       // Note: Don't specify encoding/sample_rate when using MediaRecorder
       // SDK auto-detects from WebM container
+      // A/B TEST: Configure based on streaming mode
       this.liveClient = deepgram.listen.live({
         model: 'nova-2',
         language: 'en-US',
         punctuate: true,
         smart_format: true,
-        interim_results: true,
+        interim_results: !this.useSentenceStreaming, // Interim only in word mode
         utterance_end_ms: 2000, // 2s pause - allows multi-sentence pitches with natural pauses
         vad_events: false
       });
@@ -120,6 +132,26 @@ export class DeepgramSTTService {
       this.liveClient.on(LiveTranscriptionEvents.UtteranceEnd, () => {
         console.log('[Deepgram] ✅ Utterance ended');
         if (this.accumulatedTranscript) {
+          const now = Date.now();
+          const timeSincePrevious = now - this.previousUtteranceTime;
+          const currentWords = this.accumulatedTranscript.trim().split(/\s+/).length;
+          
+          // Check if this looks like a premature split (very short utterance within 3s of previous)
+          const isProbablySplit = currentWords <= 2 && 
+                                   this.previousUtterance && 
+                                   timeSincePrevious < 3000;
+          
+          if (isProbablySplit) {
+            // Merge with previous utterance instead of sending separately
+            const merged = `${this.previousUtterance} ${this.accumulatedTranscript}`.trim();
+            console.log(`[Deepgram] 🔗 Merged short utterance: "${this.accumulatedTranscript}" → "${merged}"`);
+            this.previousUtterance = merged;
+            this.previousUtteranceTime = now;
+            this.accumulatedTranscript = '';
+            return;
+          }
+          
+          // Normal utterance - send it
           console.log(`[Deepgram] 📝 Complete utterance (UtteranceEnd): "${this.accumulatedTranscript}"`);
           try {
             this.config.onTranscript(this.accumulatedTranscript, true);
@@ -127,12 +159,30 @@ export class DeepgramSTTService {
             console.error('[Deepgram] ❌ CRITICAL: onTranscript callback threw error:', error);
             this.config.onError(error as Error);
           }
+          
+          // Buffer this utterance in case next one is a continuation
+          this.previousUtterance = this.accumulatedTranscript;
+          this.previousUtteranceTime = now;
           this.accumulatedTranscript = '';
         }
       });
 
       this.liveClient.on(LiveTranscriptionEvents.SpeechStarted, () => {
         console.log('[Deepgram] 🎤 Speech started');
+        
+        // If we have a buffered utterance from >3s ago, flush it now
+        // This handles case where user said short utterance then paused for long time
+        if (this.previousUtterance && Date.now() - this.previousUtteranceTime > 3000) {
+          console.log(`[Deepgram] 📤 Flushing buffered utterance: "${this.previousUtterance}"`);
+          try {
+            this.config.onTranscript(this.previousUtterance, true);
+          } catch (error) {
+            console.error('[Deepgram] ❌ Error flushing buffer:', error);
+          }
+          this.previousUtterance = '';
+          this.previousUtteranceTime = 0;
+        }
+        
         if (this.config.onSpeechStart) {
           this.config.onSpeechStart();
         }
@@ -376,46 +426,36 @@ export class DeepgramSTTService {
         console.log(`[Deepgram] ${speechFinal ? 'SPEECH FINAL' : 'Final'}: "${transcript}"`);
       }
 
-      // Handle transcript accumulation
-      // Deepgram does NOT accumulate across speechFinals - each one resets
-      // We need to manually build the complete utterance
-      
-      if (!this.accumulatedTranscript) {
-        // First transcript - store it
-        this.accumulatedTranscript = transcript;
-        console.log(`[Deepgram] 📋 Started: "${transcript}"`);
-      } else if (transcript.length > this.accumulatedTranscript.length) {
-        // Longer = normal Deepgram accumulation within same phrase
-        this.accumulatedTranscript = transcript;
-      } else if (speechFinal || isFinal) {
-        // Shorter speechFinal after longer one = Deepgram RESET with new phrase OR correction
-        // Check if it's genuinely new content vs a correction of existing content
-        const isSubstring = this.accumulatedTranscript.toLowerCase().includes(transcript.toLowerCase().trim());
-        const isVeryShort = transcript.trim().length <= 5; // Likely noise/echo
-        
-        // Check for word overlap to detect corrections vs new content
-        const accWords = this.accumulatedTranscript.toLowerCase().split(/\s+/);
-        const newWords = transcript.toLowerCase().split(/\s+/);
-        const overlapCount = newWords.filter(word => accWords.includes(word)).length;
-        const overlapRatio = overlapCount / Math.max(newWords.length, 1);
-        
-        // If >60% word overlap, it's likely a correction/refinement, not new content
-        const isCorrection = overlapRatio > 0.6;
-        
-        if (!isSubstring && !isVeryShort && !isCorrection) {
-          // New content - append it
-          this.accumulatedTranscript = this.accumulatedTranscript.trim() + ' ' + transcript.trim();
-          console.log(`[Deepgram] ➕ Appending: "${transcript}"`);
-        } else {
-          const reason = isVeryShort ? 'noise' : isCorrection ? 'correction' : 'duplicate';
-          console.log(`[Deepgram] ⏭️ Ignoring ${reason}: "${transcript}"`);
-        }
+      // 🧪 A/B TEST: In sentence streaming mode, skip accumulation entirely
+      // Deepgram sends complete sentences, so just pass them through
+      if (this.useSentenceStreaming && isFinal) {
+        console.log(`[Deepgram] 📤 Sentence mode - passing through: "${transcript}"`);
+        this.config.onTranscript(transcript, false); // Send as partial for UI updates
+        return;
+      }
+
+      // ONLY ACCUMULATE FINAL TRANSCRIPTS
+      // Skip interim results entirely to avoid duplication from Deepgram's overlapping updates
+      if (!isFinal) {
+        console.log(`[Deepgram] ⏭️ Skipping interim: "${transcript}"`);
+        return;
       }
       
-      // CRITICAL: Send ACCUMULATED transcript to UI to prevent fragmentation
-      // This ensures UI always sees full context, not fragments like "lot" or "is"
-      console.log(`[Deepgram] 📤 Sending accumulated: "${this.accumulatedTranscript}"`);
-      this.config.onTranscript(this.accumulatedTranscript, false);
+      // Accumulate only final transcripts
+      if (!this.accumulatedTranscript) {
+        this.accumulatedTranscript = transcript;
+        console.log(`[Deepgram] � First final: "${transcript}"`);
+      } else {
+        // Append final transcripts with a space
+        this.accumulatedTranscript = this.accumulatedTranscript.trim() + ' ' + transcript.trim();
+        console.log(`[Deepgram] ➕ Appending final: "${transcript}"`);
+      }
+      
+      // DISABLED: Don't send interim transcripts - wait for utterance_end only
+      // This prevents duplication caused by Deepgram changing transcriptions mid-stream
+      // Trade-off: ~2s latency for 100% reliable transcripts
+      // console.log(`[Deepgram] 📤 Sending accumulated: "${this.accumulatedTranscript}"`);
+      // this.config.onTranscript(this.accumulatedTranscript, false);
 
     } catch (error) {
       console.error('[Deepgram] Transcript parsing error:', error);

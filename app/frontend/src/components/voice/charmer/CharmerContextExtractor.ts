@@ -3,13 +3,27 @@
  * Extracts key information from user speech for Marcus's coaching
  */
 
+/**
+ * Rich mechanistic detection - explains WHY something is wrong
+ */
+export interface DetectedMechanic {
+  type: string;                    // e.g., 'permission_ask_without_value'
+  evidence: string;                // Exact quote that triggered detection
+  mechanism: string;               // Sales psychology principle violated
+  marcusImpact: string;            // How this affects Marcus (his internal response)
+  confidence: number;              // 0.0-1.0, how certain we are
+  severity: 'minor' | 'moderate' | 'critical';  // Impact level
+  recommendedFix?: string;         // Optional: what to do instead
+}
+
 export interface ExtractedInfo {
   name?: string;
   gender?: 'male' | 'female' | 'unknown';
   product?: string;
   targetAudience?: string;
   memorablePhrase?: string;
-  detectedIssues: CoachingIssue[];
+  detectedIssues: CoachingIssue[];  // Legacy - will phase out
+  detectedMechanics: DetectedMechanic[];  // Rich detection
   strengths: string[];
 }
 
@@ -384,6 +398,151 @@ export class CharmerContextExtractor {
   }
   
   /**
+   * Rich mechanistic detection - explains WHY patterns are problematic
+   */
+  static detectMechanics(
+    transcript: string,
+    conversationHistory: Array<{role: string; content: string}> = [],
+    utteranceCount: number = 0
+  ): DetectedMechanic[] {
+    const mechanics: DetectedMechanic[] = [];
+    const lowerTranscript = transcript.toLowerCase();
+    
+    // Get last Marcus message for context
+    const lastMarcusMessage = conversationHistory.length > 0 
+      ? conversationHistory[conversationHistory.length - 1]?.content 
+      : null;
+    
+    // MECHANIC 1: Permission ask without value
+    // Pattern: Asking for time/permission before establishing why they should care
+    const permissionPatterns = [
+      /do you have (a few|five|10|\d+) (minutes|mins|seconds)/i,
+      /can I (have|take|grab|steal) (a|your) (minute|moment|second)/i,
+      /is (this|now) a (good|bad) time/i
+    ];
+    
+    for (const pattern of permissionPatterns) {
+      const match = transcript.match(pattern);
+      if (match) {
+        const hasValueProp = /\b(help|save|increase|improve|reduce|solve)\b/i.test(transcript);
+        const hasRelevance = /\b(you|your)\b/i.test(transcript.substring(0, match.index || 0));
+        
+        if (!hasValueProp || !hasRelevance) {
+          mechanics.push({
+            type: 'permission_ask_without_value',
+            evidence: match[0],
+            mechanism: 'Asked for time commitment before establishing relevance or value',
+            marcusImpact: 'Triggers defensive posture - stranger asking for my time without earning the right',
+            confidence: 0.9,
+            severity: 'critical',
+            recommendedFix: 'Lead with a micro-value statement first: "Quick call - we help [outcome]. Worth 2 minutes?"'
+          });
+          break;
+        }
+      }
+    }
+    
+    // MECHANIC 2: Close-ended without value
+    // Pattern: Yes/no question that doesn't lead anywhere
+    const closeEndedPatterns = [
+      { pattern: /(do you|are you|have you|can you|would you|will you)\s+[^?]+\?/i, type: 'binary' },
+      { pattern: /(is it|is this|is that)\s+[^?]+\?/i, type: 'binary' }
+    ];
+    
+    for (const { pattern, type } of closeEndedPatterns) {
+      const match = transcript.match(pattern);
+      if (match) {
+        const question = match[0].trim();
+        const hasDiscovery = /\b(what|how|why|tell me|walk me through)\b/i.test(transcript);
+        
+        if (!hasDiscovery) {
+          mechanics.push({
+            type: 'close_ended_without_value',
+            evidence: question,
+            mechanism: 'Binary question allows one-word dismissal without opening conversation',
+            marcusImpact: 'Can dodge with "no" or "yes" - doesn\'t invite me to explain my situation',
+            confidence: 0.85,
+            severity: 'moderate',
+            recommendedFix: 'Switch to open-ended: "What" or "How" questions that require explanation'
+          });
+          break;
+        }
+      }
+    }
+    
+    // MECHANIC 3: No discovery (talking AT instead of WITH)
+    // Pattern: Long message with no questions about Marcus's situation
+    const hasDiscoveryQuestion = /\b(what|how|why|tell me about|help me understand|walk me through)\b/i.test(transcript);
+    const wordCount = transcript.split(/\s+/).length;
+    
+    if (!hasDiscoveryQuestion && wordCount > 30) {
+      const firstSentence = transcript.split(/[.!?]+/)[0].trim();
+      const hasPitch = /\b(we help|I help|our product|we offer|we provide)\b/i.test(transcript);
+      
+      if (hasPitch) {
+        mechanics.push({
+          type: 'no_discovery',
+          evidence: firstSentence.substring(0, 80) + (firstSentence.length > 80 ? '...' : ''),
+          mechanism: 'Pitched solution without understanding buyer\'s current situation or needs',
+          marcusImpact: 'Feels like you\'re reading a script - you don\'t know if I even have this problem',
+          confidence: 0.88,
+          severity: 'critical',
+          recommendedFix: 'Ask about their current state first: "How are you handling [X] right now?"'
+        });
+      }
+    }
+    
+    // MECHANIC 4: Identity without payoff
+    // Pattern: "I'm X from Y" followed immediately by pitch, no permission earned
+    if (utteranceCount <= 2) {
+      const identityPattern = /(i'm|i am|this is|my name is)\s+\w+\s+(?:from|with|at)\s+\w+/i;
+      const identityMatch = transcript.match(identityPattern);
+      
+      if (identityMatch) {
+        const afterIdentity = transcript.substring((identityMatch.index || 0) + identityMatch[0].length);
+        const immediatelyPitches = /^[^.!?]{0,20}(we help|I help|we provide|our product)/i.test(afterIdentity);
+        
+        if (immediatelyPitches) {
+          mechanics.push({
+            type: 'identity_without_payoff',
+            evidence: identityMatch[0],
+            mechanism: 'Stated identity then immediately pitched - pattern matches telemarketer script',
+            marcusImpact: 'Trust drops - this is clearly a cold pitch, not a conversation',
+            confidence: 0.92,
+            severity: 'critical',
+            recommendedFix: 'Break the script pattern - acknowledge it\'s a cold call or lead with curiosity'
+          });
+        }
+      }
+    }
+    
+    // MECHANIC 5: Vague value without specifics
+    // Pattern: Claims outcomes but no numbers or proof
+    const vagueValuePatterns = /(improve|increase|enhance|optimize|boost|grow)\s+(?:your|the)?\s*(sales|revenue|performance|results)/i;
+    const vagueMatch = transcript.match(vagueValuePatterns);
+    
+    if (vagueMatch) {
+      const hasSpecifics = /\d+\s*(%|percent|x|times|dollars|days|weeks)/i.test(transcript);
+      const hasProof = /\b(client|customer|case study|example)\b/i.test(transcript);
+      
+      if (!hasSpecifics && !hasProof) {
+        mechanics.push({
+          type: 'vague_value_claim',
+          evidence: vagueMatch[0],
+          mechanism: 'Value claim without quantification or proof',
+          marcusImpact: 'Sounds like every other vendor - generic claims trigger skepticism',
+          confidence: 0.80,
+          severity: 'moderate',
+          recommendedFix: 'Add specific number: "30% more deals in 90 days" or reference proof: "Client X saw..."'
+        });
+      }
+    }
+    
+    console.log(`🔧 Detected ${mechanics.length} mechanics with rich context`);
+    return mechanics;
+  }
+  
+  /**
    * Full extraction from transcript
    */
   static extractAll(
@@ -397,6 +556,7 @@ export class CharmerContextExtractor {
       product: this.extractProduct(transcript),
       memorablePhrase: this.extractMemorablePhrase(transcript),
       detectedIssues: this.detectCoachingIssues(transcript, conversationHistory, utteranceCount),
+      detectedMechanics: this.detectMechanics(transcript, conversationHistory, utteranceCount),
       strengths: this.identifyStrengths(transcript)
     };
   }

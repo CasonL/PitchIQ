@@ -164,19 +164,20 @@ export class CognitiveCompletenessAnalyzer {
   }
 
   private static detectThinking(text: string): boolean {
+    // Only flag LEADING thinking patterns - mid-sentence fillers are just speech style
     const thinkingPatterns = [
       /^um+\.?\s*/,
       /^uh+\.?\s*/,
       /^er+\.?\s*/,
-      /\blet me think\b/,
-      /\blet me see\b/,
-      /\bhow do i put this\b/,
-      /\bhow can i say\b/,
-      /\bwhat's the word\b/,
-      /\byou know what i mean\b/,
+      /^let me think\b/,
+      /^let me see\b/,
+      /^how do i put this\b/,
+      /^how can i say\b/,
+      /^what's the word\b/,
+      /\byou know what i mean\b$/,  // Only at end
       /\byou know\b$/,
-      /\blike\b.*\blike\b/,
-      /\bso+\b.*\bso+\b/
+      /^like\b.*\blike\b/,  // Multiple "like"s starting utterance
+      /^so+\b.*\bso+\b/     // Multiple "so"s starting utterance
     ];
 
     return thinkingPatterns.some(pattern => pattern.test(text));

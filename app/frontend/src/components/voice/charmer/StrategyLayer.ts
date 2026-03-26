@@ -1,4 +1,5 @@
 import { AnswerEvaluator, AnswerImpact } from './AnswerEvaluator';
+import { ObjectionGenerator } from './ObjectionGenerator';
 
 export type EmotionalPosture = 
   | 'defensive' 
@@ -42,6 +43,19 @@ export interface BuyerState {
   shouldForceExit: boolean;
   exitReason?: string;
   shouldShowConfusion: boolean;
+  // Interest trajectory & dodge mode
+  canDodgeQuestions: boolean; // Enable after 3+ consecutive disappointments
+  consecutiveInterestDrops: number; // Track declining relevance/clarity
+  lastQuestionQuality?: 'high' | 'medium' | 'low'; // Most recent question quality
+  // Product-specific objections (when available)
+  productSpecificObjections?: {
+    timing?: string;
+    fit?: string;
+    trust?: string;
+    status_quo?: string;
+    cost?: string;
+    authority?: string;
+  };
 }
 
 // COACHING ASSESSMENT: What the coach thinks about rep performance (for post-call)
@@ -91,11 +105,23 @@ export type ObjectionSatisfaction = {
   status_quo: number;
 };
 
+export interface TurnContext {
+  currentTurnId: string;        // "turn-12"
+  currentPairIndex: number;     // 11 (0-indexed pair number)
+  totalExchanges: number;       // 24 (both user + marcus exchanges)
+  totalTurns: number;           // 12 (completed user+marcus pairs)
+  elapsedSeconds: number;       // 128.5
+  elapsedMs: number;            // 128532
+  isUserTurn: boolean;          // Currently waiting for marcus response?
+  lastUserExchangeId?: string;
+  lastMarcusExchangeId?: string;
+}
+
 export interface StrategyContext {
   phase: number;
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
   userInput: string;
-  utteranceCount: number; // Total utterances in this call
+  turnContext: TurnContext; // 🎯 FROM SPINE: Canonical turn tracking
   lastObjection?: string; // Last objection Marcus raised
   repQualitySignals: {
     askedDiscovery: boolean;
@@ -118,6 +144,8 @@ export interface StrategyContext {
     forceImpatientAtUtterance?: number;
     hasUpcomingObligation?: boolean;
   };
+  // Product-specific objection generator (optional)
+  objectionGenerator?: ObjectionGenerator;
 }
 
 export class StrategyLayer {
@@ -130,6 +158,14 @@ export class StrategyLayer {
   private repWordCount: number = 0;
   private marcusWordCount: number = 0;
   private lastRepAnswer: string = '';
+  // Interest trajectory tracking - actual buyer factors
+  private interestHistory: Array<{ 
+    needFit: number;      // Does he need this? (relevance)
+    timing: number;       // Is this the right time? (patience + urgency)
+    trust: number;        // Does he trust them? (trustLevel)
+    willingness: number;  // Is he willing to engage? (openness)
+  }> = [];
+  private consecutiveInterestDrops: number = 0;
 
   constructor() {
     this.buyerState = this.getDefaultBuyerState();
@@ -137,7 +173,7 @@ export class StrategyLayer {
   }
 
   async determineStrategy(context: StrategyContext): Promise<StrategyOutput> {
-    const { phase, conversationHistory, userInput, utteranceCount, repQualitySignals, marcusTraits } = context;
+    const { phase, conversationHistory, userInput, turnContext, repQualitySignals, marcusTraits } = context;
 
     // Track questions asked
     const hasQuestion = /\?|\b(what|how|why|tell me|can you|would you|could you)\b/i.test(userInput);
@@ -167,22 +203,22 @@ export class StrategyLayer {
     // 1. Question-based: 10+ questions without making progress
     const questionImpatience = this.questionsAsked >= 10 && !progressMade;
     
-    // 2. Utterance-based: 15+ utterances AND high resistance (> 7) = going nowhere
-    const utteranceImpatience = utteranceCount >= 15 && finalResistance > 7;
+    // 2. Turn-based: 15+ turns AND high resistance (> 7) = going nowhere
+    const turnImpatience = turnContext.totalTurns >= 15 && finalResistance > 7;
     
-    // 3. Architect override: Force impatience at specific utterance (e.g., "has meeting soon")
+    // 3. Architect override: Force impatience at specific turn (e.g., "has meeting soon")
     const forcedImpatience = marcusTraits?.forceImpatientAtUtterance 
-      ? utteranceCount >= marcusTraits.forceImpatientAtUtterance
+      ? turnContext.totalTurns >= marcusTraits.forceImpatientAtUtterance
       : false;
     
-    const isImpatient = questionImpatience || utteranceImpatience || forcedImpatience;
+    const isImpatient = questionImpatience || turnImpatience || forcedImpatience;
     const questionsAskedWithoutProgress = progressMade ? 0 : this.questionsAsked;
     
-    if (utteranceImpatience && !questionImpatience) {
-      console.log(`⏰ [Strategy] Utterance impatience triggered: ${utteranceCount} utterances with ${finalResistance.toFixed(1)}/10 resistance`);
+    if (turnImpatience && !questionImpatience) {
+      console.log(`⏰ [Strategy] Turn impatience triggered: ${turnContext.currentTurnId} (${turnContext.totalTurns} turns) with ${finalResistance.toFixed(1)}/10 resistance`);
     }
     if (forcedImpatience) {
-      console.log(`⏰ [Strategy] Architect forced impatience at utterance ${utteranceCount}`);
+      console.log(`⏰ [Strategy] Architect forced impatience at ${turnContext.currentTurnId}`);
     }
 
     const emotionalPosture = this.determineEmotionalPosture(
@@ -199,6 +235,71 @@ export class StrategyLayer {
       repQualitySignals,
       conversationHistory
     );
+
+    // Calculate metrics before updating buyer state
+    const openness = this.calculateOpenness(repQualitySignals, finalResistance);
+    let patience = this.calculatePatience(turnContext, finalResistance, progressMade);
+    let clarity = this.calculateClarity(conversationHistory, repQualitySignals);
+    let relevance = this.calculateRelevance(repQualitySignals, finalResistance);
+    let trustLevel = this.buyerState.trustLevel;
+    const urgency = marcusTraits ? this.mapTraitToUrgency(marcusTraits.urgency) : 2;
+    
+    // Evaluate question quality and interest trajectory
+    const questionQuality = this.evaluateQuestionQuality(userInput, repQualitySignals);
+    const interestMetrics = this.calculateInterestMetrics(
+      relevance,
+      patience,
+      urgency,
+      trustLevel,
+      openness
+    );
+    
+    // Track interest trajectory
+    this.interestHistory.push(interestMetrics);
+    if (this.interestHistory.length > 4) {
+      this.interestHistory.shift(); // Keep last 4 exchanges
+    }
+    
+    // Detect consecutive drops in overall buyer interest
+    if (this.interestHistory.length >= 2) {
+      const current = this.interestHistory[this.interestHistory.length - 1];
+      const previous = this.interestHistory[this.interestHistory.length - 2];
+      
+      // Composite interest = weighted avg of all factors
+      const currentInterest = (current.needFit * 0.35) + (current.timing * 0.25) + (current.trust * 0.25) + (current.willingness * 0.15);
+      const previousInterest = (previous.needFit * 0.35) + (previous.timing * 0.25) + (previous.trust * 0.25) + (previous.willingness * 0.15);
+      
+      if (currentInterest < previousInterest - 0.5) {
+        this.consecutiveInterestDrops++;
+      } else if (currentInterest > previousInterest + 0.5) {
+        this.consecutiveInterestDrops = 0; // Reset on improvement
+      }
+    }
+    
+    // Enable dodge mode after 3+ consecutive disappointments
+    const canDodgeQuestions = this.consecutiveInterestDrops >= 3;
+    
+    if (canDodgeQuestions && this.consecutiveInterestDrops === 3) {
+      console.log(`🚫 [Strategy] Dodge mode enabled - ${this.consecutiveInterestDrops} consecutive interest drops`);
+    }
+
+    // Retrieve product-specific objections if available
+    let productSpecificObjections: BuyerState['productSpecificObjections'] | undefined = undefined;
+    if (context.objectionGenerator?.hasObjections()) {
+      const objections = context.objectionGenerator.getObjections();
+      if (objections) {
+        productSpecificObjections = {};
+        objections.forEach(obj => {
+          if (obj.type === 'timing') productSpecificObjections!.timing = obj.objection;
+          else if (obj.type === 'fit') productSpecificObjections!.fit = obj.objection;
+          else if (obj.type === 'trust') productSpecificObjections!.trust = obj.objection;
+          else if (obj.type === 'status_quo') productSpecificObjections!.status_quo = obj.objection;
+          else if (obj.type === 'cost') productSpecificObjections!.cost = obj.objection;
+          else if (obj.type === 'authority') productSpecificObjections!.authority = obj.objection;
+        });
+        console.log(`🎯 [Strategy] Using ${objections.length} product-specific objections`);
+      }
+    }
 
     const trainingObjective = this.determineTrainingObjective(
       phase,
@@ -234,16 +335,8 @@ export class StrategyLayer {
 
     // NEW: Detect escalation and exit triggers
     const escalation = this.detectObjectionEscalation(context);
-    const exitTrigger = this.detectExitTrigger(utteranceCount, finalResistance);
+    const exitTrigger = this.detectExitTrigger(turnContext, finalResistance);
     const confusion = this.detectRepIncoherence(userInput);
-
-    // Calculate buyer state variables (how Marcus feels/behaves)
-    let openness = this.calculateOpenness(repQualitySignals, finalResistance);
-    let patience = this.calculatePatience(utteranceCount, finalResistance, progressMade);
-    let clarity = this.calculateClarity(conversationHistory, repQualitySignals);
-    let relevance = this.calculateRelevance(repQualitySignals, finalResistance);
-    let trustLevel = this.buyerState.trustLevel;
-    const urgency = marcusTraits ? this.mapTraitToUrgency(marcusTraits.urgency) : 2;
 
     // Apply answer impact if rep addressed objection
     let updatedSatisfaction = this.buyerState.objectionSatisfaction;
@@ -288,7 +381,11 @@ export class StrategyLayer {
       objectionCount: escalation.count,
       shouldForceExit: exitTrigger.should,
       exitReason: exitTrigger.reason,
-      shouldShowConfusion: confusion
+      shouldShowConfusion: confusion,
+      canDodgeQuestions,
+      consecutiveInterestDrops: this.consecutiveInterestDrops,
+      lastQuestionQuality: questionQuality,
+      productSpecificObjections
     };
 
     // Update coaching assessment (what coach thinks)
@@ -622,23 +719,28 @@ export class StrategyLayer {
   /**
    * Detect if patience is exhausted and call should end
    */
-  private detectExitTrigger(utteranceCount: number, resistance: number): {
+  private detectExitTrigger(turnContext: TurnContext, resistance: number): {
     should: boolean;
     reason?: string;
   } {
-    // Exit if: high utterances + high resistance + low trust
-    if (utteranceCount > 15 && resistance > 7 && this.buyerState.trustLevel < 4) {
-      console.log(`🚪 [Strategy] Exit triggered: ${utteranceCount} utterances, ${resistance}/10 resistance, ${this.buyerState.trustLevel}/10 trust`);
+    // CRITICAL: Don't exit if Marcus doesn't understand the product yet (clarity < 5)
+    // He needs to know what you're selling before deciding it's not a fit
+    const understandsProduct = this.buyerState.clarity >= 5;
+    
+    // Exit if: high turns + high resistance + low trust + understands product
+    if (understandsProduct && turnContext.totalTurns > 15 && resistance > 7 && this.buyerState.trustLevel < 4) {
+      console.log(`🚪 [Strategy] Exit triggered: ${turnContext.currentTurnId} (${turnContext.totalTurns} turns), ${resistance}/10 resistance, ${this.buyerState.trustLevel}/10 trust`);
       return {
         should: true,
         reason: 'Patience exhausted - too many exchanges without progress'
       };
     }
 
-    // Exit if any objection has very low satisfaction (< 0.2 = repeated 4+ times)
+    // Exit if any objection has very low satisfaction (< 0.2 = repeated 4+ times) AND understands product
     const objectionValues = Object.values(this.buyerState.objectionSatisfaction);
     const minSatisfaction = objectionValues.length > 0 ? Math.min(...objectionValues) : 1.0;
-    if (minSatisfaction < 0.2) {
+    if (understandsProduct && minSatisfaction < 0.2) {
+      console.log(`🚪 [Strategy] Exit triggered: objection satisfaction too low (${minSatisfaction.toFixed(2)}), clarity: ${this.buyerState.clarity}/10`);
       return {
         should: true,
         reason: 'Same objection raised 4+ times without resolution'
@@ -726,7 +828,10 @@ export class StrategyLayer {
       lastAcknowledgment: undefined,
       shouldEscalateObjection: false,
       shouldForceExit: false,
-      shouldShowConfusion: false
+      shouldShowConfusion: false,
+      canDodgeQuestions: false,
+      consecutiveInterestDrops: 0,
+      lastQuestionQuality: undefined
     };
   }
 
@@ -753,11 +858,67 @@ export class StrategyLayer {
     return Math.max(0, Math.min(10, openness));
   }
 
-  private calculatePatience(utteranceCount: number, resistance: number, progressMade: boolean): number {
-    let patience = 10 - (utteranceCount * 0.3); // Decays with time
+  private calculatePatience(turnContext: TurnContext, resistance: number, progressMade: boolean): number {
+    let patience = 10 - (turnContext.totalTurns * 0.3); // Decays with time
     if (resistance > 7) patience -= 2; // High resistance drains patience
     if (progressMade) patience += 1; // Progress restores patience
     return Math.max(0, Math.min(10, patience));
+  }
+
+  /**
+   * Evaluate question quality based on open-ended, contextual relevance
+   */
+  private evaluateQuestionQuality(
+    userInput: string,
+    signals: StrategyContext['repQualitySignals']
+  ): 'high' | 'medium' | 'low' {
+    const hasOpenEnded = /\b(what|how|tell me|can you describe|walk me through)\b/i.test(userInput);
+    const hasCloseEnded = /\b(do you|are you|is it|can I|would you)\b/i.test(userInput);
+    const asksForDiscovery = signals.askedDiscovery;
+    const buildingRapport = signals.buildingRapport;
+    
+    // High quality: open-ended + discovery/rapport
+    if (hasOpenEnded && (asksForDiscovery || buildingRapport)) {
+      return 'high';
+    }
+    
+    // Low quality: close-ended without value
+    if (hasCloseEnded && !asksForDiscovery && !buildingRapport) {
+      return 'low';
+    }
+    
+    // Medium: everything else
+    return 'medium';
+  }
+
+  /**
+e   * Calculate actual buyer interest factors
+   * These drive whether Marcus stays engaged or dodges questions
+   */
+  private calculateInterestMetrics(
+    relevance: number,
+    patience: number,
+    urgency: number,
+    trustLevel: number,
+    openness: number
+  ): { needFit: number; timing: number; trust: number; willingness: number } {
+    // Need/Fit: Is this relevant to Marcus's situation?
+    // Driven by relevance score (from calculateRelevance)
+    const needFit = relevance;
+    
+    // Timing: Is this the right time for Marcus?
+    // Combination of patience (decays over time) + urgency (scenario-based)
+    const timing = (patience + urgency) / 2;
+    
+    // Trust: Does Marcus trust this rep?
+    // Directly from trustLevel
+    const trust = trustLevel;
+    
+    // Willingness: Is Marcus willing to engage?
+    // Driven by openness (inverse of resistance)
+    const willingness = openness;
+    
+    return { needFit, timing, trust, willingness };
   }
 
   private calculateClarity(history: Array<{ role: string; content: string }>, signals: StrategyContext['repQualitySignals']): number {

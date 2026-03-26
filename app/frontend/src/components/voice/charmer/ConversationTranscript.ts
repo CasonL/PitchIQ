@@ -5,13 +5,25 @@
 
 export interface ConversationExchange {
   id: string;
-  timestamp: number; // seconds from call start
+  
+  // CANONICAL IDENTIFIERS (assigned by TurnTracker - immutable)
+  canonicalTurnId?: string;        // "turn-5" (user+marcus pair = 1 turn)
+  exchangeSequence?: number;       // 0, 1, 2, 3... (absolute sequence)
+  pairIndex?: number;              // 0, 1, 2... (which user-marcus pair)
+  roleInPair?: 'user' | 'marcus';  // Position within pair
+  displayTurnNumber?: number;      // 1, 2, 3... (for humans)
+  
+  // TIMING (derived from canonical sequence)
+  timestamp: number;               // seconds from call start
+  timestampMs?: number;            // milliseconds from call start (precision)
+  
+  // CONTENT & STATE
   speaker: 'user' | 'marcus';
   text: string;
-  resistanceLevel?: number; // Marcus's resistance at this moment (0-10)
-  emotion?: string; // Marcus's emotion
-  objectionTriggered?: string; // If Marcus raised an objection
-  painPointRevealed?: string; // If Marcus revealed a pain
+  resistanceLevel?: number;        // Marcus's resistance at this moment (0-10)
+  emotion?: string;                // Marcus's emotion
+  objectionTriggered?: string;     // If Marcus raised an objection
+  painPointRevealed?: string;      // If Marcus revealed a pain
 }
 
 export interface ExchangePair {

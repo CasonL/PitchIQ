@@ -793,18 +793,18 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
                     backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)',
                     borderColor: getMomentColor(selectedMoment)
                   }}>
-                    <div className="font-semibold text-xs mb-1" style={{ color: getMomentColor(selectedMoment) }}>Marcus said:</div>
-                    <div className={`text-xs leading-relaxed ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                      "{selectedMoment.marcusResponse || ''}"
+                    <div className="font-semibold text-xs mb-1" style={{ color: getMomentColor(selectedMoment) }}>You said:</div>
+                    <div className={`text-xs leading-relaxed font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                      "{selectedMoment.userMessage || ''}"
                     </div>
                   </div>
                   
                   <div className="rounded-lg p-3 border-l-2 border-blue-500" style={{
                     backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,1)'
                   }}>
-                    <div className="font-semibold text-xs mb-1" style={{ color: getMomentColor(selectedMoment) }}>You responded:</div>
-                    <div className={`text-xs leading-relaxed font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                      "{selectedMoment.userMessage || ''}"
+                    <div className="font-semibold text-xs mb-1" style={{ color: getMomentColor(selectedMoment) }}>Marcus responded:</div>
+                    <div className={`text-xs leading-relaxed ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                      "{selectedMoment.marcusResponse || ''}"
                     </div>
                   </div>
                 </div>
@@ -1019,17 +1019,17 @@ export const MarcusPostCallMoments: React.FC<MarcusPostCallMomentsProps> = ({
                 theme === 'dark' ? 'border-white/10' : 'border-gray-200'
               }`}>
                     <div className={`rounded-lg p-3 md:p-4 border-l-2 ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-50'}`} style={{ borderColor: getMomentColor(selectedMoment) }}>
-                      <div className="font-semibold text-xs md:text-sm mb-1" style={{ color: getMomentColor(selectedMoment) }}>Marcus said:</div>
-                      <div className={`text-xs md:text-sm leading-relaxed ${theme === 'dark' ? 'text-white' : 'text-gray-800'} ${
-                        !isExchangeExpanded && (selectedMoment.marcusResponse?.length || 0) > 150 ? 'line-clamp-3' : ''
-                      }`}>"{selectedMoment.marcusResponse || ''}"</div>
-                    </div>
-                    
-                    <div className={`rounded-lg p-3 md:p-4 border-l-2 border-blue-500 ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-50'}`}>
-                      <div className="font-semibold text-xs md:text-sm mb-1" style={{ color: getMomentColor(selectedMoment) }}>You responded:</div>
+                      <div className="font-semibold text-xs md:text-sm mb-1" style={{ color: getMomentColor(selectedMoment) }}>You said:</div>
                       <div className={`text-xs md:text-sm leading-relaxed font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-800'} ${
                         !isExchangeExpanded && (selectedMoment.userMessage?.length || 0) > 150 ? 'line-clamp-3' : ''
                       }`}>"{selectedMoment.userMessage || ''}"</div>
+                    </div>
+                    
+                    <div className={`rounded-lg p-3 md:p-4 border-l-2 border-blue-500 ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-50'}`}>
+                      <div className="font-semibold text-xs md:text-sm mb-1" style={{ color: getMomentColor(selectedMoment) }}>Marcus responded:</div>
+                      <div className={`text-xs md:text-sm leading-relaxed ${theme === 'dark' ? 'text-white' : 'text-gray-800'} ${
+                        !isExchangeExpanded && (selectedMoment.marcusResponse?.length || 0) > 150 ? 'line-clamp-3' : ''
+                      }`}>"{selectedMoment.marcusResponse || ''}"</div>
                     </div>
                     
                     {/* Expand/Collapse Button */}

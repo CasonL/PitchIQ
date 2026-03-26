@@ -369,6 +369,45 @@ export class DeepgramSTTService {
   }
 
   /**
+   * Check if transcript is a grammatically complete sentence
+   * If true, send immediately without waiting
+   */
+  private isCompleteSentence(text: string): boolean {
+    const trimmed = text.trim().toLowerCase();
+    
+    // Question closures - complete questions
+    if (/[?]$/.test(text.trim())) {
+      return true; // Any sentence ending with ? is complete
+    }
+    
+    // Complete question patterns without ?
+    const completeQuestions = [
+      /\b(what|where|when|why|who|how)\s+.*\b(you|we|they|it|he|she)\b/i,
+      /\b(can|could|would|should|will|do|does|did|is|are|was|were)\s+you\b/i,
+    ];
+    
+    // Natural closures - standalone confirmations/responses
+    const naturalClosures = [
+      /^(okay|ok|yeah|yep|sure|alright|right|exactly|absolutely|definitely|certainly|indeed)$/i,
+      /^(yes|no|nope|maybe|perhaps)$/i,
+      /^(got\s+it|i\s+see|makes\s+sense|fair\s+enough)$/i,
+      /^(thank\s+you|thanks|please|excuse\s+me|sorry)$/i,
+    ];
+    
+    // Statement endings - declarative closures
+    const statementEndings = [
+      /\b(that's\s+it|that's\s+all|that's\s+everything)$/i,
+      /\b(i\s+think|i\s+believe|i\s+feel|i\s+guess)$/i,
+      /\b(you\s+know|i\s+mean|right\s+now)$/i,
+    ];
+    
+    // Check all complete patterns
+    return completeQuestions.some(p => p.test(trimmed)) ||
+           naturalClosures.some(p => p.test(trimmed)) ||
+           statementEndings.some(p => p.test(trimmed));
+  }
+
+  /**
    * Check if transcript ends with an incomplete sentence pattern
    */
   private endsWithIncompletePattern(text: string): boolean {
@@ -428,7 +467,18 @@ export class DeepgramSTTService {
       return;
     }
     
-    // Check if sentence ends with incomplete pattern
+    // POSITIVE DETECTION: Check if sentence is grammatically complete
+    const isComplete = this.isCompleteSentence(transcript);
+    
+    if (isComplete) {
+      // Complete sentence detected - send immediately for lower latency
+      console.log(`[Deepgram] ✅ Complete sentence detected: "${transcript}" - sending immediately`);
+      this.sendUtterance(transcript);
+      this.accumulatedTranscript = '';
+      return;
+    }
+    
+    // NEGATIVE DETECTION: Check if sentence ends with incomplete pattern
     const isIncomplete = this.endsWithIncompletePattern(transcript);
     
     if (isIncomplete) {

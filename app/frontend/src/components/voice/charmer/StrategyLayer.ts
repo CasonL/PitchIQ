@@ -78,6 +78,59 @@ export interface CoachingAssessment {
 export interface StrategyOutput {
   buyerState: BuyerState;
   coachingAssessment: CoachingAssessment;
+  canonicalEvent?: CanonicalTurnEvent; // 🎯 NEW: Single source of truth for this turn
+}
+
+// CANONICAL EVENT MODEL: Single source of truth for "what happened" in a turn
+export type DetectedPattern = 
+  | 'asked_open_ended'           // Discovery: open-ended question
+  | 'asked_closed'               // Discovery: yes/no question
+  | 'asked_follow_up'            // Discovery: follow-up to previous answer
+  | 'made_claim_no_proof'        // Positioning: unsubstantiated claim
+  | 'pitched_too_early'          // Positioning: solution before discovery
+  | 'talking_too_much'           // Opening: long monologue
+  | 'no_permission'              // Opening: didn't get permission to continue
+  | 'acknowledged_pain'          // Objection handling: validated concern
+  | 'dismissed_objection'        // Objection handling: brushed off concern
+  | 'provided_proof'             // Objection handling: gave evidence
+  | 'built_rapport'              // Opening: showed empathy/connection
+  | 'missed_pain_signal'         // Discovery: ignored Marcus revealing pain
+  | 'vague_positioning'          // Positioning: unclear value prop
+  | 'assumptive_close'           // Positioning: assumed next steps without buy-in
+  | 'handled_objection_well'     // Objection handling: addressed root cause
+  | 'clarified_value'            // Positioning: made relevance clear
+  | 'discovered_pain';           // Discovery: successfully uncovered need
+
+export type EventCategory = 'opening' | 'discovery' | 'objection_handling' | 'positioning';
+
+export interface CanonicalTurnEvent {
+  // What literally happened
+  turnNumber: number;
+  userMessage: string;
+  marcusResponse: string;
+  
+  // State deltas (what changed)
+  buyerStateBefore: BuyerState;
+  buyerStateAfter: BuyerState;
+  
+  // Detection (what we think happened - high confidence only)
+  detectedPatterns: DetectedPattern[];
+  category: EventCategory;
+  
+  // Impact (numeric changes)
+  resistanceDelta: number;      // Change in resistance
+  clarityDelta: number;         // Change in clarity
+  relevanceDelta: number;       // Change in relevance
+  trustDelta: number;           // Change in trust
+  opennessDelta: number;        // Change in openness
+  
+  // Difficulty context
+  difficulty?: 'easy' | 'medium' | 'hard';
+  difficultyExpectation?: string; // "Hard mode: should demand proof here"
+  
+  // Quality assessment (for coaching)
+  patternConfidence: number;    // 0-1, how confident we are in pattern detection
+  impactScore: number;          // -10 to +10, overall impact of this turn
 }
 
 // Objection taxonomy
@@ -168,6 +221,9 @@ export class StrategyLayer {
     willingness: number;  // Is he willing to engage? (openness)
   }> = [];
   private consecutiveInterestDrops: number = 0;
+  // 🎯 CANONICAL EVENTS: Single source of truth
+  private eventHistory: CanonicalTurnEvent[] = [];
+  private lastMarcusResponse: string = '';
 
   constructor() {
     this.buyerState = this.getDefaultBuyerState();
@@ -427,10 +483,206 @@ export class StrategyLayer {
     console.log(`🔒 [Strategy] Disclosure: Budget=${disclosureGates.canRevealBudget}, Pain=${disclosureGates.canRevealPainPoints}, Interest=${disclosureGates.canShowInterest}`);
     console.log(`📊 [Coaching] Objective: ${trainingObjective} | Quality: ${this.coachingAssessment.overallQuality}/10 | Issues: ${allowedRepMistakes.length}`);
 
+    // 🎯 EMIT CANONICAL EVENT (after Marcus response is generated)
+    // This will be called from CharmerController after Marcus responds
     return {
       buyerState: this.buyerState,
       coachingAssessment: this.coachingAssessment
     };
+  }
+
+  /**
+   * 🎯 DETECT PATTERNS: ONE method for pattern detection (high confidence only)
+   * This is the single source of truth for "what happened" in a turn
+   */
+  private detectPatterns(
+    userInput: string,
+    repQualitySignals: StrategyContext['repQualitySignals'],
+    buyerStateBefore: BuyerState,
+    buyerStateAfter: BuyerState,
+    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
+  ): { patterns: DetectedPattern[]; category: EventCategory; confidence: number } {
+    const patterns: DetectedPattern[] = [];
+    const userLower = userInput.toLowerCase();
+    const wordCount = userInput.split(/\s+/).length;
+    
+    // DISCOVERY PATTERNS (high confidence detection)
+    const hasOpenEnded = /\b(what|how|why|tell me about|walk me through|describe|explain)\b/i.test(userInput) && 
+                         userInput.includes('?');
+    const hasClosedQuestion = /\b(do you|are you|is it|can you|would you|will you|have you)\b/i.test(userInput) && 
+                              userInput.includes('?');
+    const hasFollowUp = conversationHistory.length > 2 && 
+                        hasOpenEnded && 
+                        repQualitySignals.askedDiscovery;
+    
+    if (hasOpenEnded) patterns.push('asked_open_ended');
+    if (hasClosedQuestion && !hasOpenEnded) patterns.push('asked_closed');
+    if (hasFollowUp) patterns.push('asked_follow_up');
+    
+    // Missed pain signal (Marcus revealed pain, user didn't acknowledge)
+    const lastMarcus = conversationHistory.length > 0 ? conversationHistory[conversationHistory.length - 1] : null;
+    if (lastMarcus && lastMarcus.role === 'assistant') {
+      const marcusPainSignals = /\b(struggling|difficult|frustrated|problem|issue|challenge|concerned)\b/i.test(lastMarcus.content);
+      const userAcknowledged = /\b(that|understand|hear|sounds|makes sense|appreciate)\b/i.test(userLower);
+      if (marcusPainSignals && !userAcknowledged && !hasOpenEnded) {
+        patterns.push('missed_pain_signal');
+      }
+      if (marcusPainSignals && userAcknowledged && hasOpenEnded) {
+        patterns.push('discovered_pain');
+      }
+    }
+    
+    // POSITIONING PATTERNS
+    const hasClaim = /\b(we can|we help|we improve|increase|reduce|save|boost)\b/i.test(userInput);
+    const hasProof = /\b(customer|client|company|case study|example|data|result|percent|%)\b/i.test(userInput);
+    const isPitching = hasClaim || /\b(solution|product|service|platform|system|tool)\b/i.test(userInput);
+    
+    if (hasClaim && !hasProof) patterns.push('made_claim_no_proof');
+    if (hasClaim && hasProof) patterns.push('provided_proof');
+    
+    const tooEarly = isPitching && conversationHistory.length < 6 && !repQualitySignals.askedDiscovery;
+    if (tooEarly) patterns.push('pitched_too_early');
+    
+    const isVague = isPitching && wordCount > 20 && buyerStateAfter.clarity < buyerStateBefore.clarity;
+    if (isVague) patterns.push('vague_positioning');
+    
+    if (isPitching && buyerStateAfter.relevance > buyerStateBefore.relevance + 1) {
+      patterns.push('clarified_value');
+    }
+    
+    // OPENING PATTERNS
+    if (wordCount > 50 && !hasOpenEnded) {
+      patterns.push('talking_too_much');
+    }
+    
+    const hasPermissionAsk = /\b(good time|quick|moment|minute|available|catch you)\b/i.test(userLower);
+    if (conversationHistory.length === 0 && !hasPermissionAsk) {
+      patterns.push('no_permission');
+    }
+    
+    if (repQualitySignals.buildingRapport) {
+      patterns.push('built_rapport');
+    }
+    
+    // OBJECTION HANDLING PATTERNS
+    const hasAcknowledgment = /\b(understand|hear|appreciate|makes sense|totally|absolutely|get that)\b/i.test(userLower);
+    const hasDismissal = /\b(but|however|actually|well|yeah but)\b/i.test(userLower) && !hasAcknowledgment;
+    
+    if (buyerStateBefore.activeObjection) {
+      if (hasAcknowledgment && (hasOpenEnded || hasProof)) {
+        patterns.push('handled_objection_well');
+      } else if (hasAcknowledgment) {
+        patterns.push('acknowledged_pain');
+      } else if (hasDismissal || isPitching) {
+        patterns.push('dismissed_objection');
+      }
+    }
+    
+    // DETERMINE CATEGORY (primary focus of this turn)
+    let category: EventCategory = 'discovery'; // default
+    let confidence = 0.5;
+    
+    if (patterns.includes('no_permission') || patterns.includes('talking_too_much') || patterns.includes('built_rapport')) {
+      category = 'opening';
+      confidence = 0.8;
+    } else if (patterns.includes('asked_open_ended') || patterns.includes('discovered_pain') || patterns.includes('missed_pain_signal')) {
+      category = 'discovery';
+      confidence = 0.85;
+    } else if (patterns.includes('acknowledged_pain') || patterns.includes('dismissed_objection') || patterns.includes('handled_objection_well')) {
+      category = 'objection_handling';
+      confidence = 0.9;
+    } else if (patterns.includes('made_claim_no_proof') || patterns.includes('provided_proof') || patterns.includes('clarified_value') || patterns.includes('vague_positioning')) {
+      category = 'positioning';
+      confidence = 0.85;
+    }
+    
+    return { patterns, category, confidence };
+  }
+
+  /**
+   * 🎯 CREATE CANONICAL EVENT: Emit structured event after Marcus responds
+   * Called from CharmerController after Marcus's response is generated
+   */
+  createCanonicalEvent(
+    turnNumber: number,
+    userMessage: string,
+    marcusResponse: string,
+    buyerStateBefore: BuyerState,
+    context: StrategyContext,
+    difficulty?: 'easy' | 'medium' | 'hard'
+  ): CanonicalTurnEvent {
+    const buyerStateAfter = this.buyerState;
+    
+    // Detect patterns
+    const detection = this.detectPatterns(
+      userMessage,
+      context.repQualitySignals,
+      buyerStateBefore,
+      buyerStateAfter,
+      context.conversationHistory
+    );
+    
+    // Calculate deltas
+    const resistanceDelta = buyerStateAfter.resistanceLevel - buyerStateBefore.resistanceLevel;
+    const clarityDelta = buyerStateAfter.clarity - buyerStateBefore.clarity;
+    const relevanceDelta = buyerStateAfter.relevance - buyerStateBefore.relevance;
+    const trustDelta = buyerStateAfter.trustLevel - buyerStateBefore.trustLevel;
+    const opennessDelta = buyerStateAfter.openness - buyerStateBefore.openness;
+    
+    // Calculate impact score (-10 to +10)
+    const impactScore = 
+      (clarityDelta * 2) +           // Clarity most important
+      (relevanceDelta * 2) +         // Relevance equally important
+      (-resistanceDelta * 1.5) +     // Lower resistance = good
+      (trustDelta * 1) +
+      (opennessDelta * 0.5);
+    
+    // Difficulty expectations
+    let difficultyExpectation: string | undefined;
+    if (difficulty === 'hard') {
+      if (detection.patterns.includes('made_claim_no_proof')) {
+        difficultyExpectation = 'Hard mode: Marcus should demand proof for this claim';
+      } else if (detection.patterns.includes('dismissed_objection')) {
+        difficultyExpectation = 'Hard mode: Dismissing objections will spike resistance';
+      } else if (detection.patterns.includes('asked_closed')) {
+        difficultyExpectation = 'Hard mode: Closed questions won\'t unlock Marcus';
+      }
+    }
+    
+    const event: CanonicalTurnEvent = {
+      turnNumber,
+      userMessage,
+      marcusResponse,
+      buyerStateBefore,
+      buyerStateAfter,
+      detectedPatterns: detection.patterns,
+      category: detection.category,
+      resistanceDelta,
+      clarityDelta,
+      relevanceDelta,
+      trustDelta,
+      opennessDelta,
+      difficulty,
+      difficultyExpectation,
+      patternConfidence: detection.confidence,
+      impactScore: Math.max(-10, Math.min(10, impactScore))
+    };
+    
+    // Store in history
+    this.eventHistory.push(event);
+    this.lastMarcusResponse = marcusResponse;
+    
+    console.log(`🎯 [Canonical Event] Turn ${turnNumber} | Category: ${detection.category} | Patterns: ${detection.patterns.join(', ')} | Impact: ${impactScore.toFixed(1)}`);
+    console.log(`   Deltas: resistance=${resistanceDelta.toFixed(1)}, clarity=${clarityDelta.toFixed(1)}, relevance=${relevanceDelta.toFixed(1)}`);
+    
+    return event;
+  }
+
+  /**
+   * Get event history for post-call analysis
+   */
+  getEventHistory(): CanonicalTurnEvent[] {
+    return [...this.eventHistory];
   }
 
   private calculateBaseResistance(phase: number): number {

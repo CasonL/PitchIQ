@@ -443,6 +443,9 @@ const CharmerControllerContent = memo(({
         isUserTurn: false // About to be Marcus's turn
       };
       
+      // 🎯 CAPTURE STATE BEFORE TURN (for canonical event)
+      const buyerStateBefore = strategyLayerRef.current.getCurrentBuyerState();
+      
       const strategyContext: StrategyContext = {
         phase: currentPhaseNum,
         conversationHistory,
@@ -797,6 +800,16 @@ const CharmerControllerContent = memo(({
       // Add Marcus's response to history
       setConversationHistory(prev => [...prev, { role: 'assistant', content: aiResponse.content }]);
       console.log(`🎤 Marcus [${aiResponse.emotion}]: "${aiResponse.content}"`);
+      
+      // 🎯 EMIT CANONICAL EVENT (single source of truth for this turn)
+      const canonicalEvent = strategyLayerRef.current.createCanonicalEvent(
+        totalTurns + 1,
+        userText,
+        aiResponse.content,
+        buyerStateBefore,
+        strategyContext,
+        selectedScenario?.difficulty
+      );
       
       // Track Marcus message for feedback generation
       if (conversationTrackerRef.current) {

@@ -803,7 +803,7 @@ const CharmerControllerContent = memo(({
       
       // 🎯 EMIT CANONICAL EVENT (single source of truth for this turn)
       const canonicalEvent = strategyLayerRef.current.createCanonicalEvent(
-        totalTurns + 1,
+        strategyContext.turnContext.totalTurns + 1,
         userText,
         aiResponse.content,
         buyerStateBefore,

@@ -24,10 +24,18 @@ export interface DiscoveryContext {
   triggerContent: string; // What was just revealed
 }
 
+export interface ObjectionRoot {
+  id: string;
+  intensity: number; // 0-1, how strongly this blocks the sale
+  conscious: boolean; // true = they know this is a concern, false = hidden driver
+  description: string; // What's really going on
+}
+
 export interface GeneratedObjection {
   type: 'timing' | 'fit' | 'trust' | 'cost' | 'status_quo' | 'authority';
-  objection: string; // What Marcus says
-  reasoning: string; // Why this objection is realistic for this product
+  surface: string; // What Marcus says (surface-level concern)
+  roots: ObjectionRoot[]; // Why he REALLY has this objection (conscious + hidden)
+  resolutionSignals: string[]; // What needs to happen to overcome this
   severity: 'minor' | 'moderate' | 'major'; // How hard to overcome
   satisfactionThreshold: number; // 0-1, how much effort to resolve
 }
@@ -71,7 +79,7 @@ export class ObjectionGenerator {
 
       console.log(`✅ [ObjectionGen] Generated ${objections.length} ${stage} objections`);
       objections.forEach((obj, idx) => {
-        console.log(`   ${idx + 1}. [${obj.type}] "${obj.objection.substring(0, 60)}..."`);
+        console.log(`   ${idx + 1}. [${obj.type}] "${obj.surface.substring(0, 60)}..." (${obj.roots.length} roots)`);
       });
     } catch (error) {
       console.error('❌ [ObjectionGen] Generation failed:', error);
@@ -210,17 +218,62 @@ export class ObjectionGenerator {
 - Match objection sophistication to what's been revealed
 - Sound like real buyer concerns, not textbook objections
 - Include specific details from the trigger (e.g., if pricing is $99, object to $99)
-- Vary severity and type
+- Generate 2-4 root causes per objection:
+  - At least 1 conscious root (they're aware of this concern)
+  - At least 1-2 hidden roots (subconscious drivers they won't say)
+- Make roots SPECIFIC to the product/context, not generic
+- Resolution signals should address the hidden roots, not just surface objection
 
 **Format as JSON:**
 \`\`\`json
 [
   {
     "type": "fit" | "timing" | "trust" | "cost" | "status_quo" | "authority",
-    "objection": "Exact words Marcus would say",
-    "reasoning": "Why this is realistic given what was revealed",
+    "surface": "Exact words Marcus would say (surface concern)",
+    "roots": [
+      {
+        "id": "snake_case_id",
+        "intensity": 0.0-1.0,
+        "conscious": true/false,
+        "description": "What's really blocking the sale"
+      }
+    ],
+    "resolutionSignals": ["risk_reversal", "specific_proof", "gradual_rollout"],
     "severity": "minor" | "moderate" | "major",
     "satisfactionThreshold": 0.0-1.0
+  }
+]
+\`\`\`
+
+**Example for AI training product:**
+\`\`\`json
+[
+  {
+    "type": "cost",
+    "surface": "$99/user is steep for our team size",
+    "roots": [
+      {
+        "id": "budget_authority_limited",
+        "intensity": 0.7,
+        "conscious": true,
+        "description": "Has to justify spend to CFO for 50-person team"
+      },
+      {
+        "id": "feature_utilization_fear",
+        "intensity": 0.8,
+        "conscious": false,
+        "description": "Worried team won't use AI features, making cost unjustifiable"
+      },
+      {
+        "id": "competitor_price_anchor",
+        "intensity": 0.6,
+        "conscious": false,
+        "description": "Saw competitor at $49/user - feels overpriced by comparison"
+      }
+    ],
+    "resolutionSignals": ["roi_calculator", "usage_guarantee", "tiered_pricing"],
+    "severity": "moderate",
+    "satisfactionThreshold": 0.65
   }
 ]
 \`\`\`
@@ -246,8 +299,9 @@ Make objections SPECIFIC to "${triggerContent}".`;
       // Validate structure
       return parsed.map((obj: any) => ({
         type: obj.type || 'fit',
-        objection: obj.objection || 'Not sure this is a fit',
-        reasoning: obj.reasoning || '',
+        surface: obj.surface || obj.objection || 'Not sure this is a fit', // Support old format
+        roots: obj.roots || [],
+        resolutionSignals: obj.resolutionSignals || [],
         severity: obj.severity || 'moderate',
         satisfactionThreshold: obj.satisfactionThreshold || 0.6
       }));
@@ -265,22 +319,64 @@ Make objections SPECIFIC to "${triggerContent}".`;
     return [
       {
         type: 'timing',
-        objection: "We're in the middle of other projects right now.",
-        reasoning: 'Generic timing objection',
+        surface: "We're in the middle of other projects right now.",
+        roots: [
+          {
+            id: 'bandwidth_concern',
+            intensity: 0.6,
+            conscious: true,
+            description: 'Already stretched thin with current initiatives'
+          },
+          {
+            id: 'change_fatigue',
+            intensity: 0.7,
+            conscious: false,
+            description: 'Exhausted from recent changes, needs breathing room'
+          }
+        ],
+        resolutionSignals: ['minimal_time_investment', 'gradual_rollout'],
         severity: 'moderate',
         satisfactionThreshold: 0.5
       },
       {
         type: 'fit',
-        objection: "Not sure this is a fit for our team.",
-        reasoning: 'Generic fit objection',
+        surface: "Not sure this is a fit for our team.",
+        roots: [
+          {
+            id: 'use_case_unclear',
+            intensity: 0.5,
+            conscious: true,
+            description: 'Doesn\'t see how it applies to their situation'
+          },
+          {
+            id: 'team_adoption_fear',
+            intensity: 0.8,
+            conscious: false,
+            description: 'Worried team will resist or not use it'
+          }
+        ],
+        resolutionSignals: ['specific_use_case', 'similar_customer'],
         severity: 'moderate',
         satisfactionThreshold: 0.6
       },
       {
         type: 'trust',
-        objection: "How do I know this actually works?",
-        reasoning: 'Generic proof objection',
+        surface: "How do I know this actually works?",
+        roots: [
+          {
+            id: 'proof_hunger',
+            intensity: 0.7,
+            conscious: true,
+            description: 'Needs evidence before committing'
+          },
+          {
+            id: 'vendor_burnout',
+            intensity: 0.8,
+            conscious: false,
+            description: 'Been burned by overpromising vendors before'
+          }
+        ],
+        resolutionSignals: ['specific_proof', 'transparent_demo', 'risk_reversal'],
         severity: 'moderate',
         satisfactionThreshold: 0.7
       }

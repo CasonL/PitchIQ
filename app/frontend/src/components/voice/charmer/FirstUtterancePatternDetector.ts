@@ -32,6 +32,7 @@ export class FirstUtterancePatternDetector {
     const introPatterns = [
       /(?:this is|it'?s)\s+([A-Z][a-z]+)(?:\s+from\s+([A-Z][a-z]+(?:\s*[A-Z][a-z]+)*))?/i,
       /(?:my name is|i'?m)\s+([A-Z][a-z]+)/i,
+      /\b([A-Z][a-z]+)\s+from\s+([A-Z][a-z]+(?:\s*[A-Z][a-z]+)*)/i, // Match "[NAME] from [COMPANY]" anywhere
       /^([A-Z][a-z]+)\s+from\s+([A-Z][a-z]+(?:\s*[A-Z][a-z]+)*)/i
     ];
     
@@ -98,14 +99,15 @@ export class FirstUtterancePatternDetector {
    * Get instant canned response (no LLM) for ultra-fast patterns
    */
   static getCannedResponse(pattern: DetectedPattern): string | null {
-    switch (pattern) {
-      case 'IDENTITY_CONFIRMATION':
-        return "Yeah, who's this?"; // Instant 0ms response
-      case 'NAME_ONLY':
-        return "Yeah?"; // Instant 0ms response
-      default:
-        return null; // Use LLM for this pattern
-    }
+    const responses = {
+      'IDENTITY_CONFIRMATION': "Yeah, who's this?",
+      'NAME_ONLY': "Yeah?",
+      'GREETING_ONLY': "Hey. Who's this?",
+      'GREETING_WITH_QUESTION': "Good, thanks. What's up?",
+      'INTRODUCTION_WITH_NAME': "Good. What's this about?"
+    };
+    
+    return responses[pattern] || null;
   }
   
   /**
@@ -133,6 +135,10 @@ Examples:
 - "Hey, doing well. How about you?"
 - "I'm good, how are you?"
 
+🚨 CRITICAL: React naturally. Don't meta-analyze.
+❌ NO: "I can see you're calling about..." / "I understand you're trying to..."
+✅ YES: Direct gut reactions - "What's up?" / "What do you need?"
+
 Be NATURAL and RECIPROCAL. When someone asks how you are, you answer then ask them back - that's how real conversations work.`;
 
       case 'GREETING_WITH_QUESTION':
@@ -143,6 +149,9 @@ YOUR RESPONSE (5-8 words max):
 - Brief acknowledgment: "Good." or "Fine."
 - Ask identity: "Who is this?" or "Who am I talking to?"
 - Style: guarded, brief (stranger called you)
+
+🚨 React directly. Don't analyze.
+❌ "I can see you're..." → ✅ "Who is this?"
 
 DO NOT be friendly or ask them questions back. Cold call = you want to know who they are.`;
 

@@ -168,11 +168,12 @@ export class CartesiaService {
       }
       
       const emotionKey = options.emotion || 'neutral';
-      const emotionTags = EMOTION_MAP[emotionKey] || EMOTION_MAP['neutral'];
+      // Disable emotions temporarily to test if they're causing slowdown
+      const emotionTags: string[] = []; // EMOTION_MAP[emotionKey] || EMOTION_MAP['neutral'];
       const speed = options.speed || 1.0;
       
       console.log('[Cartesia] Using voice ID:', voiceId);
-      console.log('[Cartesia] Emotion:', emotionKey, '→', emotionTags);
+      console.log('[Cartesia] Emotion DISABLED for performance test:', emotionKey, '→', emotionTags);
 
       // Start streaming synthesis
       await this.streamSynthesize(text, voiceId, emotionTags, speed, startTime);

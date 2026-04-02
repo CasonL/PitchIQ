@@ -27,9 +27,14 @@ def chat():
     - meta-llama/llama-3.1-70b-instruct (open source, direct)
     - mistralai/mistral-large (European, less customer-service-y)
     """
+    import time
+    request_start = time.time()
+    
     try:
         # Get request data
+        parse_start = time.time()
         data = request.get_json()
+        logger.info(f"⏱️ JSON parse time: {(time.time() - parse_start)*1000:.0f}ms")
         if not data:
             return jsonify({'error': 'No JSON data provided'}), 400
         
@@ -54,6 +59,8 @@ def chat():
         
         # Call OpenRouter API
         logger.info(f"Generating response with {model} via OpenRouter (temp={temperature}, max_tokens={max_tokens}, stream={stream})")
+        
+        openrouter_start = time.time()
         
         # Build headers - add Accept header for SSE when streaming
         headers = {
@@ -82,6 +89,8 @@ def chat():
             stream=stream
         )
         
+        openrouter_duration = (time.time() - openrouter_start) * 1000
+        logger.info(f"⏱️ OpenRouter API call time: {openrouter_duration:.0f}ms")
         logger.info(f"OpenRouter response status: {response.status_code}")
         logger.info(f"OpenRouter response headers: {dict(response.headers)}")
         
@@ -132,9 +141,17 @@ def chat():
             })
         
         # Non-streaming response (legacy)
+        json_parse_start = time.time()
         result = response.json()
+        logger.info(f"⏱️ JSON parse time: {(time.time() - json_parse_start)*1000:.0f}ms")
         logger.info(f"Generated {result.get('usage', {}).get('completion_tokens', 0)} tokens with {model}")
-        return jsonify(result), 200
+        
+        jsonify_start = time.time()
+        json_response = jsonify(result)
+        logger.info(f"⏱️ jsonify() time: {(time.time() - jsonify_start)*1000:.0f}ms")
+        logger.info(f"⏱️ TOTAL REQUEST TIME: {(time.time() - request_start)*1000:.0f}ms")
+        
+        return json_response, 200
         
     except Exception as e:
         logger.error(f"Error in OpenAI chat proxy: {e}", exc_info=True)

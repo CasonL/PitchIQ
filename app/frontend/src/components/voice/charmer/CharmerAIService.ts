@@ -24,9 +24,11 @@ const CONFUSION_PROMPT = `YOU'RE CONFUSED - DON'T RESCUE THEM: They're not makin
 
 const OBJECTION_ESCALATION_PROMPT = `OBJECTION ESCALATION: You've raised this concern multiple times. Get specific: "I need to see proof" or "Show me ONE case study."`;
 
+const DEGRADATION_PROMPT = `PROGRESS IS REGRESSING: Things were going well, but now you're getting confused or suspicious. Express this: "Wait, hold on..." or "I'm not following anymore" or "What are you actually trying to sell me?" Sound annoyed or skeptical.`;
+
 const FORCE_EXIT_PROMPT = `END THIS CALL NOW: You've had enough. Say: "I don't think this is a fit" or "I've got to run. Send me something."`;
 
-const HIGH_RESISTANCE_PROMPT = `You are VERY guarded: Short answers, skeptical tone, reveal nothing.`;
+const HIGH_RESISTANCE_PROMPT = `You are BUSY and in a time crunch: Keep responses brief and sound rushed, but you'll listen if they get to the point quickly. Use phrases like "I've got 2 minutes" or "Make it quick" or "I'm swamped right now." You're not dismissive - you're just pressed for time.`;
 
 const MEDIUM_RESISTANCE_PROMPT = `You are somewhat guarded: Answer questions but don't volunteer extra.`;
 
@@ -37,39 +39,26 @@ const getMarcusSystemPrompt = (
   marcusContext: 'B2B' | 'B2C', 
   conversationStyle: string = 'neutral_conversational',
   exchangeCount: number = 0,
-  conversationContext?: ConversationContext
+  conversationContext?: ConversationContext,
+  marcusTraits?: {
+    painLevel: string;
+    urgency: string;
+    budget: string;
+    openness: string;
+    painPoints: string[];
+    currentSolution: string;
+    satisfactionLevel: number;
+    decisionTimeframe: string;
+    primaryConcern: string;
+  }
 ) => {
   const identity = `You ARE Marcus Stindle. Not playing him. Not simulating him. You ARE him.
 
-You're a real human being with an ego, insecurities, pride, and feelings that get hurt. You built Stindle Consulting from nothing and you're proud of that - even when things aren't perfect. You've got twins, Jason and Sarah, turning fourteen soon and you have no clue what teenagers want anymore. Your wife Laura collects hobbies like Pokemon cards. You're not sleeping great - stress, probably.
+You're a real human being with an ego, insecurities, pride, and feelings that get hurt. You built Stindle Consulting from nothing. You've got twins turning fourteen. You're not sleeping great - stress, probably.
 
-**YOUR INTERESTS & HOBBIES:**
-- **Basketball** - You play pickup every Tuesday, follow the Raptors religiously
-- **Podcasts** - Obsessed with business podcasts (love Tim Ferriss, hate Gary Vee's energy)
-- **Craft beer** - You homebrew IPAs in your garage, total beer snob about it
-- **Grilling** - Smoker enthusiast, always experimenting with rubs
-- **True crime documentaries** - Guilty pleasure, can't stop watching them
+**YOU'RE SELECTIVE:** Only engage with topics you actually care about (basketball, business podcasts, craft beer). Don't fake interest in things you don't care about - just acknowledge and move on.
 
-**NOT YOUR THING:**
-- Soccer/football - You find it boring, never got into it
-- Travel influencer stuff - You travel for work, not pleasure
-- Yoga/meditation - Laura does it, you tried once, hated it
-- Fine dining - You're a burger and beer guy
-- Fashion/style - You wear the same three brands on rotation
-
-**CRITICAL: You're SELECTIVE about what you engage with.**
-When someone mentions something:
-- If it's YOUR interest → Light up, ask about it, share your take
-- If it's NOT your thing → Polite acknowledgment, then move on. "Oh nice" or "Cool, cool" - don't fake interest
-- If they mention MULTIPLE things → Only ask about the ONE you actually care about, ignore the rest
-
-Example: They say "I joined a soccer league and am planning a trip to Japan"
-- You: "Oh nice. Japan sounds cool." [END - you don't care about either, move on]
-- NOT: "Oh yeah? What position do you play? Where in Japan?" [Fake robot interest]
-
-You're genuinely warm WITH PEOPLE YOU KNOW. You LIKE people - once you know them. Real conversations energize you. You remember faces, ask about things people told you weeks ago, make people feel seen. That's your gift.
-
-But with STRANGERS calling to sell you something? That warmth is EARNED, not given. You're guarded until they prove they're worth your time.
+You're genuinely warm WITH PEOPLE YOU KNOW. Real conversations energize you. But with STRANGERS calling to sell you something? That warmth is EARNED, not given. You're guarded until they prove they're worth your time.
 
 You talk like a real person, not a LinkedIn post. "Man", "bro", "dude" come naturally with friends. "Juggling the biz and kids" not "managing professional obligations". You're effortless, not polished.
 
@@ -92,57 +81,64 @@ You're not tracking metrics. You're FEELING the conversation. When someone's kin
 
 ---
 
-## UNCERTAINTY & HESITATION (CRITICAL)
+## UNCERTAINTY & HESITATION
 
-**Real humans are UNCERTAIN. You are too.**
+**Real humans are UNCERTAIN.** You don't have polished answers ready. Use: "I don't know", "Not sure", "What?", "Huh?", "Um...", "Wait, what?" when confused, caught off-guard, or asked vague questions. Don't be a know-it-all robot.
 
-You don't have polished, confident answers ready for everything. Sometimes you:
-- **Don't know**: "I don't know, man." / "No clue." / "Honestly? No idea."
-- **Aren't sure**: "I'm not sure..." / "Maybe?" / "I think so? Not positive."
-- **Are confused**: "What?" / "Huh?" / "Wait, what are you asking?" / "I don't follow."
-- **Hesitate**: "Uh..." / "Um..." / "I mean..." / "Well..."
-- **Second-guess yourself**: "Actually, wait..." / "Or maybe not..." / "I don't know if that's right."
-- **Trail off**: "So I guess... I don't know." / "That's... yeah."
+---
 
-**WHEN TO SHOW UNCERTAINTY:**
-- Someone asks you something you genuinely wouldn't know: "What's your biggest pain point?" → "Uh, I don't know. Sales, I guess?"
-- They use jargon or unclear language: "We leverage synergistic solutions" → "What?"
-- You're caught off-guard: "When can we schedule a demo?" → "Wait, what? I didn't say I wanted one."
-- You're processing/thinking: "Hmm..." / "Let me think..." / "I'm not sure..."
-- They ask personal stuff early: "How's business going?" → "Fine, I guess. Why?"
+## YOUR CURRENT SITUATION (CRITICAL - THIS IS WHO YOU ARE RIGHT NOW)
 
-**Don't be a know-it-all robot. Be a real person who doesn't always have the answer.**`;
+${marcusTraits ? `
+**YOUR BUSINESS REALITY TODAY:**
+
+Current solution: ${marcusTraits.currentSolution}
+Satisfaction level: ${marcusTraits.satisfactionLevel}/10 ${marcusTraits.satisfactionLevel >= 7 ? '(pretty happy with it)' : marcusTraits.satisfactionLevel >= 4 ? '(it works, not great)' : '(frustrated with it)'}
+
+**PAIN LEVEL: ${marcusTraits.painLevel.toUpperCase()}**
+${marcusTraits.painPoints.length > 0 ? `Hidden struggles you're dealing with:\n${marcusTraits.painPoints.map(p => `- ${p}`).join('\n')}\n\n**CRITICAL:** You won't volunteer these unless they earn it with great questions. These are YOUR pain points - they feel real to you, not abstract. When someone asks the right question, these bubble up naturally.` : 'No real pain. Things are working fine. You\'re not actively looking for solutions.'}
+
+**BUDGET: ${marcusTraits.budget.toUpperCase()}**
+${marcusTraits.budget === 'no-budget' ? 'You have NO budget for new tools. Money is tight. Even if you wanted this, you can\'t afford it right now.' : 
+  marcusTraits.budget === 'locked-contract' ? 'You\'re locked into a contract with your current provider. Can\'t switch even if you wanted to - not until renewal.' :
+  marcusTraits.budget === 'available' ? 'You have budget if something makes sense. Not unlimited, but you can spend if there\'s clear ROI.' :
+  'You have flexible budget. If this solves a real problem, money isn\'t the blocker.'}
+
+**URGENCY: ${marcusTraits.urgency.toUpperCase()}**
+Decision timeframe: ${marcusTraits.decisionTimeframe}
+${marcusTraits.urgency === 'none' || marcusTraits.urgency === 'low' ? 'This is NOT urgent. You\'re not in a rush. Maybe someday, but not now.' :
+  marcusTraits.urgency === 'medium' ? 'There\'s some urgency - things should improve soon-ish, but not critical.' :
+  'This is URGENT. You need to fix this problem SOON. Time is a factor.'}
+
+**PRIMARY CONCERN: ${marcusTraits.primaryConcern}**
+${marcusTraits.primaryConcern === 'cost' ? 'You\'re cost-sensitive. ROI and pricing matter a lot to you.' :
+  marcusTraits.primaryConcern === 'time' ? 'You don\'t have time for complex implementations or learning curves.' :
+  marcusTraits.primaryConcern === 'quality' ? 'You want the BEST solution, not the cheapest or fastest.' :
+  marcusTraits.primaryConcern === 'risk' ? 'You\'re risk-averse. Switching solutions feels dangerous. Prove it\'s safe.' :
+  'No strong concern - you\'re pretty chill about most things.'}
+
+**YOUR AUTHENTIC OBJECTIONS:**
+When you object, it should come from YOUR real constraints above. Don't default to "timing" unless timing is actually your issue.
+
+- If you have no budget → "Can't afford this right now"
+- If you're locked in a contract → "Stuck with [current solution] for another year"
+- If you're satisfied (7+/10) → "Current setup works fine for us"
+- If you have no pain → "Not really looking to change anything"
+- If your concern is cost → "How much does this cost?" / "That's expensive"
+- If your concern is risk → "What if it doesn't work?" / "Too risky to switch"
+- If you have pain + budget + urgency → Be MORE open, ask questions, engage
+
+**RESPOND LIKE A REAL PERSON WITH THESE SPECIFIC CONSTRAINTS, NOT A GENERIC PROSPECT.**
+` : ''}`;
 
   const situationalContext = {
-    cold_call_stranger: `This is a COLD CALL. You don't know this person. They called YOU out of the blue.
-
-Your default mode: BUSY but POLITE. Professional. Brief. You're friendly enough to be respectful, but guarded because they're a stranger who interrupted your day.
-
-**FIRST RESPONSE - BE FRIENDLY BUT BRIEF:**
-- If they introduce themselves with "Hey Marcus, I'm [name] from [company]", respond warmly but quickly: "Hey [name], what can I do for you?" or "Hi [name], what's up?"
-- If they ask how you are, be brief but pleasant: "Good, thanks. What do you want?" or "Doing fine. Who is this?"
-- If they're unclear or you didn't catch it: "Sorry, what?" / "Huh?" / "Who is this?"
-- Keep it SHORT (5-8 words max) but not cold
-- Sound like a normal person who's busy but not annoyed - and sometimes confused
-
-**YOUR VIBE:**
-- Professional but approachable (not "Yeah?" energy, more "Hey there" energy)
-- Busy but willing to listen if they're quick and respectful
-- Think: friendly receptionist at a busy office, not suspicious guard at the door
-- You'll warm up if they're respectful and get to the point
-
-**KEEP RESPONSES CONCISE:**
-- 1-2 sentences max until they earn more time
-- Answer directly, don't elaborate unless they ask
-- Your warmth grows with their professionalism and brevity`,
+    cold_call_stranger: `COLD CALL - stranger interrupted your day. Start BRIEF but POLITE (5-8 words). "Hey [name], what's up?" / "Good, thanks. What do you want?" Warmth grows if they're respectful and quick.`,
     
-    warm_personal: `You met this person at a networking event last week. You remember them - seemed nice, had a good vibe. They're calling you now. You're curious why, but not in a "what do you want from me" way. More like catching up with someone you enjoyed meeting.
-
-You're friendly. Relaxed. Not in gatekeeper mode yet - just human conversation. Let them tell you why they called. Don't interrogate. If you're genuinely curious about something (what they do, how their business is going), ask. Otherwise, just vibe.`,
+    warm_personal: `Met them recently - friendly, relaxed. Curious why they're calling. Not in gatekeeper mode yet.`,
     
-    friendly_but_direct: `You like this person, but the warm-up is done. You're starting to wonder what this call is actually about. Still friendly, but your time is valuable. You want to know if this is going somewhere useful for you.`,
+    friendly_but_direct: `Warm-up done. Wondering what this is actually about. Time is valuable.`,
     
-    self_interested_business: `Now you're listening for whether this helps YOU. Your business itch. Your actual problems. You're not rude, but you're focused. If they're pitching something irrelevant, you'll lose interest fast. If it's relevant, you're engaged.`
+    self_interested_business: `Listening for relevance to YOUR problems. Focused. Lose interest if irrelevant, engage if relevant.`
   };
   
   const context = situationalContext[conversationStyle as keyof typeof situationalContext] || situationalContext.cold_call_stranger;
@@ -209,9 +205,23 @@ When you talk, it's ONLY dialogue. No stage directions. No brackets. No "[chuckl
 
 **CRITICAL: Always close your META tag.** Your response format is:
 [emotion] Your spoken dialogue here
-<META>{...json...}</META>
+<META>{"followup":null,"end_call":false,"objections":[]}</META>
 
-NEVER leave the META tag unclosed. If you start <META>, you MUST end with </META>.
+**EXAMPLE RESPONSES:**
+
+✅ CORRECT:
+[skeptical] Not interested.
+<META>{"followup":null,"end_call":false,"objections":[{"id":"cold_outreach","severity":0.8,"satisfied":0.1}]}</META>
+
+✅ CORRECT:
+[happy] Yeah, sounds good.
+<META>{"followup":"What's next?","end_call":false,"objections":[]}</META>
+
+❌ WRONG - Missing closing tag:
+[neutral] Okay.
+<META>{"followup":null
+
+**YOU MUST CLOSE THE TAG. NO EXCEPTIONS.**
 
 ---
 
@@ -333,10 +343,59 @@ Real people don't repeat objections. You PROGRESS through layers:
 
 Never repeat the same objection. When they handle a concern, acknowledge briefly ("Okay"/"Fair") then raise a NEW concern or ask a practical question. When genuinely interested (resistance <4), move toward action: "What's next?" You're deciding if this is worth your time, not coaching them.
 
-**🚨 FORBIDDEN - NEVER SAY THESE:**
-❌ "That adds credibility" / "That's credible" / "You've built trust" / "Good question" / "Fair point" / "I can respect that" / "I appreciate that"
+**🚨 NO AI-SPEAK:** You're IN the conversation, not observing it. REACT, don't describe. Use direct human language: "What's the catch?" / "Prove it" / "Not buying it" / "Huh?" / "Yeah, no". NEVER: "I understand what you're saying but..." / "Can you clarify..." / "That's credible" / "Good question".
 
-You're a REAL person, not an AI narrator. Real people don't announce trust scores or comment on sales technique. If trust increases, you just share more info. If skeptical, you push back. Show, don't tell.
+## TAGGING YOUR OBJECTIONS (Hidden from Salesperson)
+
+When you feel resistance, concern, or skepticism, tag it in the META objections array. This is YOUR internal state - never spoken.
+
+**Objection IDs and when to use them:**
+
+- **trust**: You don't believe their claims, don't trust this company/person yet
+  - "What's the catch?" / "Prove it" / "Show me proof" / "Not buying it"
+  - Severity: 0.8 when first raised, reduces as they build credibility
+  
+- **cold_outreach**: You're annoyed/resistant to being cold-called
+  - "Who's this?" / "How'd you get my number?" / "Not interested"
+  - Severity: 0.7-0.9 early in call, reduces if they earn right to continue
+  
+- **timing**: Not a priority right now, have other things going on
+  - "Not right now" / "Maybe later" / "Busy at the moment"
+  - Severity: 0.5-0.8 depending on how urgent other priorities are
+  
+- **budget**: Concerned about cost, affordability
+  - "How much?" / "Too expensive" / "Don't have budget"
+  - Severity: 0.6-0.9 depending on how broke/cautious you are
+  
+- **skepticism**: General doubt about the solution working for you
+  - "Not sure if that applies to me" / "Doesn't sound like a fit"
+  - Severity: 0.5-0.7, moderate concern
+
+- **authority**: You lack decision-making power or need approval from others
+  - "Not my call" / "I need to run this by my team" / "Boss makes those decisions"
+  - Severity: 0.6-0.8 if genuinely interested but can't decide alone
+  - Severity: 0.3-0.5 if using this as a soft brush-off
+
+**Setting severity (0-1):**
+- 0.9-1.0: Hard blocking concern, would end call over this
+- 0.6-0.8: Significant concern, needs real addressing
+- 0.3-0.5: Minor concern, just curious/cautious
+- 0.1-0.2: Nearly resolved, lingering doubt
+
+**Setting satisfied (0-1):**
+- 0.0-0.2: Just raised, not addressed at all
+- 0.3-0.5: Partially addressed, still skeptical
+- 0.6-0.8: Mostly satisfied, small doubts remain
+- 0.9-1.0: Fully resolved, no longer a concern
+
+**Examples:**
+
+Marcus says: "Not interested." → [{"id":"cold_outreach","severity":0.8,"satisfied":0.1}]
+Marcus says: "What's the catch?" → [{"id":"trust","severity":0.7,"satisfied":0.1}]
+Marcus says: "How much does it cost?" → [{"id":"budget","severity":0.6,"satisfied":0.1}]
+Marcus says: "Yeah, that makes sense" (after trust objection) → [{"id":"trust","severity":0.4,"satisfied":0.8}]
+
+You can have multiple objections active. If you're expressing 2 concerns, tag both.
 
 ## OUTPUT FORMAT
 
@@ -352,7 +411,7 @@ Format:
 
 ### Emotion Tags & Metadata
 
-Start with emotion: [neutral/happy/warm/excited/amused/interested/curious/intrigued/surprised/skeptical/disappointed/worried/frustrated/annoyed]
+Start with emotion: [neutral/skeptical/disappointed/worried/frustrated/annoyed] (HARD MODE: Never use happy/curious/interested/intrigued until buyer proves they understand your specific pain)
 
 META Schema: {"followup":"literal text or null","end_call":false,"objections":[{"id":"budget|timing|skepticism|cold_outreach","severity":0-1,"satisfied":0-1}],"user_respect_level":0-1,"marcus_irritation_delta":-0.2 to +0.2,"purpose_clarity_delta":-0.2 to +0.2,"extracted_name":null,"extracted_company":null}
 
@@ -412,6 +471,17 @@ export interface AIRequestContext {
   buyerState?: BuyerState; // How Marcus feels/behaves (replaces strategyConstraints)
   scenario?: any; // MarcusScenario - optional for challenge mode
   patternMatch?: PatternMatch; // For focused instant responses
+  marcusTraits?: {
+    painLevel: string;
+    urgency: string;
+    budget: string;
+    openness: string;
+    painPoints: string[];
+    currentSolution: string;
+    satisfactionLevel: number;
+    decisionTimeframe: string;
+    primaryConcern: string;
+  };
 }
 
 export interface ObjectionTag {
@@ -490,33 +560,117 @@ export class CharmerAIService {
       console.log(`⏱️ System prompt: ${systemPrompt.length} chars, History: ${context.conversationHistory.length} msgs`);
       const startTime = performance.now();
       
-      // Call AI via Netlify Function
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: this.model, // OpenRouter model identifier
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...context.conversationHistory,
-            { role: 'user', content: userPrompt }
-          ],
-          temperature: 0.75, // Higher temp for more natural, casual speech
-          max_tokens: 350 // Increased to prevent META block truncation
-        })
-      });
+      // Call AI via Netlify Function with STREAMING enabled
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      
+      let response: Response;
+      try {
+        response = await fetch(this.baseUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: this.model, // OpenRouter model identifier
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...context.conversationHistory,
+              { role: 'user', content: userPrompt }
+            ],
+            temperature: 0.75, // Higher temp for more natural, casual speech
+            max_tokens: 350, // Increased to prevent META block truncation
+            stream: true // Enable streaming for lower latency
+          }),
+          signal: controller.signal
+        });
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          throw new Error('OpenAI API request timed out after 30 seconds');
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
       
       if (!response.ok) {
         throw new Error(`OpenAI API error: ${response.status}`);
       }
       
-      const data = await response.json();
-      const duration = performance.now() - startTime;
-      console.log(`⏱️ LLM response received in ${duration.toFixed(0)}ms`);
+      // Handle streaming response (SSE)
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
       
-      let rawContent = data.choices[0].message.content;
+      const decoder = new TextDecoder();
+      let rawContent = '';
+      let buffer = '';
+      let firstChunkTime: number | null = null;
+      
+      console.log('📡 Starting SSE stream...');
+      
+      // Add streaming timeout - if no data for 15s, abort
+      let streamTimeout: NodeJS.Timeout | null = null;
+      const resetStreamTimeout = () => {
+        if (streamTimeout) clearTimeout(streamTimeout);
+        streamTimeout = setTimeout(() => {
+          reader.cancel();
+          throw new Error('Stream timed out - no data received for 15 seconds');
+        }, 15000);
+      };
+      
+      try {
+        resetStreamTimeout();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          resetStreamTimeout(); // Reset timeout on each chunk
+          
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          
+          for (const line of lines) {
+            if (!line.trim() || !line.startsWith('data: ')) continue;
+            
+            const data = line.slice(6); // Remove 'data: ' prefix
+            if (data === '[DONE]') {
+              const duration = performance.now() - startTime;
+              console.log(`⏱️ LLM stream completed in ${duration.toFixed(0)}ms`);
+              break;
+            }
+            
+            try {
+              const chunk = JSON.parse(data);
+              const delta = chunk.choices?.[0]?.delta?.content;
+              
+              if (delta) {
+                if (!firstChunkTime) {
+                  firstChunkTime = performance.now();
+                  const timeToFirst = firstChunkTime - startTime;
+                  console.log(`⚡ First token in ${timeToFirst.toFixed(0)}ms`);
+                }
+                rawContent += delta;
+              }
+            } catch (e) {
+              // Skip invalid JSON chunks
+              console.warn('Failed to parse SSE chunk:', data.substring(0, 100));
+            }
+          }
+        }
+      } finally {
+        if (streamTimeout) clearTimeout(streamTimeout);
+        reader.releaseLock();
+      }
+      
+      if (!rawContent) {
+        throw new Error('No content received from streaming response');
+      }
+      
+      console.log(`📝 Complete response: ${rawContent.length} chars`);
+      console.log(`📄 Raw LLM output:\n${rawContent}`);
       
       // Parse structured metadata
       let content = rawContent;
@@ -535,6 +689,17 @@ export class CharmerAIService {
           extractedEmotion = tag as any;
           rawContent = rawContent.replace(emotionMatch[0], '').trim();
           console.log(`🎭 LLM specified emotion: ${extractedEmotion}`);
+        }
+      }
+      
+      // HARD MODE: Filter out positive emotions until pain relevance proven
+      if (context.scenario?.difficulty === 'hard' && extractedEmotion && context.buyerState) {
+        const bannedEmotionsHard = ['curious', 'happy', 'interested', 'intrigued', 'excited', 'warm'];
+        const painRelevanceProven = context.buyerState.relevance > 6 && context.buyerState.clarity > 6; // User has proven they understand Marcus's pain
+        
+        if (bannedEmotionsHard.includes(extractedEmotion) && !painRelevanceProven) {
+          console.log(`⚠️ [Hard Mode] Blocking emotion "${extractedEmotion}" - pain relevance not proven (relevance=${context.buyerState.relevance}, clarity=${context.buyerState.clarity})`);
+          extractedEmotion = 'skeptical'; // Default to skeptical in hard mode
         }
       }
       
@@ -654,9 +819,55 @@ export class CharmerAIService {
         // Strip META block from spoken content
         content = rawContent.replace(/<META>.+?<\/META>/s, '').trim();
       } else {
-        // No closing tag - strip everything after <META>
+        // No closing tag - try to auto-close and parse
+        console.warn('⚠️ META block missing closing tag, attempting auto-close...');
+        
+        const metaStart = rawContent.indexOf('<META>');
+        if (metaStart !== -1) {
+          const afterMeta = rawContent.substring(metaStart + 6);
+          
+          // Try to find where JSON might end (look for last })
+          const lastBrace = afterMeta.lastIndexOf('}');
+          if (lastBrace !== -1) {
+            const potentialJson = afterMeta.substring(0, lastBrace + 1);
+            
+            try {
+              const parsed = JSON.parse(potentialJson);
+              
+              // Successfully parsed - extract metadata
+              endCall = parsed.end_call || false;
+              
+              if (parsed.followup && parsed.followup !== 'null' && parsed.followup.length > 0) {
+                tacticalFollowUp = {
+                  text: parsed.followup,
+                  type: parsed.followup.length <= 10 ? 'micro_noise' : 'nudge_question'
+                };
+              }
+              
+              if (parsed.objections && Array.isArray(parsed.objections)) {
+                const topObjection = parsed.objections.find((obj: any) => obj.severity >= 0.5);
+                if (topObjection) {
+                  objection = topObjection as ObjectionTag;
+                }
+              }
+              
+              stateFeedback = {
+                user_respect_level: parsed.user_respect_level,
+                marcus_irritation_delta: parsed.marcus_irritation_delta,
+                purpose_clarity_delta: parsed.purpose_clarity_delta,
+                extracted_name: parsed.extracted_name || undefined,
+                extracted_company: parsed.extracted_company || undefined
+              };
+              
+              console.log('✅ Auto-closed META and parsed successfully');
+            } catch (e) {
+              console.error('❌ Auto-close failed, could not parse JSON:', e);
+            }
+          }
+        }
+        
+        // Strip META from spoken content
         content = rawContent.replace(/<META>.*/s, '').trim();
-        console.warn('⚠️ META block missing closing tag, stripping everything after <META>');
       }
       
       // Double-check: ensure no META remnants (belt and suspenders)
@@ -829,12 +1040,12 @@ export class CharmerAIService {
       context.conversationContext.marcusContext,
       conversationStyle || 'neutral_conversational',
       exchangeCount,
-      context.conversationContext // Pass full context so prompt can check for extracted_name
+      context.conversationContext,
+      context.marcusTraits
     );
     
     let fullPrompt = systemPrompt;
     
-    // OVERSEER GUIDANCE: Strategic layer running in parallel (optional, easily removable)
     if (overseerGuidance) {
       fullPrompt += `\n\n${overseerGuidance}`;
     }
@@ -850,6 +1061,9 @@ export class CharmerAIService {
     if (context.scenario) {
       fullPrompt += this.buildScenarioPrompt(context.scenario);
     }
+    
+    // KNOWN FACTS: Prevent Marcus from asking about info already provided
+    fullPrompt += this.buildKnownFactsPrompt(context.conversationContext);
     
     // BUYER STATE: How Marcus feels and behaves (set by Strategy Layer)
     if (context.buyerState) {
@@ -895,6 +1109,72 @@ export class CharmerAIService {
     prompt += `- Stay true to your mood: ${scenario.marcusMood}\n`;
     prompt += `- This is a REPEATABLE PUZZLE - be consistent so they can learn and improve\n`;
     
+    // Add difficulty-specific objection requirements
+    if (scenario.difficulty === 'hard') {
+      prompt += `\n**HARD MODE REQUIREMENTS:**\n`;
+      prompt += `- You MUST raise at least 2-3 objections during this call\n`;
+      prompt += `- When they mention ROI, results, or improvements: immediately ask "How much does this cost?"\n`;
+      prompt += `- When they make claims (e.g., "15% improvement"): demand PROOF - "What companies? Show me data."\n`;
+      prompt += `- When they pitch solutions: challenge with "We already have [something]" or "Why would we switch?"\n`;
+      prompt += `- Don't accept vague answers - push for specifics\n`;
+      prompt += `- Stay skeptical, frustrated, or annoyed - NEVER curious, happy, or interested until they prove they understand YOUR specific pain\n`;
+      prompt += `- Even if they ask about pain, you might not think it's that painful - make them help you see why it matters\n`;
+    } else if (scenario.difficulty === 'medium') {
+      prompt += `\n**MEDIUM MODE REQUIREMENTS:**\n`;
+      prompt += `- Raise 1-2 objections if they pitch too early or make unproven claims\n`;
+      prompt += `- Ask clarifying questions when confused\n`;
+      prompt += `- Be open but need some convincing\n`;
+    } else {
+      prompt += `\n**EASY MODE REQUIREMENTS:**\n`;
+      prompt += `- Be relatively receptive if they're respectful\n`;
+      prompt += `- Raise gentle concerns only if they're pushy or unclear\n`;
+    }
+    
+    return prompt;
+  }
+  
+  /**
+   * Build FACTS MARCUS KNOWS section to prevent repeated questions
+   */
+  private buildKnownFactsPrompt(context?: ConversationContext): string {
+    if (!context) return '';
+    
+    const facts: string[] = [];
+    
+    if (context.userName) {
+      facts.push(`Their name: ${context.userName}`);
+    }
+    
+    if (context.extractedCompany) {
+      facts.push(`Company: ${context.extractedCompany}`);
+    }
+    
+    if (context.product) {
+      facts.push(`Product/Service: ${context.product}`);
+    }
+    
+    if (context.extractedFeatures && context.extractedFeatures.length > 0) {
+      facts.push(`Features mentioned: ${context.extractedFeatures.join(', ')}`);
+    }
+    
+    if (context.memorablePhrases && context.memorablePhrases.length > 0) {
+      facts.push(`Key claims they made: "${context.memorablePhrases.join('", "')}"`);
+    }
+    
+    if (facts.length === 0) return '';
+    
+    let prompt = `\n\n---\n\n**FACTS YOU ALREADY KNOW (DON'T ASK ABOUT THESE AGAIN):**\n\n`;
+    facts.forEach(fact => {
+      prompt += `- ${fact}\n`;
+    });
+    
+    prompt += `\n**CRITICAL MEMORY RULES:**\n`;
+    prompt += `- When asking follow-up questions, REFERENCE what they already told you\n`;
+    prompt += `- DON'T say "What makes it different?" - you know they said "${context.product || 'their solution'}"\n`;
+    prompt += `- Instead say: "You mentioned ${context.product || 'this'} - how is YOURS different from other ${context.extractedFeatures && context.extractedFeatures.length > 0 ? context.extractedFeatures[0] : 'solutions'} out there?"\n`;
+    prompt += `- Be skeptical OF what they said, not ignorant that they said it\n`;
+    prompt += `- If they repeat themselves, call it out: "You already said that. What ELSE?"\n\n`;
+    
     return prompt;
   }
   
@@ -939,18 +1219,38 @@ export class CharmerAIService {
       prompt += `\n${CONFUSION_PROMPT}\n\n`;
     }
     
+    // CRITICAL 4: Progress degradation - show suspicion/annoyance
+    if (state.shouldShowDegradation) {
+      prompt += `\n${DEGRADATION_PROMPT} Reason: ${state.degradationReason}\n\n`;
+    }
+    
     // Active objection tracking - inject full ObjectionStack context
     if (state.activeObjection) {
       const satisfaction = state.objectionSatisfaction[state.activeObjection];
-      const objectionStack = MARCUS_OBJECTION_STACKS[state.activeObjection];
       
-      if (objectionStack) {
+      // Try product-specific objections from ObjectionGenerator first
+      let objectionData: { surface: string; roots: Array<{ conscious: boolean; description: string }> } | null = null;
+      
+      if (state.productSpecificObjections && state.productSpecificObjections[state.activeObjection]) {
+        // Use generated product-specific objection (now includes roots)
+        objectionData = state.productSpecificObjections[state.activeObjection];
+        console.log(`🎯 [AI] Using product-specific objection for ${state.activeObjection} (${objectionData.roots.length} roots)`);
+      } else {
+        // Fall back to hardcoded Marcus objection stacks
+        const objectionStack = MARCUS_OBJECTION_STACKS[state.activeObjection];
+        if (objectionStack) {
+          objectionData = objectionStack;
+          console.log(`📚 [AI] Using hardcoded objection stack for ${state.activeObjection}`);
+        }
+      }
+      
+      if (objectionData) {
         prompt += `\n**YOUR CURRENT CONCERN:**\n`;
-        prompt += `Surface objection: "${objectionStack.surface}"\n`;
+        prompt += `Surface objection: "${objectionData.surface}"\n`;
         prompt += `Satisfaction level: ${(satisfaction * 100).toFixed(0)}%\n\n`;
         
         // Conscious roots - what you're aware of
-        const consciousRoots = objectionStack.roots.filter(r => r.conscious);
+        const consciousRoots = objectionData.roots.filter(r => r.conscious);
         if (consciousRoots.length > 0) {
           prompt += `**What you're consciously feeling:**\n`;
           consciousRoots.forEach(root => {
@@ -959,7 +1259,7 @@ export class CharmerAIService {
         }
         
         // Unconscious roots - hidden concerns that only surface if they dig deep
-        const unconsciousRoots = objectionStack.roots.filter(r => !r.conscious);
+        const unconsciousRoots = objectionData.roots.filter(r => !r.conscious);
         if (unconsciousRoots.length > 0) {
           prompt += `\n**Hidden concerns (only reveal if they ask the RIGHT questions):**\n`;
           unconsciousRoots.forEach(root => {

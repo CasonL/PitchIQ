@@ -35,6 +35,7 @@ import { TrainingWheels } from './TrainingWheels';
 import { FrameworkAnalyzer } from './FrameworkAnalyzer';
 import { CallCompletionData, StoredFeedbackData, StoredCallState } from './types/CallData';
 import { LocalStorageService } from './services/LocalStorageService';
+import { ObjectionGenerator, DiscoveryContext } from './ObjectionGenerator';
 
 interface CharmerControllerProps {
   onCallEnd?: () => void;
@@ -175,6 +176,7 @@ const CharmerControllerContent = memo(({
   const judgmentGateRef = useRef(new JudgmentGate());
   const strategyLayerRef = useRef(new StrategyLayer());
   const hybridFeedbackRef = useRef(new MomentFeedbackIntegration());
+  const objectionGeneratorRef = useRef(new ObjectionGenerator()); // Generate product-specific objections
   const lastObjectionRef = useRef<string | undefined>(undefined); // Track last objection for escalation
   const utteranceCountRef = useRef(0); // Track number of complete utterances
   const processingTranscriptRef = useRef<string>(''); // Track which transcript we're processing
@@ -359,6 +361,54 @@ const CharmerControllerContent = memo(({
       if (extracted.product && !context.product) {
         phaseManager.updateContext({ product: extracted.product });
         console.log(`✅ Captured product: ${extracted.product}`);
+        
+        // Trigger objection generation for product category
+        const discoveryContext: DiscoveryContext = {
+          productCategory: extracted.product,
+          keyFeatures: [],
+          differentiators: [],
+          proofPoints: [],
+          trigger: 'product_category',
+          triggerContent: extracted.product
+        };
+        objectionGeneratorRef.current.generateForDiscovery(discoveryContext);
+      }
+      
+      // Track memorable phrases for Marcus's memory
+      if (extracted.memorablePhrase) {
+        const currentPhrases = context.memorablePhrases || [];
+        if (!currentPhrases.includes(extracted.memorablePhrase)) {
+          phaseManager.updateContext({ 
+            memorablePhrases: [...currentPhrases, extracted.memorablePhrase]
+          });
+        }
+      }
+      
+      // Track extracted features (from product descriptions)
+      const featurePatterns = [
+        /\b(AI|artificial intelligence|machine learning|automation|analytics)\b/i,
+        /\b(role play|roleplay|training|coaching|practice|simulation)\b/i,
+        /\b(feedback|insights|scoring|analysis|evaluation)\b/i,
+        /\b(real-time|instant|immediate|live)\b/i,
+        /\b(personalized|custom|tailored|adaptive)\b/i
+      ];
+      
+      const detectedFeatures: string[] = [];
+      for (const pattern of featurePatterns) {
+        const match = userText.match(pattern);
+        if (match) {
+          detectedFeatures.push(match[0].toLowerCase());
+        }
+      }
+      
+      if (detectedFeatures.length > 0) {
+        const currentFeatures = context.extractedFeatures || [];
+        const newFeatures = detectedFeatures.filter(f => !currentFeatures.includes(f));
+        if (newFeatures.length > 0) {
+          phaseManager.updateContext({ 
+            extractedFeatures: [...currentFeatures, ...newFeatures]
+          });
+        }
       }
       
       // Extract pitch analysis for coaching potential
@@ -400,6 +450,7 @@ const CharmerControllerContent = memo(({
         turnContext, // Pass turn context for impatience logic
         lastObjection: lastObjectionRef.current, // Pass last objection for escalation detection
         repQualitySignals,
+        objectionGenerator: objectionGeneratorRef.current, // Pass objection generator for product-specific objections
         // Pass randomized traits for trait-aware resistance
         marcusTraits: selectedScenario?.traits ? {
           painLevel: selectedScenario.traits.painLevel,
@@ -489,16 +540,83 @@ const CharmerControllerContent = memo(({
           }
         }
       } else {
-        // Generate Marcus's response using AI with Strategy constraints
-        aiResponse = await aiServiceRef.current.generateResponse({
-          phase: currentPhaseStr,
-          conversationContext: phaseManager.getContext(),
-          userInput: userText,
-          phasePromptContext: phaseManager.getPhasePromptContext(),
-          conversationHistory: conversationHistory,
-          scenario: selectedScenario,
-          buyerState: buyerState
-        });
+        // FALLBACK: Check for instant response patterns on first utterance
+        // First user utterance = no user messages yet (only Marcus's "Hello?" if anything)
+        const userMessages = conversationHistory.filter(msg => msg.role === 'user');
+        const isFirstUserUtterance = userMessages.length === 0;
+        
+        if (isFirstUserUtterance) {
+          const patternMatch = FirstUtterancePatternDetector.detect(userText);
+          const cannedResponse = FirstUtterancePatternDetector.getCannedResponse(patternMatch.pattern);
+          
+          if (cannedResponse) {
+            console.log(`🔍 Pattern detected on final: ${patternMatch.pattern} (confidence: ${patternMatch.confidence})`);
+            console.log(`⚡⚡⚡ CANNED: Using instant response (0ms LLM) - "${cannedResponse}"`);
+            
+            aiResponse = {
+              content: cannedResponse,
+              emotion: 'neutral'
+            };
+          } else if (FirstUtterancePatternDetector.canUseInstantResponse(patternMatch.pattern)) {
+            // Use focused LLM for patterns that need it
+            console.log(`🔍 Pattern detected on final: ${patternMatch.pattern} (confidence: ${patternMatch.confidence})`);
+            console.log(`⚡ FOCUSED: Using focused LLM for pattern "${patternMatch.pattern}"`);
+            
+            aiResponse = await aiServiceRef.current.generateFocusedResponse({
+              phase: currentPhaseStr,
+              conversationContext: phaseManager.getContext(),
+              userInput: userText,
+              phasePromptContext: phaseManager.getPhasePromptContext(),
+              conversationHistory: conversationHistory,
+              scenario: selectedScenario,
+              patternMatch: patternMatch
+            });
+          } else {
+            // No pattern - use full LLM
+            aiResponse = await aiServiceRef.current.generateResponse({
+              phase: currentPhaseStr,
+              conversationContext: phaseManager.getContext(),
+              userInput: userText,
+              phasePromptContext: phaseManager.getPhasePromptContext(),
+              conversationHistory: conversationHistory,
+              scenario: selectedScenario,
+              buyerState: buyerState,
+              marcusTraits: selectedScenario?.traits ? {
+                painLevel: selectedScenario.traits.painLevel,
+                urgency: selectedScenario.traits.urgency,
+                budget: selectedScenario.traits.budget,
+                openness: selectedScenario.traits.openness,
+                painPoints: selectedScenario.traits.painPoints,
+                currentSolution: selectedScenario.traits.currentSolution,
+                satisfactionLevel: selectedScenario.traits.satisfactionLevel,
+                decisionTimeframe: selectedScenario.traits.decisionTimeframe,
+                primaryConcern: selectedScenario.traits.primaryConcern
+              } : undefined
+            });
+          }
+        } else {
+          // Not first utterance - use full LLM generation
+          aiResponse = await aiServiceRef.current.generateResponse({
+            phase: currentPhaseStr,
+            conversationContext: phaseManager.getContext(),
+            userInput: userText,
+            phasePromptContext: phaseManager.getPhasePromptContext(),
+            conversationHistory: conversationHistory,
+            scenario: selectedScenario,
+            buyerState: buyerState,
+            marcusTraits: selectedScenario?.traits ? {
+              painLevel: selectedScenario.traits.painLevel,
+              urgency: selectedScenario.traits.urgency,
+              budget: selectedScenario.traits.budget,
+              openness: selectedScenario.traits.openness,
+              painPoints: selectedScenario.traits.painPoints,
+              currentSolution: selectedScenario.traits.currentSolution,
+              satisfactionLevel: selectedScenario.traits.satisfactionLevel,
+              decisionTimeframe: selectedScenario.traits.decisionTimeframe,
+              primaryConcern: selectedScenario.traits.primaryConcern
+            } : undefined
+          });
+        }
         
         // SAFETY: Check after generation completes
         if (utteranceCountRef.current !== processingUtteranceCount) {
@@ -604,6 +722,22 @@ const CharmerControllerContent = memo(({
         // TODO: Future - route to multi-LLM strategic analysis for complex moments
         // For now, suppress and wait for user continuation
         setIsProcessing(false);
+        
+        // CRITICAL: Check if utterances queued while we were processing
+        // If so, process them after a small delay to allow state to settle
+        setTimeout(() => {
+          if (queuedUtterancesRef.current.length > 0) {
+            const allFragments = queuedUtterancesRef.current;
+            const combinedText = allFragments.map(f => f.text).join(' ');
+            const lastCount = allFragments[allFragments.length - 1].count;
+            
+            console.log(`▶️ [HOLD Recovery] Processing ${allFragments.length} queued fragments: "${combinedText.substring(0, 80)}..."`);
+            queuedUtterancesRef.current = []; // Clear the queue
+            
+            processUserInputWithQueue(combinedText, lastCount);
+          }
+        }, 100);
+        
         return;
       }
       
@@ -666,23 +800,20 @@ const CharmerControllerContent = memo(({
       
       // Track Marcus message for feedback generation
       if (conversationTrackerRef.current) {
-        // Detect objections using StrategyLayer's theme extraction
+        // Use LLM-tagged objections from META block (not regex guessing)
         let objectionTriggered: string | undefined = undefined;
-        const response = aiResponse.content;
         
-        // Check for skeptical/questioning language (broader patterns)
-        const isSkeptical = /\b(what|why|how|show|prove|not sure|don't know|concerned|worry|question|doubt|uncertain|wondering|curious about|need to see|gotta ask)\b/i.test(response);
-        const isResistant = /\b(too|expensive|busy|not a fit|don't think|doesn't|can't|won't|no time|already have|happy with)\b/i.test(response);
-        
-        if (isSkeptical || isResistant) {
-          objectionTriggered = response; // Store full response
+        // Only track as objection if LLM explicitly tagged it in META
+        if (aiResponse.objection && aiResponse.objection.severity >= 0.5) {
+          objectionTriggered = aiResponse.content; // Store full response
           
           // Set active objection immediately for answer evaluation
-          const objectionType = strategyLayerRef.current.setActiveObjection(response);
-          console.log(`🚩 [Objection] Marcus raised: "${response.substring(0, 60)}..."`);
+          const objectionType = strategyLayerRef.current.setActiveObjection(aiResponse.content);
+          console.log(`🚩 [Objection] Marcus raised: ${aiResponse.objection.id} (severity: ${aiResponse.objection.severity})`);
+          console.log(`   "${aiResponse.content.substring(0, 60)}..."`);
           console.log(`🎯 [Active Objection] Set to: ${objectionType}`);
           
-          lastObjectionRef.current = response;
+          lastObjectionRef.current = aiResponse.content;
         }
         
         conversationTrackerRef.current.addMarcusMessage(
@@ -702,15 +833,18 @@ const CharmerControllerContent = memo(({
       setIsProcessing(false);
     }
     
+  }, [isProcessing, conversationHistory, transitionToPhase]);
+  
+  // Wrapper that handles queue processing - ensures queued utterances are always processed
+  const processUserInputWithQueue = useCallback(async (userText: string, utteranceSnapshot: number) => {
+    const wasProcessing = isProcessing;
+    
     try {
-      
-    } catch (error) {
-      console.error('❌ Error processing user input:', error);
+      await processUserInput(userText, utteranceSnapshot);
     } finally {
-      setIsProcessing(false);
-      
-      // Combine all queued fragments into one complete thought
-      if (queuedUtterancesRef.current.length > 0) {
+      // CRITICAL: Only process queue if we actually completed processing
+      // Don't process if we were already processing (early return via queuing)
+      if (!wasProcessing && queuedUtterancesRef.current.length > 0) {
         const allFragments = queuedUtterancesRef.current;
         const combinedText = allFragments.map(f => f.text).join(' ');
         const lastCount = allFragments[allFragments.length - 1].count;
@@ -720,11 +854,11 @@ const CharmerControllerContent = memo(({
         
         // Small delay to allow state to settle
         setTimeout(() => {
-          processUserInput(combinedText, lastCount);
+          processUserInputWithQueue(combinedText, lastCount);
         }, 100);
       }
     }
-  }, [isProcessing, conversationHistory, transitionToPhase]);
+  }, [processUserInput, isProcessing]);
   
   /**
    * Detect continuation cues - patterns suggesting user will keep talking
@@ -773,6 +907,14 @@ const CharmerControllerContent = memo(({
       
       if (patternMatch.extractedName) {
         console.log(`📋 Extracted name from pattern: ${patternMatch.extractedName}`);
+      }
+      
+      if (patternMatch.extractedCompany) {
+        console.log(`📋 Extracted company from pattern: ${patternMatch.extractedCompany}`);
+        const context = phaseManager.getContext();
+        if (!context.extractedCompany) {
+          phaseManager.updateContext({ extractedCompany: patternMatch.extractedCompany });
+        }
       }
       
       if (FirstUtterancePatternDetector.canUseInstantResponse(patternMatch.pattern)) {
@@ -918,7 +1060,7 @@ const CharmerControllerContent = memo(({
           console.log(`🎙️ User speech: "${buffered.text}"`);
           console.log(`🔧 [DEBUG] Calling processUserInput for utterance #${buffered.count}, isProcessing=${isProcessing}`);
           
-          processUserInput(buffered.text, buffered.count);
+          processUserInputWithQueue(buffered.text, buffered.count);
           pendingUtteranceRef.current = null;
         }
         utteranceGraceTimerRef.current = null;
@@ -939,14 +1081,14 @@ const CharmerControllerContent = memo(({
         if (utteranceCountRef.current === utteranceSnapshot) {
           console.log(`⏰ Short final timeout - processing "${newContent}"`);
           utteranceCountRef.current++;
-          processUserInput(newContent, utteranceCountRef.current);
+          processUserInputWithQueue(newContent, utteranceCountRef.current);
           lastTranscriptRef.current = transcriptSnapshot;
         }
       }, 1000);
       
       return;
     }
-  }, [transcript, isFinalTranscript, isSpeaking, conversationHistory, selectedScenario, processUserInput, detectContinuationCue]);
+  }, [transcript, isFinalTranscript, isSpeaking, conversationHistory, selectedScenario, processUserInputWithQueue, detectContinuationCue]);
   
   /**
    * Handle silence - inject context for LLM to reason about
@@ -963,8 +1105,8 @@ const CharmerControllerContent = memo(({
     console.log(`🤔 Injecting silence context for LLM reasoning: ${silenceDuration}s`);
     
     // Pass silence context as a special user input for LLM to reason about
-    processUserInput(silenceContext, utteranceCountRef.current);
-  }, [isProcessing, isSpeaking, processUserInput]);
+    processUserInputWithQueue(silenceContext, utteranceCountRef.current);
+  }, [isProcessing, isSpeaking, processUserInputWithQueue]);
   
   /**
    * Handle Marcus's greeting when call connects
@@ -978,7 +1120,7 @@ const CharmerControllerContent = memo(({
       
       // Marcus's Phase 1 opening line - answer immediately (ringing already happened)
       setTimeout(async () => {
-        const greeting = "Hello?";
+        const greeting = "Hello, Marcus speaking?";
         console.log(`🎤 Marcus [neutral]: "${greeting}"`);
         
         // Set echo protection BEFORE speaking to prevent microphone feedback
@@ -1574,6 +1716,7 @@ const CharmerControllerContent = memo(({
           }}
           buyerState={momentFeedbackData.buyerState as any}
           finalResistance={momentFeedbackData.finalResistance || 5}
+          metrics={momentFeedbackData.metrics}
           scenario={selectedScenario}
           onTryAgain={handleCloseMomentFeedback}
           preAnalyzedMoments={momentFeedbackData.preAnalyzedMoments as any}

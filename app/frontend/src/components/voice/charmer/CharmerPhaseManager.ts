@@ -33,6 +33,11 @@ export interface ConversationContext {
   resistanceLevel?: number; // 0-1 scale
   openness?: number;        // 0-1 scale
   patience?: number;        // 0-1 scale
+  
+  // Memory tracking - facts Marcus already knows (prevent repeated questions)
+  extractedCompany?: string;
+  extractedFeatures?: string[];
+  memorablePhrases?: string[];
 }
 
 export interface PhaseTransition {

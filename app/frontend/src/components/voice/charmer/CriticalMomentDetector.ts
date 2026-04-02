@@ -61,6 +61,10 @@ export class CriticalMomentDetector {
     const permissionOpener = this.findPermissionOpener(transcript, pairs);
     if (permissionOpener) successes.push(permissionOpener);
     
+    // NEW: Find open-ended questions that worked (discovery success)
+    const openEndedWins = this.findOpenEndedQuestions(transcript, pairs);
+    successes.push(...openEndedWins);
+    
     // Sort by impact and return top 3
     return successes
       .sort((a, b) => b.impact - a.impact)
@@ -250,6 +254,14 @@ export class CriticalMomentDetector {
     // NEW: Find repeated objections (CRITICAL signal)
     const repeatedObjections = this.findRepeatedObjections(transcript, pairs);
     moments.push(...repeatedObjections);
+    
+    // NEW: Find missing permission opener (opening mistake)
+    const missingPermission = this.findMissingPermission(transcript, pairs);
+    if (missingPermission) moments.push(missingPermission);
+    
+    // NEW: Find low clarity progression (positioning mistake)
+    const lowClarity = this.findLowClarityProgression(transcript, pairs);
+    if (lowClarity) moments.push(lowClarity);
     
     // Sort by severity and return top 5
     return moments
@@ -1304,6 +1316,158 @@ export class CriticalMomentDetector {
         whatHappened: 'You asked permission before launching into your pitch',
         whyItWorked: 'Respecting their time disarms the "another salesperson" reflex',
         repeatThis: 'Always start with: "Do you have 20 seconds for why I called?"'
+      };
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Find missing permission opener - mirrors opening score penalty
+   */
+  private findMissingPermission(transcript: ConversationTranscript, pairs: ExchangePair[]): CriticalMoment | null {
+    const exchanges = transcript.exchanges;
+    const firstUser = exchanges.find(e => e.speaker === 'user');
+    
+    if (!firstUser) return null;
+    
+    const permissionPatterns = [
+      /\b(do you have|is this a good time|can I|may I|quick question|20 seconds)\b/i
+    ];
+    
+    const askedPermission = permissionPatterns.some(pattern => pattern.test(firstUser.text));
+    
+    // If they DIDN'T ask permission, flag as opening mistake
+    if (!askedPermission) {
+      const nextMarcus = this.findNextMarcusMessage(exchanges, exchanges.indexOf(firstUser));
+      const matchingPair = nextMarcus ? this.findMatchingPair(pairs, firstUser, nextMarcus) : null;
+      
+      // Check if Marcus's resistance stayed high (7+) or increased
+      const initialResistance = nextMarcus?.resistanceLevel || 7;
+      
+      if (initialResistance >= 6) {
+        return {
+          id: `no_permission_${firstUser.id}`,
+          timestamp: firstUser.timestamp,
+          type: 'missed_opening',
+          severity: 0.75,
+          sourcePairId: matchingPair?.id ?? `fallback_${firstUser.id}_${nextMarcus?.id || 'unknown'}`,
+          sourceUserId: firstUser.id,
+          sourceMarcusId: nextMarcus?.id || 'unknown',
+          userMessage: firstUser.text,
+          marcusResponse: nextMarcus?.text || '',
+          resistanceBefore: firstUser.resistanceLevel || 7,
+          resistanceAfter: nextMarcus?.resistanceLevel || 7,
+          whatHappened: 'You launched into your pitch without asking permission - Marcus went defensive',
+          hiddenOpportunity: 'Start with: "Do you have 20 seconds for why I called?" - disarms the "another salesperson" reflex'
+        };
+      }
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Find open-ended questions that got Marcus to open up - mirrors discovery score rewards
+   */
+  private findOpenEndedQuestions(transcript: ConversationTranscript, pairs: ExchangePair[]): SuccessfulMoment[] {
+    const wins: SuccessfulMoment[] = [];
+    const exchanges = transcript.exchanges;
+    
+    const openEndedPatterns = [
+      /\b(what|how|why|tell me|describe|explain|walk me through)\b/i
+    ];
+    
+    for (let i = 0; i < exchanges.length - 1; i++) {
+      const userMsg = exchanges[i];
+      const marcusMsg = exchanges[i + 1];
+      
+      if (userMsg.speaker === 'user' && marcusMsg.speaker === 'marcus') {
+        const isOpenEnded = openEndedPatterns.some(pattern => pattern.test(userMsg.text));
+        const isQuestion = userMsg.text.includes('?');
+        
+        if (isOpenEnded && isQuestion) {
+          // Check if Marcus opened up (longer response or pain revealed)
+          const marcusWordCount = marcusMsg.text.split(/\s+/).length;
+          const resistanceDrop = (userMsg.resistanceLevel || 7) - (marcusMsg.resistanceLevel || 7);
+          
+          if (marcusWordCount > 20 || marcusMsg.painPointRevealed || resistanceDrop > 0.3) {
+            const matchingPair = this.findMatchingPair(pairs, userMsg, marcusMsg);
+            
+            wins.push({
+              id: `open_q_${userMsg.id}`,
+              timestamp: userMsg.timestamp,
+              type: 'pain_discovery',
+              impact: 0.75,
+              sourcePairId: matchingPair?.id ?? `fallback_${userMsg.id}_${marcusMsg.id}`,
+              sourceUserId: userMsg.id,
+              sourceMarcusId: marcusMsg.id,
+              userMessage: userMsg.text,
+              marcusResponse: marcusMsg.text,
+              resistanceBefore: userMsg.resistanceLevel || 0,
+              resistanceAfter: marcusMsg.resistanceLevel || 0,
+              whatHappened: 'Your open-ended question got Marcus to open up',
+              whyItWorked: 'Open-ended questions invite detailed responses instead of yes/no - builds trust',
+              repeatThis: 'Use "What...", "How...", "Tell me about..." instead of closed questions'
+            });
+          }
+        }
+      }
+    }
+    
+    return wins;
+  }
+  
+  /**
+   * Find low clarity progression - mirrors positioning score penalty
+   */
+  private findLowClarityProgression(transcript: ConversationTranscript, pairs: ExchangePair[]): CriticalMoment | null {
+    const exchanges = transcript.exchanges;
+    
+    // Find a point mid-conversation where clarity should be higher but isn't
+    const midpoint = Math.floor(exchanges.length / 2);
+    
+    if (midpoint < 3) return null; // Need enough conversation to assess
+    
+    // Check clarity progression from exchanges
+    let lowClarityCount = 0;
+    let lastLowClarityPair: { user: ConversationExchange; marcus: ConversationExchange } | null = null;
+    
+    for (let i = 2; i < Math.min(exchanges.length, midpoint + 3); i++) {
+      const exchange = exchanges[i];
+      
+      // If Marcus shows confusion or asks clarifying questions
+      const confusionPatterns = [
+        /\b(what do you mean|I don't understand|confused|not clear|what's your point|lost you)\b/i
+      ];
+      
+      if (exchange.speaker === 'marcus' && confusionPatterns.some(p => p.test(exchange.text))) {
+        lowClarityCount++;
+        const prevUser = this.findPreviousUserMessage(exchanges, i);
+        if (prevUser) {
+          lastLowClarityPair = { user: prevUser, marcus: exchange };
+        }
+      }
+    }
+    
+    // If Marcus showed confusion 2+ times, flag as positioning mistake
+    if (lowClarityCount >= 2 && lastLowClarityPair) {
+      const matchingPair = this.findMatchingPair(pairs, lastLowClarityPair.user, lastLowClarityPair.marcus);
+      
+      return {
+        id: `low_clarity_${lastLowClarityPair.marcus.id}`,
+        timestamp: lastLowClarityPair.marcus.timestamp,
+        type: 'missed_pain',
+        severity: 0.65,
+        sourcePairId: matchingPair?.id ?? `fallback_${lastLowClarityPair.user.id}_${lastLowClarityPair.marcus.id}`,
+        sourceUserId: lastLowClarityPair.user.id,
+        sourceMarcusId: lastLowClarityPair.marcus.id,
+        userMessage: lastLowClarityPair.user.text,
+        marcusResponse: lastLowClarityPair.marcus.text,
+        resistanceBefore: lastLowClarityPair.user.resistanceLevel || 7,
+        resistanceAfter: lastLowClarityPair.marcus.resistanceLevel || 7,
+        whatHappened: 'Marcus lost clarity on what you\'re offering - confusion kills interest',
+        hiddenOpportunity: 'Use simple language: "We help [WHO] [DO WHAT] so they can [OUTCOME]" - test with a 5th grader'
       };
     }
     

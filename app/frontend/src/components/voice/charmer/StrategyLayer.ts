@@ -43,18 +43,20 @@ export interface BuyerState {
   shouldForceExit: boolean;
   exitReason?: string;
   shouldShowConfusion: boolean;
+  shouldShowDegradation: boolean; // Progress regressing - Marcus gets suspicious/annoyed
+  degradationReason?: string;
   // Interest trajectory & dodge mode
   canDodgeQuestions: boolean; // Enable after 3+ consecutive disappointments
   consecutiveInterestDrops: number; // Track declining relevance/clarity
   lastQuestionQuality?: 'high' | 'medium' | 'low'; // Most recent question quality
-  // Product-specific objections (when available)
+  // Product-specific objections (when available) - now with full root cause structure
   productSpecificObjections?: {
-    timing?: string;
-    fit?: string;
-    trust?: string;
-    status_quo?: string;
-    cost?: string;
-    authority?: string;
+    timing?: { surface: string; roots: Array<{ id: string; conscious: boolean; description: string; intensity: number }> };
+    fit?: { surface: string; roots: Array<{ id: string; conscious: boolean; description: string; intensity: number }> };
+    trust?: { surface: string; roots: Array<{ id: string; conscious: boolean; description: string; intensity: number }> };
+    status_quo?: { surface: string; roots: Array<{ id: string; conscious: boolean; description: string; intensity: number }> };
+    cost?: { surface: string; roots: Array<{ id: string; conscious: boolean; description: string; intensity: number }> };
+    authority?: { surface: string; roots: Array<{ id: string; conscious: boolean; description: string; intensity: number }> };
   };
 }
 
@@ -290,14 +292,15 @@ export class StrategyLayer {
       if (objections) {
         productSpecificObjections = {};
         objections.forEach(obj => {
-          if (obj.type === 'timing') productSpecificObjections!.timing = obj.objection;
-          else if (obj.type === 'fit') productSpecificObjections!.fit = obj.objection;
-          else if (obj.type === 'trust') productSpecificObjections!.trust = obj.objection;
-          else if (obj.type === 'status_quo') productSpecificObjections!.status_quo = obj.objection;
-          else if (obj.type === 'cost') productSpecificObjections!.cost = obj.objection;
-          else if (obj.type === 'authority') productSpecificObjections!.authority = obj.objection;
+          const objectionData = { surface: obj.surface, roots: obj.roots };
+          if (obj.type === 'timing') productSpecificObjections!.timing = objectionData;
+          else if (obj.type === 'fit') productSpecificObjections!.fit = objectionData;
+          else if (obj.type === 'trust') productSpecificObjections!.trust = objectionData;
+          else if (obj.type === 'status_quo') productSpecificObjections!.status_quo = objectionData;
+          else if (obj.type === 'cost') productSpecificObjections!.cost = objectionData;
+          else if (obj.type === 'authority') productSpecificObjections!.authority = objectionData;
         });
-        console.log(`🎯 [Strategy] Using ${objections.length} product-specific objections`);
+        console.log(`🎯 [Strategy] Using ${objections.length} product-specific objections with root causes`);
       }
     }
 
@@ -316,51 +319,61 @@ export class StrategyLayer {
       finalResistance
     );
 
-    // Evaluate rep's answer against active objection (if any)
-    let answerImpact: AnswerImpact | null = null;
+    // Evaluate rep's answer against active objection (if any) - ASYNC (non-blocking)
+    // Fire this off in background, apply impact when it resolves (doesn't block Marcus's response)
     if (this.buyerState.activeObjection && userInput !== this.lastRepAnswer) {
-      answerImpact = await AnswerEvaluator.evaluate(
+      const objectionType = this.buyerState.activeObjection;
+      const currentSatisfaction = this.buyerState.objectionSatisfaction[objectionType];
+      
+      console.log(`🔬 [Answer Eval] Evaluating answer for ${objectionType} objection (async, non-blocking)`);
+      
+      AnswerEvaluator.evaluate(
         userInput,
-        this.buyerState.activeObjection,
-        this.buyerState.objectionSatisfaction[this.buyerState.activeObjection],
+        objectionType,
+        currentSatisfaction,
         {
           buyerClarityLevel: this.buyerState.clarity || 3,
           buyerTrustLevel: this.buyerState.trustLevel,
           conversationHistory
         },
-        context.lastObjection // Pass Marcus's actual objection text for context
-      );
+        context.lastObjection
+      ).then(answerImpact => {
+        if (answerImpact && answerImpact.addressed) {
+          // Apply impact retroactively - will affect NEXT turn's buyer state
+          const impact = AnswerEvaluator.applyImpact(
+            this.buyerState.objectionSatisfaction,
+            this.buyerState.clarity || 3,
+            this.buyerState.relevance || 3,
+            this.buyerState.trustLevel,
+            answerImpact,
+            objectionType
+          );
+          
+          // Update buyer state for next turn
+          this.buyerState.objectionSatisfaction = impact.satisfaction;
+          this.buyerState.clarity = impact.clarity;
+          this.buyerState.relevance = impact.relevance;
+          this.buyerState.trustLevel = impact.trustLevel;
+          
+          console.log(`✅ [Answer Impact] ${objectionType} satisfaction: ${currentSatisfaction.toFixed(2)} → ${impact.satisfaction[objectionType].toFixed(2)}`);
+          console.log(`   Clarity: ${this.buyerState.clarity} → ${impact.clarity}, Relevance: ${this.buyerState.relevance} → ${impact.relevance}, Trust: ${this.buyerState.trustLevel.toFixed(1)}`);
+        }
+      }).catch(err => {
+        console.error('⚠️ [Answer Eval] Failed (non-critical):', err);
+      });
+      
       this.lastRepAnswer = userInput;
     }
 
-    // NEW: Detect escalation and exit triggers
+    // NEW: Detect escalation, degradation, and exit triggers
     const escalation = this.detectObjectionEscalation(context);
+    const degradation = this.detectProgressDegradation(turnContext, finalResistance);
     const exitTrigger = this.detectExitTrigger(turnContext, finalResistance);
     const confusion = this.detectRepIncoherence(userInput);
 
-    // Apply answer impact if rep addressed objection
+    // Use current satisfaction values (answer eval will update for next turn)
     let updatedSatisfaction = this.buyerState.objectionSatisfaction;
     let lastAcknowledgment: string | undefined = undefined;
-    
-    if (answerImpact && answerImpact.addressed) {
-      const impact = AnswerEvaluator.applyImpact(
-        this.buyerState.objectionSatisfaction,
-        clarity,
-        relevance,
-        trustLevel,
-        answerImpact,
-        this.buyerState.activeObjection!
-      );
-      
-      updatedSatisfaction = impact.satisfaction;
-      clarity = impact.clarity;
-      relevance = impact.relevance;
-      trustLevel = impact.trustLevel;
-      lastAcknowledgment = answerImpact.specificAcknowledgment;
-      
-      console.log(`✅ [Answer Impact] ${this.buyerState.activeObjection} satisfaction: ${this.buyerState.objectionSatisfaction[this.buyerState.activeObjection!].toFixed(2)} → ${updatedSatisfaction[this.buyerState.activeObjection!].toFixed(2)}`);
-      console.log(`   Clarity: ${this.buyerState.clarity} → ${clarity}, Relevance: ${this.buyerState.relevance} → ${relevance}, Trust: ${this.buyerState.trustLevel.toFixed(1)} → ${trustLevel.toFixed(1)}`);
-    }
 
     // Update buyer state
     this.buyerState = {
@@ -382,6 +395,8 @@ export class StrategyLayer {
       shouldForceExit: exitTrigger.should,
       exitReason: exitTrigger.reason,
       shouldShowConfusion: confusion,
+      shouldShowDegradation: degradation.should,
+      degradationReason: degradation.reason,
       canDodgeQuestions,
       consecutiveInterestDrops: this.consecutiveInterestDrops,
       lastQuestionQuality: questionQuality,
@@ -717,6 +732,47 @@ export class StrategyLayer {
   }
 
   /**
+   * Detect progress degradation - call was going well but then declined
+   * This triggers suspicious/confused/annoyed behavior instead of immediate exit
+   */
+  private detectProgressDegradation(turnContext: TurnContext, resistance: number): {
+    should: boolean;
+    reason?: string;
+  } {
+    // Track if we had good progress that's now regressing
+    const hadGoodClarity = this.buyerState.clarity >= 6; // Had understanding
+    const nowConfused = this.buyerState.clarity < 4; // Lost understanding
+    
+    const hadGoodTrust = this.buyerState.trustLevel >= 6; // Had trust
+    const nowSkeptical = this.buyerState.trustLevel < 4; // Lost trust
+    
+    const hadLowResistance = resistance <= 5; // Was opening up
+    const nowHighResistance = resistance >= 7; // Now guarded again
+    
+    // Degradation: Had progress, now losing it
+    if ((hadGoodClarity && nowConfused) || (hadGoodTrust && nowSkeptical)) {
+      console.log(`📉 [Strategy] Progress degradation: clarity ${this.buyerState.clarity}/10, trust ${this.buyerState.trustLevel}/10, resistance ${resistance}/10`);
+      return {
+        should: true,
+        reason: hadGoodClarity && nowConfused 
+          ? 'Lost clarity - rep became confusing after good start'
+          : 'Lost trust - rep behavior became suspicious after building rapport'
+      };
+    }
+    
+    // Degradation: Was engaging, now shutting down
+    if (hadLowResistance && nowHighResistance && turnContext.totalTurns > 5) {
+      console.log(`📉 [Strategy] Engagement degradation: resistance spiked to ${resistance}/10 after good start`);
+      return {
+        should: true,
+        reason: 'Rep did something that triggered suspicion - resistance spiked'
+      };
+    }
+    
+    return { should: false };
+  }
+
+  /**
    * Detect if patience is exhausted and call should end
    */
   private detectExitTrigger(turnContext: TurnContext, resistance: number): {
@@ -829,6 +885,7 @@ export class StrategyLayer {
       shouldEscalateObjection: false,
       shouldForceExit: false,
       shouldShowConfusion: false,
+      shouldShowDegradation: false,
       canDodgeQuestions: false,
       consecutiveInterestDrops: 0,
       lastQuestionQuality: undefined

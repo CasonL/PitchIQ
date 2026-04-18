@@ -168,7 +168,9 @@ export class FirstUtterancePatternDetector {
    * better UX than waiting for LLM. Trade-off: less context-aware, but acceptable
    * for basic social protocol ("Good, you?" doesn't need Marcus's pain points).
    */
-  static getCannedResponse(pattern: DetectedPattern): string | null {
+  static getCannedResponse(match: PatternMatch): string | null {
+    const pattern = match.pattern;
+    const name = match.extractedName || null;
     // Instant responses for common cold call patterns
     // These don't need Marcus's full context - basic human reactions
     switch (pattern) {
@@ -207,8 +209,15 @@ export class FirstUtterancePatternDetector {
       // VALUE HOOKS & COMPLEX PATTERNS
       case 'INTRO_WITH_VALUE_AND_PERMISSION':
         // "Hey Marcus, it's Kayson, we help with sales training, got 5 mins?"
-        // They pitched = acknowledge you heard it, decline
-        return "We're all set";
+        // They pitched = natural decline with contextual objection
+        // Use extracted name if available, give specific objection Overseer can expand
+        const greeting = name ? `Hey ${name}` : "Hey";
+        const objections = [
+          `${greeting}, we're all set over here. Already have something in place for that.`,
+          `${greeting}, thanks but we're good. Got that covered already.`,
+          `${greeting}, appreciate it but we're all set. Have someone handling that.`
+        ];
+        return objections[Math.floor(Math.random() * objections.length)];
         
       case 'VALUE_HOOK_ONLY':
         // "I can help you close 3 more deals" (no intro, no permission)

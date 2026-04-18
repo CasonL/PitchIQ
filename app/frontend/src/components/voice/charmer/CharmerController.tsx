@@ -565,7 +565,7 @@ const CharmerControllerContent = memo(({
         
         if (isFirstUserUtterance) {
           const patternMatch = FirstUtterancePatternDetector.detect(userText);
-          const cannedResponse = FirstUtterancePatternDetector.getCannedResponse(patternMatch.pattern);
+          const cannedResponse = FirstUtterancePatternDetector.getCannedResponse(patternMatch);
           
           if (cannedResponse) {
             console.log(`🔍 Pattern detected on final: ${patternMatch.pattern} (confidence: ${patternMatch.confidence})`);
@@ -979,7 +979,7 @@ const CharmerControllerContent = memo(({
       
       if (FirstUtterancePatternDetector.canUseInstantResponse(patternMatch.pattern)) {
         // Check for ultra-fast canned response (0ms - no LLM)
-        const cannedResponse = FirstUtterancePatternDetector.getCannedResponse(patternMatch.pattern);
+        const cannedResponse = FirstUtterancePatternDetector.getCannedResponse(patternMatch);
         
         if (cannedResponse) {
           // INSTANT CANNED RESPONSE - no LLM call needed!

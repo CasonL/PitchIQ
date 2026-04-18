@@ -284,8 +284,21 @@ Keep it VERY short. Cold call energy.`;
   
   /**
    * Check if pattern allows instant response generation
+   * Patterns with value propositions need FULL context, not focused prompts
    */
   static canUseInstantResponse(pattern: DetectedPattern): boolean {
+    // Patterns that need FULL LLM with all Marcus context (no focused prompt)
+    const needsFullContext = [
+      'INTRO_WITH_VALUE_AND_PERMISSION', // Has value prop - needs contextual pushback
+      'VALUE_HOOK_ONLY',                 // Pure value pitch - needs full resistance
+      'PERMISSION_FIRST',                // Asking permission without intro - needs full persona
+      'QUESTION_FIRST'                   // Question before intro - needs full context
+    ];
+    
+    if (needsFullContext.includes(pattern)) {
+      return false; // Skip focused path, go straight to full LLM
+    }
+    
     return pattern !== 'UNKNOWN';
   }
   

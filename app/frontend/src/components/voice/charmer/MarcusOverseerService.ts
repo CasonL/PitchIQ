@@ -240,8 +240,27 @@ YOU ARE THIS MARCUS. Use this context to create a learning experience.
       // Strip markdown code blocks if present (LLM sometimes wraps JSON)
       content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       
-      // Parse JSON response
-      const analysis = JSON.parse(content);
+      // Parse JSON response with robust error handling
+      let analysis;
+      try {
+        analysis = JSON.parse(content);
+      } catch (parseError) {
+        console.warn('🎭 [Overseer] Initial JSON parse failed, attempting fixes...', parseError);
+        
+        // Try to extract JSON object from content (in case LLM added extra text)
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            analysis = JSON.parse(jsonMatch[0]);
+            console.log('🎭 [Overseer] Successfully extracted JSON from response');
+          } catch (extractError) {
+            console.error('🎭 [Overseer] JSON extraction also failed:', extractError);
+            throw parseError; // Throw original error for catch block below
+          }
+        } else {
+          throw parseError;
+        }
+      }
       
       return {
         marcusContext: analysis.marcusContext || {

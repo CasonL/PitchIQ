@@ -295,20 +295,64 @@ Keep it VERY short. Cold call energy.`;
    */
   private static detectPurposeExplanation(text: string): boolean {
     const purposePatterns = [
+      // Direct value propositions
       /\b(we help|we work with|we provide|we offer|we assist)\b/i,
-      /\b(we have|we've got)\b.*\b(solution|product|service|tool|platform|system)\b/i,
+      /\b(we have|we've got|we specialize in)\b.*\b(solution|product|service|tool|platform|system)\b/i,
       /\b(that (could|can|will|would))\b.*\b(benefit|help|improve|save)\b/i,
-      /\b(calling about|calling to|calling because|reason (for|I'm) call)/i,
-      /\b(wanted to (talk|discuss|share|see if))/i,
-      /\b(quick reason|just wanted to)/i,
-      /\b(improve|increase|reduce|help with|solve|fix)\b.*\b(close rate|sales|revenue|pipeline|quota|team)/i,
-      /\b(talk about|discuss|share (how|what))/i,
-      // Detect value props in "talk/discuss your X and [product/solution]" format
+      
+      // Calling purpose statements
+      /\b(calling about|calling to|calling because|calling regarding|reason (for|I'm) call)/i,
+      /\b(wanted to (talk|discuss|share|see if|show you|tell you about))/i,
+      /\b(quick reason|just wanted to|reaching out (to|about))/i,
+      
+      // Value/benefit statements
+      /\b(improve|increase|reduce|boost|enhance|optimize|help with|solve|fix)\b.*\b(close rate|sales|revenue|pipeline|quota|team|performance|results|efficiency)/i,
+      /\b(save|cut|reduce)\b.*\b(time|money|costs|hours)/i,
+      /\b(grow|scale|expand|double|triple)\b.*\b(revenue|sales|business|team)/i,
+      
+      // Talk/discuss patterns
+      /\b(talk about|discuss|chat about|share (how|what|some))/i,
       /\b(talk|discuss)\b.{0,30}\b(sales|team|business|company|pipeline|revenue|growth)\b.{0,30}\b(solution|product|service|tool|platform|training|system)\b/i,
-      // Detect product/solution mentions in cold call context
-      /\b(sales|marketing|business|revenue)\b.{0,30}\b(training|solution|platform|tool|system|service)\b/i,
-      // Detect "innovative/new/powerful [product type]" patterns
-      /\b(innovative|new|powerful|advanced|cutting-edge)\b.{0,20}\b(solution|product|service|tool|platform|training|system)\b/i
+      
+      // Product/solution mentions
+      /\b(sales|marketing|business|revenue|customer)\b.{0,30}\b(training|solution|platform|tool|system|service|software|technology)\b/i,
+      /\b(innovative|new|powerful|advanced|cutting-edge|proven|best-in-class)\b.{0,20}\b(solution|product|service|tool|platform|training|system|approach|method)\b/i,
+      
+      // Referral-based openers
+      /\b(referred|recommended|suggested|told me|mentioned)\b.*\b(reach out|contact|call|speak with)/i,
+      /\b(mutual (friend|contact|connection)|someone we both know)/i,
+      /\b([A-Z][a-z]+)\b.{0,20}\b(suggested|recommended|said I should|told me to)/i,
+      
+      // Research/observation-based
+      /\b(noticed|saw|read|learned|found out|discovered)\b.*\b(your|you're|that you)/i,
+      /\b(saw on|noticed on|read on)\b.*\b(LinkedIn|website|article|post|profile)/i,
+      /\b(I see|I noticed|looks like)\b.*\b(you're|your company|your team)/i,
+      
+      // Pain point leads
+      /\b(struggling|dealing with|facing|challenged by|having trouble|issues with)/i,
+      /\b(growing fast|expanding|scaling|hiring)/i,
+      /\b(probably|might be|could be)\b.*\b(looking for|interested in|need|want)/i,
+      
+      // Event/trigger-based
+      /\b(saw you at|met you at|attended|conference|event|webinar)/i,
+      /\b(recent|recently|just|latest)\b.*\b(launch|announcement|hire|funding|article|post)/i,
+      
+      // Follow-up patterns
+      /\b(sent (you|an)|emailed|reached out|left (a|you a)|following up)/i,
+      /\b(tried to|attempted to)\b.*\b(reach|contact|connect)/i,
+      
+      // Social proof/credentials
+      /\b(work with|helped|partnered with)\b.*\b(companies like|similar|Fortune|leading)/i,
+      /\b(clients include|customers like|working with)/i,
+      
+      // Compliment/flattery openings
+      /\b(impressed|amazing|love|admire)\b.*\b(your|what you|the work)/i,
+      /\b(congratulations|congrats)\b.*\b(on your|on the)/i,
+      
+      // Direct asks/offers
+      /\b(quick question|brief question|wondering if|curious (if|whether))/i,
+      /\b(can I|could I|would you be)\b.*\b(share|show|tell|ask|get your)/i,
+      /\b(opportunity|chance)\b.*\b(to (share|discuss|show|tell))/i
     ];
     
     return purposePatterns.some(pattern => pattern.test(text));
@@ -320,11 +364,26 @@ Keep it VERY short. Cold call energy.`;
    */
   private static detectPermissionAsk(text: string): boolean {
     const permissionPatterns = [
-      /\b(do you have|have you got)\b.*\b(minute|second|time|moment)\b/i,
-      /\b(is this|is now)\b.*\b(good time|bad time)\b/i,
-      /\b(can i|could i|may i)\b.*\b(share|tell|talk|discuss|ask)\b/i,
-      /\b(quick question|20 seconds)\b/i,
-      /\bwondering if you (had|have)\b/i
+      // Time requests
+      /\b(do you have|have you got|got a|have a)\b.*\b(minute|second|time|moment|few minutes|couple minutes)\b/i,
+      /\b(is this|is now|is it)\b.*\b(good time|bad time|convenient)\b/i,
+      /\b(catch you at)\b.*\b(good time|bad time)\b/i,
+      
+      // Permission phrases
+      /\b(can i|could i|may i|would you mind if|is it okay if)\b.*\b(share|tell|talk|discuss|ask|show|run|steal|grab|borrow)\b/i,
+      /\b(mind if i|okay if i)\b.*\b(share|tell|ask|show)/i,
+      
+      // Quick/brief patterns
+      /\b(quick (question|call|chat|word|sec|second)|20 seconds|30 seconds)\b/i,
+      /\b(brief (question|chat|moment|call))\b/i,
+      /\b(just (a|one) (second|minute|moment|quick))\b/i,
+      
+      // Wondering/asking
+      /\bwondering if you (had|have|might have|would have)\b/i,
+      /\b(would you (be|have)|do you (have|think))\b.*\b(time|minute|interest|open to)\b/i,
+      
+      // Open to / interested patterns
+      /\b(open to|interested in|open for)\b.*\b(discussing|hearing|learning|chatting|talking)\b/i
     ];
     
     return permissionPatterns.some(pattern => pattern.test(text));

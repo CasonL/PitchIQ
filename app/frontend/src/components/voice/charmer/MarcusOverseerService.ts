@@ -232,7 +232,7 @@ YOU ARE THIS MARCUS. Use this context to create a learning experience.
             { role: 'user', content: prompt }
           ],
           temperature: 0.8,
-          max_tokens: 600
+          max_tokens: 1200 // Increased from 600 to prevent truncation
         }),
         signal: controller.signal
       });
@@ -252,8 +252,9 @@ YOU ARE THIS MARCUS. Use this context to create a learning experience.
       content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       
       // CRITICAL FIX: Detect if LLM returned escaped JSON string instead of raw JSON
-      // Pattern: starts with {\" instead of {"
-      if (content.startsWith('{\\')) {
+      // Pattern: contains \" at start of field names instead of just "
+      // Check first 100 chars for \" pattern which indicates escaped JSON
+      if (content.substring(0, 100).includes('\\"')) {
         console.log('🎭 [Overseer] Detected escaped JSON string, unescaping...');
         // Unescape all \" to " to convert string-wrapped JSON back to raw JSON
         content = content.replace(/\\"/g, '"');

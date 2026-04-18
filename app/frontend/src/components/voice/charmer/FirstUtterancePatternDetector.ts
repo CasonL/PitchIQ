@@ -207,9 +207,8 @@ export class FirstUtterancePatternDetector {
       // VALUE HOOKS & COMPLEX PATTERNS
       case 'INTRO_WITH_VALUE_AND_PERMISSION':
         // "Hey Marcus, it's Kayson, we help with sales training, got 5 mins?"
-        // Has intro + pitch + permission = need contextual reaction
-        // Route to full LLM for Marcus's actual response based on traits
-        return null;
+        // Pitched without permission = instant rejection
+        return "Not interested";
         
       case 'VALUE_HOOK_ONLY':
         // "I can help you close 3 more deals" (no intro, no permission)
@@ -284,21 +283,8 @@ Keep it VERY short. Cold call energy.`;
   
   /**
    * Check if pattern allows instant response generation
-   * Patterns with value propositions need FULL context, not focused prompts
    */
   static canUseInstantResponse(pattern: DetectedPattern): boolean {
-    // Patterns that need FULL LLM with all Marcus context (no focused prompt)
-    const needsFullContext = [
-      'INTRO_WITH_VALUE_AND_PERMISSION', // Has value prop - needs contextual pushback
-      'VALUE_HOOK_ONLY',                 // Pure value pitch - needs full resistance
-      'PERMISSION_FIRST',                // Asking permission without intro - needs full persona
-      'QUESTION_FIRST'                   // Question before intro - needs full context
-    ];
-    
-    if (needsFullContext.includes(pattern)) {
-      return false; // Skip focused path, go straight to full LLM
-    }
-    
     return pattern !== 'UNKNOWN';
   }
   

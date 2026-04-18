@@ -215,7 +215,9 @@ export class FirstUtterancePatternDetector {
         const objections = [
           `${greeting}, we're all set over here. Already have something in place for that.`,
           `${greeting}, thanks but we're good. Got that covered already.`,
-          `${greeting}, appreciate it but we're all set. Have someone handling that.`
+          `${greeting}, appreciate it but we're all set. Have someone handling that.`,
+          `${greeting}, we're all set. Already have something in place for that. Thanks for the call though!`,
+          `${greeting}, appreciate it but we're good. Got that covered already. Thanks for the call though!`
         ];
         return objections[Math.floor(Math.random() * objections.length)];
         

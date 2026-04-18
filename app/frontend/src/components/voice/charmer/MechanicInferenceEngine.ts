@@ -5,6 +5,7 @@
  */
 
 import { DetectedSignal, SignalType } from './SignalDetector';
+import { OpenerQualityScore } from './OpenerQualityEvaluator';
 
 export interface InferredMechanic {
   type: MechanicType;
@@ -13,6 +14,7 @@ export interface InferredMechanic {
   effectDirection: 'positive' | 'negative' | 'mixed' | 'neutral';
   priority: number;
   explanation: string;
+  qualityScore?: number; // 0-10: How well was this executed? (lower = weaker)
 }
 
 export type MechanicType =
@@ -39,7 +41,7 @@ export type MechanicType =
   | 'outcome_focused';
 
 export class MechanicInferenceEngine {
-  infer(signals: DetectedSignal[]): InferredMechanic[] {
+  infer(signals: DetectedSignal[], qualityScores?: OpenerQualityScore): InferredMechanic[] {
     const mechanics: InferredMechanic[] = [];
 
     // Sort signals by position for sequence analysis
@@ -65,7 +67,12 @@ export class MechanicInferenceEngine {
     const qualityMechanics = this.analyzeQualityPatterns(sortedSignals);
     mechanics.push(...qualityMechanics);
 
-    // Assign priorities
+    // Attach quality scores to relevant mechanics
+    if (qualityScores) {
+      this.attachQualityScores(mechanics, qualityScores);
+    }
+
+    // Assign priorities (now factors in quality)
     return this.assignPriorities(mechanics);
   }
 
@@ -356,41 +363,61 @@ export class MechanicInferenceEngine {
         explanation: 'Focused on outcomes for buyer, not just features'
       });
     }
-
+    
     return mechanics;
   }
 
   private assignPriorities(mechanics: InferredMechanic[]): InferredMechanic[] {
-    // Re-prioritize based on effect direction and confidence
-    const priorityMap: Record<string, number> = {
-      'permission_without_value': 1,
-      'identity_without_payoff': 1,
-      'close_ended_without_value': 2,
-      'generic_business_topic': 2,
-      'low_outcome_specificity': 2,
-      'apologetic_opening': 2,
-      'assumption_without_discovery': 2,
-      'feature_without_outcome': 2,
-      'definitive_overclaim': 2,
-      'permission_with_value': 2,
-      'discovery_without_context': 2,
-      'vague_relevance_claim': 3,
-      'softened_authority': 3,
-      'close_ended_with_value': 3,
-      'value_before_permission': 2,
-      'discovery_with_context': 2,
-      'specific_value_proposition': 2,
-      'outcome_focused': 2,
-      'value_without_ask': 2,
-      'identity_with_relevance': 3,
+    // Structural importance: how much does this mechanic type matter?
+    const structuralImportance: Record<MechanicType, number> = {
+      'permission_without_value': 10,
+      'value_without_ask': 9,
+      'identity_without_payoff': 8,
+      'apologetic_opening': 7,
+      'assumption_without_discovery': 9,
+      'discovery_without_context': 8,
+      'feature_without_outcome': 7,
+      'vague_relevance_claim': 8,
+      'generic_business_topic': 7,
+      'low_outcome_specificity': 8,
+      'softened_authority': 6,
+      'definitive_overclaim': 7,
+      'close_ended_without_value': 6,
+      'permission_with_value': 5,
+      'close_ended_with_value': 5,
+      'value_before_permission': 6,
+      'discovery_with_context': 4,
+      'specific_value_proposition': 4,
+      'outcome_focused': 4,
+      'identity_with_relevance': 5,
       'confident_opening': 3
     };
 
-    return mechanics.map(m => ({
-      ...m,
-      priority: priorityMap[m.type] || m.priority
-    })).sort((a, b) => {
-      if (a.priority !== b.priority) return a.priority - b.priority;
+    return mechanics.map(m => {
+      const importance = structuralImportance[m.type] || 5;
+      
+      // If quality score exists, calculate weakness severity
+      // qualityScore is 0-10 where lower = worse
+      // weakness_severity should be 0-1 where higher = worse
+      const weaknessSeverity = m.qualityScore !== undefined
+        ? (10 - m.qualityScore) / 10  // 0.0 (perfect) to 1.0 (terrible)
+        : 0.5; // Default if no quality score
+      
+      // Priority = structural importance × weakness severity
+      // Lower priority number = more important (higher in list)
+      // Invert so lower numbers come first
+      const calculatedPriority = 100 - (importance * weaknessSeverity * 10);
+      
+      return {
+        ...m,
+        priority: calculatedPriority
+      };
+    }).sort((a, b) => {
+      // Sort by priority (lower = more important)
+      if (Math.abs(a.priority - b.priority) > 0.1) {
+        return a.priority - b.priority;
+      }
+      // Tiebreaker: confidence
       return b.confidence - a.confidence;
     });
   }
@@ -405,5 +432,59 @@ export class MechanicInferenceEngine {
 
   getPositiveMechanics(mechanics: InferredMechanic[]): InferredMechanic[] {
     return mechanics.filter(m => m.effectDirection === 'positive');
+  }
+
+  /**
+   * Attach quality scores from OpenerQualityEvaluator to relevant mechanics
+   * Maps dimensions to mechanic types:
+   * - clarityOfPurpose → value/context mechanics
+   * - specificRelevance → relevance/value mechanics
+   * - distinctiveness → generic vs specific mechanics
+   * - frictionLoad → all mechanics (lower quality if high friction)
+   */
+  private attachQualityScores(mechanics: InferredMechanic[], scores: OpenerQualityScore): void {
+    mechanics.forEach(m => {
+      switch (m.type) {
+        case 'value_without_ask':
+        case 'specific_value_proposition':
+        case 'value_before_permission':
+          // Value clarity + distinctiveness
+          m.qualityScore = ((scores.clarityOfPurpose + scores.distinctiveness) / 2) * 10;
+          break;
+          
+        case 'vague_relevance_claim':
+        case 'identity_with_relevance':
+          // Relevance + distinctiveness
+          m.qualityScore = ((scores.specificRelevance + scores.distinctiveness) / 2) * 10;
+          break;
+          
+        case 'low_outcome_specificity':
+        case 'outcome_focused':
+          // Clarity + specificity
+          m.qualityScore = ((scores.clarityOfPurpose + scores.specificRelevance) / 2) * 10;
+          break;
+          
+        case 'generic_business_topic':
+          // Pure distinctiveness
+          m.qualityScore = scores.distinctiveness * 10;
+          break;
+          
+        case 'softened_authority':
+        case 'apologetic_opening':
+          // Friction load (invert - high friction = low quality)
+          m.qualityScore = (1 - scores.frictionLoad) * 10;
+          break;
+          
+        case 'identity_without_payoff':
+          // Clarity (did they explain why after intro?)
+          m.qualityScore = scores.clarityOfPurpose * 10;
+          break;
+          
+        default:
+          // Average of all dimensions
+          const avg = (scores.clarityOfPurpose + scores.specificRelevance + scores.distinctiveness + (1 - scores.frictionLoad)) / 4;
+          m.qualityScore = avg * 10;
+      }
+    });
   }
 }

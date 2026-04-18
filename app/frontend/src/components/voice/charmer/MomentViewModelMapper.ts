@@ -33,8 +33,8 @@ export class MomentViewModelMapper {
       viewModels.push(this.mapSuccessfulMoment(moment, allExchanges));
     }
     
-    // Sort by timestamp for chronological display
-    return viewModels.sort((a, b) => a.timestamp - b.timestamp);
+    // Sort by turn number (not timestamp) to match timeline navigation
+    return viewModels.sort((a, b) => a.turnNumber - b.turnNumber);
   }
   
   /**

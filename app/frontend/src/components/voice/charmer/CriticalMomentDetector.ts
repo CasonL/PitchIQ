@@ -5,6 +5,7 @@
 
 import { ConversationTranscript, ConversationExchange, CriticalMoment, SuccessfulMoment, ExchangePair } from './ConversationTranscript';
 import { ImpactJudge, ImpactJudgment } from './ImpactJudge';
+import { OpenerQualityEvaluator, OpenerAnalysis } from './OpenerQualityEvaluator';
 
 /**
  * Centralized detector thresholds - tune these to adjust sensitivity
@@ -26,9 +27,11 @@ const DETECTOR_THRESHOLDS = {
  */
 export class CriticalMomentDetector {
   private impactJudge: ImpactJudge;
+  private openerEvaluator: OpenerQualityEvaluator;
 
   constructor() {
     this.impactJudge = new ImpactJudge();
+    this.openerEvaluator = new OpenerQualityEvaluator();
   }
   /**
    * Detect successful moments - what they did right
@@ -37,11 +40,10 @@ export class CriticalMomentDetector {
   detectSuccessfulMoments(transcript: ConversationTranscript, pairs: ExchangePair[] = []): SuccessfulMoment[] {
     const successes: SuccessfulMoment[] = [];
     
-    // Find resistance drops
-    const resistanceDrops = this.findResistanceDrops(transcript, pairs);
-    successes.push(...resistanceDrops);
+    // EXECUTION QUALITY PATTERNS (not resistance drops)
+    // Focus: Detect turn-by-turn skill improvement and professional execution
     
-    // Find pain discoveries
+    // Find pain discoveries (still valuable - shows discovery depth)
     const painDiscoveries = this.findPainDiscoveries(transcript, pairs);
     successes.push(...painDiscoveries);
     
@@ -65,7 +67,20 @@ export class CriticalMomentDetector {
     const openEndedWins = this.findOpenEndedQuestions(transcript, pairs);
     successes.push(...openEndedWins);
     
+    // NEW: Find question depth progression (getting better at discovery)
+    const questionDepth = this.findQuestionDepthProgression(transcript, pairs);
+    successes.push(...questionDepth);
+    
+    // NEW: Find rapport building moments (incremental trust building)
+    const rapportMoments = this.findRapportBuilding(transcript, pairs);
+    successes.push(...rapportMoments);
+    
+    // NEW: Find talk ratio improvements (listening more over time)
+    const listenRatio = this.findListenRatioImprovement(transcript, pairs);
+    if (listenRatio) successes.push(listenRatio);
+    
     // Sort by impact and return top 3
+    // NOTE: Impact is based on EXECUTION QUALITY, not resistance magnitude
     return successes
       .sort((a, b) => b.impact - a.impact)
       .slice(0, 3);
@@ -141,6 +156,53 @@ export class CriticalMomentDetector {
     const dedupedSuccesses = this.dedupeSuccesses(enrichedSuccesses);
     
     console.log(`🔄 Deduplication: ${enrichedMoments.length} → ${dedupedMoments.length} critical, ${enrichedSuccesses.length} → ${dedupedSuccesses.length} success`);
+    
+    // STEP 5.6: Cross-deduplicate between positive and negative (same turn can't be both)
+    const negativePairIds = new Set(dedupedMoments.map(m => m.sourcePairId));
+    const positivePairIds = new Set(dedupedSuccesses.map(s => s.sourcePairId));
+    const conflictingPairIds = [...negativePairIds].filter(id => positivePairIds.has(id));
+    
+    if (conflictingPairIds.length > 0) {
+      console.log(`⚠️ Found ${conflictingPairIds.length} turns flagged as BOTH positive and negative - resolving conflicts`);
+      
+      // For each conflict, keep only one based on LLM enrichment or impact
+      conflictingPairIds.forEach(pairId => {
+        const negative = dedupedMoments.find(m => m.sourcePairId === pairId);
+        const positive = dedupedSuccesses.find(s => s.sourcePairId === pairId);
+        
+        if (!negative || !positive) return;
+        
+        // Prefer LLM-enriched moments (they have impactScore)
+        const negHasLLM = negative.impactScore !== undefined;
+        const posHasLLM = positive.impact !== undefined;
+        
+        if (negHasLLM && !posHasLLM) {
+          // Remove positive, keep negative
+          const posIndex = dedupedSuccesses.findIndex(s => s.sourcePairId === pairId);
+          if (posIndex >= 0) dedupedSuccesses.splice(posIndex, 1);
+          console.log(`  → Kept negative (LLM-enriched) for pair ${pairId}`);
+        } else if (posHasLLM && !negHasLLM) {
+          // Remove negative, keep positive
+          const negIndex = dedupedMoments.findIndex(m => m.sourcePairId === pairId);
+          if (negIndex >= 0) dedupedMoments.splice(negIndex, 1);
+          console.log(`  → Kept positive (LLM-enriched) for pair ${pairId}`);
+        } else {
+          // Both or neither have LLM - prefer higher absolute impact
+          const negImpact = Math.abs(negative.impactScore || negative.severity || 0);
+          const posImpact = Math.abs(positive.impact || 0);
+          
+          if (negImpact > posImpact) {
+            const posIndex = dedupedSuccesses.findIndex(s => s.sourcePairId === pairId);
+            if (posIndex >= 0) dedupedSuccesses.splice(posIndex, 1);
+            console.log(`  → Kept negative (higher impact ${negImpact.toFixed(1)}) for pair ${pairId}`);
+          } else {
+            const negIndex = dedupedMoments.findIndex(m => m.sourcePairId === pairId);
+            if (negIndex >= 0) dedupedMoments.splice(negIndex, 1);
+            console.log(`  → Kept positive (higher impact ${posImpact.toFixed(1)}) for pair ${pairId}`);
+          }
+        }
+      });
+    }
     
     // STEP 5.6: Validate moments have required fields (filter out malformed moments)
     const validMoments = dedupedMoments.filter(m => {
@@ -223,11 +285,10 @@ export class CriticalMomentDetector {
   detectCriticalMoments(transcript: ConversationTranscript, pairs: ExchangePair[] = []): CriticalMoment[] {
     const moments: CriticalMoment[] = [];
     
-    // Find resistance spikes
-    const resistanceSpikes = this.findResistanceSpikes(transcript, pairs);
-    moments.push(...resistanceSpikes);
+    // PATTERN-BASED DETECTION (not resistance jumps)
+    // Focus: Execution issues that prevent incremental improvement
     
-    // Find missed trust windows
+    // Find missed trust windows (still valuable - checks if they ignored signals)
     const missedWindows = this.findMissedTrustWindows(transcript, pairs);
     moments.push(...missedWindows);
     
@@ -255,15 +316,28 @@ export class CriticalMomentDetector {
     const repeatedObjections = this.findRepeatedObjections(transcript, pairs);
     moments.push(...repeatedObjections);
     
-    // NEW: Find missing permission opener (opening mistake)
-    const missingPermission = this.findMissingPermission(transcript, pairs);
-    if (missingPermission) moments.push(missingPermission);
+    // NEW: Evaluate opener quality (structure AND substance)
+    const openerQuality = this.evaluateOpenerQuality(transcript, pairs);
+    if (openerQuality) moments.push(openerQuality);
     
     // NEW: Find low clarity progression (positioning mistake)
     const lowClarity = this.findLowClarityProgression(transcript, pairs);
     if (lowClarity) moments.push(lowClarity);
     
+    // NEW: Find assumption-making (pitching without discovery)
+    const assumptions = this.findAssumptions(transcript, pairs);
+    moments.push(...assumptions);
+    
+    // NEW: Find not listening (interrupting, ignoring Marcus's answers)
+    const notListening = this.findNotListening(transcript, pairs);
+    moments.push(...notListening);
+    
+    // NEW: Find closed questions (limiting discovery)
+    const closedQuestions = this.findClosedQuestions(transcript, pairs);
+    moments.push(...closedQuestions);
+    
     // Sort by severity and return top 5
+    // NOTE: Severity is based on EXECUTION QUALITY, not resistance magnitude
     return moments
       .sort((a, b) => b.severity - a.severity)
       .slice(0, 5);
@@ -1323,45 +1397,85 @@ export class CriticalMomentDetector {
   }
   
   /**
-   * Find missing permission opener - mirrors opening score penalty
+   * Evaluate opener quality - checks BOTH structure (permission, sequence) AND substance (relevance, insight)
+   * This replaces the old permission-only check
    */
-  private findMissingPermission(transcript: ConversationTranscript, pairs: ExchangePair[]): CriticalMoment | null {
+  private evaluateOpenerQuality(transcript: ConversationTranscript, pairs: ExchangePair[]): CriticalMoment | null {
     const exchanges = transcript.exchanges;
-    const firstUser = exchanges.find(e => e.speaker === 'user');
+    const userMessages = exchanges.filter(e => e.speaker === 'user');
     
-    if (!firstUser) return null;
+    if (userMessages.length === 0) return null;
     
+    const firstUser = userMessages[0];
+    const secondUser = userMessages.length > 1 ? userMessages[1] : undefined;
+    const nextMarcus = this.findNextMarcusMessage(exchanges, exchanges.indexOf(firstUser));
+    const matchingPair = nextMarcus ? this.findMatchingPair(pairs, firstUser, nextMarcus) : null;
+    
+    // SUBSTANCE EVALUATION: Use OpenerQualityEvaluator
+    const substanceAnalysis = this.openerEvaluator.evaluateOpener(
+      firstUser.text,
+      secondUser?.text
+    );
+    
+    // STRUCTURAL CHECKS: Permission, sequence
     const permissionPatterns = [
-      /\b(do you have|is this a good time|can I|may I|quick question|20 seconds)\b/i
+      /\b(do you have|is this a good time|can I|may I|quick question|20 seconds|quick reason)\b/i
     ];
+    const askedPermission = permissionPatterns.some(pattern => 
+      pattern.test(firstUser.text) || (secondUser && pattern.test(secondUser.text))
+    );
     
-    const askedPermission = permissionPatterns.some(pattern => pattern.test(firstUser.text));
+    // Determine severity based on BOTH structure and substance
+    const structuralIssue = !askedPermission;
+    const substanceWeak = substanceAnalysis.score.overallQuality === 'weak' || 
+                          substanceAnalysis.score.overallQuality === 'template';
     
-    // If they DIDN'T ask permission, flag as opening mistake
-    if (!askedPermission) {
-      const nextMarcus = this.findNextMarcusMessage(exchanges, exchanges.indexOf(firstUser));
-      const matchingPair = nextMarcus ? this.findMatchingPair(pairs, firstUser, nextMarcus) : null;
+    // Only flag if resistance stayed high (structural issue had real impact) OR substance is weak
+    const initialResistance = nextMarcus?.resistanceLevel || 7;
+    const shouldFlag = (structuralIssue && initialResistance >= 6) || substanceWeak;
+    
+    if (shouldFlag) {
+      // Determine primary issue: structure, substance, or both
+      let whatHappened = '';
+      let hiddenOpportunity = '';
+      let severity = 0.5;
       
-      // Check if Marcus's resistance stayed high (7+) or increased
-      const initialResistance = nextMarcus?.resistanceLevel || 7;
-      
-      if (initialResistance >= 6) {
-        return {
-          id: `no_permission_${firstUser.id}`,
-          timestamp: firstUser.timestamp,
-          type: 'missed_opening',
-          severity: 0.75,
-          sourcePairId: matchingPair?.id ?? `fallback_${firstUser.id}_${nextMarcus?.id || 'unknown'}`,
-          sourceUserId: firstUser.id,
-          sourceMarcusId: nextMarcus?.id || 'unknown',
-          userMessage: firstUser.text,
-          marcusResponse: nextMarcus?.text || '',
-          resistanceBefore: firstUser.resistanceLevel || 7,
-          resistanceAfter: nextMarcus?.resistanceLevel || 7,
-          whatHappened: 'You launched into your pitch without asking permission - Marcus went defensive',
-          hiddenOpportunity: 'Start with: "Do you have 20 seconds for why I called?" - disarms the "another salesperson" reflex'
-        };
+      if (structuralIssue && substanceWeak) {
+        // BOTH issues
+        whatHappened = `Your opener had structural and substance issues. ${substanceAnalysis.coaching}`;
+        hiddenOpportunity = 'Lead with specific insight: "Quick reason - [industry] companies hit [specific pain] when [pattern]..." Then move to discovery.';
+        severity = 0.85;
+      } else if (structuralIssue) {
+        // STRUCTURE issue only (substance is okay)
+        whatHappened = 'Your message had substance, but you buried it. Marcus went defensive because you didn\'t frame why you\'re calling.';
+        hiddenOpportunity = 'Lead with: "Quick reason for the call..." or "I noticed [pattern]..." Keep your insight, just frame it better.';
+        severity = 0.65;
+      } else {
+        // SUBSTANCE issue only (structure is okay)
+        whatHappened = `Your structure was okay, but your message lacked punch. ${substanceAnalysis.coaching}`;
+        hiddenOpportunity = substanceAnalysis.score.overallQuality === 'template' 
+          ? 'Replace template language with concrete observation: "When [industry] teams face [pain], [consequence]..."'
+          : 'Add specific relevance: industry markers, role-specific pain, operational patterns, or benchmarks.';
+        severity = 0.75;
       }
+      
+      return {
+        id: `opener_quality_${firstUser.id}`,
+        timestamp: firstUser.timestamp,
+        type: 'missed_opening',
+        severity,
+        sourcePairId: matchingPair?.id ?? `fallback_${firstUser.id}_${nextMarcus?.id || 'unknown'}`,
+        sourceUserId: firstUser.id,
+        sourceMarcusId: nextMarcus?.id || 'unknown',
+        userMessage: firstUser.text,
+        marcusResponse: nextMarcus?.text || '',
+        resistanceBefore: firstUser.resistanceLevel || 7,
+        resistanceAfter: nextMarcus?.resistanceLevel || 7,
+        whatHappened,
+        hiddenOpportunity,
+        // Attach substance analysis for reference
+        substanceScore: substanceAnalysis.score as any
+      };
     }
     
     return null;
@@ -1469,6 +1583,303 @@ export class CriticalMomentDetector {
         whatHappened: 'Marcus lost clarity on what you\'re offering - confusion kills interest',
         hiddenOpportunity: 'Use simple language: "We help [WHO] [DO WHAT] so they can [OUTCOME]" - test with a 5th grader'
       };
+    }
+    
+    return null;
+  }
+  
+  /**
+   * NEW: Find assumption-making - pitching features without discovering pain first
+   * Pattern: Product/feature mentions before asking discovery questions
+   */
+  private findAssumptions(transcript: ConversationTranscript, pairs: ExchangePair[]): CriticalMoment[] {
+    const assumptions: CriticalMoment[] = [];
+    const exchanges = transcript.exchanges;
+    const userMessages = exchanges.filter(e => e.speaker === 'user');
+    
+    if (userMessages.length < 3) return assumptions; // Need enough turns to assess
+    
+    // Track if they asked discovery questions before pitching
+    let discoveryQuestions = 0;
+    let pitchingStarted = false;
+    let assumptionPair: { user: ConversationExchange; marcus: ConversationExchange } | null = null;
+    
+    const discoveryPatterns = [/\b(what|how|why|tell me|challenge|pain|struggle|problem|goal|need)\b/i];
+    const pitchPatterns = [/\b(we|our|feature|product|solution|help you|offer|provide)\b/i];
+    
+    for (let i = 0; i < userMessages.length; i++) {
+      const user = userMessages[i];
+      const isDiscovery = discoveryPatterns.some(p => p.test(user.text)) && user.text.includes('?');
+      const isPitch = pitchPatterns.some(p => p.test(user.text));
+      
+      if (isDiscovery) discoveryQuestions++;
+      
+      if (isPitch && !pitchingStarted && discoveryQuestions < 2) {
+        pitchingStarted = true;
+        const nextMarcus = this.findNextMarcusMessage(exchanges, exchanges.indexOf(user));
+        if (nextMarcus) {
+          assumptionPair = { user, marcus: nextMarcus };
+        }
+      }
+    }
+    
+    // If they pitched before asking 2+ discovery questions, flag it
+    if (assumptionPair) {
+      const matchingPair = this.findMatchingPair(pairs, assumptionPair.user, assumptionPair.marcus);
+      assumptions.push({
+        id: `assumption_${assumptionPair.user.id}`,
+        timestamp: assumptionPair.user.timestamp,
+        type: 'missed_pain',
+        severity: 0.8,
+        sourcePairId: matchingPair?.id ?? `fallback_${assumptionPair.user.id}_${assumptionPair.marcus.id}`,
+        sourceUserId: assumptionPair.user.id,
+        sourceMarcusId: assumptionPair.marcus.id,
+        userMessage: assumptionPair.user.text,
+        marcusResponse: assumptionPair.marcus.text,
+        resistanceBefore: assumptionPair.user.resistanceLevel || 7,
+        resistanceAfter: assumptionPair.marcus.resistanceLevel || 7,
+        whatHappened: 'You pitched your solution before discovering Marcus\'s pain - he doesn\'t see why he needs it',
+        hiddenOpportunity: 'Ask 3-4 discovery questions first: "What challenges are you facing with [X]?" Then pitch to the pain you uncovered'
+      });
+    }
+    
+    return assumptions;
+  }
+  
+  /**
+   * NEW: Find not listening - interrupting or ignoring Marcus's answers
+   * Pattern: User asks question, Marcus answers with pain/detail, user doesn't acknowledge or follow up
+   */
+  private findNotListening(transcript: ConversationTranscript, pairs: ExchangePair[]): CriticalMoment[] {
+    const notListening: CriticalMoment[] = [];
+    const exchanges = transcript.exchanges;
+    
+    for (let i = 0; i < exchanges.length - 2; i++) {
+      const user1 = exchanges[i];
+      const marcus = exchanges[i + 1];
+      const user2 = exchanges[i + 2];
+      
+      if (user1.speaker === 'user' && marcus.speaker === 'marcus' && user2.speaker === 'user') {
+        // Check if Marcus gave a substantive answer (word count > 15)
+        const marcusWordCount = marcus.text.split(/\s+/).length;
+        
+        if (marcusWordCount > 15 || marcus.painPointRevealed) {
+          // Check if user2 acknowledges Marcus's answer
+          const acknowledgmentPatterns = [/\b(I hear|that makes sense|I understand|interesting|got it|so what you're saying)\b/i];
+          const hasAcknowledgment = acknowledgmentPatterns.some(p => p.test(user2.text));
+          
+          // Check if user2 pivots to unrelated topic or pitches instead
+          const pivotPatterns = [/\b(anyway|so|let me tell you|our|we offer|feature|solution)\b/i];
+          const isPivot = pivotPatterns.some(p => p.test(user2.text));
+          
+          if (!hasAcknowledgment && isPivot) {
+            const matchingPair = this.findMatchingPair(pairs, user2, this.findNextMarcusMessage(exchanges, i + 2) || marcus);
+            notListening.push({
+              id: `not_listening_${user2.id}`,
+              timestamp: user2.timestamp,
+              type: 'missed_trust',
+              severity: 0.7,
+              sourcePairId: matchingPair?.id ?? `fallback_${user2.id}_${marcus.id}`,
+              sourceUserId: user2.id,
+              sourceMarcusId: marcus.id,
+              userMessage: user2.text,
+              marcusResponse: this.findNextMarcusMessage(exchanges, i + 2)?.text || '',
+              resistanceBefore: user2.resistanceLevel || 7,
+              resistanceAfter: this.findNextMarcusMessage(exchanges, i + 2)?.resistanceLevel || 7,
+              whatHappened: 'Marcus opened up but you didn\'t acknowledge it - he feels unheard',
+              hiddenOpportunity: 'When Marcus shares pain, acknowledge it: "That sounds frustrating..." Then dig deeper before pitching'
+            });
+          }
+        }
+      }
+    }
+    
+    return notListening;
+  }
+  
+  /**
+   * NEW: Find closed questions - yes/no questions that limit discovery
+   * Pattern: Questions ending in ? but not starting with open-ended words
+   */
+  private findClosedQuestions(transcript: ConversationTranscript, pairs: ExchangePair[]): CriticalMoment[] {
+    const closedQs: CriticalMoment[] = [];
+    const exchanges = transcript.exchanges;
+    const userMessages = exchanges.filter(e => e.speaker === 'user');
+    
+    const openPatterns = [/\b(what|how|why|tell me|describe|explain|walk me through)\b/i];
+    
+    let closedCount = 0;
+    let lastClosedPair: { user: ConversationExchange; marcus: ConversationExchange } | null = null;
+    
+    for (const user of userMessages) {
+      if (user.text.includes('?')) {
+        const isOpen = openPatterns.some(p => p.test(user.text));
+        
+        if (!isOpen) {
+          closedCount++;
+          const nextMarcus = this.findNextMarcusMessage(exchanges, exchanges.indexOf(user));
+          if (nextMarcus) {
+            lastClosedPair = { user, marcus: nextMarcus };
+          }
+        }
+      }
+    }
+    
+    // If 3+ closed questions in a row, flag it
+    if (closedCount >= 3 && lastClosedPair) {
+      const matchingPair = this.findMatchingPair(pairs, lastClosedPair.user, lastClosedPair.marcus);
+      closedQs.push({
+        id: `closed_q_${lastClosedPair.user.id}`,
+        timestamp: lastClosedPair.user.timestamp,
+        type: 'missed_pain',
+        severity: 0.6,
+        sourcePairId: matchingPair?.id ?? `fallback_${lastClosedPair.user.id}_${lastClosedPair.marcus.id}`,
+        sourceUserId: lastClosedPair.user.id,
+        sourceMarcusId: lastClosedPair.marcus.id,
+        userMessage: lastClosedPair.user.text,
+        marcusResponse: lastClosedPair.marcus.text,
+        resistanceBefore: lastClosedPair.user.resistanceLevel || 7,
+        resistanceAfter: lastClosedPair.marcus.resistanceLevel || 7,
+        whatHappened: 'Your closed questions limit Marcus\'s answers to yes/no - you\'re not uncovering real pain',
+        hiddenOpportunity: 'Use open-ended questions: "What challenges..." "How does that affect..." "Tell me about..."'
+      });
+    }
+    
+    return closedQs;
+  }
+  
+  /**
+   * NEW: Find question depth progression - are questions getting deeper over time?
+   * Success pattern: Questions become more specific and targeted as call progresses
+   */
+  private findQuestionDepthProgression(transcript: ConversationTranscript, pairs: ExchangePair[]): SuccessfulMoment[] {
+    const progressions: SuccessfulMoment[] = [];
+    const exchanges = transcript.exchanges;
+    const userMessages = exchanges.filter(e => e.speaker === 'user' && e.text.includes('?'));
+    
+    if (userMessages.length < 3) return progressions;
+    
+    // Check if questions get more specific (contain references to previous answers)
+    const referencePatterns = [/\b(that|those|your|the [a-z]+ you mentioned|when you said)\b/i];
+    
+    for (let i = 2; i < userMessages.length; i++) {
+      const current = userMessages[i];
+      const hasReference = referencePatterns.some(p => p.test(current.text));
+      const isOpen = /\b(what|how|why|tell me)\b/i.test(current.text);
+      
+      if (hasReference && isOpen) {
+        const nextMarcus = this.findNextMarcusMessage(exchanges, exchanges.indexOf(current));
+        if (nextMarcus) {
+          const matchingPair = this.findMatchingPair(pairs, current, nextMarcus);
+          progressions.push({
+            id: `q_depth_${current.id}`,
+            timestamp: current.timestamp,
+            type: 'pain_discovery',
+            impact: 0.7,
+            sourcePairId: matchingPair?.id ?? `fallback_${current.id}_${nextMarcus.id}`,
+            sourceUserId: current.id,
+            sourceMarcusId: nextMarcus.id,
+            userMessage: current.text,
+            marcusResponse: nextMarcus.text,
+            resistanceBefore: current.resistanceLevel || 0,
+            resistanceAfter: nextMarcus.resistanceLevel || 0,
+            whatHappened: 'Your follow-up question dug deeper into what Marcus just shared',
+            whyItWorked: 'Good discovery builds on previous answers - shows you\'re listening and care about details',
+            repeatThis: 'Reference their words: "You mentioned [X]... tell me more about that"'
+          });
+        }
+      }
+    }
+    
+    return progressions;
+  }
+  
+  /**
+   * NEW: Find rapport building - incremental trust improvements through empathy/acknowledgment
+   * Success pattern: Using empathy statements, acknowledging concerns
+   */
+  private findRapportBuilding(transcript: ConversationTranscript, pairs: ExchangePair[]): SuccessfulMoment[] {
+    const rapportMoments: SuccessfulMoment[] = [];
+    const exchanges = transcript.exchanges;
+    
+    const empathyPatterns = [
+      /\b(I understand|that makes sense|I hear you|that sounds|must be frustrating|I can see why|appreciate you sharing)\b/i
+    ];
+    
+    for (let i = 0; i < exchanges.length - 1; i++) {
+      const user = exchanges[i];
+      const marcus = exchanges[i + 1];
+      
+      if (user.speaker === 'user' && marcus.speaker === 'marcus') {
+        const hasEmpathy = empathyPatterns.some(p => p.test(user.text));
+        
+        if (hasEmpathy) {
+          const matchingPair = this.findMatchingPair(pairs, user, marcus);
+          rapportMoments.push({
+            id: `rapport_${user.id}`,
+            timestamp: user.timestamp,
+            type: 'trust_moment',
+            impact: 0.65,
+            sourcePairId: matchingPair?.id ?? `fallback_${user.id}_${marcus.id}`,
+            sourceUserId: user.id,
+            sourceMarcusId: marcus.id,
+            userMessage: user.text,
+            marcusResponse: marcus.text,
+            resistanceBefore: user.resistanceLevel || 0,
+            resistanceAfter: marcus.resistanceLevel || 0,
+            whatHappened: 'You acknowledged Marcus\'s perspective - building trust',
+            whyItWorked: 'Empathy statements show you\'re listening and care about their challenges, not just making a sale',
+            repeatThis: 'Use: "I understand...", "That makes sense...", "I can see why that\'s challenging..."'
+          });
+        }
+      }
+    }
+    
+    return rapportMoments;
+  }
+  
+  /**
+   * NEW: Find listen ratio improvement - are they listening more (talking less) over time?
+   * Success pattern: User message length decreases while question quality increases
+   */
+  private findListenRatioImprovement(transcript: ConversationTranscript, pairs: ExchangePair[]): SuccessfulMoment | null {
+    const exchanges = transcript.exchanges;
+    const userMessages = exchanges.filter(e => e.speaker === 'user');
+    
+    if (userMessages.length < 4) return null;
+    
+    // Compare first half vs second half average word count
+    const midpoint = Math.floor(userMessages.length / 2);
+    const firstHalf = userMessages.slice(0, midpoint);
+    const secondHalf = userMessages.slice(midpoint);
+    
+    const avgFirst = firstHalf.reduce((sum, msg) => sum + msg.text.split(/\s+/).length, 0) / firstHalf.length;
+    const avgSecond = secondHalf.reduce((sum, msg) => sum + msg.text.split(/\s+/).length, 0) / secondHalf.length;
+    
+    // If second half is 20%+ shorter, they're listening more
+    if (avgSecond < avgFirst * 0.8) {
+      const lastUser = userMessages[userMessages.length - 1];
+      const lastMarcus = this.findNextMarcusMessage(exchanges, exchanges.indexOf(lastUser));
+      
+      if (lastMarcus) {
+        const matchingPair = this.findMatchingPair(pairs, lastUser, lastMarcus);
+        return {
+          id: `listen_ratio_improvement`,
+          timestamp: lastUser.timestamp,
+          type: 'trust_moment',
+          impact: 0.8,
+          sourcePairId: matchingPair?.id ?? `fallback_${lastUser.id}_${lastMarcus.id}`,
+          sourceUserId: lastUser.id,
+          sourceMarcusId: lastMarcus.id,
+          userMessage: lastUser.text,
+          marcusResponse: lastMarcus.text,
+          resistanceBefore: lastUser.resistanceLevel || 0,
+          resistanceAfter: lastMarcus.resistanceLevel || 0,
+          whatHappened: 'You\'re talking less and listening more as the call progresses',
+          whyItWorked: 'Best salespeople listen 70%+ of the time - you\'re moving in that direction',
+          repeatThis: 'Keep responses under 3 sentences. Ask questions. Let Marcus do the talking.'
+        };
+      }
     }
     
     return null;

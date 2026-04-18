@@ -19,8 +19,17 @@ export interface DynamicPainPoint {
   category: 'technical' | 'business' | 'personal' | 'financial' | 'strategic';
   surfaceStatement: string;     // What Marcus can mention if asked
   deeperTruth: string;          // What he reveals if user digs deeper
+  emotionalContext?: string;    // Deeper emotional layer (stress, anxiety, fear)
   triggerCondition: string;     // When Marcus should mention this (e.g., "if user asks about growth")
   learningTest: string;         // What skill this tests (e.g., "open-ended questioning")
+}
+
+export interface BlockingCondition {
+  type: 'timing' | 'budget' | 'commitment' | 'authority';
+  blocker: string;              // The specific blocking condition
+  emotionalTone: string;        // How Marcus feels about this blocker
+  howToExpress: string;         // How Marcus should communicate this
+  canBeOvercome?: string;       // Whether/how this can be overcome
 }
 
 export interface HiddenMotivation {
@@ -72,6 +81,7 @@ export interface ScenarioArchitecture {
   
   // Dynamic content for Marcus
   painPoints: DynamicPainPoint[];
+  blockingConditions?: BlockingCondition[];
   hiddenMotivation: HiddenMotivation;
   
   // Learning design
@@ -98,6 +108,7 @@ export interface OverseerAnalysisRequest {
   currentPhase: string;
   exchangeCount: number;
   lastUserMessage: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
   scenario?: any; // Marcus scenario context
 }
 

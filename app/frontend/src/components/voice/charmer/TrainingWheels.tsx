@@ -37,6 +37,18 @@ export const TrainingWheels: React.FC<TrainingWheelsProps> = ({
   
   // Determine what tip to show based on current state
   const getCurrentTip = (): { type: 'error' | 'warning' | 'success' | 'tip'; message: string; suggestion?: string } | null => {
+    const isEarlyCall = conversationTurns <= 3;
+    const isHighResistanceExpected = isEarlyCall && currentResistance >= 6 && currentResistance <= 8;
+    
+    // COLD CALL REALITY: Early resistance (6-8) is NORMAL - don't flag it
+    if (isHighResistanceExpected && resistanceChange < 2) {
+      return {
+        type: 'tip',
+        message: `Marcus is guarded (${currentResistance}/10) - this is normal for cold calls`,
+        suggestion: "Focus on getting him curious, not convincing. Ask about his world."
+      };
+    }
+    
     // Phase 1: Building rapport
     if (currentPhase === 1) {
       if (signals.talkingTooMuch && conversationTurns > 2) {
@@ -117,18 +129,60 @@ export const TrainingWheels: React.FC<TrainingWheelsProps> = ({
     }
     
     // Generic tip based on resistance change
-    if (resistanceChange >= 2) {
+    // Don't flag small spikes in early cold call (expected)
+    if (resistanceChange >= 1.5 && !(isEarlyCall && currentResistance <= 8)) {
       return {
         type: 'error',
-        message: `Marcus resistance jumped +${resistanceChange} - something you said triggered him`,
+        message: `Marcus resistance jumped +${resistanceChange.toFixed(1)} - something you said triggered him`,
         suggestion: "Stop pitching. Ask what he thinks instead."
       };
     }
     
-    if (resistanceChange <= -2) {
+    if (resistanceChange <= -1.5) {
       return {
         type: 'success',
-        message: `Resistance dropped ${Math.abs(resistanceChange)}! Whatever you're doing, keep it up`
+        message: `Resistance dropped ${Math.abs(resistanceChange).toFixed(1)}! Whatever you're doing, keep it up`
+      };
+    }
+    
+    // Fallback tips based on signals (show even without resistance change)
+    if (signals.talkingTooMuch && conversationTurns >= 3) {
+      return {
+        type: 'warning',
+        message: "You're talking more than listening",
+        suggestion: "Ask a follow-up question instead of explaining more"
+      };
+    }
+    
+    if (signals.makingAssumptions) {
+      return {
+        type: 'warning',
+        message: "Don't assume - ask instead",
+        suggestion: "Replace 'I bet...' with 'Have you...' or 'What's been...'"
+      };
+    }
+    
+    // Cold call reality: By turn 4-5, if resistance is still high AND not dropping, that's a problem
+    if (conversationTurns >= 4 && currentResistance >= 7 && resistanceChange >= 0) {
+      return {
+        type: 'warning',
+        message: "Resistance is stuck high - Marcus isn't warming up",
+        suggestion: "Stop talking about your solution. Ask about HIS pain points."
+      };
+    }
+    
+    if (!signals.askedDiscovery && conversationTurns >= 3) {
+      return {
+        type: 'tip',
+        message: "Marcus needs to understand why this matters to him",
+        suggestion: "Ask about his current situation before pitching more"
+      };
+    }
+    
+    if (signals.askedDiscovery && !signals.talkingTooMuch) {
+      return {
+        type: 'success',
+        message: "Good balance of questions and listening"
       };
     }
     

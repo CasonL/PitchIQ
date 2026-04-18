@@ -7,10 +7,16 @@
 
 export type DetectedPattern = 
   | 'INTRODUCTION_WITH_NAME'
+  | 'INTRO_WITH_PERMISSION'
+  | 'INTRO_WITH_VALUE_AND_PERMISSION'
+  | 'GREETING_RECIPROCAL'
   | 'GREETING_WITH_QUESTION'
   | 'NAME_ONLY'
   | 'GREETING_ONLY'
   | 'IDENTITY_CONFIRMATION'
+  | 'PERMISSION_FIRST'
+  | 'VALUE_HOOK_ONLY'
+  | 'QUESTION_FIRST'
   | 'UNKNOWN';
 
 export interface PatternMatch {
@@ -18,6 +24,8 @@ export interface PatternMatch {
   confidence: number;
   extractedName?: string;
   extractedCompany?: string;
+  hasExplainedPurpose?: boolean; // Did they explain why they're calling?
+  hasPermissionAsk?: boolean; // Did they ask for permission/time?
 }
 
 export class FirstUtterancePatternDetector {
@@ -27,7 +35,48 @@ export class FirstUtterancePatternDetector {
   static detect(text: string): PatternMatch {
     const normalized = text.toLowerCase().trim();
     
-    // Pattern 1: Introduction with name (highest priority)
+    // Check for permission ask and purpose first
+    const hasPermissionAsk = this.detectPermissionAsk(text);
+    const hasExplainedPurpose = this.detectPurposeExplanation(text);
+    const hasIntro = this.detectIntroduction(text);
+    
+    // NEW Pattern: Question-first (before intro - common mistake)
+    // "Are you still struggling with..." / "How's your Q2 pipeline?"
+    if (!hasIntro && /^(?:are you|do you|have you|is your|how's|what's|when's)\b/i.test(text)) {
+      return {
+        pattern: 'QUESTION_FIRST',
+        confidence: 0.9
+      };
+    }
+    
+    // NEW Pattern: Permission-first (no intro yet)
+    // "Do you have 5 minutes?" / "Is this a good time?"
+    if (!hasIntro && hasPermissionAsk) {
+      return {
+        pattern: 'PERMISSION_FIRST',
+        confidence: 0.95
+      };
+    }
+    
+    // NEW Pattern: Value hook only (no intro, no permission - risky)
+    // "I can help you close 3 more deals" / "What if you could increase revenue by 15%"
+    if (!hasIntro && !hasPermissionAsk && hasExplainedPurpose) {
+      return {
+        pattern: 'VALUE_HOOK_ONLY',
+        confidence: 0.9
+      };
+    }
+    
+    // Pattern: Greeting with "How are you?" - needs reciprocal response
+    // "Hey Marcus, how are you?" / "How's it going?"
+    if (/(?:hey|hi|hello)\s+marcus.*(?:how are you|how's it going|how are things|doing)/i.test(text) && !hasExplainedPurpose) {
+      return {
+        pattern: 'GREETING_RECIPROCAL',
+        confidence: 0.95
+      };
+    }
+    
+    // Pattern: Introduction with name
     // "Hey Marcus, this is [NAME]" / "It's [NAME] from [COMPANY]" / "[NAME] from [COMPANY]"
     const introPatterns = [
       /(?:this is|it'?s)\s+([A-Z][a-z]+)(?:\s+from\s+([A-Z][a-z]+(?:\s*[A-Z][a-z]+)*))?/i,
@@ -39,11 +88,27 @@ export class FirstUtterancePatternDetector {
     for (const pattern of introPatterns) {
       const match = text.match(pattern);
       if (match) {
+        // Determine specific pattern based on what else they included
+        let specificPattern: DetectedPattern = 'INTRODUCTION_WITH_NAME';
+        
+        if (hasExplainedPurpose && hasPermissionAsk) {
+          // "It's Kayson from PitchIQ, we help with close rates, do you have 5 minutes?"
+          specificPattern = 'INTRO_WITH_VALUE_AND_PERMISSION';
+        } else if (hasPermissionAsk) {
+          // "It's Kayson from PitchIQ, do you have 5 minutes?"
+          specificPattern = 'INTRO_WITH_PERMISSION';
+        } else if (hasExplainedPurpose) {
+          // "It's Kayson from PitchIQ, we help teams improve close rates"
+          specificPattern = 'INTRODUCTION_WITH_NAME';
+        }
+        
         return {
-          pattern: 'INTRODUCTION_WITH_NAME',
+          pattern: specificPattern,
           confidence: 0.95,
           extractedName: match[1],
-          extractedCompany: match[2] || undefined
+          extractedCompany: match[2] || undefined,
+          hasExplainedPurpose,
+          hasPermissionAsk
         };
       }
     }
@@ -97,17 +162,14 @@ export class FirstUtterancePatternDetector {
    */
   /**
    * Get instant canned response (no LLM) for ultra-fast patterns
+   * 
+   * DISABLED: Canned responses bypass Marcus's traits, Overseer context, difficulty level,
+   * and all the sophisticated context we've built. Use focused LLM prompts instead - they're
+   * still fast (50 tokens vs 500) but context-aware.
    */
   static getCannedResponse(pattern: DetectedPattern): string | null {
-    const responses = {
-      'IDENTITY_CONFIRMATION': "Yeah, who's this?",
-      'NAME_ONLY': "Yeah?",
-      'GREETING_ONLY': "Hey. Who's this?",
-      'GREETING_WITH_QUESTION': "Good, thanks. What's up?",
-      'INTRODUCTION_WITH_NAME': "Good. What's this about?"
-    };
-    
-    return responses[pattern] || null;
+    // All patterns now use focused LLM prompts to access Marcus's context
+    return null;
   }
   
   /**
@@ -175,5 +237,54 @@ Keep it VERY short. Cold call energy.`;
    */
   static canUseInstantResponse(pattern: DetectedPattern): boolean {
     return pattern !== 'UNKNOWN';
+  }
+  
+  /**
+   * Detect if user explained purpose/value in the same message
+   * Checks for phrases that indicate they stated why they're calling
+   */
+  private static detectPurposeExplanation(text: string): boolean {
+    const purposePatterns = [
+      /\b(we help|we work with|we provide|we offer|we assist)\b/i,
+      /\b(we have|we've got)\b.*\b(solution|product|service|tool|platform|system)\b/i,
+      /\b(that (could|can|will|would))\b.*\b(benefit|help|improve|save)\b/i,
+      /\b(calling about|calling to|calling because|reason (for|I'm) call)/i,
+      /\b(wanted to (talk|discuss|share|see if))/i,
+      /\b(quick reason|just wanted to)/i,
+      /\b(improve|increase|reduce|help with|solve|fix)\b.*\b(close rate|sales|revenue|pipeline|quota|team)/i,
+      /\b(talk about|discuss|share (how|what))/i
+    ];
+    
+    return purposePatterns.some(pattern => pattern.test(text));
+  }
+  
+  /**
+   * Detect if user asked for permission/time
+   * "Do you have 5 minutes?" / "Is this a good time?" / "Can I share..."
+   */
+  private static detectPermissionAsk(text: string): boolean {
+    const permissionPatterns = [
+      /\b(do you have|have you got)\b.*\b(minute|second|time|moment)\b/i,
+      /\b(is this|is now)\b.*\b(good time|bad time)\b/i,
+      /\b(can i|could i|may i)\b.*\b(share|tell|talk|discuss|ask)\b/i,
+      /\b(quick question|20 seconds)\b/i,
+      /\bwondering if you (had|have)\b/i
+    ];
+    
+    return permissionPatterns.some(pattern => pattern.test(text));
+  }
+  
+  /**
+   * Detect if user introduced themselves with name/company
+   * "This is Kayson" / "It's John from Acme" / "My name is..."
+   */
+  private static detectIntroduction(text: string): boolean {
+    const introPatterns = [
+      /\b(this is|it'?s|my name is|i'?m)\s+[A-Z][a-z]+/i,
+      /\b[A-Z][a-z]+\s+from\s+[A-Z][a-z]+/i,
+      /\b(calling from|with)\s+[A-Z][a-z]+/i
+    ];
+    
+    return introPatterns.some(pattern => pattern.test(text));
   }
 }

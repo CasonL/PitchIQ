@@ -18,9 +18,10 @@ import { SentenceCompletenessAnalyzer } from './SentenceCompleteness';
 import { CognitiveCompletenessAnalyzer } from './CognitiveCompleteness';
 import { CHARMER_PERSONA } from '../../../data/staticPersonas/theCharmer';
 import { MarcusPostCallMoments } from './MarcusPostCallMoments';
-import { ConversationTracker } from './ConversationTranscript';
-import { CriticalMomentDetector } from './CriticalMomentDetector';
-import { MomentFeedbackGenerator } from './MomentFeedbackGenerator';
+import { StrategicMomentCoach } from './StrategicMomentCoach';
+import { StrategicMomentDetector } from './StrategicMomentDetector';
+import { StrategicMomentPatternDetector } from './StrategicMomentPatternDetector';
+import { useOverseer } from './useOverseer';
 import { MomentViewModelMapper } from './MomentViewModelMapper';
 import { HybridFeedbackGenerator } from './HybridFeedbackGenerator';
 import { MomentFeedbackIntegration } from './MomentFeedbackIntegration';
@@ -36,6 +37,7 @@ import { FrameworkAnalyzer } from './FrameworkAnalyzer';
 import { CallCompletionData, StoredFeedbackData, StoredCallState } from './types/CallData';
 import { LocalStorageService } from './services/LocalStorageService';
 import { ObjectionGenerator, DiscoveryContext } from './ObjectionGenerator';
+import { ConversationTracker } from './ConversationTranscript';
 
 interface CharmerControllerProps {
   onCallEnd?: () => void;
@@ -62,6 +64,9 @@ const CharmerControllerContent = memo(({
     speakAsMarcus,
     isSpeaking
   } = useMarcusVoice();
+  
+  // Overseer - dynamic scenario architect
+  const { analyzeConversation, getGuidance, clearCache: clearOverseerCache, isEnabled: isOverseerEnabled } = useOverseer();
   
   // Phase management
   const phaseManagerRef = useRef(new CharmerPhaseManager());
@@ -152,17 +157,14 @@ const CharmerControllerContent = memo(({
   });
   const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
   
-  // Training wheels state
-  const [trainingWheelsEnabled, setTrainingWheelsEnabled] = useState(false);
+  // Strategic moment coaching state
+  const [currentStrategicMoment, setCurrentStrategicMoment] = useState<{
+    type: string;
+    signal: string;
+    timestamp: number;
+  } | null>(null);
   const [currentResistance, setCurrentResistance] = useState(6);
   const [lastResistance, setLastResistance] = useState(6);
-  const [currentSignals, setCurrentSignals] = useState({
-    askedDiscovery: false,
-    buildingRapport: false,
-    talkingTooMuch: false,
-    makingAssumptions: false,
-    providingValue: false
-  });
   const [lastUserMessage, setLastUserMessage] = useState('');
   const lastTranscriptRef = useRef('');
   const transcriptRef = useRef(''); // Track current transcript for timeout callbacks
@@ -282,7 +284,7 @@ const CharmerControllerContent = memo(({
           userInput: userText,
           phasePromptContext: phaseManager.getPhasePromptContext(),
           conversationHistory: conversationHistory
-        });
+        }, undefined, undefined, getGuidance());
         
         console.log(`🎤 Marcus [confused]: "${aiResponse.content}"`);
         
@@ -470,6 +472,19 @@ const CharmerControllerContent = memo(({
       strategyOutput = await strategyLayerRef.current.determineStrategy(strategyContext);
       buyerState = strategyOutput.buyerState;
       
+      // OVERSEER: Start parallel scenario analysis (non-blocking)
+      if (isOverseerEnabled) {
+        analyzeConversation({
+          conversationHistory,
+          currentResistance: buyerState.resistanceLevel,
+          currentPhase: currentPhaseStr,
+          exchangeCount: conversationHistory.length,
+          lastUserMessage: userText,
+          difficulty: selectedScenario?.difficulty,
+          scenario: selectedScenario
+        });
+      }
+      
       // HYBRID FEEDBACK: Analyze utterance with context-aware LLM reasoning
       // This runs async and doesn't block Marcus's response
       hybridFeedbackRef.current.analyzeUtterance(
@@ -486,13 +501,9 @@ const CharmerControllerContent = memo(({
         console.error('⚠️ Hybrid feedback analysis failed:', err);
       });
       
-      // Update training wheels state
-      if (trainingWheelsEnabled) {
-        setLastResistance(currentResistance);
-        setCurrentResistance(buyerState.resistanceLevel);
-        setCurrentSignals(repQualitySignals);
-        setLastUserMessage(userText);
-      }
+      // Update resistance tracking
+      setLastResistance(currentResistance);
+      setCurrentResistance(buyerState.resistanceLevel);
       
       // Classify question for logging/analysis only - NO artificial delays
       // Response time comes from actual AI generation complexity, not fake waits
@@ -533,7 +544,7 @@ const CharmerControllerContent = memo(({
             phasePromptContext: phaseManager.getPhasePromptContext(),
             conversationHistory: conversationHistory,
             scenario: selectedScenario
-          });
+          }, undefined, undefined, getGuidance());
           
           // SAFETY: Check after generation completes
           if (utteranceCountRef.current !== processingUtteranceCount) {
@@ -595,7 +606,7 @@ const CharmerControllerContent = memo(({
                 decisionTimeframe: selectedScenario.traits.decisionTimeframe,
                 primaryConcern: selectedScenario.traits.primaryConcern
               } : undefined
-            });
+            }, undefined, undefined, getGuidance());
           }
         } else {
           // Not first utterance - use full LLM generation
@@ -618,7 +629,7 @@ const CharmerControllerContent = memo(({
               decisionTimeframe: selectedScenario.traits.decisionTimeframe,
               primaryConcern: selectedScenario.traits.primaryConcern
             } : undefined
-          });
+          }, undefined, undefined, getGuidance());
         }
         
         // SAFETY: Check after generation completes
@@ -983,7 +994,7 @@ const CharmerControllerContent = memo(({
           phasePromptContext: phaseManager.getPhasePromptContext(),
           conversationHistory: conversationHistory,
           scenario: selectedScenario
-        }).catch(err => {
+        }, undefined, undefined, getGuidance()).catch(err => {
           console.log('⚠️ Speculative generation error:', err);
           speculativeResponseRef.current = null;
           throw err;
@@ -1737,16 +1748,11 @@ const CharmerControllerContent = memo(({
         />
       )}
       
-      {/* Training Wheels Overlay */}
-      {!showMomentFeedback && !showScenarioSelector && isConnected && (
-        <TrainingWheels
-          enabled={trainingWheelsEnabled}
-          currentResistance={currentResistance}
-          lastResistance={lastResistance}
-          currentPhase={currentPhase === 'prospect' ? 1 : currentPhase === 'discovery' ? 2 : 3}
-          signals={currentSignals}
-          lastUserMessage={lastUserMessage}
-          conversationTurns={conversationHistory.filter(h => h.role === 'user').length}
+      {/* Strategic Moment Coaching Cards */}
+      {!showMomentFeedback && !showScenarioSelector && isConnected && currentStrategicMoment && (
+        <StrategicMomentCoach
+          moment={currentStrategicMoment}
+          onDismiss={() => setCurrentStrategicMoment(null)}
         />
       )}
       
@@ -1773,29 +1779,6 @@ const CharmerControllerContent = memo(({
         
         {/* Call controls - only show End Call button when connected/connecting */}
         <div className="flex justify-center items-center gap-3 mb-8">
-          {/* Training Wheels Toggle */}
-          <Button
-            variant="outlined"
-            onClick={() => setTrainingWheelsEnabled(!trainingWheelsEnabled)}
-            sx={{
-              bgcolor: trainingWheelsEnabled ? '#dcfce7' : 'white',
-              border: trainingWheelsEnabled ? '2px solid #10b981' : '1px solid #9ca3af',
-              color: trainingWheelsEnabled ? '#065f46' : '#6b7280',
-              '&:hover': {
-                bgcolor: trainingWheelsEnabled ? '#bbf7d0' : '#f9fafb',
-                border: trainingWheelsEnabled ? '2px solid #10b981' : '1px solid #6b7280',
-              },
-              textTransform: 'none',
-              borderRadius: 2,
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              px: 2,
-              py: 1
-            }}
-          >
-            {trainingWheelsEnabled ? '🎓 Training ON' : '🎓 Training OFF'}
-          </Button>
-          
           <Button
             variant="outlined"
             onClick={handleEndCall}

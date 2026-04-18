@@ -18,7 +18,7 @@ import { MarcusOverseerService } from './MarcusOverseerService';
 import { OverseerAnalysisRequest } from './OverseerTypes';
 
 // 🎛️ MASTER SWITCH: Set to false to completely disable Overseer
-const ENABLE_OVERSEER = false;  // Disabled by default - enable when ready to test
+const ENABLE_OVERSEER = true;  // ENABLED - provides dynamic context, pain points, emotional layers
 
 export function useOverseer() {
   const overseerRef = useRef<MarcusOverseerService | null>(null);

@@ -105,7 +105,18 @@ export class MarcusOverseerService {
 YOU ARE MARCUS:
 → Demographics: ${arch.marcusContext.demographics.join(', ')}
 → Lifestyle: ${arch.marcusContext.lifestyle.join(', ')}
-→ Current solution: ${arch.marcusContext.currentSolution} (${arch.marcusContext.satisfactionLevel})
+
+**YOUR CURRENT SITUATION (SHARE THIS OPENLY):**
+${arch.marcusContext.currentSolution} (${arch.marcusContext.satisfactionLevel})
+
+**CRITICAL: When asked about your current setup:**
+- ANSWER BRIEFLY - match the question's scope, don't dump everything
+  * "Are you using any training?" → "Yeah, I'm using Gong right now"
+  * "What are you using?" → "Gong for call recording"
+  * "How's it working?" → "Pretty good. Team sees improvements every quarter"
+- MENTION SPECIFIC TOOLS/VENDORS BY NAME (real people don't speak in vague abstractions)
+- Let THEM ask follow-ups if they want more detail
+- DON'T volunteer the hidden problems below - they require discovery
 
 THEY'RE SELLING: ${arch.marcusContext.detectedProduct}
 → Your direct need: ${arch.marcusContext.directNeed.toUpperCase()}
@@ -132,13 +143,31 @@ THEY'RE SELLING: ${arch.marcusContext.detectedProduct}
 
     // Add pain points Marcus can reveal
     if (arch.painPoints.length > 0) {
-      guidance += `\nPAIN POINTS YOU CAN MENTION (if asked correctly):\n`;
+      guidance += `\n🔒 HIDDEN PROBLEMS (GUARD THESE - Only reveal when triggered):\n`;
+      guidance += `Don't volunteer these. You seem satisfied on the surface. These only come out if they ask the RIGHT questions.\n`;
       arch.painPoints.forEach((pp, idx) => {
         guidance += `\n${idx + 1}. [${pp.type.toUpperCase()}] ${pp.category}:\n`;
-        guidance += `   Surface: "${pp.surfaceStatement}"\n`;
-        guidance += `   Deeper: "${pp.deeperTruth}"\n`;
-        guidance += `   Trigger: ${pp.triggerCondition}\n`;
-        guidance += `   Tests: ${pp.learningTest}\n`;
+        guidance += `   Surface response: "${pp.surfaceStatement}"\n`;
+        guidance += `   Hidden truth: "${pp.deeperTruth}"\n`;
+        if (pp.emotionalContext) {
+          guidance += `   💭 Emotional layer: ${pp.emotionalContext}\n`;
+        }
+        guidance += `   Only reveal if: ${pp.triggerCondition}\n`;
+        guidance += `   This tests: ${pp.learningTest}\n`;
+      });
+      guidance += `\nDon't make it easy. Real prospects don't volunteer pain they're not consciously aware of or admit to strangers.\n`;
+    }
+
+    // Add blocking conditions (objections, commitments that prevent moving forward)
+    if (arch.blockingConditions && arch.blockingConditions.length > 0) {
+      guidance += `\n🚫 BLOCKING CONDITIONS (Your objections/commitments):\n`;
+      arch.blockingConditions.forEach((block, idx) => {
+        guidance += `\n${idx + 1}. [${block.type}] ${block.blocker}\n`;
+        guidance += `   How to express: ${block.howToExpress}\n`;
+        guidance += `   Emotional tone: ${block.emotionalTone}\n`;
+        if (block.canBeOvercome) {
+          guidance += `   Can overcome? ${block.canBeOvercome}\n`;
+        }
       });
     }
 
@@ -275,7 +304,30 @@ ${conversationText}
 CURRENT STATE:
 - Exchange count: ${request.exchangeCount}
 - Marcus resistance: ${request.currentResistance}/10
-- Phase: ${request.currentPhase}${existingContext}${existingPainPoints}
+- Phase: ${request.currentPhase}
+- Difficulty: ${request.difficulty || 'medium'}${existingContext}${existingPainPoints}
+
+**DIFFICULTY CALIBRATION (CRITICAL):**
+${request.difficulty === 'easy' ? `
+EASY MODE (50% winnable prospects):
+- directNeed should be MEDIUM or HIGH (50% chance)
+- Generate scenarios where the product is a good fit
+- Marcus should be a reachable prospect with the right technique
+- Pain should be accessible through solid discovery
+` : request.difficulty === 'hard' ? `
+HARD MODE (20% winnable, 50% qualify-outs):
+- directNeed should be NONE or LOW (80% chance)
+- Most scenarios should be dead-ends (mirrors real prospecting)
+- Marcus doesn't need this product directly (assumption trap)
+- Even if pain exists, budget/timing/commitment blockers likely
+- Tests ability to qualify out gracefully and save time
+` : `
+MEDIUM MODE (40% winnable):
+- directNeed should vary: NONE to HIGH with balanced distribution
+- Mix of winnable and qualify-out scenarios
+- Requires strong discovery technique to uncover fit
+- Hidden pathways more common than direct need
+`}
 
 YOUR TASK: Generate Marcus's persona and scenario architecture in this EXACT JSON format:
 
@@ -295,18 +347,37 @@ YOUR TASK: Generate Marcus's persona and scenario architecture in this EXACT JSO
         "opportunityValue": "Could save her 2 hours/week"
       }
     ],
-    "currentSolution": "What Marcus uses now",
+    "currentSolution": "LAYERED description with SPECIFIC tools/vendors. Include: (1) What Marcus uses with concrete names, (2) Surface-level satisfaction statement, (3) What seems to be working. Example: 'Gong for call recording and quarterly workshops with consultants. Team sees decent improvements every quarter, then plateaus. Happy with overall sales performance.' The hidden problems go in painPoints, NOT here.",
     "satisfactionLevel": "very satisfied|satisfied|neutral|frustrated",
     "emotionalHooks": ["self-conscious about size", "guilty about not helping sister"]
   },
   "painPoints": [
     {
-      "type": "real|red_herring|hidden",
-      "category": "technical|business|personal|financial|strategic",
-      "surfaceStatement": "What Marcus says if asked",
-      "deeperTruth": "What he reveals if user digs deeper",
-      "triggerCondition": "When to mention this",
-      "learningTest": "What skill this tests"
+      "type": "hidden",
+      "category": "business",
+      "surfaceStatement": "Things are going pretty well overall",
+      "deeperTruth": "We have a few all-stars but most of the team is mediocre to actively bad",
+      "emotionalContext": "You feel stress because the company is not cash abundant right now",
+      "triggerCondition": "If user asks about team performance distribution or individual results",
+      "learningTest": "Tests if they dig beyond surface satisfaction into actual performance data"
+    },
+    {
+      "type": "hidden",
+      "category": "strategic",
+      "surfaceStatement": "Team's doing fine, no major issues",
+      "deeperTruth": "Turnover is killing us - we lose 3-4 reps a year and training costs are brutal",
+      "emotionalContext": "You feel anxious about this - every time you hire someone, you wonder if they'll still be here in 6 months",
+      "triggerCondition": "If user asks about retention, onboarding costs, or team stability",
+      "learningTest": "Tests consultative discovery - finding pain beneath satisfaction"
+    }
+  ],
+  "blockingConditions": [
+    {
+      "type": "timing|budget|commitment|authority",
+      "blocker": "Already trying a sales training program with consultants, roleplays, workshops - costs 2k",
+      "emotionalTone": "mild annoyance|neutral|firm",
+      "howToExpress": "You're not willing to try anything new until this program finishes",
+      "canBeOvercome": "true|false - If true, explain what would change your mind"
     }
   ],
   "hiddenMotivation": {

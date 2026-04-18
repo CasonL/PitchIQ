@@ -77,13 +77,16 @@ export interface CriticalMoment {
   impactReason?: string; // LLM explanation of what changed
   buyerStateChange?: 'opened_up' | 'pulled_back' | 'neutral' | 'repeated_concern';
   isKeyMoment?: boolean; // Top 1 good or top 1 bad
+  
+  // NEW: Substance quality evaluation (for openers)
+  substanceScore?: any; // OpenerQualityScore from OpenerQualityEvaluator
 }
 
 export interface SuccessfulMoment {
   id: string;
   timestamp: number;
   type: 'resistance_drop' | 'pain_discovery' | 'objection_handled' | 'active_listening' | 
-        'brevity_win' | 'permission_opener';
+        'brevity_win' | 'permission_opener' | 'trust_moment';
   impact: number; // 0-1, how impactful was this win?
   
   // Source identity (for stable matching)

@@ -133,7 +133,8 @@ def create_app(config_name='dev'):
         "http://10.0.0.150:5174"
     ]
 
-    CORS(flask_instance, origins=allowed_origins, supports_credentials=True, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers="*", expose_headers=["Content-Length"], max_age=86400)
+    # Use wildcard for development to allow browser proxy and all localhost ports
+    CORS(flask_instance, origins="*", supports_credentials=False, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers="*", expose_headers=["Content-Length"], max_age=86400)
     
     # Use ProxyFix to handle proxy headers correctly
     # Temporarily disable x_host and x_port to diagnose URL generation issue

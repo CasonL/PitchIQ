@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { KeyMoment, MomentClassification } from './MomentExtractor';
 import ReactMarkdown from 'react-markdown';
-import { MessageSquare, X, Mic, MicOff, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MessageSquare, X, Mic, MicOff, Info, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -84,6 +84,42 @@ const getClassificationDotColor = (classification: MomentClassification): string
     case 'mistake': return '#fb923c'; // orange-400
     case 'blunder': return '#ef4444'; // red-500
   }
+};
+
+// Map string values to numeric levels for comparison
+const getMetricLevel = (value: string | undefined): number => {
+  switch (value?.toLowerCase()) {
+    case 'very low': return 1;
+    case 'low': return 2;
+    case 'moderate': return 3;
+    case 'high': return 4;
+    case 'very high': return 5;
+    default: return 0; // unknown
+  }
+};
+
+// Calculate delta between current and previous moment for a metric
+const calculateDelta = (current: string | undefined, previous: string | undefined): 'up' | 'down' | 'same' | 'unknown' => {
+  const currentLevel = getMetricLevel(current);
+  const previousLevel = getMetricLevel(previous);
+  
+  if (currentLevel === 0 || previousLevel === 0) return 'unknown';
+  if (currentLevel > previousLevel) return 'up';
+  if (currentLevel < previousLevel) return 'down';
+  return 'same';
+};
+
+// Render delta indicator
+const DeltaIndicator: React.FC<{ delta: 'up' | 'down' | 'same' | 'unknown' }> = ({ delta }) => {
+  if (delta === 'unknown') return null;
+  
+  if (delta === 'up') {
+    return <ArrowUp className="w-3 h-3 text-green-500" />;
+  }
+  if (delta === 'down') {
+    return <ArrowDown className="w-3 h-3 text-red-500" />;
+  }
+  return <Minus className="w-3 h-3 text-gray-400" />;
 };
 
 export const MomentCoachingPanel: React.FC<MomentCoachingPanelProps> = ({ 
@@ -1208,9 +1244,17 @@ Be consistent and deterministic. Same input should give same output.`;
             <div className={`mb-1 ${
               theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
             }`}>Trust</div>
-            <div className={`font-medium capitalize ${
+            <div className={`flex items-center gap-1.5 font-medium capitalize ${
               theme === 'dark' ? 'text-white' : 'text-gray-800'
-            }`}>{moment.marcusState?.trust || 'unknown'}</div>
+            }`}>
+              {moment.marcusState?.trust || 'unknown'}
+              {allMoments && currentIndex !== undefined && currentIndex > 0 && (
+                <DeltaIndicator delta={calculateDelta(
+                  moment.marcusState?.trust,
+                  allMoments[currentIndex - 1]?.marcusState?.trust
+                )} />
+              )}
+            </div>
           </div>
           <div className={`flex-1 rounded-lg p-2 ${
             theme === 'dark' ? 'bg-white/5' : 'bg-gray-50 border border-gray-200'
@@ -1218,9 +1262,17 @@ Be consistent and deterministic. Same input should give same output.`;
             <div className={`mb-1 ${
               theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
             }`}>Curiosity</div>
-            <div className={`font-medium capitalize ${
+            <div className={`flex items-center gap-1.5 font-medium capitalize ${
               theme === 'dark' ? 'text-white' : 'text-gray-800'
-            }`}>{moment.marcusState?.curiosity || 'unknown'}</div>
+            }`}>
+              {moment.marcusState?.curiosity || 'unknown'}
+              {allMoments && currentIndex !== undefined && currentIndex > 0 && (
+                <DeltaIndicator delta={calculateDelta(
+                  moment.marcusState?.curiosity,
+                  allMoments[currentIndex - 1]?.marcusState?.curiosity
+                )} />
+              )}
+            </div>
           </div>
           <div className={`flex-1 rounded-lg p-2 ${
             theme === 'dark' ? 'bg-white/5' : 'bg-gray-50 border border-gray-200'
@@ -1228,9 +1280,17 @@ Be consistent and deterministic. Same input should give same output.`;
             <div className={`mb-1 ${
               theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
             }`}>Urgency</div>
-            <div className={`font-medium capitalize ${
+            <div className={`flex items-center gap-1.5 font-medium capitalize ${
               theme === 'dark' ? 'text-white' : 'text-gray-800'
-            }`}>{moment.marcusState?.urgency || 'unknown'}</div>
+            }`}>
+              {moment.marcusState?.urgency || 'unknown'}
+              {allMoments && currentIndex !== undefined && currentIndex > 0 && (
+                <DeltaIndicator delta={calculateDelta(
+                  moment.marcusState?.urgency,
+                  allMoments[currentIndex - 1]?.marcusState?.urgency
+                )} />
+              )}
+            </div>
           </div>
         </div>
         

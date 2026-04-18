@@ -101,7 +101,7 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
     budget: 'flexible',
     openness: 'curious',
     painPoints: [], // Populated dynamically
-    currentSolution: 'Legacy system from 2015',
+    currentSolution: 'Overseer will generate based on product',
     satisfactionLevel: 3,
     decisionTimeframe: 'ASAP',
     primaryConcern: 'time',
@@ -118,7 +118,7 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
     budget: 'available',
     openness: 'curious',
     painPoints: [], // Populated dynamically
-    currentSolution: 'Mid-tier competitor',
+    currentSolution: 'Overseer will generate based on product',
     satisfactionLevel: 6,
     decisionTimeframe: 'next quarter',
     primaryConcern: 'quality',
@@ -135,7 +135,7 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
     budget: 'no-budget',
     openness: 'skeptical',
     painPoints: [], // Populated dynamically
-    currentSolution: 'Current vendor for 3 years',
+    currentSolution: 'Overseer will generate based on product',
     satisfactionLevel: 7,
     decisionTimeframe: '6+ months',
     primaryConcern: 'cost',
@@ -152,7 +152,7 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
     budget: 'locked-contract',
     openness: 'closed',
     painPoints: [],
-    currentSolution: 'Premium vendor, just renewed contract',
+    currentSolution: 'Overseer will generate based on product',
     satisfactionLevel: 9,
     decisionTimeframe: 'no timeline',
     primaryConcern: 'none',
@@ -169,7 +169,7 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
     budget: 'available',
     openness: 'skeptical',
     painPoints: [], // Populated dynamically
-    currentSolution: 'DIY solution cobbled together',
+    currentSolution: 'Overseer will generate based on product',
     satisfactionLevel: 5,
     decisionTimeframe: '3-6 months',
     primaryConcern: 'risk',
@@ -186,7 +186,7 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
     budget: 'no-budget',
     openness: 'curious',
     painPoints: [], // Populated dynamically
-    currentSolution: 'Free/cheap alternative',
+    currentSolution: 'Overseer will generate based on product',
     satisfactionLevel: 5,
     decisionTimeframe: 'no timeline',
     primaryConcern: 'cost',
@@ -203,7 +203,7 @@ export const MARCUS_TRAIT_PROFILES: Record<string, MarcusTraitProfile> = {
     budget: 'no-budget',
     openness: 'open',
     painPoints: [], // Populated dynamically
-    currentSolution: 'Current solution works fine',
+    currentSolution: 'Overseer will generate based on product',
     satisfactionLevel: 7,
     decisionTimeframe: 'no timeline',
     primaryConcern: 'none',

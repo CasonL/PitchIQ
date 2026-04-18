@@ -7,6 +7,7 @@
 import { SignalDetector, DetectedSignal } from './SignalDetector';
 import { MechanicInferenceEngine, InferredMechanic } from './MechanicInferenceEngine';
 import { BuyerState } from './StrategyLayer';
+import { OpenerQualityEvaluator, OpenerQualityScore } from './OpenerQualityEvaluator';
 
 export interface HybridFeedbackInput {
   userMessage: string;
@@ -30,10 +31,12 @@ export interface HybridFeedback {
 export class HybridFeedbackGenerator {
   private signalDetector: SignalDetector;
   private mechanicInference: MechanicInferenceEngine;
+  private openerQualityEvaluator: OpenerQualityEvaluator;
 
   constructor() {
     this.signalDetector = new SignalDetector();
     this.mechanicInference = new MechanicInferenceEngine();
+    this.openerQualityEvaluator = new OpenerQualityEvaluator();
   }
 
   async generateFeedback(input: HybridFeedbackInput): Promise<HybridFeedback | null> {
@@ -41,14 +44,29 @@ export class HybridFeedbackGenerator {
     const signals = this.signalDetector.detect(input.userMessage);
     
     if (signals.length === 0) {
+      console.log(`⚠️ [Hybrid] Utterance #${input.utteranceCount}: No signals detected - skipping analysis`);
       return null; // No patterns detected, nothing to analyze
     }
 
-    // Step 2: Rule-based mechanic inference
-    const mechanics = this.mechanicInference.infer(signals);
-    const topMechanics = mechanics.filter(m => m.priority <= 2).slice(0, 3);
+    // Step 2: Evaluate opener quality for first 1-2 utterances
+    let qualityScores: OpenerQualityScore | undefined;
+    if (input.utteranceCount <= 2) {
+      const openerAnalysis = this.openerQualityEvaluator.evaluateOpener(input.userMessage);
+      qualityScores = openerAnalysis.score;
+      console.log(`📊 [Hybrid] Opener quality: clarity=${qualityScores.clarityOfPurpose.toFixed(2)}, relevance=${qualityScores.specificRelevance.toFixed(2)}, distinct=${qualityScores.distinctiveness.toFixed(2)}, friction=${qualityScores.frictionLoad.toFixed(2)}`);
+    }
+
+    // Step 3: Rule-based mechanic inference with quality scores
+    const mechanics = this.mechanicInference.infer(signals, qualityScores);
+    
+    // Filter by top priority (quality-weighted) instead of fixed priority ≤2
+    const topMechanics = mechanics.slice(0, 2); // Top 1-2 by calculated priority
+    
+    console.log(`🔍 [Hybrid] Utterance #${input.utteranceCount}: ${signals.length} signals → ${mechanics.length} mechanics (${topMechanics.length} priority ≤2)`);
 
     if (topMechanics.length === 0) {
+      console.log(`⚠️ [Hybrid] Utterance #${input.utteranceCount}: No high-priority mechanics (priority ≤2) - skipping analysis`);
+      console.log(`   Available mechanics: ${mechanics.map(m => `${m.type}(p${m.priority})`).join(', ')}`);
       return null; // No significant mechanics detected
     }
 

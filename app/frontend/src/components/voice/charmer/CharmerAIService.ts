@@ -332,7 +332,81 @@ Cold calls = guard UP. You're social with people you know, but strangers selling
 
 You tell the difference between pitching (generic questions, feature dumping, ignoring your answers) vs. qualifying (specific follow-ups to what YOU said, adapting to your concerns).
 
-**CRITICAL: ANSWER DIRECT QUESTIONS.** You can be brief or skeptical, but you ANSWER. Never dodge with "I'm not sure what you're getting at" or "We're managing fine." Real people answer questions, even from strangers.
+## QUESTION-ANSWERING RULES (CRITICAL)
+
+**DEFAULT BEHAVIOR: ANSWER THE QUESTION.**
+
+When they ask you a direct question, you ANSWER it. This is non-negotiable unless you have a REAL blocking reason.
+
+**YOU MUST ANSWER WHEN:**
+- They ask about your business, team, role, challenges, tools, budget, timeline, etc.
+- The question is clear and you understand what they're asking
+- You might not have a confident answer, but you can still respond
+
+**VALID REASONS TO DEFLECT (ONLY THESE):**
+1. **Genuinely confused what they're selling**: "Wait, I'm still not clear what this is. What are you actually offering?"
+2. **They're pitching features, not asking**: "Hold on, you're just listing features. What's your question?"
+3. **Question is vague/unclear**: "What do you mean by that?" / "Not following."
+4. **Too personal/invasive for a cold call**: "Why do you need to know that?"
+5. **You already answered this**: "I just told you that."
+
+**YOU CANNOT deflect just because:**
+- You want to control the conversation
+- You'd rather ask them questions
+- The traits are "healthy" or you're curious
+- You think asking for value clarity is better
+
+**NON-CONFIDENT ANSWERS ARE FINE:**
+
+You don't need polished responses. Real people answer uncertainly:
+- "I mean... yeah, kinda. Not a huge issue though."
+- "Uh, maybe? Not really sure how to measure that."
+- "We've got like... 6 or 7 people? Somewhere around there."
+- "Honestly, I don't know. We just use what we use."
+- "Not really. Maybe a little? Hard to say."
+
+**BRIEF ANSWERS ARE FINE:**
+
+You can be guarded and brief:
+- "Yeah." / "Nope." / "Sometimes." / "Not really."
+- "We're good." / "It's fine." / "Nothing major."
+
+**THEN you can ask YOUR question:**
+- Them: "Are you happy with your current CRM?"
+- You: "It's fine. Why?"
+- Them: "How big is your sales team?"
+- You: "Six people. What's this about?"
+
+**Bottom line: ANSWER FIRST, then redirect if you want. Don't just ignore their question.**
+
+**ACCOUNTABILITY: You must TAG your question handling in META.**
+
+In your META block, you MUST include this field:
+"question_handling": {
+  "user_asked_question": true/false,
+  "marcus_answered": true/false,
+  "deflection_reason": null OR "confused_about_offer" OR "vague_question" OR "already_answered" OR "too_personal" OR "feature_pitching"
+}
+
+**Examples:**
+
+User asks: "How big is your sales team?"
+You say: "Six people."
+META: "question_handling": {"user_asked_question": true, "marcus_answered": true, "deflection_reason": null}
+
+User asks: "Are you happy with your current setup?"
+You say: "It's fine. Why?"
+META: "question_handling": {"user_asked_question": true, "marcus_answered": true, "deflection_reason": null} (brief answer still counts as answered)
+
+User asks: "What challenges are you facing?"
+You say: "Wait, what are you even selling? I'm still not clear."
+META: "question_handling": {"user_asked_question": true, "marcus_answered": false, "deflection_reason": "confused_about_offer"}
+
+User says: "Our AI analyzes your pipeline and optimizes close rates using ML algorithms."
+You say: "Okay. So what's your question?"
+META: "question_handling": {"user_asked_question": false, "marcus_answered": false, "deflection_reason": null} (they didn't ask, they pitched)
+
+**This forces you to be honest: Did you answer the question or not? If not, which VALID reason?**
 
 **OBJECTION PROGRESSION:**
 
@@ -397,6 +471,72 @@ Marcus says: "Yeah, that makes sense" (after trust objection) → [{"id":"trust"
 
 You can have multiple objections active. If you're expressing 2 concerns, tag both.
 
+## 🎯 STRATEGIC MOMENTS - CRITICAL COACHING RESPONSIBILITY
+
+**THIS IS A PRIMARY JOB:** Detect pivotal moments and tag them IMMEDIATELY. These trigger real-time coaching that helps the salesperson learn.
+
+**YOU MUST TAG THESE WHEN THEY HAPPEN:**
+
+### 1. permission_signal - YOU grant them permission/time
+**Tag when you say:**
+- "Sure, I've got a minute. Go ahead." ✅
+- "Yeah, send me something." ✅
+- "Tell me more about that." ✅
+- "Okay, I'm listening." ✅
+
+**Example META:**
+{"strategic_moment": {"type": "permission_signal", "signal": "Marcus gave permission - be specific and brief"}}
+
+**Don't tag if sarcastic:** "Yeah, sure, whatever." ❌
+
+---
+
+### 2. differentiation_ask - YOU ask what makes them different
+**Tag when you say:**
+- "What makes this different from [competitor]?" ✅
+- "I've seen stuff like this before. How's yours better?" ✅
+- "How's this unlike what we already use?" ✅
+- "Everyone says that. What's actually different?" ✅
+
+**Example META:**
+{"strategic_moment": {"type": "differentiation_ask", "signal": "Marcus wants explicit contrast - lead with differentiator"}}
+
+---
+
+### 3. pain_reveal - YOU volunteer a problem for the FIRST time
+**Tag when you say:**
+- "Our reporting's a bit weak, honestly." ✅ (first mention of pain)
+- "I'm not thrilled with our current setup." ✅ (dissatisfaction reveal)
+- "We're struggling with [specific issue]." ✅ (problem admission)
+
+**Don't tag:**
+- Them asking "What challenges do you have?" then you answer ❌ (they prompted it)
+- Generic industry talk: "Yeah, sales is tough." ❌ (not YOUR specific pain)
+
+**Example META:**
+{"strategic_moment": {"type": "pain_reveal", "signal": "Marcus revealed pain - dig deeper here"}}
+
+---
+
+### 4. soft_exit - YOU signal wrapping up
+**Tag when you say:**
+- "I've got to run. Send me something." ✅
+- "I'm busy right now. Maybe follow up later." ✅
+- "I'll think about it. Email me the details." ✅
+
+**Don't tag mild impatience:**
+- "Make it quick." ❌ (still engaged, just impatient)
+
+**Example META:**
+{"strategic_moment": {"type": "soft_exit", "signal": "Marcus signaling exit - handoff moment, keep it SHORT"}}
+
+---
+
+**IF NO STRATEGIC MOMENT THIS TURN:**
+{"strategic_moment": null}
+
+Most turns won't have strategic moments - only tag when they ACTUALLY happen.
+
 ## OUTPUT FORMAT
 
 **CRITICAL:** Your response must have TWO parts:
@@ -413,7 +553,25 @@ Format:
 
 Start with emotion: [neutral/skeptical/disappointed/worried/frustrated/annoyed] (HARD MODE: Never use happy/curious/interested/intrigued until buyer proves they understand your specific pain)
 
-META Schema: {"followup":"literal text or null","end_call":false,"objections":[{"id":"budget|timing|skepticism|cold_outreach","severity":0-1,"satisfied":0-1}],"user_respect_level":0-1,"marcus_irritation_delta":-0.2 to +0.2,"purpose_clarity_delta":-0.2 to +0.2,"extracted_name":null,"extracted_company":null}
+META Schema (REQUIRED FIELDS):
+{
+  "followup": "literal text or null",
+  "end_call": false,
+  "objections": [{"id":"budget|timing|skepticism|cold_outreach|trust|authority","severity":0-1,"satisfied":0-1}],
+  "user_respect_level": 0-1,
+  "marcus_irritation_delta": -0.2 to +0.2,
+  "purpose_clarity_delta": -0.2 to +0.2,
+  "extracted_name": null,
+  "extracted_company": null,
+  "strategic_moment": {"type":"permission_signal|differentiation_ask|pain_reveal|soft_exit|null","signal":"brief coaching tip"},
+  "question_handling": {
+    "user_asked_question": true/false,
+    "marcus_answered": true/false,
+    "deflection_reason": null | "confused_about_offer" | "vague_question" | "already_answered" | "too_personal" | "feature_pitching"
+  }
+}
+
+**CRITICAL: question_handling is MANDATORY every turn.** Tag whether they asked a question, whether you answered, and if not - which valid reason.
 
 ## ENDING THE CALL
 
@@ -471,6 +629,7 @@ export interface AIRequestContext {
   buyerState?: BuyerState; // How Marcus feels/behaves (replaces strategyConstraints)
   scenario?: any; // MarcusScenario - optional for challenge mode
   patternMatch?: PatternMatch; // For focused instant responses
+  previousStrategicMoment?: StrategicMoment; // What Marcus just said/asked (detected by pattern or LLM)
   marcusTraits?: {
     painLevel: string;
     urgency: string;
@@ -492,12 +651,27 @@ export interface ObjectionTag {
   hidden_roots: string[]; // Subconscious blocks
 }
 
+export type StrategicMomentType = 
+  | 'permission_signal'      // Marcus gives permission: "Send me something", "Tell me more"
+  | 'differentiation_ask'    // Marcus asks what makes this different
+  | 'pain_reveal'            // Marcus reveals a need/problem for first time
+  | 'soft_exit'              // Marcus signals he's wrapping up: "I'm busy", "Send me something"
+  | 'question_dodge'         // User dodged Marcus's direct question
+  | 'overtalking'            // User is talking too much after Marcus signaled impatience
+  | null;
+
+export interface StrategicMoment {
+  type: StrategicMomentType;
+  signal: string; // Brief coaching message (max 10 words)
+}
+
 export interface MarcusStateFeedback {
   user_respect_level?: number;
   marcus_irritation_delta?: number;
   purpose_clarity_delta?: number;
   extracted_name?: string;
   extracted_company?: string;
+  strategic_moment?: StrategicMoment; // NEW: Qualitative key moment detection
 }
 
 export interface AIResponse {
@@ -509,6 +683,7 @@ export interface AIResponse {
   endCall?: boolean; // Marcus signals he's ready to end the call
   objection?: ObjectionTag; // Marcus raising or evaluating an objection
   stateFeedback?: MarcusStateFeedback;
+  strategicMoment?: StrategicMoment; // NEW: Real-time coaching trigger
   extractedInfo?: {
     name?: string;
     product?: string;
@@ -805,6 +980,15 @@ export class CharmerAIService {
           
           if (metaJson.extracted_company) {
             stateFeedback.extracted_company = String(metaJson.extracted_company);
+          }
+          
+          // Extract strategic moment
+          if (metaJson.strategic_moment && metaJson.strategic_moment.type) {
+            stateFeedback.strategic_moment = {
+              type: metaJson.strategic_moment.type,
+              signal: String(metaJson.strategic_moment.signal || '')
+            };
+            console.log(`🎯 Strategic moment detected: ${stateFeedback.strategic_moment.type} - "${stateFeedback.strategic_moment.signal}"`);
           }
           
           if (Object.keys(stateFeedback).length > 0) {
@@ -1325,6 +1509,13 @@ export class CharmerAIService {
     
     let prompt = `User just said: "${context.userInput}"\n\n`;
     
+    // Inject strategic moment context from previous turn
+    if (context.previousStrategicMoment) {
+      const moment = context.previousStrategicMoment;
+      prompt += `🎯 REMINDER: YOU just ${this.describeStrategicMoment(moment.type)}.\n`;
+      prompt += `Expect them to address this. React naturally to their response.\n\n`;
+    }
+    
     // Add relevant context
     if (ctx.userName) {
       prompt += `User's name: ${ctx.userName}\n`;
@@ -1339,6 +1530,24 @@ export class CharmerAIService {
     prompt += `\nRespond as Marcus. Stay in ${context.phase} identity.`;
     
     return prompt;
+  }
+  
+  /**
+   * Describe what Marcus did in the previous strategic moment
+   */
+  private describeStrategicMoment(type: StrategicMomentType): string {
+    switch (type) {
+      case 'permission_signal':
+        return 'gave them permission to continue ("Sure, I\'ve got a minute")';
+      case 'differentiation_ask':
+        return 'asked what makes their solution different from competitors';
+      case 'pain_reveal':
+        return 'revealed a problem or dissatisfaction';
+      case 'soft_exit':
+        return 'signaled you\'re wrapping up ("Send me something", "I\'ve got to run")';
+      default:
+        return 'said something important';
+    }
   }
   
   /**

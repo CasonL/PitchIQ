@@ -235,7 +235,10 @@ YOU ARE THIS MARCUS. Use this context to create a learning experience.
       }
       
       const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '{}';
+      let content = data.choices?.[0]?.message?.content || '{}';
+      
+      // Strip markdown code blocks if present (LLM sometimes wraps JSON)
+      content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       
       // Parse JSON response
       const analysis = JSON.parse(content);

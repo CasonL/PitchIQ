@@ -260,6 +260,8 @@ const CharmerControllerContent = memo(({
     let phaseManager: any;
     let strategyOutput: StrategyOutput;
     let buyerState: BuyerState;
+    let strategyContext: StrategyContext | undefined;
+    let buyerStateBefore: BuyerState | undefined;
     
     try {
       // Check transcript quality - detect garbled/poor STT
@@ -447,9 +449,9 @@ const CharmerControllerContent = memo(({
       };
       
       // 🎯 CAPTURE STATE BEFORE TURN (for canonical event)
-      const buyerStateBefore = strategyLayerRef.current.getCurrentBuyerState();
+      buyerStateBefore = strategyLayerRef.current.getCurrentBuyerState();
       
-      const strategyContext: StrategyContext = {
+      strategyContext = {
         phase: currentPhaseNum,
         conversationHistory,
         userInput: userText,

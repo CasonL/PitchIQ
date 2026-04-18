@@ -215,7 +215,13 @@ YOU ARE THIS MARCUS. Use this context to create a learning experience.
   private async performAnalysis(request: OverseerAnalysisRequest): Promise<ScenarioArchitecture> {
     const prompt = this.buildAnalysisPrompt(request);
     
+    console.log(`🎭 [Overseer] Calling API: ${this.apiEndpoint}`);
+    
     try {
+      // Add timeout to prevent hanging forever
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -227,11 +233,16 @@ YOU ARE THIS MARCUS. Use this context to create a learning experience.
           ],
           temperature: 0.8,
           max_tokens: 600
-        })
+        }),
+        signal: controller.signal
       });
       
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error(`🎭 [Overseer] API error ${response.status}:`, errorText);
+        throw new Error(`API error: ${response.status} - ${errorText}`);
       }
       
       const data = await response.json();

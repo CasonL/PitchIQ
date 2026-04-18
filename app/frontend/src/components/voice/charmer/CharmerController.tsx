@@ -843,14 +843,18 @@ const CharmerControllerContent = memo(({
       console.log(`🎤 Marcus [${aiResponse.emotion}]: "${aiResponse.content}"`);
       
       // 🎯 EMIT CANONICAL EVENT (single source of truth for this turn)
-      const canonicalEvent = strategyLayerRef.current.createCanonicalEvent(
-        strategyContext.turnContext.totalTurns + 1,
-        userText,
-        aiResponse.content,
-        buyerStateBefore,
-        strategyContext,
-        selectedScenario?.difficulty
-      );
+      // Only create canonical event if strategy analysis was run (not for instant canned responses)
+      let canonicalEvent = undefined;
+      if (strategyContext && buyerStateBefore) {
+        canonicalEvent = strategyLayerRef.current.createCanonicalEvent(
+          strategyContext.turnContext.totalTurns + 1,
+          userText,
+          aiResponse.content,
+          buyerStateBefore,
+          strategyContext,
+          selectedScenario?.difficulty
+        );
+      }
       
       // Track Marcus message for feedback generation
       if (conversationTrackerRef.current) {

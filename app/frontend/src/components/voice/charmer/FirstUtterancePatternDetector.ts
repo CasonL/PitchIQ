@@ -99,7 +99,8 @@ export class FirstUtterancePatternDetector {
           specificPattern = 'INTRO_WITH_PERMISSION';
         } else if (hasExplainedPurpose) {
           // "It's Kayson from PitchIQ, we help teams improve close rates"
-          specificPattern = 'INTRODUCTION_WITH_NAME';
+          // Route to different pattern to avoid canned response - needs full LLM context
+          specificPattern = 'INTRO_WITH_VALUE_AND_PERMISSION'; // Reuse this to skip canned response
         }
         
         return {
@@ -168,11 +169,9 @@ export class FirstUtterancePatternDetector {
    * for basic social protocol ("Good, you?" doesn't need Marcus's pain points).
    */
   static getCannedResponse(pattern: DetectedPattern): string | null {
+    // Canned responses ONLY for simple social protocol that doesn't include pitches or value props
+    // INTRODUCTION_WITH_NAME now requires explicit "how are you" check in detect() method
     switch (pattern) {
-      case 'INTRODUCTION_WITH_NAME':
-        // They introduced themselves and asked how you are
-        return "Good, thanks. You?";
-        
       case 'GREETING_WITH_QUESTION':
         // They asked how you are but didn't introduce themselves
         return "Good. Who is this?";
@@ -181,8 +180,12 @@ export class FirstUtterancePatternDetector {
         // Just "hello" or similar - cold call energy
         return "Yeah? Who's this?";
         
+      case 'GREETING_RECIPROCAL':
+        // They introduced AND asked how you are - pure social reciprocal
+        return "Good, thanks. You?";
+        
       default:
-        // Use focused or full LLM prompt for complex patterns
+        // All other patterns use focused or full LLM prompt (includes INTRODUCTION_WITH_NAME without "how are you")
         return null;
     }
   }

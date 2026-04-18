@@ -18,6 +18,10 @@ interface StrategicMomentCoachProps {
 
 const getMomentIcon = (type: string) => {
   switch (type) {
+    case 'overtalking':
+      return <MessageSquare className="w-5 h-5" />;
+    case 'question_dodge':
+      return <Target className="w-5 h-5" />;
     case 'permission_signal':
       return <Target className="w-5 h-5" />;
     case 'differentiation_ask':
@@ -40,6 +44,10 @@ const getMomentIcon = (type: string) => {
 
 const getMomentColor = (type: string) => {
   switch (type) {
+    case 'overtalking':
+      return 'from-amber-500/20 to-orange-500/20 border-amber-500/50';
+    case 'question_dodge':
+      return 'from-red-500/20 to-rose-500/20 border-red-500/50';
     case 'permission_signal':
       return 'from-green-500/20 to-emerald-500/20 border-green-500/50';
     case 'differentiation_ask':
@@ -62,6 +70,10 @@ const getMomentColor = (type: string) => {
 
 const getMomentLabel = (type: string) => {
   switch (type) {
+    case 'overtalking':
+      return 'Talk Less';
+    case 'question_dodge':
+      return 'Answer First';
     case 'permission_signal':
       return 'Permission Signal';
     case 'differentiation_ask':

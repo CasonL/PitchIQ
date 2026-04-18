@@ -765,6 +765,32 @@ const CharmerControllerContent = memo(({
         speed: speed
       });
       
+      // STRATEGIC MOMENT DETECTION: Check for coaching opportunities
+      const detectionContext = {
+        userMessage: userText,
+        marcusLastMessage: aiResponse.content,
+        marcusLastEmotion: aiResponse.emotion || 'neutral',
+        conversationHistory
+      };
+      
+      // Check for overtalking
+      const overtalkingMoment = StrategicMomentDetector.detectOvertalking(detectionContext);
+      if (overtalkingMoment) {
+        setCurrentStrategicMoment({
+          ...overtalkingMoment,
+          timestamp: Date.now()
+        });
+      }
+      
+      // Check for question dodging
+      const dodgeMoment = StrategicMomentDetector.detectQuestionDodge(detectionContext);
+      if (dodgeMoment) {
+        setCurrentStrategicMoment({
+          ...dodgeMoment,
+          timestamp: Date.now()
+        });
+      }
+      
       // Check if interrupted during speaking
       if (wasInterruptedRef.current) {
         console.log('🛑 Response interrupted during speaking');

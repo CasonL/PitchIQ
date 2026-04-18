@@ -302,7 +302,13 @@ Keep it VERY short. Cold call energy.`;
       /\b(wanted to (talk|discuss|share|see if))/i,
       /\b(quick reason|just wanted to)/i,
       /\b(improve|increase|reduce|help with|solve|fix)\b.*\b(close rate|sales|revenue|pipeline|quota|team)/i,
-      /\b(talk about|discuss|share (how|what))/i
+      /\b(talk about|discuss|share (how|what))/i,
+      // Detect value props in "talk/discuss your X and [product/solution]" format
+      /\b(talk|discuss)\b.{0,30}\b(sales|team|business|company|pipeline|revenue|growth)\b.{0,30}\b(solution|product|service|tool|platform|training|system)\b/i,
+      // Detect product/solution mentions in cold call context
+      /\b(sales|marketing|business|revenue)\b.{0,30}\b(training|solution|platform|tool|system|service)\b/i,
+      // Detect "innovative/new/powerful [product type]" patterns
+      /\b(innovative|new|powerful|advanced|cutting-edge)\b.{0,20}\b(solution|product|service|tool|platform|training|system)\b/i
     ];
     
     return purposePatterns.some(pattern => pattern.test(text));

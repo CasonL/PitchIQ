@@ -169,9 +169,14 @@ export class FirstUtterancePatternDetector {
    * for basic social protocol ("Good, you?" doesn't need Marcus's pain points).
    */
   static getCannedResponse(pattern: DetectedPattern): string | null {
-    // Canned responses ONLY for simple social protocol that doesn't include pitches or value props
-    // INTRODUCTION_WITH_NAME now requires explicit "how are you" check in detect() method
+    // Instant responses for common cold call patterns
+    // These don't need Marcus's full context - basic human reactions
     switch (pattern) {
+      // GREETINGS
+      case 'GREETING_RECIPROCAL':
+        // They introduced AND asked how you are - pure social reciprocal
+        return "Good, thanks. You?";
+        
       case 'GREETING_WITH_QUESTION':
         // They asked how you are but didn't introduce themselves
         return "Good. Who is this?";
@@ -179,13 +184,40 @@ export class FirstUtterancePatternDetector {
       case 'GREETING_ONLY':
         // Just "hello" or similar - cold call energy
         return "Yeah? Who's this?";
+      
+      // PERMISSION ASKS
+      case 'INTRO_WITH_PERMISSION':
+        // "Hey Marcus, it's Kayson from PitchIQ, do you have 5 minutes?"
+        // Cold call = guarded, brief - they haven't earned friendliness yet
+        return "What's this about?";
         
-      case 'GREETING_RECIPROCAL':
-        // They introduced AND asked how you are - pure social reciprocal
-        return "Good, thanks. You?";
+      case 'PERMISSION_FIRST':
+        // "Do you have 5 minutes?" (no intro) - sketchy
+        return "Who is this?";
+      
+      // IDENTITY CONFIRMATIONS
+      case 'IDENTITY_CONFIRMATION':
+        // "Is this Marcus?" / "Are you Marcus?"
+        return "Yeah. Who's this?";
         
+      case 'NAME_ONLY':
+        // "Marcus?" - uncertain caller
+        return "Yeah?";
+      
+      // VALUE HOOKS & COMPLEX PATTERNS
+      case 'INTRO_WITH_VALUE_AND_PERMISSION':
+        // "Hey Marcus, it's Kayson, we help with sales training, got 5 mins?"
+        // Has intro + pitch + permission = need contextual reaction
+        // Route to full LLM for Marcus's actual response based on traits
+        return null;
+        
+      case 'VALUE_HOOK_ONLY':
+        // "I can help you close 3 more deals" (no intro, no permission)
+        // Needs full LLM - Marcus's reaction depends on his current pain/needs
+        return null;
+      
       default:
-        // All other patterns use focused or full LLM prompt (includes INTRODUCTION_WITH_NAME without "how are you")
+        // All other patterns use focused or full LLM prompt
         return null;
     }
   }

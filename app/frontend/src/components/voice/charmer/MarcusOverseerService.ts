@@ -251,6 +251,14 @@ YOU ARE THIS MARCUS. Use this context to create a learning experience.
       // Strip markdown code blocks if present (LLM sometimes wraps JSON)
       content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       
+      // CRITICAL FIX: Detect if LLM returned escaped JSON string instead of raw JSON
+      // Pattern: starts with {\" instead of {"
+      if (content.startsWith('{\\')) {
+        console.log('🎭 [Overseer] Detected escaped JSON string, unescaping...');
+        // Unescape all \" to " to convert string-wrapped JSON back to raw JSON
+        content = content.replace(/\\"/g, '"');
+      }
+      
       // Parse JSON response with robust error handling
       let analysis;
       try {

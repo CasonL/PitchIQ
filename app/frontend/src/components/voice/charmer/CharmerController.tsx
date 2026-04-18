@@ -34,6 +34,7 @@ import { FirstUtterancePatternDetector } from './FirstUtterancePatternDetector';
 import { TranscriptQualityDetector } from './TranscriptQualityDetector';
 import { TrainingWheels } from './TrainingWheels';
 import { FrameworkAnalyzer } from './FrameworkAnalyzer';
+import { CriticalMomentDetector } from './CriticalMomentDetector';
 import { CallCompletionData, StoredFeedbackData, StoredCallState } from './types/CallData';
 import { LocalStorageService } from './services/LocalStorageService';
 import { ObjectionGenerator, DiscoveryContext } from './ObjectionGenerator';
@@ -264,6 +265,9 @@ const CharmerControllerContent = memo(({
     let buyerStateBefore: BuyerState | undefined;
     
     try {
+      // Classify question early - needed for all response paths
+      const classification = QuestionClassifier.classify(userText);
+      
       // Check transcript quality - detect garbled/poor STT
       const qualityCheck = TranscriptQualityDetector.assess(userText);
       
@@ -558,17 +562,18 @@ const CharmerControllerContent = memo(({
           }
         }
       } else {
-        // FALLBACK: Check for instant response patterns on first utterance
-        // First user utterance = no user messages yet (only Marcus's "Hello?" if anything)
+        // FALLBACK: Check for instant response patterns on first 3 turns only
+        // After turn 3, full LLM intelligence takes over
         const userMessages = conversationHistory.filter(msg => msg.role === 'user');
-        const isFirstUserUtterance = userMessages.length === 0;
+        const turnNumber = userMessages.length + 1;
+        const isEarlyGame = turnNumber <= 3;
         
-        if (isFirstUserUtterance) {
+        if (isEarlyGame) {
           const patternMatch = FirstUtterancePatternDetector.detect(userText);
           const cannedResponse = FirstUtterancePatternDetector.getCannedResponse(patternMatch);
           
           if (cannedResponse) {
-            console.log(`🔍 Pattern detected on final: ${patternMatch.pattern} (confidence: ${patternMatch.confidence})`);
+            console.log(`🔍 Turn ${turnNumber}: Pattern detected: ${patternMatch.pattern} (confidence: ${patternMatch.confidence})`);
             console.log(`⚡⚡⚡ CANNED: Using instant response (0ms LLM) - "${cannedResponse}"`);
             
             aiResponse = {
@@ -577,7 +582,7 @@ const CharmerControllerContent = memo(({
             };
           } else if (FirstUtterancePatternDetector.canUseInstantResponse(patternMatch.pattern)) {
             // Use focused LLM for patterns that need it
-            console.log(`🔍 Pattern detected on final: ${patternMatch.pattern} (confidence: ${patternMatch.confidence})`);
+            console.log(`🔍 Turn ${turnNumber}: Pattern detected: ${patternMatch.pattern} (confidence: ${patternMatch.confidence})`);
             console.log(`⚡ FOCUSED: Using focused LLM for pattern "${patternMatch.pattern}"`);
             
             aiResponse = await aiServiceRef.current.generateFocusedResponse({
@@ -591,6 +596,7 @@ const CharmerControllerContent = memo(({
             });
           } else {
             // No pattern - use full LLM
+            console.log(`🔍 Turn ${turnNumber}: No pattern match - using full LLM intelligence`);
             aiResponse = await aiServiceRef.current.generateResponse({
               phase: currentPhaseStr,
               conversationContext: phaseManager.getContext(),
@@ -614,7 +620,8 @@ const CharmerControllerContent = memo(({
             }, undefined, undefined, getGuidance());
           }
         } else {
-          // Not first utterance - use full LLM generation
+          // Turn 4+ - full LLM intelligence only (no pattern shortcuts)
+          console.log(`🧠 Turn ${turnNumber}: Deep intelligence mode - full LLM`);
           aiResponse = await aiServiceRef.current.generateResponse({
             phase: currentPhaseStr,
             conversationContext: phaseManager.getContext(),

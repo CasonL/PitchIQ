@@ -207,8 +207,8 @@ export class FirstUtterancePatternDetector {
       // VALUE HOOKS & COMPLEX PATTERNS
       case 'INTRO_WITH_VALUE_AND_PERMISSION':
         // "Hey Marcus, it's Kayson, we help with sales training, got 5 mins?"
-        // Pitched without permission = instant rejection
-        return "Not interested";
+        // They pitched = guarded, want to know what this is about
+        return "What's this about?";
         
       case 'VALUE_HOOK_ONLY':
         // "I can help you close 3 more deals" (no intro, no permission)

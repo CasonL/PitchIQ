@@ -163,13 +163,28 @@ export class FirstUtterancePatternDetector {
   /**
    * Get instant canned response (no LLM) for ultra-fast patterns
    * 
-   * DISABLED: Canned responses bypass Marcus's traits, Overseer context, difficulty level,
-   * and all the sophisticated context we've built. Use focused LLM prompts instead - they're
-   * still fast (50 tokens vs 500) but context-aware.
+   * ENABLED: For simple greetings/introductions, instant responses (0ms) provide
+   * better UX than waiting for LLM. Trade-off: less context-aware, but acceptable
+   * for basic social protocol ("Good, you?" doesn't need Marcus's pain points).
    */
   static getCannedResponse(pattern: DetectedPattern): string | null {
-    // All patterns now use focused LLM prompts to access Marcus's context
-    return null;
+    switch (pattern) {
+      case 'INTRODUCTION_WITH_NAME':
+        // They introduced themselves and asked how you are
+        return "Good, thanks. You?";
+        
+      case 'GREETING_WITH_QUESTION':
+        // They asked how you are but didn't introduce themselves
+        return "Good. Who is this?";
+        
+      case 'GREETING_ONLY':
+        // Just "hello" or similar - cold call energy
+        return "Yeah? Who's this?";
+        
+      default:
+        // Use focused or full LLM prompt for complex patterns
+        return null;
+    }
   }
   
   /**

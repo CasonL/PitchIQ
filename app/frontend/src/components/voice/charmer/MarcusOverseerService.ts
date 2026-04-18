@@ -248,14 +248,35 @@ YOU ARE THIS MARCUS. Use this context to create a learning experience.
         console.warn('🎭 [Overseer] Initial JSON parse failed, attempting fixes...', parseError);
         
         // Try to extract JSON object from content (in case LLM added extra text)
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        let jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
+          let extractedJson = jsonMatch[0];
+          
           try {
-            analysis = JSON.parse(jsonMatch[0]);
+            analysis = JSON.parse(extractedJson);
             console.log('🎭 [Overseer] Successfully extracted JSON from response');
           } catch (extractError) {
-            console.error('🎭 [Overseer] JSON extraction also failed:', extractError);
-            throw parseError; // Throw original error for catch block below
+            console.warn('🎭 [Overseer] Extraction failed, attempting aggressive fixes...', extractError);
+            
+            // Last resort: Try to fix common JSON issues
+            try {
+              // Fix unescaped newlines in string values
+              extractedJson = extractedJson.replace(/": "([^"]*?)(\r?\n)([^"]*?)"/g, (match, before, newline, after) => {
+                return `": "${before}\\n${after}"`;
+              });
+              
+              // Fix unescaped quotes in string values (common issue)
+              // This is tricky - we need to escape quotes that aren't closing quotes
+              // Simple heuristic: if we see '" followed by anything other than , } ] then it's likely unescaped
+              extractedJson = extractedJson.replace(/([^\\])"([^,}\]:\s])/g, '$1\\"$2');
+              
+              analysis = JSON.parse(extractedJson);
+              console.log('🎭 [Overseer] Successfully parsed with aggressive fixes');
+            } catch (finalError) {
+              console.error('🎭 [Overseer] All parsing attempts failed:', finalError);
+              console.error('🎭 [Overseer] Raw content snippet:', extractedJson.substring(0, 500));
+              throw parseError; // Throw original error for catch block below
+            }
           }
         } else {
           throw parseError;

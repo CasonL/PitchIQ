@@ -283,7 +283,8 @@ const CharmerControllerContent = memo(({
           conversationContext: phaseManager.getContext(),
           userInput: userText,
           phasePromptContext: phaseManager.getPhasePromptContext(),
-          conversationHistory: conversationHistory
+          conversationHistory: conversationHistory,
+          questionCategory: classification.category
         }, undefined, undefined, getGuidance());
         
         console.log(`🎤 Marcus [confused]: "${aiResponse.content}"`);
@@ -505,12 +506,12 @@ const CharmerControllerContent = memo(({
       setLastResistance(currentResistance);
       setCurrentResistance(buyerState.resistanceLevel);
       
-      // Classify question for logging/analysis only - NO artificial delays
-      // Response time comes from actual AI generation complexity, not fake waits
+      // Classify question to influence Marcus's response style
+      // instant/quick → brief; thoughtful/deliberate → detailed
       const classification = QuestionClassifier.classify(userText);
       const strategy = QuestionClassifier.getResponseStrategy(classification);
       
-      console.log(`🧠 Question classified: ${classification.questionType} (${classification.category})`);
+      console.log(`🧠 Question classified: ${classification.questionType} (${classification.category}) - response style: ${classification.category}`);
       
       // Check if we have a speculative response ready
       if (speculativeResponseRef.current) {
@@ -543,7 +544,8 @@ const CharmerControllerContent = memo(({
             userInput: userText,
             phasePromptContext: phaseManager.getPhasePromptContext(),
             conversationHistory: conversationHistory,
-            scenario: selectedScenario
+            scenario: selectedScenario,
+            questionCategory: classification.category
           }, undefined, undefined, getGuidance());
           
           // SAFETY: Check after generation completes
@@ -595,6 +597,7 @@ const CharmerControllerContent = memo(({
               conversationHistory: conversationHistory,
               scenario: selectedScenario,
               buyerState: buyerState,
+              questionCategory: classification.category,
               marcusTraits: selectedScenario?.traits ? {
                 painLevel: selectedScenario.traits.painLevel,
                 urgency: selectedScenario.traits.urgency,
@@ -618,6 +621,7 @@ const CharmerControllerContent = memo(({
             conversationHistory: conversationHistory,
             scenario: selectedScenario,
             buyerState: buyerState,
+            questionCategory: classification.category,
             marcusTraits: selectedScenario?.traits ? {
               painLevel: selectedScenario.traits.painLevel,
               urgency: selectedScenario.traits.urgency,
@@ -1013,13 +1017,15 @@ const CharmerControllerContent = memo(({
         const currentPhaseStr = phaseManager.getCurrentPhase();
         
         // Fallback to full system prompt
+        const speculativeClassification = QuestionClassifier.classify(newContent);
         speculativeResponseRef.current = aiServiceRef.current.generateResponse({
           phase: currentPhaseStr,
           conversationContext: phaseManager.getContext(),
           userInput: newContent,
           phasePromptContext: phaseManager.getPhasePromptContext(),
           conversationHistory: conversationHistory,
-          scenario: selectedScenario
+          scenario: selectedScenario,
+          questionCategory: speculativeClassification.category
         }, undefined, undefined, getGuidance()).catch(err => {
           console.log('⚠️ Speculative generation error:', err);
           speculativeResponseRef.current = null;

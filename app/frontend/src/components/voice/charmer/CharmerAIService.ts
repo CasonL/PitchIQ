@@ -630,6 +630,7 @@ export interface AIRequestContext {
   scenario?: any; // MarcusScenario - optional for challenge mode
   patternMatch?: PatternMatch; // For focused instant responses
   previousStrategicMoment?: StrategicMoment; // What Marcus just said/asked (detected by pattern or LLM)
+  questionCategory?: 'instant' | 'quick' | 'thoughtful' | 'deliberate' | 'statement'; // Influences response length/detail
   marcusTraits?: {
     painLevel: string;
     urgency: string;
@@ -1252,6 +1253,29 @@ export class CharmerAIService {
     // BUYER STATE: How Marcus feels and behaves (set by Strategy Layer)
     if (context.buyerState) {
       fullPrompt += this.buildBuyerStatePrompt(context.buyerState);
+    }
+    
+    // Add response style guidance based on question category
+    if (context.questionCategory) {
+      fullPrompt += `\n\n---\n\n**RESPONSE STYLE FOR THIS QUESTION:**\n`;
+      
+      switch (context.questionCategory) {
+        case 'instant':
+          fullPrompt += `This is a simple greeting or acknowledgment. Keep your response VERY brief - 1-2 sentences max. Be natural and quick.`;
+          break;
+        case 'quick':
+          fullPrompt += `This is a quick clarification or simple question. Keep your response short and direct - 2-3 sentences. Don't elaborate unless asked.`;
+          break;
+        case 'thoughtful':
+          fullPrompt += `This is a deeper discovery question. You can give a more detailed response - 3-4 sentences. Share context if relevant to your pain points.`;
+          break;
+        case 'deliberate':
+          fullPrompt += `This is a complex or probing question. Take your time with this one - you can give 4-5 sentences if needed to explain your situation properly.`;
+          break;
+        case 'statement':
+          fullPrompt += `This is a statement, not a question. Respond naturally - could be brief acknowledgment or pushback depending on content.`;
+          break;
+      }
     }
     
     fullPrompt += `\n\n---\n\n**Remember:** You are Marcus. Stay in your current identity. No role bleed.`;

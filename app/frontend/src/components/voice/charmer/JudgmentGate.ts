@@ -53,6 +53,7 @@ export class JudgmentGate {
     } = context;
 
     if (marcusJustSpoke && timeSinceLastUserSpeech < 500) {
+      console.log(`🚫 [JudgmentGate] SUPPRESS - Echo detected (${timeSinceLastUserSpeech}ms since user spoke)`);
       return {
         action: 'suppress',
         reason: 'Too soon after Marcus spoke - likely echo or interruption artifact',
@@ -63,6 +64,7 @@ export class JudgmentGate {
 
     // WITNESS DATA: Sentence completeness is an input, not a decision
     if (sentenceComplete === false && sentenceCompleteness) {
+      console.log(`⏸️ [JudgmentGate] WAIT - Sentence incomplete: ${sentenceCompleteness.reason} (confidence: ${sentenceCompleteness.confidence})`);
       return {
         action: 'wait',
         reason: `Grammatically incomplete: ${sentenceCompleteness.reason}`,
@@ -77,6 +79,7 @@ export class JudgmentGate {
       
       // HOLD for hedging or strategic ambiguity - timeout prevents deadlock
       if (signals.isHedging || signals.isAmbiguous) {
+        console.log(`🤚 [JudgmentGate] HOLD - ${cognitiveCompleteness.reason} (hedging: ${signals.isHedging}, ambiguous: ${signals.isAmbiguous})`);
         return {
           action: 'hold',
           reason: `Cognitive incompleteness: ${cognitiveCompleteness.reason}`,
@@ -86,19 +89,9 @@ export class JudgmentGate {
         };
       }
 
-      // HOLD for strategic pause - teaches silence as technique
-      if (signals.strategicPause) {
-        return {
-          action: 'hold',
-          reason: 'Strategic pause detected - intentional silence has training value here',
-          holdUntil: 'strategy_timeout',
-          delayMs: 3000, // Longer timeout for strategic training moments
-          confidence: 0.75
-        };
-      }
-
       // WAIT for thinking or followup invitation
       if (signals.isThinking || signals.invitesFollowup) {
+        console.log(`⏸️ [JudgmentGate] WAIT - ${cognitiveCompleteness.reason} (thinking: ${signals.isThinking}, followup: ${signals.invitesFollowup})`);
         return {
           action: 'wait',
           reason: cognitiveCompleteness.reason,

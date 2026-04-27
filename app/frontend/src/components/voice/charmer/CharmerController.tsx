@@ -512,9 +512,7 @@ const CharmerControllerContent = memo(({
       setLastResistance(currentResistance);
       setCurrentResistance(buyerState.resistanceLevel);
       
-      // Classify question to influence Marcus's response style
-      // instant/quick → brief; thoughtful/deliberate → detailed
-      const classification = QuestionClassifier.classify(userText);
+      // Get response strategy based on classification (already classified at top of function)
       const strategy = QuestionClassifier.getResponseStrategy(classification);
       
       console.log(`🧠 Question classified: ${classification.questionType} (${classification.category}) - response style: ${classification.category}`);

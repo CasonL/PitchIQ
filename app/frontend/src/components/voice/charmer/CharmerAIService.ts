@@ -1502,6 +1502,15 @@ ${focusedContext}`;
     prompt += `Make STATEMENTS, not questions. Real buyers don't interview salespeople.\n`;
     prompt += `Say what you think, then go quiet. Let THEM ask questions, not you.\n\n`;
     
+    // Backend-approved question (RARE - only when strategically appropriate)
+    if (state.approvedQuestion) {
+      prompt += `\n✅ **APPROVED QUESTION (use this exact question):**\n`;
+      prompt += `You MAY ask: "${state.approvedQuestion.question}"\n`;
+      prompt += `Context: ${state.approvedQuestion.context}\n`;
+      prompt += `This is a ${state.approvedQuestion.type} question that makes sense for a real buyer.\n\n`;
+      console.log(`✅ [ApprovedQ] Injected: "${state.approvedQuestion.question}" (${state.approvedQuestion.type})`);
+    }
+    
     // CRITICAL: Acknowledge when they address your concerns
     if (state.lastAcknowledgment) {
       prompt += `\n**🎯 ACKNOWLEDGE THEIR ANSWER:**\n`;

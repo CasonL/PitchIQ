@@ -58,6 +58,12 @@ export interface BuyerState {
     cost?: { surface: string; roots: Array<{ id: string; conscious: boolean; description: string; intensity: number }> };
     authority?: { surface: string; roots: Array<{ id: string; conscious: boolean; description: string; intensity: number }> };
   };
+  // Backend-approved buyer question (when provided)
+  approvedQuestion?: {
+    question: string; // Exact question Marcus should ask
+    context: string; // Why this question makes sense (for prompt context)
+    type: 'suspicious' | 'clarifying' | 'defensive' | 'curious'; // Question category
+  };
 }
 
 // COACHING ASSESSMENT: What the coach thinks about rep performance (for post-call)
@@ -431,6 +437,15 @@ export class StrategyLayer {
     let updatedSatisfaction = this.buyerState.objectionSatisfaction;
     let lastAcknowledgment: string | undefined = undefined;
 
+    // Generate approved buyer question (when contextually appropriate)
+    const approvedQuestion = this.generateApprovedBuyerQuestion(
+      userInput,
+      emotionalPosture,
+      finalResistance,
+      clarity,
+      turnContext.currentPairIndex + 1 // +1 for 1-indexed turn number
+    );
+
     // Update buyer state
     this.buyerState = {
       emotionalPosture,
@@ -456,7 +471,8 @@ export class StrategyLayer {
       canDodgeQuestions,
       consecutiveInterestDrops: this.consecutiveInterestDrops,
       lastQuestionQuality: questionQuality,
-      productSpecificObjections
+      productSpecificObjections,
+      approvedQuestion
     };
 
     // Update coaching assessment (what coach thinks)
@@ -1345,5 +1361,97 @@ e   * Calculate actual buyer interest factors
       makingAssumptions,
       providingValue
     };
+  }
+
+  /**
+   * Generate approved buyer question (when contextually appropriate)
+   * Real buyers RARELY ask questions - they make statements
+   * Only approve questions that make strategic/realistic sense
+   */
+  private generateApprovedBuyerQuestion(
+    userInput: string,
+    emotionalPosture: EmotionalPosture,
+    resistance: number,
+    clarity: number,
+    turnNumber: number
+  ): BuyerState['approvedQuestion'] | undefined {
+    
+    // RULE 1: High resistance (>6) = NO questions. Just statements.
+    if (resistance > 6) {
+      return undefined; // Too resistant to ask - just push back
+    }
+
+    // RULE 2: Very early call (turn 1-2) = Limited questions
+    if (turnNumber <= 2) {
+      // Turn 1: ONLY if rep didn't introduce themselves properly
+      if (turnNumber === 1) {
+        const hasName = /my name is|i'm|this is \w+ (from|with|at)/i.test(userInput);
+        const hasCompany = /from|with|at|representing \w+/i.test(userInput);
+        
+        if (!hasName || !hasCompany) {
+          return {
+            question: "Who is this?",
+            context: "Rep didn't introduce themselves properly - natural buyer suspicion",
+            type: 'suspicious'
+          };
+        }
+      }
+      
+      // Turn 2: ONLY if purpose is unclear
+      if (turnNumber === 2 && clarity < 4) {
+        return {
+          question: "What's this about?",
+          context: "Rep still hasn't clearly stated purpose - legitimate confusion",
+          type: 'clarifying'
+        };
+      }
+      
+      return undefined; // Otherwise, just react with statements
+    }
+
+    // RULE 3: Low clarity (<4) + curious posture = Clarifying question
+    if (clarity < 4 && emotionalPosture === 'curious') {
+      return {
+        question: "I'm not following - what exactly does this do?",
+        context: "Genuinely confused about product - needs clarification",
+        type: 'clarifying'
+      };
+    }
+
+    // RULE 4: Rep made bold claim without proof = Defensive question
+    const boldClaims = /\b(guarantee|ensure|always|never|best|top|leading|proven|definitely)\b/i.test(userInput);
+    const noProof = !/\b(because|for example|specifically|data shows|we found|case study|customer)\b/i.test(userInput);
+    
+    if (boldClaims && noProof && turnNumber > 3) {
+      return {
+        question: "How do I know that's actually true?",
+        context: "Rep made unsubstantiated claim - natural skepticism",
+        type: 'defensive'
+      };
+    }
+
+    // RULE 5: Rep keeps pitching without asking about us = Defensive pushback
+    const repAskedQuestion = /\?$/.test(userInput.trim());
+    if (!repAskedQuestion && turnNumber > 4 && resistance > 4) {
+      return {
+        question: "Why are you telling me all this?",
+        context: "Rep is pitching without discovery - buyer pushback",
+        type: 'defensive'
+      };
+    }
+
+    // RULE 6: Rep mentioned specific feature we use = Curious exploration (rare)
+    const mentionsSpecific = /\b(integration|api|crm|salesforce|hubspot|slack|teams)\b/i.test(userInput);
+    if (mentionsSpecific && emotionalPosture === 'curious' && resistance < 5) {
+      return {
+        question: "Does it work with what we already use?",
+        context: "Rep mentioned relevant technology - natural technical question",
+        type: 'curious'
+      };
+    }
+
+    // Default: NO QUESTION - just make statements
+    console.log(`🚫 [ApprovedQ] No question approved - Turn ${turnNumber}, Resistance ${resistance}, Posture ${emotionalPosture}`);
+    return undefined;
   }
 }

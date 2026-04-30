@@ -31,6 +31,24 @@ export interface ObjectionRoot {
   description: string; // What's really going on
 }
 
+// Hidden drivers - the REAL blockers (generated once)
+export interface HiddenDriver {
+  id: string;
+  type: 'trust' | 'risk' | 'capacity' | 'political' | 'past_trauma';
+  description: string; // Core psychological blocker
+  intensity: number; // 0-1, how much this blocks the sale
+  triggerThemes: string[]; // What topics activate this driver (e.g., 'price', 'implementation', 'roi')
+}
+
+// Surface objection - what Marcus SAYS (accumulated over time)
+export interface SurfaceObjection {
+  objectionText: string; // What Marcus actually says
+  linkedDriverIds: string[]; // Which hidden drivers this stems from
+  triggeredBy: string; // What revelation caused this (e.g., "Rep mentioned price")
+  severity: 'minor' | 'moderate' | 'major';
+  consciousRoots: string[]; // What Marcus thinks is the issue
+}
+
 export interface GeneratedObjection {
   type: 'timing' | 'fit' | 'trust' | 'cost' | 'status_quo' | 'authority';
   surface: string; // What Marcus says (surface-level concern)
@@ -51,10 +69,15 @@ export interface ObjectionPack {
 export class ObjectionGenerator {
   private currentPack: ObjectionPack | null = null;
   private isGenerating: boolean = false;
+  
+  // Progressive accumulation state
+  private hiddenDrivers: HiddenDriver[] = []; // Generated ONCE at start
+  private surfaceObjections: SurfaceObjection[] = []; // Accumulated over time
+  private discoveryHistory: DiscoveryContext[] = []; // Track what's been revealed
 
   /**
    * Generate objections for a specific discovery moment
-   * Progressive - refines objections as more is revealed
+   * Progressive accumulation: hidden drivers stay constant, surface objections accumulate
    */
   async generateForDiscovery(discoveryContext: DiscoveryContext): Promise<void> {
     if (this.isGenerating) {
@@ -63,12 +86,35 @@ export class ObjectionGenerator {
     }
 
     this.isGenerating = true;
+    this.discoveryHistory.push(discoveryContext);
     const stage = this.determineStage(discoveryContext);
-    console.log(`🎯 [ObjectionGen] Generating ${stage} objections for: ${discoveryContext.trigger}`);
-
+    
     try {
-      const objections = await this.callLLMForDiscoveryMoment(discoveryContext);
+      // FIRST DISCOVERY: Generate hidden drivers (root causes)
+      if (this.hiddenDrivers.length === 0) {
+        console.log(`🎯 [ObjectionGen] FIRST DISCOVERY - Generating hidden drivers`);
+        this.hiddenDrivers = await this.generateHiddenDrivers(discoveryContext);
+        console.log(`✅ Generated ${this.hiddenDrivers.length} hidden drivers:`);
+        this.hiddenDrivers.forEach((driver, idx) => {
+          console.log(`   ${idx + 1}. [${driver.type}] ${driver.description} (intensity: ${driver.intensity})`);
+        });
+      }
       
+      // EVERY DISCOVERY: Add new surface objections linked to existing drivers
+      console.log(`🎯 [ObjectionGen] Adding surface objections for: ${discoveryContext.trigger}`);
+      const newObjections = await this.generateSurfaceObjections(discoveryContext, this.hiddenDrivers);
+      this.surfaceObjections.push(...newObjections);
+      
+      console.log(`✅ Added ${newObjections.length} surface objections (total: ${this.surfaceObjections.length})`);
+      newObjections.forEach((obj, idx) => {
+        const drivers = obj.linkedDriverIds.map(id => 
+          this.hiddenDrivers.find(d => d.id === id)?.type
+        ).join(', ');
+        console.log(`   ${idx + 1}. "${obj.objectionText.substring(0, 50)}..." → [${drivers}]`);
+      });
+      
+      // Convert to old format for backwards compatibility
+      const objections = this.convertToLegacyFormat();
       this.currentPack = {
         discoveryContext,
         objections,
@@ -76,14 +122,9 @@ export class ObjectionGenerator {
         isReady: true,
         stage
       };
-
-      console.log(`✅ [ObjectionGen] Generated ${objections.length} ${stage} objections`);
-      objections.forEach((obj, idx) => {
-        console.log(`   ${idx + 1}. [${obj.type}] "${obj.surface.substring(0, 60)}..." (${obj.roots.length} roots)`);
-      });
+      
     } catch (error) {
       console.error('❌ [ObjectionGen] Generation failed:', error);
-      this.currentPack = null;
     } finally {
       this.isGenerating = false;
     }
@@ -128,6 +169,343 @@ export class ObjectionGenerator {
   reset(): void {
     this.currentPack = null;
     this.isGenerating = false;
+    this.hiddenDrivers = [];
+    this.surfaceObjections = [];
+    this.discoveryHistory = [];
+  }
+  
+  /**
+   * Get current hidden drivers (for debugging/coaching)
+   */
+  getHiddenDrivers(): HiddenDriver[] {
+    return this.hiddenDrivers;
+  }
+  
+  /**
+   * Get accumulated surface objections
+   */
+  getSurfaceObjections(): SurfaceObjection[] {
+    return this.surfaceObjections;
+  }
+
+  /**
+   * Generate hidden drivers (root causes) - called ONCE on first discovery
+   */
+  private async generateHiddenDrivers(context: DiscoveryContext): Promise<HiddenDriver[]> {
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    if (!apiKey) {
+      return this.getFallbackDrivers();
+    }
+
+    const prompt = `You are generating the CORE PSYCHOLOGICAL BLOCKERS for a buyer (Marcus) on a sales call.
+
+**Context:**
+- Product category: ${context.productCategory || 'Unknown'}
+- Value proposition: ${context.valueProposition || 'Unknown'}
+- Trigger: ${context.trigger} - "${context.triggerContent}"
+
+**Task: Generate 2-3 HIDDEN DRIVERS (root causes) that will block this sale.**
+
+These are NOT surface objections (what he says). These are deep psychological blockers that drive ALL his objections.
+
+**Examples of good hidden drivers:**
+- "Burned by overpromising AI vendors in past - needs ironclad proof before trusting"
+- "CFO scrutinizes every software spend over $5k - political risk is high"
+- "Team already overwhelmed with 3 new tools this quarter - change fatigue is real"
+- "Had implementation disaster 8 months ago - terrified of disruption"
+- "Company culture resists anything perceived as 'monitoring' - political minefield"
+
+**Requirements:**
+- 2-3 drivers maximum (not 5-6, keep it focused)
+- Each driver should be SPECIFIC to this product/context
+- Mix of types: trust issues, risk aversion, capacity constraints, political factors, past trauma
+- High intensity (0.7-0.9) - these are real blockers, not minor concerns
+- Include triggerThemes: which topics will activate this driver (price, implementation, roi, etc.)
+
+**Format as JSON:**
+\`\`\`json
+[
+  {
+    "id": "vendor_trust_trauma",
+    "type": "past_trauma",
+    "description": "Burned by overpromising AI vendor 6 months ago - cost $50k, delivered nothing",
+    "intensity": 0.85,
+    "triggerThemes": ["roi", "proof", "implementation", "vendor_credibility"]
+  }
+]
+\`\`\``;
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: 'You are an expert sales psychologist who understands buyer blockers.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.7,
+          max_tokens: 800
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices[0]?.message?.content;
+
+      if (!content) {
+        throw new Error('No content in response');
+      }
+
+      // Parse JSON from markdown code blocks
+      const jsonMatch = content.match(/```json\n([\s\S]+?)\n```/) || content.match(/```\n([\s\S]+?)\n```/);
+      const jsonString = jsonMatch ? jsonMatch[1] : content;
+      const parsed = JSON.parse(jsonString);
+
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch (error) {
+      console.error('❌ [HiddenDrivers] Generation failed:', error);
+      return this.getFallbackDrivers();
+    }
+  }
+
+  /**
+   * Generate surface objections linked to existing hidden drivers
+   */
+  private async generateSurfaceObjections(
+    context: DiscoveryContext,
+    drivers: HiddenDriver[]
+  ): Promise<SurfaceObjection[]> {
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    if (!apiKey) {
+      return this.getFallbackSurfaceObjections(context);
+    }
+
+    const driversContext = drivers.map(d => 
+      `- [${d.type}] ${d.description} (triggers on: ${d.triggerThemes.join(', ')})`
+    ).join('\n');
+
+    const prompt = `The sales rep just revealed: **${context.trigger}** - "${context.triggerContent}"
+
+**Marcus's HIDDEN DRIVERS (core blockers that stay constant):**
+${driversContext}
+
+**Task: Generate 2-4 SURFACE OBJECTIONS that Marcus would say in response to this revelation.**
+
+These objections should:
+1. Be triggered by "${context.triggerContent}"
+2. Link back to 1-2 of the hidden drivers above
+3. Sound like natural buyer pushback
+4. Include what Marcus THINKS is the issue (conscious) vs what's REALLY blocking him (hidden drivers)
+
+**Example:**
+Rep mentions: "Implementation takes 2 weeks"
+Hidden driver: "Team overwhelmed with new tools"
+Surface objection: "We don't have 2 weeks right now - team's already swamped"
+Linked drivers: ["team_capacity_maxed"]
+Conscious roots: ["No bandwidth for 2-week project"]
+
+**Format as JSON:**
+\`\`\`json
+[
+  {
+    "objectionText": "Exact words Marcus would say",
+    "linkedDriverIds": ["driver_id_1", "driver_id_2"],
+    "triggeredBy": "${context.trigger}: ${context.triggerContent}",
+    "severity": "moderate",
+    "consciousRoots": ["What Marcus thinks is the problem"]
+  }
+]
+\`\`\``;
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: 'You are generating realistic buyer objections linked to psychological drivers.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.8,
+          max_tokens: 1000
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices[0]?.message?.content;
+
+      if (!content) {
+        throw new Error('No content in response');
+      }
+
+      const jsonMatch = content.match(/```json\n([\s\S]+?)\n```/) || content.match(/```\n([\s\S]+?)\n```/);
+      const jsonString = jsonMatch ? jsonMatch[1] : content;
+      const parsed = JSON.parse(jsonString);
+
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch (error) {
+      console.error('❌ [SurfaceObjections] Generation failed:', error);
+      return this.getFallbackSurfaceObjections(context);
+    }
+  }
+
+  /**
+   * Convert new format back to legacy GeneratedObjection format
+   * This maintains backwards compatibility with existing code
+   */
+  private convertToLegacyFormat(): GeneratedObjection[] {
+    // Group surface objections by type
+    const objectionsByType: Record<string, SurfaceObjection[]> = {};
+    
+    this.surfaceObjections.forEach(obj => {
+      // Infer type from linked drivers
+      const driver = this.hiddenDrivers.find(d => obj.linkedDriverIds.includes(d.id));
+      const type = this.inferObjectionType(driver?.type, obj.objectionText);
+      
+      if (!objectionsByType[type]) {
+        objectionsByType[type] = [];
+      }
+      objectionsByType[type].push(obj);
+    });
+
+    // Convert to legacy format
+    const legacyObjections: GeneratedObjection[] = [];
+    
+    Object.entries(objectionsByType).forEach(([type, objections]) => {
+      const surfaceText = objections.map(o => o.objectionText).join(' ');
+      const linkedDrivers = [...new Set(objections.flatMap(o => o.linkedDriverIds))];
+      
+      // Build roots from drivers
+      const roots: ObjectionRoot[] = linkedDrivers.map(driverId => {
+        const driver = this.hiddenDrivers.find(d => d.id === driverId);
+        return {
+          id: driver?.id || driverId,
+          intensity: driver?.intensity || 0.7,
+          conscious: false, // Drivers are hidden
+          description: driver?.description || 'Unknown driver'
+        };
+      });
+      
+      // Add conscious roots
+      objections.forEach(obj => {
+        obj.consciousRoots.forEach(root => {
+          roots.push({
+            id: `conscious_${Math.random().toString(36).substr(2, 9)}`,
+            intensity: 0.5,
+            conscious: true,
+            description: root
+          });
+        });
+      });
+
+      legacyObjections.push({
+        type: type as GeneratedObjection['type'],
+        surface: surfaceText.substring(0, 200),
+        roots,
+        resolutionSignals: this.inferResolutionSignals(linkedDrivers),
+        severity: objections[0]?.severity || 'moderate',
+        satisfactionThreshold: 0.65
+      });
+    });
+
+    return legacyObjections;
+  }
+
+  /**
+   * Infer objection type from driver type and text
+   */
+  private inferObjectionType(driverType?: HiddenDriver['type'], text?: string): string {
+    if (text?.toLowerCase().includes('price') || text?.toLowerCase().includes('cost') || text?.toLowerCase().includes('expensive')) {
+      return 'cost';
+    }
+    if (text?.toLowerCase().includes('time') || text?.toLowerCase().includes('bandwidth') || text?.toLowerCase().includes('busy')) {
+      return 'timing';
+    }
+    if (driverType === 'trust' || driverType === 'past_trauma') {
+      return 'trust';
+    }
+    if (driverType === 'capacity') {
+      return 'timing';
+    }
+    return 'fit';
+  }
+
+  /**
+   * Infer resolution signals from drivers
+   */
+  private inferResolutionSignals(driverIds: string[]): string[] {
+    const signals = new Set<string>();
+    
+    driverIds.forEach(id => {
+      const driver = this.hiddenDrivers.find(d => d.id === id);
+      if (driver?.type === 'trust' || driver?.type === 'past_trauma') {
+        signals.add('specific_proof');
+        signals.add('risk_reversal');
+      }
+      if (driver?.type === 'capacity') {
+        signals.add('minimal_time_investment');
+        signals.add('gradual_rollout');
+      }
+      if (driver?.type === 'political') {
+        signals.add('executive_validation');
+        signals.add('peer_proof');
+      }
+    });
+
+    return Array.from(signals);
+  }
+
+  /**
+   * Fallback drivers if LLM fails
+   */
+  private getFallbackDrivers(): HiddenDriver[] {
+    return [
+      {
+        id: 'vendor_trust_issues',
+        type: 'trust',
+        description: 'Been burned by vendors before - needs strong proof',
+        intensity: 0.75,
+        triggerThemes: ['proof', 'roi', 'implementation', 'vendor_credibility']
+      },
+      {
+        id: 'team_capacity_maxed',
+        type: 'capacity',
+        description: 'Team already overwhelmed - no bandwidth for new tools',
+        intensity: 0.8,
+        triggerThemes: ['implementation', 'training', 'time_commitment']
+      }
+    ];
+  }
+
+  /**
+   * Fallback surface objections if LLM fails
+   */
+  private getFallbackSurfaceObjections(context: DiscoveryContext): SurfaceObjection[] {
+    return [
+      {
+        objectionText: "Not sure this is a fit for our team.",
+        linkedDriverIds: ['vendor_trust_issues'],
+        triggeredBy: `${context.trigger}: ${context.triggerContent}`,
+        severity: 'moderate',
+        consciousRoots: ['Unclear how it applies to us']
+      }
+    ];
   }
 
   /**

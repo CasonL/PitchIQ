@@ -368,7 +368,9 @@ CURRENT STATE:
 - Exchange count: ${request.exchangeCount}
 - Marcus resistance: ${request.currentResistance}/10
 - Phase: ${request.currentPhase}
-- Difficulty: ${request.difficulty || 'medium'}${existingContext}${existingPainPoints}
+- Difficulty: ${request.difficulty || 'medium'}
+- Budget constraint: ${request.budgetConstraint || 'unknown'}
+- Scenario ideal outcome: ${request.idealOutcome || 'unknown'}${existingContext}${existingPainPoints}
 
 **DIFFICULTY CALIBRATION (CRITICAL):**
 ${request.difficulty === 'easy' ? `
@@ -437,9 +439,9 @@ YOUR TASK: Generate Marcus's persona and scenario architecture in this EXACT JSO
   "blockingConditions": [
     {
       "type": "timing|budget|commitment|authority",
-      "blocker": "Already trying a sales training program with consultants, roleplays, workshops - costs 2k",
-      "emotionalTone": "mild annoyance|neutral|firm",
-      "howToExpress": "You're not willing to try anything new until this program finishes",
+      "blocker": "PRODUCT-SPECIFIC constraint with rich context. Example for sales training with no-budget: 'Tried sales training last year - spent $15k on workshops and role-plays. Team hated it, saw zero improvement. We've got money, just not for THIS. Our guys are average and that's good enough.' Make it SPECIFIC to what they're selling.",
+      "emotionalTone": "mild annoyance|neutral|firm|defensive",
+      "howToExpress": "Natural explanation that reveals WHY you can't/won't buy - not generic 'no budget'",
       "canBeOvercome": "true|false - If true, explain what would change your mind"
     }
   ],

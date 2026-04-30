@@ -110,6 +110,8 @@ export interface OverseerAnalysisRequest {
   lastUserMessage: string;
   difficulty?: 'easy' | 'medium' | 'hard';
   scenario?: any; // Marcus scenario context
+  budgetConstraint?: string; // 'no-budget', 'locked-contract', 'tight', etc.
+  idealOutcome?: string; // 'qualified-out', 'not-interested', 'winnable', etc.
 }
 
 export interface OverseerCache {

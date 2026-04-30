@@ -75,10 +75,13 @@ export class QuestionClassifier {
     },
     {
       patterns: [
-        /^what (are|is) (your|the) (biggest|main|primary|key) (challenge|problem|issue|pain|struggle)/i,
-        /^(tell me|walk me through|describe) (your|the) (process|workflow|system)/i,
-        /^how (do|does) (you|your team|your company) (currently|typically|usually)/i,
-        /^what (does|do) (you|your team|it) (look like|involve|entail)/i,
+        /what (are|is) (your|the) (biggest|main|primary|key) (challenge|problem|issue|pain|struggle)/i,
+        /(tell me|walk me through|describe|explain) (your|the) (process|workflow|system)/i,
+        /how (do|does) (you|your team|your company) (currently|typically|usually)/i,
+        /what (does|do|exactly|specifically)? (you|your team|it|this|that) (look like|involve|entail)/i,
+        /what (exactly|specifically) (does|do|is|are) (you|your team|it|this|that) (look like|involve|entail)/i,
+        /(what|how) (is|are) (your|the) (current|existing) (process|solution|system|setup)/i,
+        /what('s| is) (your|the) (process|situation|setup) (like|look like)/i,
       ],
       category: 'thoughtful',
       thinkingTime: 1200,
@@ -177,8 +180,17 @@ export class QuestionClassifier {
   }
 
   private static hasQuestionPattern(text: string): boolean {
-    const questionWords = /^(what|when|where|who|why|how|which|whose|whom|can|could|would|should|is|are|do|does|did|will|have|has)/i;
-    return questionWords.test(text);
+    // Check for question words anywhere in the sentence, not just at the start
+    const questionWords = /\b(what|when|where|who|why|how|which|whose|whom|can|could|would|should|is|are|do|does|did|will|have|has)\b/i;
+    
+    // Common question phrases that indicate a question even without ending ?
+    const questionPhrases = [
+      /\b(tell me|walk me through|explain|describe|curious about|wondering|wanna know|want to know)\b/i,
+      /\b(could you|can you|would you|will you)\b/i,
+      /\b(what('s| is)|how('s| is)|where('s| is))\b/i,
+    ];
+    
+    return questionWords.test(text) || questionPhrases.some(p => p.test(text));
   }
 
   private static getDefaultClassification(text: string): QuestionClassification {

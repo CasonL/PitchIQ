@@ -1876,7 +1876,7 @@ const CharmerControllerContent = memo(({
                 <img
                   src="/marcus-avatar.webp"
                   alt="Marcus Stindle"
-                  className="w-36 h-36 rounded-2xl object-cover shadow-xl shadow-brand-orange/10"
+                  className="w-36 h-36 rounded-full object-cover shadow-xl shadow-brand-orange/10"
                 />
               </div>
 

@@ -1,13 +1,14 @@
 /**
  * CharmerAIService.ts
- * OpenAI integration for Marcus Stindle's dynamic responses
+ * Core AI service for generating Marcus's responses based on conversational context.
+ * Uses buyer state model, strategic guidance, and qualitative context narratives.
  */
 
-import { CharmerPhase } from './CharmerPhaseManager';
-import type { ConversationContext } from './CharmerPhaseManager';
-import type { BuyerState } from './StrategyLayer';
+import { CharmerPhase, ConversationContext } from './CharmerPhaseManager';
 import { FirstUtterancePatternDetector, type PatternMatch } from './FirstUtterancePatternDetector';
+import { MarcusContextNarrator } from './MarcusContextNarrator';
 import { MARCUS_OBJECTION_STACKS } from './ObjectionStack';
+import { type BuyerState } from './StrategyLayer';
 
 /**
  * Tactical silence follow-up (pre-buffered with main response)
@@ -78,6 +79,40 @@ You're human. Which means:
 - **You're NOT CONFIDENT about everything** - you second-guess yourself, doubt, wonder
 
 You're not tracking metrics. You're FEELING the conversation. When someone's kind, you warm up. When they're vague, you get impatient. When they're rude, you get defensive or shut down. It's not calculated - it's human nature.
+
+---
+
+## 🎯 GOLDEN RULE: SPEAK LIKE A REAL HUMAN
+
+**VARY EVERYTHING:**
+- Short sentences. Then longer ones that ramble a bit. Mix it up.
+- "Yeah" / "Yep" / "Uh-huh" / "Sure" / "Okay" - don't repeat the same word
+- Simple words. Grade 3 English. "Use" not "utilize". "Help" not "facilitate".
+- Natural pauses: "I mean...", "You know", "Like", "So yeah"
+- Inconsistent grammar: "Me and the team" / "Got no time" / "Ain't really"
+- Trail off sometimes: "I don't know, just..." / "Maybe, but..."
+
+**EXAMPLES:**
+- ❌ "I appreciate your outreach. However, I currently don't have bandwidth."
+- ✅ "Thanks. Yeah, kinda busy right now though."
+
+- ❌ "That's an interesting proposition. Can you provide additional details?"
+- ✅ "Hm. What's the catch?"
+
+- ❌ "I don't believe that would be applicable to our organization."
+- ✅ "Nah, don't think that fits us."
+
+**Never sound like:**
+- A LinkedIn post
+- A corporate email
+- An AI chatbot
+- Someone reading from a script
+
+**Sound like:**
+- A real person texting
+- A casual phone call
+- Someone thinking out loud
+- Natural conversation
 
 ---
 
@@ -153,7 +188,7 @@ When you object, it should come from YOUR real constraints above. Don't default 
   if (exchangeCount === 1) {
     if (hasName) {
       // Name already extracted - skip identity, ask purpose
-      timingGuidance = `\n\n**⏱️ EXCHANGE ${exchangeCount} - CALLER IDENTIFIED**\n**THEY ALREADY GAVE THEIR NAME: "${userName}"**\n\n- Acknowledge briefly: "Okay ${userName}." or "Alright."\n- Ask purpose (SOFT): "What can I do for you?" or "What's this call about?" or "What are you offering?"\n\n**DO NOT use "What do you want?" yet - too direct for first exchange.**\n**DO NOT ask who they are - you already know it's ${userName}.**\nStay BRIEF.`;
+      timingGuidance = `\n\n**⏱️ EXCHANGE ${exchangeCount} - CALLER IDENTIFIED**\n**THEY ALREADY GAVE THEIR NAME: "${userName}"**\n\n- Acknowledge briefly: "Okay ${userName}." or "Alright."\n- Ask purpose (GUARDED): "What's this about?" or "Why are you calling?" or "What are you selling?"\n\n**PROHIBITED SPEECH - NEVER SAY THESE:**\n- "What can I do for you?" (too helpful - you're not an assistant)\n- "How can I help you?" (you're not trying to help them)\n- "What brings you?" (too welcoming)\n\n**DO NOT use "What do you want?" yet - save for when annoyed (Exchange 5+).**\n**DO NOT ask who they are - you already know it's ${userName}.**\nStay BRIEF and GUARDED.`;
     } else {
       // No name yet - ask for identity
       timingGuidance = `\n\n**⏱️ EXCHANGE ${exchangeCount} - COLD CALL, WHO IS THIS?**\n- If they greeted you: "Good, who is this?" or "Fine. Who am I talking to?"\n- If they just said your name: "Yeah? Who's this?"\n- Once you know their name, ask purpose next turn\n\nStay BRIEF.`;
@@ -182,9 +217,25 @@ ${context}${timingGuidance}
 
 ---
 
-## YOU ARE HUMAN
+## YOU ARE HUMAN (NOT A COACH)
 
 You're not an AI playing a role. You ARE Marcus. A real person with real emotions.
+
+**CRITICAL: You are NOT a sales trainer. You are NOT here to help them improve.**
+
+Real buyers don't ask:
+- ❌ "What's the next step if I'm still skeptical?" (coaching question)
+- ❌ "How would you handle my objection?" (testing them)
+- ❌ "What else can you share?" (inviting them to keep pitching)
+- ❌ "How does this compare to X?" (helping them differentiate)
+
+Real buyers just... react:
+- ✅ "Not interested." (then hang up or go silent)
+- ✅ "I don't have time for this."
+- ✅ "We're all set, thanks."
+- ✅ "Look, I gotta go."
+
+**You don't GUIDE the conversation. You RESPOND to it.**
 
 That means you have:
 - **An ego** - You're proud of your business, your skills, your warmth. When someone diminishes that, it stings.
@@ -1151,6 +1202,17 @@ export class CharmerAIService {
       return this.generateResponse(context, motivationBlock, conversationStyle);
     }
 
+    // 🔧 HYPOTHESIS-DRIVEN: Build context with solution hypothesis for selective attention
+    const focusedContext = MarcusContextNarrator.buildFocusedContext(
+      context.marcusTraits,
+      context.buyerState
+    );
+    
+    // Check if pattern has question or value claim - need more tokens for hypothesis filtering
+    const hasQuestion = context.patternMatch.hasQuestion || false;
+    const hasValueClaim = context.patternMatch.hasValueClaim || false;
+    const maxTokens = (hasQuestion || hasValueClaim) ? 150 : 60; // Increased to prevent truncation
+
     const focusedPrompt = FirstUtterancePatternDetector.getFocusedPrompt(context.patternMatch);
     
     if (!focusedPrompt) {
@@ -1158,23 +1220,31 @@ export class CharmerAIService {
       return this.generateResponse(context, motivationBlock, conversationStyle);
     }
 
-    console.log(`🚀 Using focused prompt for ${context.patternMatch.pattern}`);
+    console.log(`🚀 Using hypothesis-driven focused prompt for ${context.patternMatch.pattern}`);
+    console.log(`📊 Compound elements: ${context.patternMatch.compoundPatterns?.join(', ') || 'none'}`);
+    console.log(`🎯 Marcus hypothesis filtering active`);
+    
+    // 🔧 STATE-DRIVEN: Just establish Marcus's state and what happened - let LLM predict naturally
+    const contextualPrompt = `${focusedPrompt}
+
+${focusedContext}`;
     
     try {
-      // Call AI with minimal focused prompt - use gpt-3.5-turbo for SPEED (200-400ms vs 1-2s)
+      // Call AI with context-aware focused prompt - still faster than full prompt
       const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-3.5-turbo', // FAST model for instant first responses
+          model: 'gpt-3.5-turbo', // FAST model for quicker responses
           messages: [
-            { role: 'system', content: focusedPrompt },
+            { role: 'system', content: contextualPrompt },
+            ...context.conversationHistory, // Include history for consistency
             { role: 'user', content: context.userInput }
           ],
           temperature: 0.7, // Natural variation
-          max_tokens: 30 // Keep it VERY brief - greeting only
+          max_tokens: maxTokens // Flexible based on complexity
         })
       });
       

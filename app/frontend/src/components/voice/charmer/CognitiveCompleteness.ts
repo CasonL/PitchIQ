@@ -126,6 +126,14 @@ export class CognitiveCompletenessAnalyzer {
   }
 
   private static detectAmbiguity(text: string): boolean {
+    // EARLY EXIT: Definitive short statements are COMPLETE, not ambiguous
+    const definitiveRejections = /^(no|nope|not|never|nah)\.?\s*$/i;
+    const definitiveAffirmations = /^(yes|yep|yeah sure|absolutely|definitely|exactly)\.?\s*$/i;
+    
+    if (definitiveRejections.test(text) || definitiveAffirmations.test(text)) {
+      return false; // Complete thought, not ambiguous
+    }
+    
     const ambiguityPatterns = [
       /^yeah\.?\s*$/,
       /^okay\.?\s*$/,
@@ -184,18 +192,48 @@ export class CognitiveCompletenessAnalyzer {
   }
 
   private static detectFollowupInvitation(text: string): boolean {
+    // Only match QUESTION forms with rising intonation, not statements
     const followupInvitations = [
-      /\bwhat do you think\??\s*$/,
-      /\bmake sense\??\s*$/,
-      /\bsound good\??\s*$/,
-      /\bfair\??\s*$/,
-      /\bright\??\s*$/,
-      /\byou know\??\s*$/,
-      /\bor\b$/,
-      /\bbut\b$/,
-      /\band\b$/
+      /\bwhat do you think\?\s*$/,
+      /\bmake sense\?\s*$/,
+      /\bsound good\?\s*$/,
+      /\bfair\?\s*$/,
+      /\bright\?\s*$/,
+      /\byou know\?\s*$/
     ];
 
+    // Complete closing phrases - NOT hanging conjunctions
+    const completeClosingPhrases = [
+      // "or" phrases
+      /\bor\s+(not|so|whatever|something|anything|nothing|anyway|else)\b\.?\s*$/,
+      /\b(a week|a day|a month|a year)\s+or\s+so\b\.?\s*$/,
+      /\bor\s+something\s+like\s+that\b\.?\s*$/,
+      
+      // "and" phrases
+      /\band\s+(so\s+on|so\s+forth|all\s+that|that's\s+that|stuff|whatever|things\s+like\s+that)\b\.?\s*$/,
+      /\b(a week|a day|a month|a year)\s+and\s+a\s+half\b\.?\s*$/,
+      
+      // "so" phrases
+      /\b(i\s+think|if|or|and|a\s+week|a\s+day|a\s+month)\s+so\b\.?\s*$/,
+      
+      // "but" phrases
+      /\bbut\s+(not|still|then|whatever|anyway)\b\.?\s*$/,
+      
+      // Statement forms (not questions)
+      /\b(that's|it's|pretty|all)\s+(fair|right)\b\.?\s*$/,
+      /\bright\s+now\b\.?\s*$/
+    ];
+    
+    if (completeClosingPhrases.some(pattern => pattern.test(text))) {
+      return false; // Complete phrase, not an invitation
+    }
+    
+    // Context check: Long messages (15+ words) ending with conjunction are likely complete
+    const wordCount = text.split(/\s+/).length;
+    if (wordCount >= 15) {
+      return false; // Substantial message - ending conjunction is style, not incompleteness
+    }
+    
     const endsWithHangingConjunction = /\b(or|and|but|so)\b\.?\s*$/;
     
     return followupInvitations.some(pattern => pattern.test(text)) || 

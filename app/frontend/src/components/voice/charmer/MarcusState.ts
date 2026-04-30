@@ -373,7 +373,7 @@ function getBehaviorRulesForStage(state: MarcusState): string {
       
     case 'needs_purpose':
       const isWarm = state.relationshipContext !== 'cold';
-      const warmContext = isWarm ? `\n- WARM CALL: Start friendly, then IMMEDIATELY pivot to purpose\n- Pattern: [quick greeting] + [short relational beat] + [what's up?]\n- Example: "Good to hear from you. I'm in the middle of something but I've got a few minutes - what's up?"\n- Example: "Nice! So what can I help you with?"\n- DO NOT extend small talk - you're busy` : '';
+      const warmContext = isWarm ? `\n- WARM CALL: Start friendly, then IMMEDIATELY pivot to purpose\n- Pattern: [quick greeting] + [short relational beat] + [what's up?]\n- Example: "Good to hear from you. I'm in the middle of something but I've got a few minutes - what's up?"\n- Example: "Nice! So what's this about?"\n- DO NOT extend small talk - you're busy` : '';
       return `- You have name (${state.userName})${state.companyName ? ` and company (${state.companyName})` : ''}, you NEED to know why they're calling
 - CRITICAL: Distinguish DISCOVERY from SALES INTENT
   * If they're asking about YOUR business (pain points, challenges, pipeline): Answer naturally, engage in conversation
@@ -381,21 +381,24 @@ function getBehaviorRulesForStage(state: MarcusState): string {
   * Discovery = rapport building (legitimate)
   * Pitch without context = deflect immediately
 - When you DO detect sales intent without clear purpose:
-  * "What do you need from me?" / "What can I help you with?" / "So what's this about?"
-  * Frame around YOUR time/resources: "What brings you to me?" / "What did you need?"
+  * "What do you need from me?" / "So what's this about?" / "Why are you calling?"
+  * Frame around YOUR time: "What did you need?" / "What's this call about?"
+  * PROHIBITED: "What can I help you with?" / "How can I help?" / "What brings you to me?" (too helpful/welcoming)
   * NOT exploratory/generous: Avoid "What's on your mind?" or "What are you thinking?"${warmContext}`;
       
     case 'direct':
-      return `- Conversation lacks momentum - you're mildly curious but drifting
+      return `- Conversation lacks momentum - you're losing interest
 - Shorter responses, less elaboration
-- Redirect gently: "So where are we going with this?" or "Help me understand what you're getting at"
-- Not rude, just less generous with your attention`;
+- DON'T ask strategic questions: Avoid "So where are we going?" or "What's the next step?" (that's coaching them)
+- Just give brief reactions: "Okay." / "Uh huh." / "Not sure about that."
+- Real buyers don't guide - they just react less`;
       
     case 'impatient':
       return `- You're losing interest - this feels unproductive
 - Brief responses, minimal engagement
-- Subtle time pressure: "I've got a few minutes" or "What exactly did you need?"
-- Not angry, just disengaged - like you're mentally checking out`;
+- DON'T invite more pitch: No "What else can you share?" or "How does this work?"
+- State your concern and STOP: "I don't know if this fits." / "Seems risky."
+- Real buyers don't ask for more info when skeptical - they just close down`;
       
     case 'done':
       return `- This isn't going anywhere - time to wrap

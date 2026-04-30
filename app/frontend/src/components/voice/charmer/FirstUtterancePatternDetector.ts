@@ -20,32 +20,56 @@ export type DetectedPattern =
   | 'UNKNOWN';
 
 export interface PatternMatch {
-  pattern: DetectedPattern;
+  pattern: DetectedPattern; // Primary pattern for backwards compatibility
   confidence: number;
   extractedName?: string;
   extractedCompany?: string;
   hasExplainedPurpose?: boolean; // Did they explain why they're calling?
   hasPermissionAsk?: boolean; // Did they ask for permission/time?
+  hasQuestion?: boolean; // NEW: Does this contain a genuine question?
+  hasValueClaim?: boolean; // NEW: Does this contain value/benefit claims?
+  hasIntroduction?: boolean; // NEW: Did they introduce themselves?
+  compoundPatterns?: string[]; // NEW: All detected pattern elements
 }
 
 export class FirstUtterancePatternDetector {
   /**
-   * Detect pattern from first utterance partial or complete transcript
+   * Detect pattern in user's utterance
+   * Returns canned response for simple patterns, null for complex ones
+   * 
+   * @param text - User's message
+   * @param turnNumber - Which turn this is (1, 2, 3...) - greeting patterns only on Turn 1
    */
-  static detect(text: string): PatternMatch {
+  static detect(text: string, turnNumber: number = 1): PatternMatch {
     const normalized = text.toLowerCase().trim();
     
-    // Check for permission ask and purpose first
+    // Multi-jointed detection: Check ALL pattern elements
     const hasPermissionAsk = this.detectPermissionAsk(text);
     const hasExplainedPurpose = this.detectPurposeExplanation(text);
     const hasIntro = this.detectIntroduction(text);
+    const hasQuestion = this.detectQuestion(text);
+    const hasValueClaim = this.detectValueClaim(text);
+    
+    // Track compound patterns for context-aware responses
+    const compoundPatterns: string[] = [];
+    if (hasIntro) compoundPatterns.push('introduction');
+    if (hasPermissionAsk) compoundPatterns.push('permission_request');
+    if (hasExplainedPurpose) compoundPatterns.push('purpose_statement');
+    if (hasQuestion) compoundPatterns.push('question');
+    if (hasValueClaim) compoundPatterns.push('value_claim');
     
     // NEW Pattern: Question-first (before intro - common mistake)
     // "Are you still struggling with..." / "How's your Q2 pipeline?"
-    if (!hasIntro && /^(?:are you|do you|have you|is your|how's|what's|when's)\b/i.test(text)) {
+    if (!hasIntro && hasQuestion && /^(?:are you|do you|have you|is your|how's|what's|when's)\b/i.test(text)) {
       return {
         pattern: 'QUESTION_FIRST',
-        confidence: 0.9
+        confidence: 0.9,
+        hasQuestion: true,
+        hasValueClaim,
+        hasIntroduction: false,
+        hasPermissionAsk,
+        hasExplainedPurpose,
+        compoundPatterns
       };
     }
     
@@ -54,63 +78,89 @@ export class FirstUtterancePatternDetector {
     if (!hasIntro && hasPermissionAsk) {
       return {
         pattern: 'PERMISSION_FIRST',
-        confidence: 0.95
+        confidence: 0.95,
+        hasQuestion,
+        hasValueClaim,
+        hasIntroduction: false,
+        hasPermissionAsk: true,
+        hasExplainedPurpose,
+        compoundPatterns
       };
     }
     
     // NEW Pattern: Value hook only (no intro, no permission - risky)
     // "I can help you close 3 more deals" / "What if you could increase revenue by 15%"
+    // VALUE_HOOK pattern - but if it contains a question, prioritize that!
     if (!hasIntro && !hasPermissionAsk && hasExplainedPurpose) {
       return {
         pattern: 'VALUE_HOOK_ONLY',
-        confidence: 0.9
+        confidence: 0.9,
+        hasQuestion,
+        hasValueClaim: true,
+        hasIntroduction: false,
+        hasPermissionAsk: false,
+        hasExplainedPurpose: true,
+        compoundPatterns
       };
     }
     
-    // Pattern: Greeting with "How are you?" - needs reciprocal response
-    // "Hey Marcus, how are you?" / "How's it going?"
-    if (/(?:hey|hi|hello)\s+marcus.*(?:how are you|how's it going|how are things|doing)/i.test(text) && !hasExplainedPurpose) {
-      return {
-        pattern: 'GREETING_RECIPROCAL',
-        confidence: 0.95
-      };
-    }
-    
-    // Pattern: Introduction with name
-    // "Hey Marcus, this is [NAME]" / "It's [NAME] from [COMPANY]" / "[NAME] from [COMPANY]"
-    const introPatterns = [
-      /(?:this is|it'?s)\s+([A-Z][a-z]+)(?:\s+from\s+([A-Z][a-z]+(?:\s*[A-Z][a-z]+)*))?/i,
-      /(?:my name is|i'?m)\s+([A-Z][a-z]+)/i,
-      /\b([A-Z][a-z]+)\s+from\s+([A-Z][a-z]+(?:\s*[A-Z][a-z]+)*)/i, // Match "[NAME] from [COMPANY]" anywhere
-      /^([A-Z][a-z]+)\s+from\s+([A-Z][a-z]+(?:\s*[A-Z][a-z]+)*)/i
-    ];
-    
-    for (const pattern of introPatterns) {
-      const match = text.match(pattern);
-      if (match) {
-        // Determine specific pattern based on what else they included
-        let specificPattern: DetectedPattern = 'INTRODUCTION_WITH_NAME';
-        
-        if (hasExplainedPurpose && hasPermissionAsk) {
-          // "It's Kayson from PitchIQ, we help with close rates, do you have 5 minutes?"
-          specificPattern = 'INTRO_WITH_VALUE_AND_PERMISSION';
-        } else if (hasPermissionAsk) {
-          // "It's Kayson from PitchIQ, do you have 5 minutes?"
-          specificPattern = 'INTRO_WITH_PERMISSION';
-        } else if (hasExplainedPurpose) {
-          // "It's Kayson from PitchIQ, we help teams improve close rates"
-          // Route to different pattern to avoid canned response - needs full LLM context
-          specificPattern = 'INTRO_WITH_VALUE_AND_PERMISSION'; // Reuse this to skip canned response
-        }
-        
+    // GREETING PATTERNS: Only on Turn 1 - you don't greet someone twice
+    if (turnNumber === 1) {
+      // Pattern: Greeting with "How are you?" - needs reciprocal response
+      // "Hey Marcus, how are you?" / "How's it going?"
+      if (/(?:hey|hi|hello)\s+marcus.*(?:how are you|how's it going|how are things|doing)/i.test(text) && !hasExplainedPurpose) {
         return {
-          pattern: specificPattern,
+          pattern: 'GREETING_RECIPROCAL',
           confidence: 0.95,
-          extractedName: match[1],
-          extractedCompany: match[2] || undefined,
-          hasExplainedPurpose,
-          hasPermissionAsk
+          hasQuestion: true,
+          hasValueClaim,
+          hasIntroduction: hasIntro,
+          hasPermissionAsk,
+          hasExplainedPurpose: false,
+          compoundPatterns
         };
+      }
+      
+      // Pattern: Introduction with name
+      // "Hey Marcus, this is [NAME]" / "It's [NAME] from [COMPANY]" / "[NAME] from [COMPANY]"
+      const introPatterns = [
+        /(?:this is|it'?s)\s+([A-Z][a-z]+)(?:\s+from\s+([A-Z][a-z]+(?:\s*[A-Z][a-z]+)*))?/i,
+        /(?:my name is|i'?m)\s+([A-Z][a-z]+)/i,
+        /\b([A-Z][a-z]+)\s+from\s+([A-Z][a-z]+(?:\s*[A-Z][a-z]+)*)/i, // Match "[NAME] from [COMPANY]" anywhere
+        /^([A-Z][a-z]+)\s+from\s+([A-Z][a-z]+(?:\s*[A-Z][a-z]+)*)/i
+      ];
+      
+      for (const pattern of introPatterns) {
+        const match = text.match(pattern);
+        if (match) {
+          // Determine specific pattern based on what else they included
+          let specificPattern: DetectedPattern = 'INTRODUCTION_WITH_NAME';
+          
+          if (hasExplainedPurpose && hasPermissionAsk) {
+            // "It's Kayson from PitchIQ, we help with close rates, do you have 5 minutes?"
+            specificPattern = 'INTRO_WITH_VALUE_AND_PERMISSION';
+          } else if (hasPermissionAsk) {
+            // "It's Kayson from PitchIQ, do you have 5 minutes?"
+            specificPattern = 'INTRO_WITH_PERMISSION';
+          } else if (hasExplainedPurpose) {
+            // "It's Kayson from PitchIQ, we help teams improve close rates"
+            // Route to different pattern to avoid canned response - needs full LLM context
+            specificPattern = 'INTRO_WITH_VALUE_AND_PERMISSION'; // Reuse this to skip canned response
+          }
+          
+          return {
+            pattern: specificPattern,
+            confidence: 0.95,
+            extractedName: match[1],
+            extractedCompany: match[2] || undefined,
+            hasExplainedPurpose,
+            hasPermissionAsk,
+            hasQuestion,
+            hasValueClaim,
+            hasIntroduction: true,
+            compoundPatterns
+          };
+        }
       }
     }
     
@@ -119,7 +169,13 @@ export class FirstUtterancePatternDetector {
     if (/(?:is this|this is|are you)\s+marcus/i.test(text)) {
       return {
         pattern: 'IDENTITY_CONFIRMATION',
-        confidence: 0.95
+        confidence: 0.95,
+        hasQuestion: true,
+        hasValueClaim,
+        hasIntroduction: hasIntro,
+        hasPermissionAsk,
+        hasExplainedPurpose,
+        compoundPatterns
       };
     }
     
@@ -128,7 +184,13 @@ export class FirstUtterancePatternDetector {
     if (/(?:hey|hi|hello)\s+marcus.*(?:how|what|doing|going)/i.test(text)) {
       return {
         pattern: 'GREETING_WITH_QUESTION',
-        confidence: 0.9
+        confidence: 0.9,
+        hasQuestion: true,
+        hasValueClaim,
+        hasIntroduction: hasIntro,
+        hasPermissionAsk,
+        hasExplainedPurpose,
+        compoundPatterns
       };
     }
     
@@ -137,7 +199,13 @@ export class FirstUtterancePatternDetector {
     if (/^(?:hey\s+)?marcus[?,!.]?$/i.test(normalized)) {
       return {
         pattern: 'NAME_ONLY',
-        confidence: 0.85
+        confidence: 0.85,
+        hasQuestion: false,
+        hasValueClaim: false,
+        hasIntroduction: false,
+        hasPermissionAsk: false,
+        hasExplainedPurpose: false,
+        compoundPatterns
       };
     }
     
@@ -146,14 +214,26 @@ export class FirstUtterancePatternDetector {
     if (/^(?:hey|hi|hello)\s+marcus[.,!]?$/i.test(normalized)) {
       return {
         pattern: 'GREETING_ONLY',
-        confidence: 0.8
+        confidence: 0.8,
+        hasQuestion: false,
+        hasValueClaim: false,
+        hasIntroduction: false,
+        hasPermissionAsk: false,
+        hasExplainedPurpose: false,
+        compoundPatterns
       };
     }
     
     // Unknown pattern - use full LLM processing
     return {
       pattern: 'UNKNOWN',
-      confidence: 0.5
+      confidence: 0.5,
+      hasQuestion,
+      hasValueClaim,
+      hasIntroduction: hasIntro,
+      hasPermissionAsk,
+      hasExplainedPurpose,
+      compoundPatterns
     };
   }
   
@@ -164,15 +244,25 @@ export class FirstUtterancePatternDetector {
   /**
    * Get instant canned response (no LLM) for ultra-fast patterns
    * 
-   * ENABLED: For simple greetings/introductions, instant responses (0ms) provide
-   * better UX than waiting for LLM. Trade-off: less context-aware, but acceptable
-   * for basic social protocol ("Good, you?" doesn't need Marcus's pain points).
+   * OPTION 1 (ACTIVE): Only pure greetings get canned responses. Complex patterns use context-aware LLM.
+   * OPTION 2 (DISABLED): Set ENABLE_COMPLEX_CANNED = true to restore canned responses for all patterns.
    */
   static getCannedResponse(match: PatternMatch): string | null {
+    // 🎛️ TOGGLE: Set to true to restore canned responses for complex patterns (OPTION 2)
+    const ENABLE_COMPLEX_CANNED = false;
+    
     const pattern = match.pattern;
     const name = match.extractedName || null;
-    // Instant responses for common cold call patterns
-    // These don't need Marcus's full context - basic human reactions
+    
+    // 🔧 COMPOUND PATTERN CHECK: If utterance contains questions or value claims, skip canned responses
+    // These need context-aware LLM to respond properly
+    if (match.hasQuestion || match.hasValueClaim) {
+      console.log(`⚠️ Skipping canned response - compound pattern detected: ${match.compoundPatterns?.join(', ')}`);
+      return null;
+    }
+    
+    // Instant responses for PURE greetings only
+    // These don't need Marcus's context - basic social protocol
     switch (pattern) {
       // GREETINGS
       case 'GREETING_RECIPROCAL':
@@ -187,14 +277,13 @@ export class FirstUtterancePatternDetector {
         // Just "hello" or similar - cold call energy
         return "Yeah? Who's this?";
       
-      // PERMISSION ASKS
+      // PERMISSION ASKS - OPTION 2 ONLY
       case 'INTRO_WITH_PERMISSION':
-        // "Hey Marcus, it's Kayson from PitchIQ, do you have 5 minutes?"
-        // Cold call = guarded, brief - they haven't earned friendliness yet
+        if (!ENABLE_COMPLEX_CANNED) return null; // Use context-aware LLM
         return "What's this about?";
         
       case 'PERMISSION_FIRST':
-        // "Do you have 5 minutes?" (no intro) - sketchy
+        if (!ENABLE_COMPLEX_CANNED) return null; // Use context-aware LLM
         return "Who is this?";
       
       // IDENTITY CONFIRMATIONS
@@ -206,24 +295,28 @@ export class FirstUtterancePatternDetector {
         // "Marcus?" - uncertain caller
         return "Yeah?";
       
-      // VALUE HOOKS & COMPLEX PATTERNS
+      // VALUE HOOKS & COMPLEX PATTERNS - ALWAYS use context-aware LLM
       case 'INTRO_WITH_VALUE_AND_PERMISSION':
         // "Hey Marcus, it's Kayson, we help with sales training, got 5 mins?"
-        // They pitched = natural decline with contextual objection
-        // Use extracted name if available, give specific objection Overseer can expand
+        // OPTION 1: Marcus's reaction depends on his pain/satisfaction/budget - needs full context
+        if (!ENABLE_COMPLEX_CANNED) return null;
+        
+        // OPTION 2: Random canned objections (disabled by default)
         const greeting = name ? `Hey ${name}` : "Hey";
         const objections = [
           `${greeting}, we're all set over here. Already have something in place for that.`,
           `${greeting}, thanks but we're good. Got that covered already.`,
-          `${greeting}, appreciate it but we're all set. Have someone handling that.`,
-          `${greeting}, we're all set. Already have something in place for that. Thanks for the call though!`,
-          `${greeting}, appreciate it but we're good. Got that covered already. Thanks for the call though!`
+          `${greeting}, appreciate it but we're all set. Have someone handling that.`
         ];
         return objections[Math.floor(Math.random() * objections.length)];
         
       case 'VALUE_HOOK_ONLY':
         // "I can help you close 3 more deals" (no intro, no permission)
-        // Needs full LLM - Marcus's reaction depends on his current pain/needs
+        // ALWAYS needs context-aware LLM - Marcus's reaction depends on his current pain/needs
+        return null;
+        
+      case 'QUESTION_FIRST':
+        // Questions before intro need context-aware responses
         return null;
       
       default:
@@ -286,6 +379,22 @@ YOUR RESPONSE (3-5 words max):
 - Style: guarded, brief, questioning
 
 Keep it VERY short. Cold call energy.`;
+
+      case 'INTRO_WITH_VALUE_AND_PERMISSION':
+      case 'VALUE_HOOK_ONLY':
+        const callerName = match.extractedName || 'someone';
+        const callerCompany = match.extractedCompany || '';
+        
+        return `You are Marcus. ${callerName}${callerCompany ? ` from ${callerCompany}` : ''} just cold called you.
+
+YOUR STATE will tell you if you have blocking conditions (no budget, locked contract, wrong timing, not decision maker, happy with current, past bad experience, team won't adopt, other priorities, etc).
+
+IF YOU HAVE A BLOCKING CONDITION: Qualify out politely. Don't ask for details when you can't/won't buy.
+Examples: "Thanks, but we're locked in with our current vendor" / "Not a good time - we're mid-implementation" / "I'd need to run that by our VP" / "We tried this before, didn't work for us" / "Budget's allocated for the year"
+
+IF YOU'RE OPEN/CURIOUS: Ask a short question or show mild interest.
+
+Keep it human - short, natural, realistic.`;
 
       default:
         return null; // Use full system prompt
@@ -411,5 +520,53 @@ Keep it VERY short. Cold call energy.`;
     ];
     
     return introPatterns.some(pattern => pattern.test(text));
+  }
+  
+  /**
+   * Detect if utterance contains a genuine question
+   * Uses QuestionClassifier logic but returns boolean
+   */
+  private static detectQuestion(text: string): boolean {
+    // Question mark is strong signal
+    if (text.includes('?')) return true;
+    
+    // Question words at start or in middle
+    const questionWords = /\b(what|when|where|who|why|how|which|whose|whom|can|could|would|should|is|are|do|does|did|will|have|has)\b/i;
+    
+    // Question phrases
+    const questionPhrases = [
+      /\b(tell me|walk me through|explain|describe|curious about|wondering|wanna know|want to know)\b/i,
+      /\b(could you|can you|would you|will you)\b/i,
+      /\b(what('s| is)|how('s| is)|where('s| is))\b/i,
+    ];
+    
+    return questionWords.test(text) || questionPhrases.some(p => p.test(text));
+  }
+  
+  /**
+   * Detect if utterance contains value/benefit claims
+   * "I can help you..." / "We increase revenue..." / "Save 20%..."
+   */
+  private static detectValueClaim(text: string): boolean {
+    const valuePatterns = [
+      // Direct benefit claims
+      /\b(help you|save you|increase your|improve your|boost your|grow your|reduce your)\b/i,
+      /\b(save|cut|reduce)\b.*\b(time|money|costs|hours|%|percent)\b/i,
+      /\b(increase|improve|boost|grow|enhance|optimize)\b.*\b(revenue|sales|pipeline|close rate|efficiency|productivity|performance)\b/i,
+      
+      // Quantified claims
+      /\b\d+%\b/i, // Any percentage
+      /\b(double|triple|quadruple|2x|3x|10x)\b/i,
+      /\b\d+\s*(more|additional|extra)\b.*\b(deals|sales|revenue|customers|leads)\b/i,
+      
+      // Comparative claims
+      /\b(better|faster|easier|more efficient|more effective)\b.*\b(than|compared to)\b/i,
+      /\b(best|leading|top|#1|number one)\b.*\b(solution|platform|tool|service)\b/i,
+      
+      // Benefit verbs
+      /\b(solve|fix|eliminate|prevent|avoid)\b.*\b(problem|issue|pain|challenge)\b/i
+    ];
+    
+    return valuePatterns.some(pattern => pattern.test(text));
   }
 }

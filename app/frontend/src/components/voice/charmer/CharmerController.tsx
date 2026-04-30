@@ -6,7 +6,7 @@
 
 import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
 import { Button, CircularProgress } from '@mui/material';
-import { Phone as CallIcon, PhoneOff as EndCallIcon } from 'lucide-react';
+import { Phone as CallIcon, PhoneOff as EndCallIcon, PhoneOff } from 'lucide-react';
 import { MarcusVoiceProvider, useMarcusVoice } from './MarcusVoiceAdapter';
 import { CharmerPhaseManager, CharmerPhase } from './CharmerPhaseManager';
 import { CharmerContextExtractor } from './CharmerContextExtractor';
@@ -44,6 +44,7 @@ interface CharmerControllerProps {
   onCallEnd?: () => void;
   onCallComplete?: (callData: CallCompletionData) => void;
   autoStart?: boolean;
+  initialScenario?: MarcusScenario;
 }
 
 /**
@@ -52,7 +53,8 @@ interface CharmerControllerProps {
 const CharmerControllerContent = memo(({ 
   onCallEnd, 
   onCallComplete,
-  autoStart = false 
+  autoStart = false,
+  initialScenario
 }: CharmerControllerProps) => {
   const { 
     startCall, 
@@ -76,8 +78,12 @@ const CharmerControllerContent = memo(({
   // AI service
   const aiServiceRef = useRef(new CharmerAIService());
   
-  // Scenario state
+  // Scenario state - use initialScenario if provided, otherwise restore from localStorage
   const [selectedScenario, setSelectedScenario] = useState<MarcusScenario | null>(() => {
+    if (initialScenario) {
+      console.log('🎯 Using provided initialScenario:', initialScenario.name);
+      return initialScenario;
+    }
     // Restore active scenario from localStorage on mount
     const result = LocalStorageService.getItem<StoredCallState>('activeCall');
     if (result.success && result.data) {
@@ -90,6 +96,8 @@ const CharmerControllerContent = memo(({
     return null;
   });
   const [showScenarioSelector, setShowScenarioSelector] = useState(() => {
+    // Hide scenario selector if initialScenario is provided
+    if (initialScenario) return false;
     // Don't show scenario selector if we have saved feedback OR active call
     const feedbackResult = LocalStorageService.getItem<StoredFeedbackData>('feedbackData');
     const callResult = LocalStorageService.getItem<StoredCallState>('activeCall');
@@ -194,7 +202,13 @@ const CharmerControllerContent = memo(({
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   
   // Detect and fix blank state (stale localStorage blocking UI)
+  // Skip if initialScenario provided - external UI is handling scenario selection
   useEffect(() => {
+    if (initialScenario) {
+      console.log('🎯 Initial scenario provided - skipping blank state detection');
+      return;
+    }
+    
     const isBlankState = !showScenarioSelector && !showMomentFeedback && !isGeneratingFeedback && !isRinging && !isConnecting && !isConnected;
     
     if (isBlankState) {
@@ -207,7 +221,7 @@ const CharmerControllerContent = memo(({
       setShowMomentFeedback(false);
       setSelectedScenario(null);
     }
-  }, [showScenarioSelector, showMomentFeedback, isGeneratingFeedback, isRinging, isConnecting, isConnected]);
+  }, [initialScenario, showScenarioSelector, showMomentFeedback, isGeneratingFeedback, isRinging, isConnecting, isConnected]);
   
   // Refs for tracking
   const sessionIdRef = useRef<string | null>(null);
@@ -328,10 +342,7 @@ const CharmerControllerContent = memo(({
       const currentPhaseNum = phaseMap[currentPhaseStr];
       const context = phaseManager.getContext();
       
-      // Add user input to conversation history
-      setConversationHistory(prev => [...prev, { role: 'user', content: userText }]);
-      
-      // Track message for feedback generation
+      // Track message for feedback generation (but don't add to conversationHistory yet - that happens after AI responds)
       if (conversationTrackerRef.current) {
         conversationTrackerRef.current.addUserMessage(userText);
       }
@@ -349,7 +360,7 @@ const CharmerControllerContent = memo(({
           phaseManager.updateContext({ userName: extracted.name });
           console.log(`🔄 Name corrected: ${context.userName} → ${extracted.name}`);
         } else if (!context.userName) {
-          // First time seeing this name - track it but require 2 mentions to confirm
+          // First time seeing this name
           if (!nameMentionCountRef.current[extracted.name]) {
             nameMentionCountRef.current[extracted.name] = 0;
           }
@@ -357,8 +368,17 @@ const CharmerControllerContent = memo(({
           
           console.log(`📊 Name mention count for "${extracted.name}": ${nameMentionCountRef.current[extracted.name]}`);
           
-          // Only set name after 2 mentions
-          if (nameMentionCountRef.current[extracted.name] >= 2) {
+          // TURN 1 INTRODUCTION: Accept name immediately if it's clearly an introduction
+          const isIntroduction = processingUtteranceCount === 1 && (
+            /\b(it'?s|this is|my name is|i'?m)\s+[A-Z]/i.test(userText) ||
+            /\b[A-Z][a-z]+\s+from\s+/i.test(userText)
+          );
+          
+          if (isIntroduction) {
+            phaseManager.updateContext({ userName: extracted.name });
+            console.log(`✅ Captured user name: ${extracted.name} (Turn 1 introduction - immediate acceptance)`);
+          } else if (nameMentionCountRef.current[extracted.name] >= 2) {
+            // Non-introduction: require 2 mentions to confirm
             phaseManager.updateContext({ userName: extracted.name });
             console.log(`✅ Captured user name: ${extracted.name} (confirmed after ${nameMentionCountRef.current[extracted.name]} mentions)`);
           } else {
@@ -488,7 +508,9 @@ const CharmerControllerContent = memo(({
           exchangeCount: conversationHistory.length,
           lastUserMessage: userText,
           difficulty: selectedScenario?.difficulty,
-          scenario: selectedScenario
+          scenario: selectedScenario,
+          budgetConstraint: selectedScenario?.traits?.budget,
+          idealOutcome: selectedScenario?.traits?.idealOutcome
         });
       }
       
@@ -566,8 +588,14 @@ const CharmerControllerContent = memo(({
         const turnNumber = userMessages.length + 1;
         const isEarlyGame = turnNumber <= 3;
         
-        if (isEarlyGame) {
-          const patternMatch = FirstUtterancePatternDetector.detect(userText);
+        // 🔧 FIX: Only bypass patterns for DISCOVERY/THOUGHTFUL questions
+        // Social protocol questions (permission asks, greetings) should still use pattern detection
+        const isDiscoveryQuestion = classification.category === 'thoughtful' || classification.category === 'deliberate';
+        const isRealQuestion = isDiscoveryQuestion;
+        
+        if (isEarlyGame && !isRealQuestion) {
+          // Only use patterns if it's NOT a real question
+          const patternMatch = FirstUtterancePatternDetector.detect(userText, turnNumber);
           const cannedResponse = FirstUtterancePatternDetector.getCannedResponse(patternMatch);
           
           if (cannedResponse) {
@@ -617,6 +645,30 @@ const CharmerControllerContent = memo(({
               } : undefined
             }, undefined, undefined, getGuidance());
           }
+        } else if (isRealQuestion) {
+          // Real question detected - bypass patterns, use full LLM intelligence
+          console.log(`🔍 Turn ${turnNumber}: Real ${classification.category} question detected - bypassing patterns, using full LLM`);
+          aiResponse = await aiServiceRef.current.generateResponse({
+            phase: currentPhaseStr,
+            conversationContext: phaseManager.getContext(),
+            userInput: userText,
+            phasePromptContext: phaseManager.getPhasePromptContext(),
+            conversationHistory: conversationHistory,
+            scenario: selectedScenario,
+            buyerState: buyerState,
+            questionCategory: classification.category,
+            marcusTraits: selectedScenario?.traits ? {
+              painLevel: selectedScenario.traits.painLevel,
+              urgency: selectedScenario.traits.urgency,
+              budget: selectedScenario.traits.budget,
+              openness: selectedScenario.traits.openness,
+              painPoints: selectedScenario.traits.painPoints,
+              currentSolution: selectedScenario.traits.currentSolution,
+              satisfactionLevel: selectedScenario.traits.satisfactionLevel,
+              decisionTimeframe: selectedScenario.traits.decisionTimeframe,
+              primaryConcern: selectedScenario.traits.primaryConcern
+            } : undefined
+          }, undefined, undefined, getGuidance());
         } else {
           // Turn 4+ - full LLM intelligence only (no pattern shortcuts)
           console.log(`🧠 Turn ${turnNumber}: Deep intelligence mode - full LLM`);
@@ -698,7 +750,7 @@ const CharmerControllerContent = memo(({
         return;
       }
       
-      // COGNITIVE COMPLETENESS: Analyze if thought has landed (witness data)
+      // COGNITIVE COMPLETENESS: Analyze if USER's thought has landed (witness data)
       const cognitiveAnalysis = CognitiveCompletenessAnalyzer.analyze(userText, conversationHistory);
       console.log(`🧠 Cognitive analysis: ${cognitiveAnalysis.isCognitivelyComplete ? 'Complete' : 'Incomplete'} - ${cognitiveAnalysis.reason}`);
       if (!cognitiveAnalysis.isCognitivelyComplete) {
@@ -845,8 +897,12 @@ const CharmerControllerContent = memo(({
       // 3. Strategic guidance system to lead user toward hidden issues
       // 4. Puzzle-like experience with hints scattered throughout conversation
       
-      // Add Marcus's response to history
-      setConversationHistory(prev => [...prev, { role: 'assistant', content: aiResponse.content }]);
+      // Add both user message and Marcus's response to history (prevents duplicate context confusion)
+      setConversationHistory(prev => [
+        ...prev, 
+        { role: 'user', content: userText },
+        { role: 'assistant', content: aiResponse.content }
+      ]);
       console.log(`🎤 Marcus [${aiResponse.emotion}]: "${aiResponse.content}"`);
       
       // 🎯 EMIT CANONICAL EVENT (single source of truth for this turn)
@@ -1683,10 +1739,19 @@ const CharmerControllerContent = memo(({
   }, [endCall, onCallEnd, onCallComplete, conversationHistory]);
   
   /**
-   * Auto-start call if enabled
+   * Auto-trigger ringing sequence when initialScenario provided
    */
   const hasAutoStartedRef = useRef(false);
   useEffect(() => {
+    if (initialScenario && !hasAutoStartedRef.current) {
+      hasAutoStartedRef.current = true;
+      console.log('🎯 Initial scenario provided - starting proper ringing sequence');
+      setTimeout(() => {
+        handleScenarioSelect(initialScenario);
+      }, 500);
+      return;
+    }
+    
     if (autoStart && !isConnected && !isConnecting && !hasAutoStartedRef.current) {
       hasAutoStartedRef.current = true;
       console.log('🎯 Auto-starting Marcus call');
@@ -1694,7 +1759,7 @@ const CharmerControllerContent = memo(({
         handleStartCall();
       }, 500);
     }
-  }, [autoStart, isConnected, isConnecting, handleStartCall]);
+  }, [initialScenario, autoStart, isConnected, isConnecting, handleStartCall, handleScenarioSelect]);
   
   /**
    * Restore feedback UI on mount if we have saved data
@@ -1799,87 +1864,101 @@ const CharmerControllerContent = memo(({
         />
       )}
       
-      {/* Main Call Interface - Show when ringing, connecting, or connected */}
+      {/* Main Call Interface - Kimi Design */}
       {!showMomentFeedback && !showScenarioSelector && selectedScenario && (isRinging || isConnecting || isConnected) && (
-        <div className="min-h-screen bg-white flex items-center justify-center p-6">
-          <div className="w-full max-w-3xl">
-            {/* Header with Profile */}
-        <div className="text-center mb-8">
-          <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg border-2 border-black">
-            <img 
-              src="/charmer-portrait.png" 
-              alt="Marcus Stindle"
-              className="w-full h-full object-cover"
-            />
+        <div className="min-h-screen flex flex-col lg:flex-row bg-[#F8F7F5]">
+          {/* Left: Call Stage */}
+          <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+            <div className="w-full max-w-[400px]">
+              {/* Avatar */}
+              <div className="mb-6 flex justify-center">
+                <img
+                  src="/marcus-avatar.webp"
+                  alt="Marcus Stindle"
+                  className="w-36 h-36 rounded-2xl object-cover shadow-xl shadow-brand-orange/10"
+                />
+              </div>
+
+              {/* Name */}
+              <div className="text-center mb-6">
+                <h2 className="font-display text-2xl font-bold text-[#1A1A1A]">Marcus Stindle</h2>
+                <p className="text-brand-orange font-medium text-sm mt-0.5">CFO, VantageFlow</p>
+              </div>
+
+              {/* Status */}
+              <p className="text-center text-[#8A8A8A] text-xs font-mono tracking-wider uppercase mb-8">
+                {isRinging
+                  ? "Ringing..."
+                  : isConnecting
+                  ? "Connecting..."
+                  : isSpeaking
+                  ? "Marcus is speaking..."
+                  : isConnected
+                  ? "Your turn"
+                  : "Connecting..."}
+              </p>
+
+              {/* Call Controls */}
+              <div className="flex items-center justify-center gap-6 mb-6">
+                <button className="w-14 h-14 rounded-full bg-danger/10 border border-danger/20 flex items-center justify-center text-danger hover:bg-danger/20 transition-colors" onClick={handleEndCall}>
+                  <PhoneOff size={22} />
+                </button>
+              </div>
+
+              {/* Error display */}
+              {error && (
+                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-sm text-red-900">Error: {error.message}</p>
+                </div>
+              )}
+            </div>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Marcus Stindle
-          </h1>
-          <p className="text-xl text-red-600 font-medium">
-            The Charmer
-          </p>
-        </div>
-        
-        {/* Call controls - only show End Call button when connected/connecting */}
-        <div className="flex justify-center items-center gap-3 mb-8">
-          <Button
-            variant="outlined"
-            onClick={handleEndCall}
-            startIcon={<EndCallIcon />}
-            sx={{
-              bgcolor: 'white',
-              border: '1px solid #dc2626',
-              '&:hover': {
-                bgcolor: '#fef2f2',
-                border: '1px solid #dc2626',
-              },
-              color: '#dc2626',
-              fontWeight: '500',
-              fontSize: '0.875rem',
-              py: 0.75,
-              px: 3,
-              borderRadius: 2,
-              textTransform: 'none',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            End Call
-          </Button>
-          
-          {/* Processing indicator beside button */}
-          {isProcessing && (
-            <CircularProgress size={20} sx={{ color: '#dc2626' }} />
-          )}
-        </div>
-        
-        {/* Ringing indicator */}
-        {isRinging && (
-          <div className="flex justify-center items-center gap-3 mb-6 p-6 bg-white rounded-xl border-2 border-gray-300">
-            <CircularProgress size={24} sx={{ color: '#dc2626' }} />
-            <span className="text-base text-gray-700 font-medium">
-              📞 Ringing...
-            </span>
-          </div>
-        )}
-        
-        {/* Connecting indicator */}
-        {isConnecting && (
-          <div className="flex justify-center items-center gap-3 mb-6 p-6 bg-white rounded-xl border-2 border-gray-300">
-            <CircularProgress size={24} sx={{ color: '#dc2626' }} />
-            <span className="text-base text-gray-700 font-medium">
-              � Connecting...
-            </span>
-          </div>
-        )}
-        
-        {/* Error display */}
-        {error && (
-          <div className="mb-6 p-6 bg-red-50 border-2 border-red-300 rounded-xl">
-            <p className="text-base text-red-900 font-medium">
-              Error: {error.message}
-            </p>
-          </div>
-        )}
+
+          {/* Right: Transcript */}
+          <div className="flex-1 bg-white lg:border-l border-gray-100 flex flex-col min-h-[50vh] lg:min-h-0">
+            <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+              <h3 className="text-xs font-mono font-semibold text-[#8A8A8A] tracking-wider uppercase mb-4">
+                Transcript
+              </h3>
+              <div className="space-y-4">
+                {conversationTrackerRef.current?.getExchangePairs().map((pair, idx) => (
+                  <div key={idx} className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <span className="text-xs font-mono font-bold shrink-0 mt-0.5 text-brand-amber">
+                        YOU
+                      </span>
+                      <p className="text-[#1A1A1A] text-sm leading-relaxed">{pair.user.text}</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="text-xs font-mono font-bold shrink-0 mt-0.5 text-brand-orange">
+                        MARCUS
+                      </span>
+                      <p className="text-[#1A1A1A] text-sm leading-relaxed">{pair.marcus.text}</p>
+                    </div>
+                  </div>
+                ))}
+                {isSpeaking && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono font-bold text-brand-orange">MARCUS</span>
+                    <div className="flex gap-1">
+                      <span className="w-1.5 h-1.5 bg-brand-orange/40 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 bg-brand-orange/40 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-1.5 h-1.5 bg-brand-orange/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Live transcript preview */}
+            {!isFinalTranscript && transcript && (
+              <div className="border-t border-gray-100 p-6 lg:p-8 bg-gray-50/50">
+                <p className="text-xs font-mono font-semibold text-[#8A8A8A] tracking-wider uppercase mb-3">
+                  You're saying...
+                </p>
+                <p className="text-[#1A1A1A] text-sm italic opacity-60">{transcript}</p>
+              </div>
+            )}
           </div>
         </div>
       )}

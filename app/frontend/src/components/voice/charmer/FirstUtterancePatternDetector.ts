@@ -385,16 +385,35 @@ Keep it VERY short. Cold call energy.`;
         const callerName = match.extractedName || 'someone';
         const callerCompany = match.extractedCompany || '';
         
+        // Randomly select an initial objection from the pool
+        const initialObjections = [
+          "Thanks, but we're pretty happy with our current sales training methods at the moment.",
+          "I appreciate the call, but we're locked in with our current vendor right now.",
+          "Not a good time - we're mid-implementation with another solution.",
+          "I'd need to run that by our VP before we could even consider it.",
+          "We tried something like this before, didn't really work for us.",
+          "Budget's allocated for the year, so not really looking at new tools.",
+          "We're all set with what we have. Thanks though.",
+          "Honestly, we're not really in the market for this right now.",
+          "We're good. Already using Gong for that.",
+          "I don't think we have the bandwidth to take on anything new right now.",
+          "That's not really a priority for us at the moment.",
+          "We've got our own training program running internally.",
+          "I'm not the right person for this - you'd need to talk to our Head of Sales.",
+          "We just renewed with our current provider, so we're covered.",
+          "Our team's pretty resistant to new systems, honestly."
+        ];
+        
+        const selectedObjection = initialObjections[Math.floor(Math.random() * initialObjections.length)];
+        
         return `You are Marcus. ${callerName}${callerCompany ? ` from ${callerCompany}` : ''} just cold called you.
 
-YOUR STATE will tell you if you have blocking conditions (no budget, locked contract, wrong timing, not decision maker, happy with current, past bad experience, team won't adopt, other priorities, etc).
+YOUR STATE shows you have blocking conditions that prevent you from being interested right now.
 
-IF YOU HAVE A BLOCKING CONDITION: Qualify out politely. Don't ask for details when you can't/won't buy.
-Examples: "Thanks, but we're locked in with our current vendor" / "Not a good time - we're mid-implementation" / "I'd need to run that by our VP" / "We tried this before, didn't work for us" / "Budget's allocated for the year"
+YOUR EXACT RESPONSE (use this verbatim):
+"${selectedObjection}"
 
-IF YOU'RE OPEN/CURIOUS: Ask a short question or show mild interest.
-
-Keep it human - short, natural, realistic.`;
+Keep it natural - deliver this line like a real person would, with appropriate tone.`;
 
       default:
         return null; // Use full system prompt

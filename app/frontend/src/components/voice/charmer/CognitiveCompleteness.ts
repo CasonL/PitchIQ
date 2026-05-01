@@ -281,8 +281,10 @@ export class CognitiveCompletenessAnalyzer {
    * If ANY of these are present, hedging becomes style, not incompleteness
    */
   private static detectCommittedAsk(text: string): boolean {
-    // Punctuation cue: ends with question mark
+    // Punctuation cue: ends with question mark OR has question mark followed by common clarifiers
     const endsWithQuestion = /\?\s*$/.test(text);
+    const hasQuestionWithClarifier = /\?\s+(that sort of thing|or something|or whatever|you know|right|yeah)\b\.?\s*$/i.test(text);
+    const hasQuestionAnywhere = /\?/.test(text); // Any question mark indicates committed ask
     
     // Wh-word questions: what, why, how, when, where, who, which
     const hasWhWord = /\b(what|why|how|when|where|who|which|whose)\b/.test(text);
@@ -308,6 +310,8 @@ export class CognitiveCompletenessAnalyzer {
     const hasActionClosure = /\b(let me know|feel free|sound good|work for you|make sense|thoughts)\b/.test(text);
     
     return endsWithQuestion || 
+           hasQuestionWithClarifier ||
+           hasQuestionAnywhere ||
            hasWhWord || 
            hasModalRequest || 
            hasDoQuestion || 

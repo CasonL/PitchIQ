@@ -230,6 +230,8 @@ export class StrategyLayer {
   // 🎯 CANONICAL EVENTS: Single source of truth
   private eventHistory: CanonicalTurnEvent[] = [];
   private lastMarcusResponse: string = '';
+  // 🔓 BACKSTORY DISCOVERY: Track revealed backstories for dramatic metric impact
+  private revealedBackstories: Set<string> = new Set();
 
   constructor() {
     this.buyerState = this.getDefaultBuyerState();
@@ -300,13 +302,28 @@ export class StrategyLayer {
       conversationHistory
     );
 
+    // 🔓 BACKSTORY DISCOVERY: Detect if rep is uncovering hidden objection backstories
+    const backstoryDiscovery = this.detectBackstoryDiscovery(userInput, context.objectionGenerator);
+    
     // Calculate metrics before updating buyer state
-    const openness = this.calculateOpenness(repQualitySignals, finalResistance);
+    let openness = this.calculateOpenness(repQualitySignals, finalResistance);
     let patience = this.calculatePatience(turnContext, finalResistance, progressMade);
     let clarity = this.calculateClarity(conversationHistory, repQualitySignals);
     let relevance = this.calculateRelevance(repQualitySignals, finalResistance);
     let trustLevel = this.buyerState.trustLevel;
     const urgency = marcusTraits ? this.mapTraitToUrgency(marcusTraits.urgency) : 2;
+    
+    // 🎯 DRAMATIC METRIC IMPROVEMENT: Discovering backstories = major breakthrough
+    if (backstoryDiscovery.discovered) {
+      const impact = backstoryDiscovery.isFirstDiscovery ? 3.0 : 2.0; // Bigger impact for first discovery
+      openness = Math.min(10, openness + impact);
+      trustLevel = Math.min(10, trustLevel + impact);
+      relevance = Math.min(10, relevance + (impact * 0.5));
+      patience = Math.min(10, patience + 1.5);
+      
+      console.log(`🔓 [BackstoryDiscovery] Rep uncovered "${backstoryDiscovery.backstoryId}" - DRAMATIC metric boost!`);
+      console.log(`   Impact: +${impact} openness, +${impact} trust, +${(impact * 0.5).toFixed(1)} relevance, +1.5 patience`);
+    }
     
     // Evaluate question quality and interest trajectory
     const questionQuality = this.evaluateQuestionQuality(userInput, repQualitySignals);
@@ -1450,7 +1467,7 @@ e   * Calculate actual buyer interest factors
       };
     }
 
-    // RULE 7: Rep probing objection backstory = "Why do you ask?"
+    // RULE 7: Rep probing objection backstory = Curiosity questions (varied)
     // Detect discovery questions about budget, timing, past experiences, team capacity, etc.
     const probingBackstory = /\b(what happened|tell me (about|more about)|can you (share|explain)|why (is that|not)|what's (behind|driving)|what led to|curious about|help me understand)\b/i.test(userInput);
     const probingBudget = /\b(budget|spent|allocated|money)\b/i.test(userInput) && /\b(where|why|what|how)\b/i.test(userInput);
@@ -1458,15 +1475,91 @@ e   * Calculate actual buyer interest factors
     const probingTeam = /\b(team|capacity|bandwidth|overwhelmed)\b/i.test(userInput) && /\b(what|why|how)\b/i.test(userInput);
     
     if ((probingBackstory || probingBudget || probingPast || probingTeam) && turnNumber > 2) {
+      // Varied curiosity questions based on what they're probing
+      const curiosityQuestions = [
+        "Why do you ask?",
+        "What makes you curious about that?",
+        "Why's that relevant?",
+        "What's that got to do with your solution?",
+        "You're digging into that because...?",
+        "What are you getting at?",
+        "Why does that matter to you?"
+      ];
+      
+      const selectedQuestion = curiosityQuestions[Math.floor(Math.random() * curiosityQuestions.length)];
+      
       return {
-        question: "Why do you ask?",
-        context: "Rep is probing objection backstory - natural defensive curiosity",
-        type: 'defensive'
+        question: selectedQuestion,
+        context: "Rep is probing objection backstory - curious about their intent",
+        type: 'curious'
       };
     }
 
     // Default: NO QUESTION - just make statements
     console.log(`🚫 [ApprovedQ] No question approved - Turn ${turnNumber}, Resistance ${resistance}, Posture ${emotionalPosture}`);
     return undefined;
+  }
+
+  /**
+   * Detect when rep successfully uncovers objection backstories
+   * Returns dramatic metric boost when backstories are revealed
+   */
+  private detectBackstoryDiscovery(
+    userInput: string,
+    objectionGenerator?: ObjectionGenerator
+  ): { discovered: boolean; backstoryId?: string; isFirstDiscovery: boolean } {
+    
+    if (!objectionGenerator) {
+      return { discovered: false, isFirstDiscovery: false };
+    }
+
+    // Check if rep is asking discovery questions about objections
+    const probingBackstory = /\b(what happened|tell me (about|more about)|can you (share|explain)|why (is that|not)|what's (behind|driving)|what led to|curious about|help me understand)\b/i.test(userInput);
+    const probingBudget = /\b(budget|spent|allocated|money)\b/i.test(userInput) && /\b(where|why|what|how)\b/i.test(userInput);
+    const probingPast = /\b(past|before|previously|tried|experience with)\b/i.test(userInput) && /\b(what|how|tell)\b/i.test(userInput);
+    const probingTeam = /\b(team|capacity|bandwidth|overwhelmed)\b/i.test(userInput) && /\b(what|why|how)\b/i.test(userInput);
+    const probingTiming = /\b(timing|when|right time|now)\b/i.test(userInput) && /\b(why|what|how)\b/i.test(userInput);
+
+    if (!probingBackstory && !probingBudget && !probingPast && !probingTeam && !probingTiming) {
+      return { discovered: false, isFirstDiscovery: false };
+    }
+
+    // Check if there are hidden drivers with backstories available
+    const hiddenDrivers = objectionGenerator.getHiddenDrivers();
+    if (!hiddenDrivers || hiddenDrivers.length === 0) {
+      return { discovered: false, isFirstDiscovery: false };
+    }
+
+    // Find a relevant driver that hasn't been revealed yet
+    for (const driver of hiddenDrivers) {
+      if (!driver.backstory || driver.revealedBackstory) {
+        continue; // Skip if no backstory or already revealed
+      }
+
+      // Check if probing matches driver trigger themes
+      const isRelevant = driver.triggerThemes.some(theme => {
+        const themeLower = theme.toLowerCase();
+        return userInput.toLowerCase().includes(themeLower) ||
+               (themeLower.includes('budget') && probingBudget) ||
+               (themeLower.includes('capacity') && probingTeam) ||
+               (themeLower.includes('past') && probingPast) ||
+               (themeLower.includes('timing') && probingTiming);
+      });
+
+      if (isRelevant) {
+        // Mark this backstory as revealed
+        const isFirst = this.revealedBackstories.size === 0;
+        this.revealedBackstories.add(driver.id);
+        driver.revealedBackstory = true;
+        
+        return {
+          discovered: true,
+          backstoryId: driver.id,
+          isFirstDiscovery: isFirst
+        };
+      }
+    }
+
+    return { discovered: false, isFirstDiscovery: false };
   }
 }

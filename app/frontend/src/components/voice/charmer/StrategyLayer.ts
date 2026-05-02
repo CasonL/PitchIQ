@@ -1450,6 +1450,21 @@ e   * Calculate actual buyer interest factors
       };
     }
 
+    // RULE 7: Rep probing objection backstory = "Why do you ask?"
+    // Detect discovery questions about budget, timing, past experiences, team capacity, etc.
+    const probingBackstory = /\b(what happened|tell me (about|more about)|can you (share|explain)|why (is that|not)|what's (behind|driving)|what led to|curious about|help me understand)\b/i.test(userInput);
+    const probingBudget = /\b(budget|spent|allocated|money)\b/i.test(userInput) && /\b(where|why|what|how)\b/i.test(userInput);
+    const probingPast = /\b(past|before|previously|tried|experience with)\b/i.test(userInput) && /\b(what|how|tell)\b/i.test(userInput);
+    const probingTeam = /\b(team|capacity|bandwidth|overwhelmed)\b/i.test(userInput) && /\b(what|why|how)\b/i.test(userInput);
+    
+    if ((probingBackstory || probingBudget || probingPast || probingTeam) && turnNumber > 2) {
+      return {
+        question: "Why do you ask?",
+        context: "Rep is probing objection backstory - natural defensive curiosity",
+        type: 'defensive'
+      };
+    }
+
     // Default: NO QUESTION - just make statements
     console.log(`🚫 [ApprovedQ] No question approved - Turn ${turnNumber}, Resistance ${resistance}, Posture ${emotionalPosture}`);
     return undefined;

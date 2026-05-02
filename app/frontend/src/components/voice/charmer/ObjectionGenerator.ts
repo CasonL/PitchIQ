@@ -38,6 +38,8 @@ export interface HiddenDriver {
   description: string; // Core psychological blocker
   intensity: number; // 0-1, how much this blocks the sale
   triggerThemes: string[]; // What topics activate this driver (e.g., 'price', 'implementation', 'roi')
+  backstory?: string; // Rich human story explaining WHY this driver exists
+  revealedBackstory?: boolean; // Has the rep uncovered this story yet?
 }
 
 // Surface objection - what Marcus SAYS (accumulated over time)
@@ -208,32 +210,53 @@ export class ObjectionGenerator {
 
 These are NOT surface objections (what he says). These are deep psychological blockers that drive ALL his objections.
 
-**Examples of good hidden drivers:**
-- "Burned by overpromising AI vendors in past - needs ironclad proof before trusting"
-- "CFO scrutinizes every software spend over $5k - political risk is high"
-- "Team already overwhelmed with 3 new tools this quarter - change fatigue is real"
-- "Had implementation disaster 8 months ago - terrified of disruption"
-- "Company culture resists anything perceived as 'monitoring' - political minefield"
+**CRITICAL: Each driver MUST include a RICH BACKSTORY - a specific human story that explains WHY this blocker exists.**
+
+**Examples of drivers WITH backstories:**
+
+1. Budget constraint:
+   - Description: "Budget already allocated - no room for new tools"
+   - Backstory: "Team was complaining about back pain. One of our guys almost quit because of it. So we spent $15k on ergonomic chairs last month. Budget's pretty much tapped out for the quarter."
+
+2. Past trauma:
+   - Description: "Burned by vendor implementation disaster"
+   - Backstory: "Q4 outage last year. Our CRM went down for 3 days. Had to manually reconcile everything on spreadsheets. Took the whole team almost a full day just to get back to normal. CFO still brings it up."
+
+3. Capacity constraint:
+   - Description: "Team already overwhelmed with projects"
+   - Backstory: "We're mid-implementation with Salesforce right now. Our rep, Sarah, is basically living in there trying to get it configured. She's been staying late every night this week. Can't pile anything else on the team right now."
+
+4. Political risk:
+   - Description: "Need executive buy-in for software decisions"
+   - Backstory: "Our VP shut down a similar purchase last quarter. Said we're buying too many tools without proof of ROI. Now everything over $10k needs her approval, and she's... let's just say she's skeptical."
+
+5. Trust issues:
+   - Description: "Skeptical of vendor promises after bad experience"
+   - Backstory: "We signed with a training platform 8 months ago. Demo looked amazing. Reality? Half the features didn't work, support was non-existent. Wasted $30k and 6 weeks trying to make it work before we cancelled."
 
 **Requirements:**
 - 2-3 drivers maximum (not 5-6, keep it focused)
-- Each driver should be SPECIFIC to this product/context
+- Each driver MUST have a backstory with specific details (names, numbers, timeframes)
+- Backstories should feel HUMAN - like real things that happened at a real company
+- Make backstories conversational (how Marcus would actually tell the story)
 - Mix of types: trust issues, risk aversion, capacity constraints, political factors, past trauma
 - High intensity (0.7-0.9) - these are real blockers, not minor concerns
 - Include triggerThemes: which topics will activate this driver (price, implementation, roi, etc.)
 
 **Format as JSON:**
-\`\`\`json
+\\\`\\\`\\\`json
 [
   {
-    "id": "vendor_trust_trauma",
-    "type": "past_trauma",
-    "description": "Burned by overpromising AI vendor 6 months ago - cost $50k, delivered nothing",
+    "id": "budget_allocated_chairs",
+    "type": "capacity",
+    "description": "Budget already spent on urgent team needs",
+    "backstory": "Team was complaining about back pain. One of our guys almost quit because of it. So we spent $15k on ergonomic chairs last month. Budget's pretty much tapped out for the quarter.",
     "intensity": 0.85,
-    "triggerThemes": ["roi", "proof", "implementation", "vendor_credibility"]
+    "triggerThemes": ["price", "budget", "cost"],
+    "revealedBackstory": false
   }
 ]
-\`\`\``;
+\\\`\\\`\\\``;
 
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -480,15 +503,19 @@ Conscious roots: ["No bandwidth for 2-week project"]
         id: 'vendor_trust_issues',
         type: 'trust',
         description: 'Been burned by vendors before - needs strong proof',
+        backstory: 'We signed with a CRM vendor last year. Demo looked great. But once we were live, half the integrations broke. Support took days to respond. Cost us $40k and 3 months before we finally pulled the plug.',
         intensity: 0.75,
-        triggerThemes: ['proof', 'roi', 'implementation', 'vendor_credibility']
+        triggerThemes: ['proof', 'roi', 'implementation', 'vendor_credibility'],
+        revealedBackstory: false
       },
       {
         id: 'team_capacity_maxed',
         type: 'capacity',
         description: 'Team already overwhelmed - no bandwidth for new tools',
+        backstory: "We're already mid-rollout with Salesforce. Our ops manager, Lisa, has been working nights and weekends just trying to get it configured. Can't pile more on the team right now.",
         intensity: 0.8,
-        triggerThemes: ['implementation', 'training', 'time_commitment']
+        triggerThemes: ['implementation', 'training', 'time_commitment'],
+        revealedBackstory: false
       }
     ];
   }

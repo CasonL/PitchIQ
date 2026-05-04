@@ -8,7 +8,7 @@ export default function Footer() {
         <div className="flex items-center gap-2.5">
           <img
             src="/fox-mascot.png"
-            alt="PitchIQ"
+            alt="PitchIQ fox mascot logo"
             className="w-6 h-6 object-contain opacity-80"
           />
           <span className="font-display text-lg font-bold text-white/80">

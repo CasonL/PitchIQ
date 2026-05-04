@@ -8,6 +8,7 @@ export default function Hero() {
   return (
     <section
       id="hero"
+      aria-labelledby="hero-heading"
       className="relative min-h-screen flex items-center justify-center overflow-hidden bg-cream bg-noise"
     >
       {/* Soft orange glow behind phone */}
@@ -27,6 +28,7 @@ export default function Hero() {
           </motion.div>
 
           <motion.h1
+            id="hero-heading"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
@@ -81,7 +83,7 @@ export default function Hero() {
           <div className="animate-float relative">
             <img
               src="/hero-phone.png"
-              alt="PitchIQ Voice Call"
+              alt="PitchIQ sales training platform interface showing live AI buyer conversation on mobile device"
               className="w-[280px] md:w-[320px] rounded-[32px] shadow-2xl shadow-brand-orange/10"
             />
             {/* Decorative glow ring */}

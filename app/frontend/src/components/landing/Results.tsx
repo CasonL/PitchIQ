@@ -21,7 +21,7 @@ const pillars = [
 
 export default function Results() {
   return (
-    <section id="results" className="relative py-24 md:py-32 bg-gradient-to-b from-cream to-cream-warm">
+    <section id="results" aria-labelledby="results-heading" className="relative py-24 md:py-32 bg-gradient-to-b from-cream to-cream-warm">
       <div className="max-w-[1200px] mx-auto px-6">
         {/* Header */}
         <motion.div
@@ -34,7 +34,7 @@ export default function Results() {
           <span className="text-brand-orange text-xs font-mono font-medium tracking-widest uppercase mb-4 block">
             Why It Works
           </span>
-          <h2 className="font-display text-4xl md:text-5xl font-bold text-[#1A1A1A] max-w-[800px] mx-auto">
+          <h2 id="results-heading" className="font-display text-4xl md:text-5xl font-bold text-[#1A1A1A] max-w-[800px] mx-auto">
             Practice on AI Buyers. Close on Real Ones.
           </h2>
         </motion.div>

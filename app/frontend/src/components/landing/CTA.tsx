@@ -16,6 +16,7 @@ export default function CTA() {
   return (
     <section
       id="cta"
+      aria-label="Sign up for early access"
       className="relative py-24 md:py-32 bg-[#1A1A1A] overflow-hidden"
     >
       {/* Animated background particles */}

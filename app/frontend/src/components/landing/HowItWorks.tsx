@@ -82,7 +82,7 @@ function StepCard({
         <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-cream-deep">
           <img
             src={step.image}
-            alt={step.title}
+            alt={`Step ${step.number}: ${step.body}`}
             className="w-full h-40 md:h-48 object-contain mb-6"
           />
         </div>
@@ -113,7 +113,7 @@ export default function HowItWorks() {
   const isHeaderInView = useInView(headerRef, { once: true, amount: 0.3 });
 
   return (
-    <section id="how-it-works" className="relative py-24 md:py-32 bg-cream bg-noise">
+    <section id="how-it-works" aria-labelledby="how-it-works-heading" className="relative py-24 md:py-32 bg-cream bg-noise">
       <div className="max-w-[1200px] mx-auto px-6">
         {/* Header */}
         <motion.div
@@ -126,7 +126,7 @@ export default function HowItWorks() {
           <span className="text-brand-orange text-xs font-mono font-medium tracking-widest uppercase mb-4 block">
             How PitchIQ Works
           </span>
-          <h2 className="font-display text-4xl md:text-5xl font-bold text-[#1A1A1A]">
+          <h2 id="how-it-works-heading" className="font-display text-4xl md:text-5xl font-bold text-[#1A1A1A]">
             From First Login to First Closed Deal
           </h2>
         </motion.div>

@@ -62,6 +62,7 @@ export default function Pain() {
     <section
       id="pain"
       ref={sectionRef}
+      aria-labelledby="pain-heading"
       className="relative py-24 md:py-32 bg-cream-warm"
     >
       <div className="max-w-[1200px] mx-auto px-6">
@@ -75,7 +76,7 @@ export default function Pain() {
           <span className="text-brand-orange text-xs font-mono font-medium tracking-widest uppercase mb-4 block">
             The Problem
           </span>
-          <h2 className="font-display text-4xl md:text-5xl font-bold text-[#1A1A1A] max-w-[700px] leading-tight">
+          <h2 id="pain-heading" className="font-display text-4xl md:text-5xl font-bold text-[#1A1A1A] max-w-[700px] leading-tight">
             Your Pipeline Is Burning, One Bad Call at a Time
           </h2>
         </motion.div>
@@ -99,7 +100,7 @@ export default function Pain() {
                 <div className="w-14 h-14 relative shrink-0">
                   <img
                     src={point.icon}
-                    alt={point.title}
+                    alt={`${point.title} - ${point.title === 'The Hesitation Tax' ? 'Sales rep frozen during objection handling' : point.title === 'The Script Trap' ? 'Generic script failing against real buyer conversation' : 'Awkward unrealistic role-play between colleagues'}`}
                     className="w-full h-full object-contain group-hover:scale-105 transition-transform"
                   />
                 </div>

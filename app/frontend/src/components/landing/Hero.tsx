@@ -80,7 +80,7 @@ export default function Hero() {
         >
           <div className="animate-float relative">
             <img
-              src="/hero-phone.jpg"
+              src="/hero-phone.png"
               alt="PitchIQ Voice Call"
               className="w-[280px] md:w-[320px] rounded-[32px] shadow-2xl shadow-brand-orange/10"
             />

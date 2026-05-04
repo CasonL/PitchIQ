@@ -393,7 +393,7 @@ def create_app(config_name='dev'):
     register_error_handlers(flask_instance)
 
     # --- Define React frontend build directory ---
-    # This should point to your main React app's build output
+    # Points to main frontend with integrated Kimi landing page
     react_frontend_dist_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'frontend', 'dist'))
     
     # This was for a secondary, simpler landing page or other static assets, might not be needed for main React app

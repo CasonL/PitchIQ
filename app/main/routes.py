@@ -1,4 +1,4 @@
-from flask import render_template, current_app, redirect, url_for, request, g, jsonify, send_from_directory
+from flask import render_template, current_app, redirect, url_for, request, g, jsonify, send_from_directory, abort
 from flask_login import current_user, login_required
 import os
 
@@ -7,22 +7,33 @@ from . import main # Import the main blueprint instance
 # Define routes for the main blueprint
 @main.route('/')
 def index():
-    """Serve the main React application."""
-    # Construct the path to the 'dist' directory within the 'app/frontend' directory
-    # current_app.root_path is the path to the 'app' directory (where __init__.py is)
-    frontend_dist_path = os.path.join(current_app.root_path, 'frontend', 'dist')
+    """Serve the optimized Kimi landing page."""
+    landing_path = os.path.join(current_app.root_path, 'static', 'landing')
     
-    # Log the path and check if index.html exists
-    index_html_path = os.path.join(frontend_dist_path, 'index.html')
-    current_app.logger.info(f"Attempting to serve index.html from: {index_html_path}")
+    index_html_path = os.path.join(landing_path, 'index.html')
+    current_app.logger.info(f"Attempting to serve landing page from: {index_html_path}")
     if not os.path.exists(index_html_path):
         current_app.logger.error(f"index.html NOT FOUND at: {index_html_path}")
-        # Optionally, you could return a more specific error or a custom 404 page here
-        # For now, let send_from_directory handle the 404 if the file is missing.
     else:
-        current_app.logger.info(f"index.html FOUND at: {index_html_path}")
+        current_app.logger.info(f"Landing page FOUND at: {index_html_path}")
         
-    return send_from_directory(frontend_dist_path, 'index.html')
+    return send_from_directory(landing_path, 'index.html')
+
+@main.route('/assets/<path:filename>')
+def landing_assets(filename):
+    """Serve landing page assets (JS, CSS)."""
+    landing_assets_path = os.path.join(current_app.root_path, 'static', 'landing', 'assets')
+    return send_from_directory(landing_assets_path, filename)
+
+@main.route('/<path:filename>')
+def landing_static_files(filename):
+    """Serve landing page static files (images, etc)."""
+    # Only serve specific file types to avoid conflicts
+    if filename.endswith(('.jpg', '.jpeg', '.png', '.webp', '.svg', '.ico', '.txt')):
+        landing_path = os.path.join(current_app.root_path, 'static', 'landing')
+        return send_from_directory(landing_path, filename)
+    # Return 404 for other paths
+    return abort(404)
 
 @main.route('/home')
 @login_required

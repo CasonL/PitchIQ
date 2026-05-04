@@ -19,6 +19,7 @@ import AuthGuard from "./components/auth/AuthGuard";
 import AnimatedLandingPage from './pages/AnimatedLandingPage';
 import SamOrchestratorPage from './pages/SamOrchestratorPage';
 import MarcusDemoPage from './pages/MarcusDemoPage';
+import IntegratedMarcusDemo from './pages/IntegratedMarcusDemo';
 import BlogPage from './pages/BlogPage';
 import BlogPostPage from './pages/BlogPostPage';
 import AdminSignups from './pages/AdminSignups';
@@ -32,10 +33,15 @@ const App = () => (
       <Routes>
       {/* Main Landing */}
       <Route path="/" element={<LandingPage />} />
-      <Route path="/demo" element={<AnimatedLandingPage />} />
-
-      {/* Marcus Demo - Main Demo Flow */}
-      <Route path="/demo/marcus" element={<MarcusDemoPage />} />
+      
+      {/* Integrated Marcus Demo - Kimi UI + Full Backend AI */}
+      <Route path="/demo" element={<IntegratedMarcusDemo />} />
+      
+      {/* Backend-Connected Marcus Demo (Original UI) */}
+      <Route path="/demo/live" element={<MarcusDemoPage />} />
+      
+      {/* Alternative Voice Agent Demo */}
+      <Route path="/demo/voice-agent" element={<AnimatedLandingPage />} />
 
       {/* Sam Orchestrator - Coach Testing */}
       <Route path="/sam-orchestrator" element={<SamOrchestratorPage />} />

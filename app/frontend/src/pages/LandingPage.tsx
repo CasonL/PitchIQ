@@ -1,35 +1,25 @@
-import React, { useState } from "react";
-import Navbar from "@/components/Navbar";
-import HeroSection from "@/components/HeroSection";
-import HowItWorksSolutionSection from "@/components/HowItWorksSolutionSection";
-import HowItWorksSection from "@/components/HowItWorksSection";
-import PricingSection from "@/components/PricingSection";
-import Footer from "@/components/Footer";
-import EmailSignupModal from "@/components/EmailSignupModal";
+import Navbar from "@/components/landing/Navbar";
+import Hero from "@/components/landing/Hero";
+import Pain from "@/components/landing/Pain";
+import Demo from "@/components/landing/Demo";
+import HowItWorks from "@/components/landing/HowItWorks";
+import Results from "@/components/landing/Results";
+import CTA from "@/components/landing/CTA";
+import Footer from "@/components/landing/Footer";
 
 const LandingPage = () => {
-  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-
-  const openEmailSignupModal = () => setIsEmailModalOpen(true);
-
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navbar preRelease={false} onOpenEmailModal={openEmailSignupModal} />
-      <main className="flex-grow">
-        <HeroSection onOpenEmailModal={openEmailSignupModal} />
-        <HowItWorksSection onOpenEmailModal={openEmailSignupModal} />
-        <HowItWorksSolutionSection />
-        <PricingSection />
-      </main>
+    <div className="min-h-screen bg-cream">
+      <Navbar />
+      <Hero />
+      <Pain />
+      <Demo />
+      <HowItWorks />
+      <Results />
+      <CTA />
       <Footer />
-      
-      {/* Email Signup Modal */}
-      <EmailSignupModal 
-        isOpen={isEmailModalOpen} 
-        onClose={() => setIsEmailModalOpen(false)} 
-      />
     </div>
   );
 };
 
-export default LandingPage; 
+export default LandingPage;

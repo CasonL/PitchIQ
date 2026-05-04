@@ -63,7 +63,17 @@ export default {
 					'gray-light': '#F1F0FB',
 					'gray-neutral': '#8E9196',
 					dark: '#1A1F2C'
-				}
+				},
+				cream: "#FDF8F3",
+				"cream-warm": "#FFF5EB",
+				"cream-deep": "#F7EDE0",
+				"brand-orange": "#E86A33",
+				"brand-amber": "#F2A93B",
+				"brand-gold": "#FFB84D",
+				"fox-orange": "#C45D26",
+				"fox-amber": "#E8923A",
+				success: "#2D9D5D",
+				danger: "#D64545"
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -115,6 +125,22 @@ export default {
 					'0%': { opacity: '0', transform: 'translateY(20px)' },
 					'100%': { opacity: '1', transform: 'translateY(0)' },
 				},
+				'caret-blink': {
+					'0%,70%,100%': { opacity: '1' },
+					'20%,50%': { opacity: '0' },
+				},
+				'float': {
+					'0%, 100%': { transform: 'translateY(0px)' },
+					'50%': { transform: 'translateY(-12px)' },
+				},
+				'pulse-glow': {
+					'0%, 100%': { boxShadow: '0 0 20px rgba(232, 106, 51, 0.2)' },
+					'50%': { boxShadow: '0 0 40px rgba(232, 106, 51, 0.5)' },
+				},
+				'bounce-subtle': {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(-6px)' },
+				},
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
@@ -123,15 +149,25 @@ export default {
 				'slide-in': 'slide-in 0.5s ease-out forwards',
 				'flip-loop': 'flip-loop 3s linear infinite',
 				'fade-in-up': 'fadeInUp 0.7s ease-out forwards',
+				'caret-blink': 'caret-blink 1.25s ease-out infinite',
+				'float': 'float 6s ease-in-out infinite',
+				'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
+				'bounce-subtle': 'bounce-subtle 2s ease-in-out infinite',
 			},
 			fontFamily: {
 				'outfit': ['Outfit', 'sans-serif'],
 				caveat: ['"Caveat"', 'cursive'],
 				saira: ['"Saira"', 'sans-serif'],
+				display: ['"Playfair Display"', 'serif'],
+				sans: ['Inter', 'sans-serif'],
+				mono: ['"JetBrains Mono"', 'monospace'],
 			},
 			boxShadow: {
 				'glow-red': '0 0 15px 5px rgba(230, 57, 70, 0.4)',
 				'glow-red-light': '0 0 20px 8px rgba(230, 57, 70, 0.3)',
+				xs: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+				glow: '0 4px 24px rgba(232, 106, 51, 0.3)',
+				'glow-lg': '0 8px 40px rgba(232, 106, 51, 0.4)',
 			}
 		}
 	},

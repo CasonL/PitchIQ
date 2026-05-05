@@ -20,6 +20,7 @@ import AnimatedLandingPage from './pages/AnimatedLandingPage';
 import SamOrchestratorPage from './pages/SamOrchestratorPage';
 import MarcusDemoPage from './pages/MarcusDemoPage';
 import IntegratedMarcusDemo from './pages/IntegratedMarcusDemo';
+import PostCallReviewPage from './pages/PostCallReviewPage';
 import BlogPage from './pages/BlogPage';
 import BlogPostPage from './pages/BlogPostPage';
 import AdminSignups from './pages/AdminSignups';
@@ -65,6 +66,9 @@ const App = () => (
       <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
       <Route path="/resend-verification-request" element={<ResendVerificationRequestPage />} />
+      
+      {/* Post-Call Review (Kimi Demo) */}
+      <Route path="/post-call-review" element={<PostCallReviewPage />} />
       
       {/* 404 */}
       <Route path="*" element={<NotFound />} />

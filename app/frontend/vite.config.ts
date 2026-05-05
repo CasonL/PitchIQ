@@ -1,12 +1,27 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import fs from "fs";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 5173,
+    middlewareMode: false,
+    // Serve static HTML for post-call-review before React Router
+    configure: (app) => {
+      app.use((req, res, next) => {
+        if (req.url?.startsWith('/post-call-review')) {
+          const filePath = path.join(__dirname, 'public', req.url);
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            res.setHeader('Content-Type', 'text/html');
+            return res.end(fs.readFileSync(filePath));
+          }
+        }
+        next();
+      });
+    },
     proxy: {
       '/socket.io': {
         target: 'ws://127.0.0.1:8080',

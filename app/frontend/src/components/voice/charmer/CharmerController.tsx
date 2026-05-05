@@ -1729,9 +1729,9 @@ const CharmerControllerContent = memo(({
     // End loading state
     setIsGeneratingFeedback(false);
     
-    // Redirect to Kimi demo experience immediately (force full reload to bypass React Router)
-    console.log('🎯 Redirecting to post-call demo experience (bypassing feedback checks)...');
-    window.location.replace('/post-call-review/');
+    // Open Kimi demo in new tab (bypasses React Router completely)
+    console.log('🎯 Opening post-call demo experience in new tab...');
+    window.open('/post-call-review/index.html', '_blank');
     
   }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking]);
   

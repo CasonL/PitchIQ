@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marcus Call Feedback - PitchIQ</title>
+</head>
+<body>
+  <!-- 
+    This static HTML file allows Netlify to detect and configure the form.
+    The actual form is rendered by React (CallFeedbackForm.tsx).
+  -->
+  <form 
+    name="marcus-call-feedback" 
+    method="POST" 
+    data-netlify="true" 
+    data-netlify-honeypot="bot-field"
+    hidden
+  >
+    <input type="hidden" name="form-name" value="marcus-call-feedback" />
+    <input type="text" name="bot-field" />
+    <input type="number" name="rating" />
+    <input type="text" name="session-id" />
+    <input type="text" name="call-duration" />
+    <textarea name="feedback"></textarea>
+    <input type="email" name="email" />
+  </form>
+  
+  <p>This form is handled by Netlify Forms. If you see this page, something went wrong.</p>
+</body>
+</html>

@@ -29,7 +29,9 @@ export interface ConversationExchange {
   role: 'user' | 'assistant';
   content: string;
   timestamp?: number;
+  timestampMs?: number;  // Milliseconds from call start (for precise audio sync)
   emotion?: string;
+  turnNumber?: number;   // Which turn this exchange belongs to
 }
 
 /**
@@ -68,6 +70,9 @@ export interface CriticalMoment {
   impact?: string;
   suggestion?: string;
   timestamp?: number;
+  // Audio playback sync (for call recordings)
+  audioTimestamp?: number;   // Seconds into recording where this moment starts
+  audioDuration?: number;     // Duration of this exchange in seconds
 }
 
 /**
@@ -120,6 +125,9 @@ export interface StoredFeedbackData {
   hybridFeedbackAnalyses?: HybridFeedbackAnalysis[];
   timestamp: number;
   sessionId?: string;
+  // Call recording (optional)
+  recordingBlob?: Blob;           // Audio file of the call
+  recordingStartTime?: number;    // performance.now() when recording started
 }
 
 /**

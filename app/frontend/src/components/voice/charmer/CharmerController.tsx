@@ -1742,9 +1742,9 @@ const CharmerControllerContent = memo(({
       onCallComplete(callData);
     }
     
-    // Redirect to Kimi demo experience
+    // Redirect to Kimi demo experience (force full reload to bypass React Router)
     console.log('🎯 Redirecting to post-call demo experience...');
-    window.location.href = '/demo/index.html';
+    window.location.replace('/post-call-review/');
     
   }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking]);
   

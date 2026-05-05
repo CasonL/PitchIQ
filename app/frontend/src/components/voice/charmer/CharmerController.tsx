@@ -1723,27 +1723,14 @@ const CharmerControllerContent = memo(({
     const hybridAnalyses = hybridFeedbackRef.current.getAllAnalyses();
     console.log(`🔍 Collected ${hybridAnalyses.length} hybrid feedback analyses from live call`);
     
-    setMomentFeedbackData({
-      duration,
-      conversationExchanges: conversationExchanges as any, // TODO: Align ConversationExchange types across files
-      objectionData: objectionData as any, // TODO: Standardize ObjectionData structure
-      buyerState: buyerState as any, // TODO: Unify BuyerState interface
-      finalResistance,
-      metrics,
-      preAnalyzedMoments: viewModels.length > 0 ? (viewModels as any) : undefined, // TODO: Create type adapter
-      hybridFeedbackAnalyses: hybridAnalyses.length > 0 ? (hybridAnalyses as any) : undefined, // TODO: Create type adapter
-      timestamp: Date.now()
-    });
+    // Skip setting feedback data - redirect directly to Kimi demo
+    // (Kimi demo doesn't need this data, it has its own mock data)
     
     // End loading state
     setIsGeneratingFeedback(false);
     
-    if (onCallComplete) {
-      onCallComplete(callData);
-    }
-    
-    // Redirect to Kimi demo experience (force full reload to bypass React Router)
-    console.log('🎯 Redirecting to post-call demo experience...');
+    // Redirect to Kimi demo experience immediately (force full reload to bypass React Router)
+    console.log('🎯 Redirecting to post-call demo experience (bypassing feedback checks)...');
     window.location.replace('/post-call-review/');
     
   }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking]);

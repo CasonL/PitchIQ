@@ -66,7 +66,8 @@ const CharmerControllerContent = memo(({
     isFinalTranscript,
     error,
     speakAsMarcus,
-    isSpeaking
+    isSpeaking,
+    stopSpeaking
   } = useMarcusVoice();
   
   // Overseer - dynamic scenario architect
@@ -1428,8 +1429,14 @@ const CharmerControllerContent = memo(({
   const handleEndCall = useCallback(async () => {
     console.log('📵 Ending Marcus call - terminating WebSocket immediately');
     
-    // CRITICAL: End call FIRST to terminate WebSocket immediately
-    endCall();
+    // CRITICAL: Stop Marcus from speaking IMMEDIATELY
+    if (typeof stopSpeaking === 'function') {
+      await stopSpeaking();
+      console.log('🔇 Stopped Marcus speech');
+    }
+    
+    // End call to terminate WebSocket
+    await endCall();
     
     // Clear active call state from localStorage
     const clearResult = LocalStorageService.removeItem('activeCall');
@@ -1728,16 +1735,18 @@ const CharmerControllerContent = memo(({
       timestamp: Date.now()
     });
     
-    // End loading state and show feedback
+    // End loading state
     setIsGeneratingFeedback(false);
-    setShowMomentFeedback(true);
     
     if (onCallComplete) {
       onCallComplete(callData);
     }
     
-    // Don't call onCallEnd yet - wait until user closes feedback
-  }, [endCall, onCallEnd, onCallComplete, conversationHistory]);
+    // Redirect to Kimi demo experience
+    console.log('🎯 Redirecting to post-call demo experience...');
+    window.location.href = '/Kimi_Agent_Post-Sales Feedback Summary/app/index.html';
+    
+  }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking]);
   
   /**
    * Auto-trigger ringing sequence when initialScenario provided

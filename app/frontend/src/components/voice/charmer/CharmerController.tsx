@@ -1744,7 +1744,7 @@ const CharmerControllerContent = memo(({
     
     // Redirect to Kimi demo experience
     console.log('🎯 Redirecting to post-call demo experience...');
-    window.location.href = '/Kimi_Agent_Post-Sales Feedback Summary/app/index.html';
+    window.location.href = '/demo/index.html';
     
   }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking]);
   

@@ -1,8 +1,8 @@
 import { ArrowLeft, RotateCcw, LogIn } from "lucide-react";
 
 interface NavbarProps {
-  activeTab: "summary" | "timeline";
-  onTabChange: (tab: "summary" | "timeline") => void;
+  activeTab: "summary" | "timeline" | "completion";
+  onTabChange: (tab: "summary" | "timeline" | "completion") => void;
 }
 
 export default function Navbar({ activeTab, onTabChange }: NavbarProps) {

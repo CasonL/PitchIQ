@@ -30,6 +30,8 @@ export class MarcusOverseerService {
   private cache: OverseerCache;
   private enabled: boolean;
   private apiEndpoint: string;
+  private readonly MIN_INTERVAL_MS = 15000; // Run every 15 seconds minimum
+  private abortController: AbortController | null = null;
   
   constructor(enabled: boolean = true) {
     this.enabled = enabled;
@@ -45,20 +47,37 @@ export class MarcusOverseerService {
   
   /**
    * Start parallel scenario architecture (non-blocking)
+   * PROACTIVE: Only runs every 15s to plan AHEAD for next 2-3 turns
    * Returns immediately, analysis runs in background
    */
   startAnalysis(request: OverseerAnalysisRequest): void {
     if (!this.enabled) return;
     
-    // Don't start new analysis if one is already pending
-    if (this.cache.pendingAnalysis) {
+    // THROTTLE: Only run if enough time has passed since last analysis
+    const now = Date.now();
+    const timeSinceLastUpdate = now - this.cache.lastUpdateTimestamp;
+    
+    if (timeSinceLastUpdate < this.MIN_INTERVAL_MS) {
+      // Too soon - reuse existing architecture
       return;
     }
     
-    console.log('🎭 [Overseer] Architecting scenario dynamics...');
+    // Don't start new analysis if one is already pending
+    if (this.cache.pendingAnalysis) {
+      console.log('🎭 [Overseer] Analysis already running - skipping');
+      return;
+    }
+    
+    console.log('🎭 [Overseer] Planning ahead for next 2-3 turns...');
+    
+    // Cancel any previous analysis
+    if (this.abortController) {
+      this.abortController.abort();
+    }
+    this.abortController = new AbortController();
     
     // Start async analysis
-    this.cache.pendingAnalysis = this.performAnalysis(request)
+    this.cache.pendingAnalysis = this.performAnalysis(request, this.abortController.signal)
       .then(architecture => {
         console.log('🎭 [Overseer] Architecture ready:', architecture.whyThisTeaches);
         this.cache.lastArchitecture = architecture;
@@ -70,11 +89,18 @@ export class MarcusOverseerService {
         }
         
         this.cache.pendingAnalysis = null;
+        this.abortController = null;
         return architecture;
       })
       .catch(error => {
-        console.error('🎭 [Overseer] Architecture failed:', error);
+        // Ignore abort errors - they're intentional
+        if (error.name === 'AbortError') {
+          console.log('🎭 [Overseer] Analysis superseded by new request');
+        } else {
+          console.error('🎭 [Overseer] Analysis error:', error);
+        }
         this.cache.pendingAnalysis = null;
+        this.abortController = null;
         // Return fallback architecture on error
         return this.createFallbackArchitecture(request);
       });
@@ -210,17 +236,20 @@ YOU ARE THIS MARCUS. Use this context to create a learning experience.
   
   /**
    * Core analysis logic (runs async in background)
-   * Generates scenario architecture with pain points, red herrings, and learning challenges
+   * Plans AHEAD for next 2-3 turns with dynamic scenario architecture
    */
-  private async performAnalysis(request: OverseerAnalysisRequest): Promise<ScenarioArchitecture> {
+  private async performAnalysis(request: OverseerAnalysisRequest, signal?: AbortSignal): Promise<ScenarioArchitecture> {
     const prompt = this.buildAnalysisPrompt(request);
     
     console.log(`🎭 [Overseer] Calling API: ${this.apiEndpoint}`);
     
     try {
       // Add timeout to prevent hanging forever
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      const timeoutId = setTimeout(() => {
+        if (signal && !signal.aborted) {
+          console.warn('🎭 [Overseer] Analysis timeout after 10s');
+        }
+      }, 10000);
       
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
@@ -228,13 +257,13 @@ YOU ARE THIS MARCUS. Use this context to create a learning experience.
         body: JSON.stringify({
           model: 'openai/gpt-4o-mini',
           messages: [
-            { role: 'system', content: 'You are a sales training scenario architect. Generate learning challenges and pain points in valid JSON only.' },
+            { role: 'system', content: 'You are a sales training scenario architect. Plan AHEAD for the next 2-3 conversational turns. Generate learning challenges and pain points in valid JSON only.' },
             { role: 'user', content: prompt }
           ],
           temperature: 0.8,
-          max_tokens: 1200 // Increased from 600 to prevent truncation
+          max_tokens: 1200
         }),
-        signal: controller.signal
+        signal: signal
       });
       
       clearTimeout(timeoutId);

@@ -40,6 +40,7 @@ import { CallCompletionData, StoredFeedbackData, StoredCallState } from './types
 import { LocalStorageService } from './services/LocalStorageService';
 import { ObjectionGenerator, DiscoveryContext } from './ObjectionGenerator';
 import { ConversationTracker } from './ConversationTranscript';
+import { SystemDebugPanel, SystemDebugEvent } from './SystemDebugPanel';
 
 interface CharmerControllerProps {
   onCallEnd?: () => void;
@@ -176,6 +177,26 @@ const CharmerControllerContent = memo(({
   } | null>(null);
   const [currentResistance, setCurrentResistance] = useState(6);
   const [lastResistance, setLastResistance] = useState(6);
+  
+  // System Debug Panel state
+  const [debugEvents, setDebugEvents] = useState<SystemDebugEvent[]>([]);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const maxDebugEvents = 50; // Keep last 50 events
+  
+  // Helper to add debug events
+  const addDebugEvent = useCallback((type: SystemDebugEvent['type'], title: string, data: any) => {
+    setDebugEvents(prev => {
+      const newEvent: SystemDebugEvent = {
+        timestamp: Date.now(),
+        type,
+        title,
+        data
+      };
+      const updated = [...prev, newEvent];
+      // Keep only last maxDebugEvents
+      return updated.slice(-maxDebugEvents);
+    });
+  }, []);
   const [lastUserMessage, setLastUserMessage] = useState('');
   const lastTranscriptRef = useRef('');
   const transcriptRef = useRef(''); // Track current transcript for timeout callbacks
@@ -501,8 +522,26 @@ const CharmerControllerContent = memo(({
       strategyOutput = await strategyLayerRef.current.determineStrategy(strategyContext);
       buyerState = strategyOutput.buyerState;
       
+      // DEBUG: Capture strategy state changes
+      addDebugEvent('strategy', 'Buyer State Update', {
+        emotionalPosture: buyerState.emotionalPosture,
+        resistanceLevel: buyerState.resistanceLevel,
+        openness: buyerState.openness,
+        patience: buyerState.patience,
+        approvedQuestion: strategyOutput.approvedQuestion?.questionText,
+        coachingObjective: strategyOutput.coachingObjective
+      });
+      
       // OVERSEER: Start parallel scenario analysis (non-blocking)
       if (isOverseerEnabled) {
+        // DEBUG: Capture overseer analysis start
+        addDebugEvent('overseer', 'Overseer Planning Ahead', {
+          currentResistance: buyerState.resistanceLevel,
+          currentPhase: currentPhaseStr,
+          exchangeCount: conversationHistory.length,
+          difficulty: selectedScenario?.difficulty
+        });
+        
         analyzeConversation({
           conversationHistory,
           currentResistance: buyerState.resistanceLevel,
@@ -527,6 +566,17 @@ const CharmerControllerContent = memo(({
         if (analysis) {
           console.log('🔍 Hybrid feedback analysis:');
           console.log(hybridFeedbackRef.current.formatForLog(analysis));
+          
+          // DEBUG: Capture coaching detections
+          if (analysis.feedback) {
+            addDebugEvent('coaching', 'Coaching Detection', {
+              issue: analysis.feedback.primaryIssue,
+              evidence: analysis.feedback.evidence,
+              mechanisticExplanation: analysis.feedback.mechanisticExplanation,
+              betterApproach: analysis.feedback.betterApproach,
+              topMechanics: analysis.detectionSummary.topMechanics
+            });
+          }
         }
       }).catch(err => {
         console.error('⚠️ Hybrid feedback analysis failed:', err);
@@ -566,6 +616,18 @@ const CharmerControllerContent = memo(({
             return;
           }
           
+          // Build guidance for debug visibility
+          const overseerGuidance = getGuidance();
+          
+          // DEBUG: Capture prompt being sent to Marcus
+          addDebugEvent('prompt', 'Marcus AI Prompt Generation', {
+            phase: currentPhaseStr,
+            userInput: userText,
+            questionCategory: classification.category,
+            historyLength: conversationHistory.length,
+            hasOverseerGuidance: !!overseerGuidance
+          });
+          
           aiResponse = await aiServiceRef.current.generateResponse({
             phase: currentPhaseStr,
             conversationContext: phaseManager.getContext(),
@@ -574,7 +636,7 @@ const CharmerControllerContent = memo(({
             conversationHistory: conversationHistory,
             scenario: selectedScenario,
             questionCategory: classification.category
-          }, undefined, undefined, getGuidance());
+          }, undefined, undefined, overseerGuidance);
           
           // SAFETY: Check after generation completes
           if (utteranceCountRef.current !== processingUtteranceCount) {
@@ -1959,6 +2021,13 @@ const CharmerControllerContent = memo(({
           </div>
         </div>
       )}
+      
+      {/* System Debug Panel - Shows AI prompts, state changes, coaching in real-time */}
+      <SystemDebugPanel 
+        events={debugEvents}
+        isVisible={showDebugPanel}
+        onToggle={() => setShowDebugPanel(!showDebugPanel)}
+      />
     </>
   );
 });

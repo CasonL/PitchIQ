@@ -6,6 +6,8 @@
 
 import { SignalDetector, DetectedSignal } from './SignalDetector';
 import { MechanicInferenceEngine, InferredMechanic } from './MechanicInferenceEngine';
+import type { SalesExchange } from './ConversationTracker';
+import { API_ENDPOINTS } from '@/config/apiEndpoints';
 import { BuyerState } from './StrategyLayer';
 import { OpenerQualityEvaluator, OpenerQualityScore } from './OpenerQualityEvaluator';
 
@@ -182,7 +184,7 @@ CRITICAL RULES:
 
   private async queryLLM(prompt: string): Promise<string> {
     try {
-      const response = await fetch('/api/openai/chat', {
+      const response = await fetch(API_ENDPOINTS.OPENAI_CHAT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

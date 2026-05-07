@@ -5,6 +5,8 @@
  */
 
 import type { ObjectionType, ObjectionSatisfaction } from './StrategyLayer';
+import type { SalesExchange } from './ConversationTracker';
+import { API_ENDPOINTS } from '@/config/apiEndpoints';
 
 export type AcknowledgmentCue = 'none' | 'partial' | 'strong';
 
@@ -215,7 +217,7 @@ Respond ONLY with valid JSON:
 }`;
 
     try {
-      const response = await fetch('/api/openai/chat', {
+      const response = await fetch(API_ENDPOINTS.OPENAI_CHAT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

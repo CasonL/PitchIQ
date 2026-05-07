@@ -9,6 +9,7 @@ import { FirstUtterancePatternDetector, type PatternMatch } from './FirstUtteran
 import { MarcusContextNarrator } from './MarcusContextNarrator';
 import { MARCUS_OBJECTION_STACKS } from './ObjectionStack';
 import { type BuyerState } from './StrategyLayer';
+import { API_ENDPOINTS } from '@/config/apiEndpoints';
 
 /**
  * Tactical silence follow-up (pre-buffered with main response)
@@ -787,7 +788,7 @@ export class CharmerAIService {
   constructor(apiKey?: string, model?: keyof typeof MARCUS_AI_MODELS) {
     // In production, API key would come from environment or backend
     this.apiKey = apiKey || '';
-    this.baseUrl = '/api/openai/chat'; // Flask backend endpoint - full path with /chat
+    this.baseUrl = API_ENDPOINTS.OPENAI_CHAT; // Uses centralized config with env-based URL
     this.model = MARCUS_AI_MODELS[model || 'gpt-4o-mini']; // Default to GPT-4o-mini
   }
   

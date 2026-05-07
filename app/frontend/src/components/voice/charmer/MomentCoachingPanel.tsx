@@ -7,6 +7,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { KeyMoment, MomentClassification } from './MomentExtractor';
 import ReactMarkdown from 'react-markdown';
 import { MessageSquare, X, Mic, MicOff, Info, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { ExternalLink, ChevronDown, ChevronUp, Target, Lightbulb, TrendingUp, AlertCircle, Sparkles, Lock, Brain } from 'lucide-react';
+import { API_ENDPOINTS } from '@/config/apiEndpoints';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -483,7 +485,7 @@ STYLE RULES:
 - NO generic sales advice - ground everything in THIS moment
 - NO motivational fluff - be direct about what worked or didn't`;
 
-      const response = await fetch('/api/openai/chat', {
+      const response = await fetch(API_ENDPOINTS.OPENAI_CHAT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

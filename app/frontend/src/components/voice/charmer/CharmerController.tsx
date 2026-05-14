@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button, CircularProgress } from '@mui/material';
 import { Phone as CallIcon, PhoneOff as EndCallIcon, PhoneOff } from 'lucide-react';
 import { MarcusVoiceProvider, useMarcusVoice } from './MarcusVoiceAdapter';
@@ -58,6 +59,7 @@ const CharmerControllerContent = memo(({
   autoStart = false,
   initialScenario
 }: CharmerControllerProps) => {
+  const navigate = useNavigate();
   const { 
     startCall, 
     endCall, 
@@ -68,7 +70,9 @@ const CharmerControllerContent = memo(({
     error,
     speakAsMarcus,
     isSpeaking,
-    stopSpeaking
+    stopSpeaking,
+    getRecentMarcusSpeech,
+    getCurrentMarcusSpeech
   } = useMarcusVoice();
   
   // Overseer - dynamic scenario architect
@@ -110,6 +114,8 @@ const CharmerControllerContent = memo(({
   });
   const [isRinging, setIsRinging] = useState(false);
   const ringTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const firstSentenceSpokenRef = useRef<string | null>(null); // Track first sentence if streamed
+  const firstSentencePromiseRef = useRef<Promise<void> | null>(null); // Await TTS completion before remainder
   
   // Phone ringing audio with Web Audio API for volume boost
   const phoneRingAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -302,6 +308,19 @@ const CharmerControllerContent = memo(({
     let buyerStateBefore: BuyerState | undefined;
     
     try {
+      // Sentence streaming callback - speak first sentence immediately while LLM generates
+      const handleFirstSentence = (firstSentence: string, emotion?: string) => {
+        console.log(`🚀 [Sentence Streaming] Speaking first sentence while generating...`);
+        firstSentenceSpokenRef.current = firstSentence;
+        const speed = currentPhase === 'coach' || currentPhase === 'exit' ? 0.85 : 0.75;
+        // Store the promise so we can await it before speaking the remainder
+        firstSentencePromiseRef.current = speakAsMarcus(firstSentence, {
+          voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
+          emotion: (emotion as any) || 'neutral',
+          speed: speed
+        });
+      };
+      
       // Classify question early - needed for all response paths
       const classification = QuestionClassifier.classify(userText);
       
@@ -312,12 +331,11 @@ const CharmerControllerContent = memo(({
         console.log(`🔊 Poor transcript quality detected (${Math.round(qualityCheck.confidence * 100)}% confidence)`);
         console.log(`   Issues: ${qualityCheck.issues.join(', ')}`);
         console.log(`   Original: "${userText}"`);
-        
-        // Generate adaptive clarification - Marcus acknowledges what he understood
-        // and asks for clarification on unclear parts (instead of generic "can you repeat that")
-        console.log(`🎤 Generating adaptive clarification response...`);
-        
-        const phaseManager = phaseManagerRef.current;
+      }
+      
+      // Check if garbled (low confidence) - adapt response
+      if (qualityCheck.isLikelyGarbled) {
+        console.log('🔧 [Garbled Input] Low confidence detected - using adaptive prompt');
         const currentPhaseStr = phaseManager.getCurrentPhase();
         
         // Pass garbled text to AI - prompt has ADAPTIVE CLARIFICATION instructions
@@ -602,6 +620,13 @@ const CharmerControllerContent = memo(({
           if (utteranceCountRef.current !== processingUtteranceCount) {
             console.log('🚫 User started new utterance during speculative generation - scrapping response');
             console.log(`   Was processing utterance #${processingUtteranceCount}, now at #${utteranceCountRef.current}`);
+            // Clean up sentence streaming state - first sentence may have been spoken
+            if (firstSentenceSpokenRef.current) {
+              console.log('🔇 Stopping first sentence TTS (response scrapped)');
+              stopSpeaking();
+            }
+            firstSentenceSpokenRef.current = null;
+            firstSentencePromiseRef.current = null;
             setIsProcessing(false);
             return;
           }
@@ -619,16 +644,8 @@ const CharmerControllerContent = memo(({
           // Build guidance for debug visibility
           const overseerGuidance = getGuidance();
           
-          // DEBUG: Capture prompt being sent to Marcus
-          addDebugEvent('prompt', 'Marcus AI Prompt Generation', {
-            phase: currentPhaseStr,
-            userInput: userText,
-            questionCategory: classification.category,
-            historyLength: conversationHistory.length,
-            hasOverseerGuidance: !!overseerGuidance
-          });
-          
-          aiResponse = await aiServiceRef.current.generateResponse({
+          // Build the system prompt for debugging
+          const debugPrompt = aiServiceRef.current.buildSystemPrompt({
             phase: currentPhaseStr,
             conversationContext: phaseManager.getContext(),
             userInput: userText,
@@ -638,131 +655,70 @@ const CharmerControllerContent = memo(({
             questionCategory: classification.category
           }, undefined, undefined, overseerGuidance);
           
+          // DEBUG: Capture the actual prompt being sent to Marcus
+          addDebugEvent('prompt', 'Marcus System Prompt', debugPrompt);
+          
+          aiResponse = await aiServiceRef.current.generateResponse({
+            phase: currentPhaseStr,
+            conversationContext: phaseManager.getContext(),
+            userInput: userText,
+            phasePromptContext: phaseManager.getPhasePromptContext(),
+            conversationHistory: conversationHistory,
+            scenario: selectedScenario,
+            questionCategory: classification.category
+          }, undefined, undefined, overseerGuidance, handleFirstSentence);
+          
           // SAFETY: Check after generation completes
           if (utteranceCountRef.current !== processingUtteranceCount) {
             console.log('🚫 User started new utterance during fallback generation - scrapping response');
+            if (firstSentenceSpokenRef.current) {
+              console.log('🔇 Stopping first sentence TTS (response scrapped)');
+              stopSpeaking();
+            }
+            firstSentenceSpokenRef.current = null;
+            firstSentencePromiseRef.current = null;
             setIsProcessing(false);
             return;
           }
         }
       } else {
-        // FALLBACK: Check for instant response patterns on first 3 turns only
-        // After turn 3, full LLM intelligence takes over
+        // ALWAYS USE FULL LLM - no pattern detection, no shortcuts
         const userMessages = conversationHistory.filter(msg => msg.role === 'user');
         const turnNumber = userMessages.length + 1;
-        const isEarlyGame = turnNumber <= 3;
         
-        // 🔧 FIX: Only bypass patterns for DISCOVERY/THOUGHTFUL questions
-        // Social protocol questions (permission asks, greetings) should still use pattern detection
-        const isDiscoveryQuestion = classification.category === 'thoughtful' || classification.category === 'deliberate';
-        const isRealQuestion = isDiscoveryQuestion;
-        
-        if (isEarlyGame && !isRealQuestion) {
-          // Only use patterns if it's NOT a real question
-          const patternMatch = FirstUtterancePatternDetector.detect(userText, turnNumber);
-          const cannedResponse = FirstUtterancePatternDetector.getCannedResponse(patternMatch);
-          
-          if (cannedResponse) {
-            console.log(`🔍 Turn ${turnNumber}: Pattern detected: ${patternMatch.pattern} (confidence: ${patternMatch.confidence})`);
-            console.log(`⚡⚡⚡ CANNED: Using instant response (0ms LLM) - "${cannedResponse}"`);
-            
-            aiResponse = {
-              content: cannedResponse,
-              emotion: 'neutral'
-            };
-          } else if (FirstUtterancePatternDetector.canUseInstantResponse(patternMatch.pattern)) {
-            // Use focused LLM for patterns that need it
-            console.log(`🔍 Turn ${turnNumber}: Pattern detected: ${patternMatch.pattern} (confidence: ${patternMatch.confidence})`);
-            console.log(`⚡ FOCUSED: Using focused LLM for pattern "${patternMatch.pattern}"`);
-            
-            aiResponse = await aiServiceRef.current.generateFocusedResponse({
-              phase: currentPhaseStr,
-              conversationContext: phaseManager.getContext(),
-              userInput: userText,
-              phasePromptContext: phaseManager.getPhasePromptContext(),
-              conversationHistory: conversationHistory,
-              scenario: selectedScenario,
-              patternMatch: patternMatch
-            });
-          } else {
-            // No pattern - use full LLM
-            console.log(`🔍 Turn ${turnNumber}: No pattern match - using full LLM intelligence`);
-            aiResponse = await aiServiceRef.current.generateResponse({
-              phase: currentPhaseStr,
-              conversationContext: phaseManager.getContext(),
-              userInput: userText,
-              phasePromptContext: phaseManager.getPhasePromptContext(),
-              conversationHistory: conversationHistory,
-              scenario: selectedScenario,
-              buyerState: buyerState,
-              questionCategory: classification.category,
-              marcusTraits: selectedScenario?.traits ? {
-                painLevel: selectedScenario.traits.painLevel,
-                urgency: selectedScenario.traits.urgency,
-                budget: selectedScenario.traits.budget,
-                openness: selectedScenario.traits.openness,
-                painPoints: selectedScenario.traits.painPoints,
-                currentSolution: selectedScenario.traits.currentSolution,
-                satisfactionLevel: selectedScenario.traits.satisfactionLevel,
-                decisionTimeframe: selectedScenario.traits.decisionTimeframe,
-                primaryConcern: selectedScenario.traits.primaryConcern
-              } : undefined
-            }, undefined, undefined, getGuidance());
-          }
-        } else if (isRealQuestion) {
-          // Real question detected - bypass patterns, use full LLM intelligence
-          console.log(`🔍 Turn ${turnNumber}: Real ${classification.category} question detected - bypassing patterns, using full LLM`);
-          aiResponse = await aiServiceRef.current.generateResponse({
-            phase: currentPhaseStr,
-            conversationContext: phaseManager.getContext(),
-            userInput: userText,
-            phasePromptContext: phaseManager.getPhasePromptContext(),
-            conversationHistory: conversationHistory,
-            scenario: selectedScenario,
-            buyerState: buyerState,
-            questionCategory: classification.category,
-            marcusTraits: selectedScenario?.traits ? {
-              painLevel: selectedScenario.traits.painLevel,
-              urgency: selectedScenario.traits.urgency,
-              budget: selectedScenario.traits.budget,
-              openness: selectedScenario.traits.openness,
-              painPoints: selectedScenario.traits.painPoints,
-              currentSolution: selectedScenario.traits.currentSolution,
-              satisfactionLevel: selectedScenario.traits.satisfactionLevel,
-              decisionTimeframe: selectedScenario.traits.decisionTimeframe,
-              primaryConcern: selectedScenario.traits.primaryConcern
-            } : undefined
-          }, undefined, undefined, getGuidance());
-        } else {
-          // Turn 4+ - full LLM intelligence only (no pattern shortcuts)
-          console.log(`🧠 Turn ${turnNumber}: Deep intelligence mode - full LLM`);
-          aiResponse = await aiServiceRef.current.generateResponse({
-            phase: currentPhaseStr,
-            conversationContext: phaseManager.getContext(),
-            userInput: userText,
-            phasePromptContext: phaseManager.getPhasePromptContext(),
-            conversationHistory: conversationHistory,
-            scenario: selectedScenario,
-            buyerState: buyerState,
-            questionCategory: classification.category,
-            marcusTraits: selectedScenario?.traits ? {
-              painLevel: selectedScenario.traits.painLevel,
-              urgency: selectedScenario.traits.urgency,
-              budget: selectedScenario.traits.budget,
-              openness: selectedScenario.traits.openness,
-              painPoints: selectedScenario.traits.painPoints,
-              currentSolution: selectedScenario.traits.currentSolution,
-              satisfactionLevel: selectedScenario.traits.satisfactionLevel,
-              decisionTimeframe: selectedScenario.traits.decisionTimeframe,
-              primaryConcern: selectedScenario.traits.primaryConcern
-            } : undefined
-          }, undefined, undefined, getGuidance());
-        }
+        console.log(`🔍 Turn ${turnNumber}: Using full LLM intelligence (all patterns disabled)`);
+        aiResponse = await aiServiceRef.current.generateResponse({
+          phase: currentPhaseStr,
+          conversationContext: phaseManager.getContext(),
+          userInput: userText,
+          phasePromptContext: phaseManager.getPhasePromptContext(),
+          conversationHistory: conversationHistory,
+          scenario: selectedScenario,
+          buyerState: buyerState,
+          questionCategory: classification.category,
+          marcusTraits: selectedScenario?.traits ? {
+            painLevel: selectedScenario.traits.painLevel,
+            urgency: selectedScenario.traits.urgency,
+            budget: selectedScenario.traits.budget,
+            openness: selectedScenario.traits.openness,
+            painPoints: selectedScenario.traits.painPoints,
+            currentSolution: selectedScenario.traits.currentSolution,
+            satisfactionLevel: selectedScenario.traits.satisfactionLevel,
+            decisionTimeframe: selectedScenario.traits.decisionTimeframe,
+            primaryConcern: selectedScenario.traits.primaryConcern
+          } : undefined
+        }, undefined, undefined, getGuidance(), handleFirstSentence);
         
         // SAFETY: Check after generation completes
         if (utteranceCountRef.current !== processingUtteranceCount) {
-          console.log('🚫 User started new utterance during fallback generation - scrapping response');
+          console.log('🚫 User started new utterance during generation - scrapping response');
           console.log(`   Was processing utterance #${processingUtteranceCount}, now at #${utteranceCountRef.current}`);
+          if (firstSentenceSpokenRef.current) {
+            console.log('🔇 Stopping first sentence TTS (response scrapped)');
+            stopSpeaking();
+          }
+          firstSentenceSpokenRef.current = null;
+          firstSentencePromiseRef.current = null;
           setIsProcessing(false);
           return;
         }
@@ -886,11 +842,33 @@ const CharmerControllerContent = memo(({
       const speed = currentPhase === 'coach' || currentPhase === 'exit' ? 0.85 : 0.75;
       
       // Speak Marcus's response using Cartesia TTS with dynamic emotion
-      await speakAsMarcus(aiResponse.content, {
-        voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
-        emotion: aiResponse.emotion, // Dynamic based on phase & content
-        speed: speed
-      });
+      // If first sentence was already streamed, only speak the remainder
+      if (firstSentenceSpokenRef.current) {
+        // Wait for first sentence TTS to finish playing before speaking remainder
+        if (firstSentencePromiseRef.current) {
+          console.log(`⏳ Waiting for first sentence TTS to finish...`);
+          await firstSentencePromiseRef.current;
+          firstSentencePromiseRef.current = null;
+        }
+        console.log(`📡 First sentence was streamed - speaking remainder only`);
+        // Remove first sentence from content (already spoken)
+        const remainder = aiResponse.content.replace(firstSentenceSpokenRef.current, '').trim();
+        if (remainder.length > 0) {
+          await speakAsMarcus(remainder, {
+            voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
+            emotion: aiResponse.emotion,
+            speed: speed
+          });
+        }
+        firstSentenceSpokenRef.current = null; // Reset for next turn
+      } else {
+        // No streaming - speak full response
+        await speakAsMarcus(aiResponse.content, {
+          voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
+          emotion: aiResponse.emotion,
+          speed: speed
+        });
+      }
       
       // STRATEGIC MOMENT DETECTION: Check for coaching opportunities
       const detectionContext = {
@@ -1080,13 +1058,13 @@ const CharmerControllerContent = memo(({
     // Get new content
     const newContent = transcript.replace(lastTranscriptRef.current, '').trim();
     
-    // SPECULATIVE GENERATION: Start LLM call on partials for FIRST utterance only
+    // SPECULATIVE GENERATION: DISABLED - always use full LLM for better quality
     // This gives instant response while still processing complete messages
     const isFirstUtterance = utteranceCountRef.current === 0;
     const words = newContent.split(/\s+/);
     const wordCount = words.length;
     
-    if (!isFinalTranscript && isFirstUtterance && wordCount >= 2 && !speculativeResponseRef.current && !isSpeaking) {
+    if (false && !isFinalTranscript && isFirstUtterance && wordCount >= 2 && !speculativeResponseRef.current && !isSpeaking) {
       // PATTERN DETECTION: Re-check pattern on each partial until we get a match
       const patternMatch = FirstUtterancePatternDetector.detect(newContent);
       
@@ -1096,9 +1074,9 @@ const CharmerControllerContent = memo(({
       
       if (patternMatch.extractedCompany) {
         console.log(`📋 Extracted company from pattern: ${patternMatch.extractedCompany}`);
-        const context = phaseManager.getContext();
+        const context = phaseManagerRef.current.getContext();
         if (!context.extractedCompany) {
-          phaseManager.updateContext({ extractedCompany: patternMatch.extractedCompany });
+          phaseManagerRef.current.updateContext({ extractedCompany: patternMatch.extractedCompany });
         }
       }
       
@@ -1178,6 +1156,29 @@ const CharmerControllerContent = memo(({
     // This prevents fragmentation where "Hey, Marcus. It's Kayson from WebSite Co." 
     // gets split into multiple partial utterances
     if (!isFinalTranscript) {
+      // REAL-TIME INTERRUPTION: Check interim results for immediate interruption
+      if (newContent && newContent.length > 5 && isSpeaking) {
+        const activeMarcusSpeeches = getCurrentMarcusSpeech();
+        const userText = newContent.toLowerCase().trim();
+        
+        // Quick echo check - if it matches ANY of Marcus's active speeches, ignore
+        let isEcho = false;
+        for (const marcusSpeech of activeMarcusSpeeches) {
+          if (userText === marcusSpeech || 
+              marcusSpeech.includes(userText) || 
+              userText.includes(marcusSpeech) ||
+              (userText.length > 10 && marcusSpeech.startsWith(userText.slice(0, 10)))) {
+            isEcho = true;
+            break;
+          }
+        }
+        
+        if (!isEcho) {
+          console.log(`🛑 REAL-TIME interrupt - stopping Marcus on interim: "${newContent.substring(0, 40)}..."`);
+          stopSpeaking();
+        }
+      }
+      
       // Log partials for visibility, but don't process them
       if (newContent && !isFirstUtterance) {
         console.log(`📝 Partial transcript (waiting for UtteranceEnd): "${newContent.substring(0, 60)}..."`);
@@ -1192,24 +1193,48 @@ const CharmerControllerContent = memo(({
       // Track user speech timing for Judgment Gate
       lastUserSpeechTimeRef.current = Date.now();
       
-      // Filter out echo by comparing transcript to what Marcus actually said
-      if (lastMarcusMessageRef.current) {
-        const marcusText = lastMarcusMessageRef.current.toLowerCase().trim();
-        const userText = newContent.toLowerCase().trim();
+      // REAL-TIME ECHO FILTERING: Check what Marcus is CURRENTLY saying (all active speeches)
+      const activeMarcusSpeeches = getCurrentMarcusSpeech();
+      const userText = newContent.toLowerCase().trim();
+      
+      for (const marcusSpeech of activeMarcusSpeeches) {
+        // Marcus is speaking this right now - check if transcript matches
+        const isSimilar = userText === marcusSpeech || 
+                         marcusSpeech.includes(userText) || 
+                         userText.includes(marcusSpeech) ||
+                         (userText.length > 10 && marcusSpeech.startsWith(userText.slice(0, 10)));
         
+        if (isSimilar) {
+          console.log(`🔇 Filtered Marcus echo (LIVE): "${newContent}" (matches active speech: "${marcusSpeech.substring(0, 50)}...")`);
+          lastTranscriptRef.current = transcript;
+          return;
+        }
+      }
+      
+      // HISTORICAL ECHO FILTERING: Check against recent speech history as backup
+      const recentMarcusSpeech = getRecentMarcusSpeech();
+      
+      for (const marcusText of recentMarcusSpeech) {
         const isSimilar = userText === marcusText || 
                          marcusText.includes(userText) || 
                          userText.includes(marcusText) ||
                          (userText.length > 10 && marcusText.startsWith(userText.slice(0, 10)));
         
         if (isSimilar) {
-          console.log(`🔇 Filtered Marcus echo: "${newContent}" (matches Marcus: "${lastMarcusMessageRef.current.substring(0, 50)}...")`);          lastTranscriptRef.current = transcript;
+          console.log(`🔇 Filtered Marcus echo (RECENT): "${newContent}" (matches recent speech: "${marcusText.substring(0, 50)}...")`);
+          lastTranscriptRef.current = transcript;
           return;
         }
       }
       
-      // INTELLIGENT BUFFERING: Wait for user to finish speaking
-      // If user continues within 1s, merge utterances before processing
+      // USER INTERRUPTION: If transcript passed echo filtering and Marcus is speaking, stop him
+      if (isSpeaking) {
+        console.log(`🛑 User interrupted Marcus - stopping immediately`);
+        stopSpeaking();
+      }
+      
+      // IMMEDIATE PROCESSING: Process utterance as soon as user stops speaking
+      // No buffering delay for faster responses
       
       // Cancel any existing grace timer
       if (utteranceGraceTimerRef.current) {
@@ -1226,32 +1251,18 @@ const CharmerControllerContent = memo(({
         console.log(`🔗 Merging continuation: "${newContent}" → "${mergedContent}"`);
       }
       
-      // Buffer this utterance
+      // Process immediately
       const words = mergedContent.split(/\s+/);
       const wordCount = words.length;
       utteranceCountRef.current++;
       const currentUtterance = utteranceCountRef.current;
       
-      pendingUtteranceRef.current = {
-        text: mergedContent,
-        count: currentUtterance
-      };
+      console.log(`⚡ Processing utterance #${currentUtterance} immediately (${wordCount} words)`);
+      console.log(`🎙️ User speech: "${mergedContent}"`);
+      console.log(`🔧 [DEBUG] Calling processUserInput for utterance #${currentUtterance}, isProcessing=${isProcessing}`);
       
-      console.log(`⏳ Buffering utterance #${currentUtterance} (${wordCount} words) - waiting 1s for continuation...`);
-      
-      // Start grace period timer
-      utteranceGraceTimerRef.current = setTimeout(() => {
-        if (pendingUtteranceRef.current) {
-          const buffered = pendingUtteranceRef.current;
-          console.log(`⏰ Grace period expired - processing utterance #${buffered.count}`);
-          console.log(`🎙️ User speech: "${buffered.text}"`);
-          console.log(`🔧 [DEBUG] Calling processUserInput for utterance #${buffered.count}, isProcessing=${isProcessing}`);
-          
-          processUserInputWithQueue(buffered.text, buffered.count);
-          pendingUtteranceRef.current = null;
-        }
-        utteranceGraceTimerRef.current = null;
-      }, 1000); // 1 second grace period
+      processUserInputWithQueue(mergedContent, currentUtterance);
+      pendingUtteranceRef.current = null;
       
       lastTranscriptRef.current = transcript;
       return;
@@ -1791,11 +1802,11 @@ const CharmerControllerContent = memo(({
     // End loading state
     setIsGeneratingFeedback(false);
     
-    // Navigate directly to static HTML (bypasses React Router)
+    // Navigate to post-call review page (renders static HTML in an iframe)
     console.log('🎯 Navigating to post-call review...');
-    window.location.href = '/post-call-review/index.html';
+    navigate('/post-call-review');
     
-  }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking]);
+  }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking, navigate]);
   
   /**
    * Auto-trigger ringing sequence when initialScenario provided
@@ -1882,15 +1893,29 @@ const CharmerControllerContent = memo(({
       
       {/* Loading Feedback Screen */}
       {isGeneratingFeedback && (
-        <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
-          <div className="text-center">
-            <CircularProgress size={60} sx={{ color: '#dc2626', mb: 3 }} />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Analyzing Your Call...
+        <div className="fixed inset-0 bg-cream bg-noise flex items-center justify-center z-50">
+          <div className="text-center max-w-md px-6">
+            {/* Branded gradient spinner */}
+            <div className="relative w-16 h-16 mx-auto mb-6">
+              <div className="absolute inset-0 rounded-full border-4 border-brand-orange/20" />
+              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-brand-orange border-r-brand-amber animate-spin" />
+              <div className="absolute inset-2 rounded-full bg-gradient-to-br from-brand-orange/10 to-brand-amber/10 animate-pulse" />
+            </div>
+            
+            <h2 className="font-display text-3xl font-bold text-[#1A1A1A] mb-3">
+              Analyzing Your Call
+              <span className="inline-block ml-1 animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
+              <span className="inline-block ml-0.5 animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
+              <span className="inline-block ml-0.5 animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
             </h2>
-            <p className="text-gray-600">
+            
+            <p className="text-[#5A5A5A] text-lg leading-relaxed mb-2">
               Generating personalized feedback and insights
             </p>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/60 border border-brand-orange/10 shadow-sm mt-2">
+              <div className="w-2 h-2 rounded-full bg-brand-orange animate-pulse" />
+              <span className="text-sm font-medium text-brand-orange">AI Powered Analysis</span>
+            </div>
           </div>
         </div>
       )}

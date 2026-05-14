@@ -22,6 +22,8 @@ interface MarcusVoiceContextType {
   endCall: () => Promise<void>;
   speakAsMarcus: (text: string, options?: SpeakOptions) => Promise<void>;
   stopSpeaking: () => Promise<void>;
+  getRecentMarcusSpeech: () => string[]; // For historical echo filtering
+  getCurrentMarcusSpeech: () => string[]; // For real-time echo filtering (all active speeches)
   
   // Status
   isSpeaking: boolean;
@@ -44,13 +46,13 @@ interface VoiceMetrics {
 
 const MarcusVoiceContext = createContext<MarcusVoiceContextType | null>(null);
 
-export const useMarcusVoice = () => {
+export function useMarcusVoice() {
   const context = useContext(MarcusVoiceContext);
   if (!context) {
     throw new Error('useMarcusVoice must be used within MarcusVoiceProvider');
   }
   return context;
-};
+}
 
 interface MarcusVoiceProviderProps {
   children: React.ReactNode;
@@ -58,11 +60,11 @@ interface MarcusVoiceProviderProps {
   onInterruption?: (interruptedText: string) => void; // Called when user interrupts Marcus
 }
 
-export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
+function MarcusVoiceProvider({
   children,
   onTranscriptUpdate,
   onInterruption
-}) => {
+}: MarcusVoiceProviderProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -105,6 +107,15 @@ export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
       onSpeakingStateChange: (speaking: boolean) => {
         console.log(`[MarcusVoiceAdapter] Speaking state: ${speaking}`);
         setIsSpeaking(speaking);
+      },
+      
+      onSpeechStart: () => {
+        // INSTANT INTERRUPTION: Stop Marcus immediately when ANY speech is detected
+        // We'll verify if it's an echo when the transcript arrives (50-200ms later)
+        if (voiceManagerRef.current && voiceManagerRef.current.isCurrentlySpeaking()) {
+          console.log('[MarcusVoiceAdapter] ⚡ INSTANT interrupt - speech detected while Marcus speaking');
+          voiceManagerRef.current.stopSpeaking();
+        }
       },
       
       onInterruption: (interruptedText: string) => {
@@ -259,6 +270,22 @@ export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
     console.log('[MarcusVoiceAdapter] Stopping Marcus speech');
     await voiceManagerRef.current.stopSpeaking();
   }, []);
+
+  /**
+   * Get recent Marcus speech for echo filtering
+   */
+  const getRecentMarcusSpeech = useCallback((): string[] => {
+    if (!voiceManagerRef.current) return [];
+    return voiceManagerRef.current.getRecentSpeech();
+  }, []);
+
+  /**
+   * Get what Marcus is CURRENTLY saying (for real-time echo filtering)
+   */
+  const getCurrentMarcusSpeech = useCallback((): string | null => {
+    if (!voiceManagerRef.current) return null;
+    return voiceManagerRef.current.getCurrentSpeech();
+  }, []);
   
   /**
    * Cleanup on unmount
@@ -282,6 +309,8 @@ export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
     endCall,
     speakAsMarcus,
     stopSpeaking,
+    getRecentMarcusSpeech,
+    getCurrentMarcusSpeech,
     isSpeaking,
     metrics
   };
@@ -291,4 +320,6 @@ export const MarcusVoiceProvider: React.FC<MarcusVoiceProviderProps> = ({
       {children}
     </MarcusVoiceContext.Provider>
   );
-};
+}
+
+export { MarcusVoiceProvider };

@@ -115,7 +115,7 @@
     <div id="loading-screen" style="
       position: fixed;
       inset: 0;
-      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+      background: #0a0a0a;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -123,29 +123,53 @@
       z-index: 9999;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     ">
+      <!-- Ambient brand glow -->
+      <div style="
+        position: absolute;
+        width: 360px;
+        height: 360px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(232,106,51,0.12) 0%, transparent 70%);
+        pointer-events: none;
+      "></div>
+      
       <!-- Logo/Brand -->
       <div style="
-        font-size: 3rem;
+        font-size: 2.75rem;
         font-weight: 800;
-        color: white;
+        color: #ffffff;
         margin-bottom: 2rem;
         letter-spacing: -0.02em;
       ">
-        Pitch<span style="color: #dc2626;">IQ</span>
+        Pitch<span style="
+          background: linear-gradient(135deg, #E86A33 0%, #F2A93B 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        ">IQ</span>
       </div>
       
       <!-- Loading spinner -->
-      <div style="
-        width: 48px;
-        height: 48px;
-        border: 4px solid rgba(220, 38, 38, 0.2);
-        border-top-color: #dc2626;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-      "></div>
+      <div style="position: relative; width: 44px; height: 44px;">
+        <div style="
+          position: absolute;
+          inset: 0;
+          border: 3px solid rgba(232,106,51,0.18);
+          border-radius: 50%;
+        "></div>
+        <div style="
+          position: absolute;
+          inset: 0;
+          border: 3px solid transparent;
+          border-top-color: #E86A33;
+          border-right-color: #F2A93B;
+          border-radius: 50%;
+          animation: piq-spin 0.9s linear infinite;
+        "></div>
+      </div>
       
       <style>
-        @keyframes spin {
+        @keyframes piq-spin {
           to { transform: rotate(360deg); }
         }
       </style>

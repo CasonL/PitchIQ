@@ -1393,6 +1393,17 @@ e   * Calculate actual buyer interest factors
     turnNumber: number
   ): BuyerState['approvedQuestion'] | undefined {
     
+    // RULE 0: User seeking confirmation = NO questions. Just acknowledge.
+    // When user asks "Is that correct?" or validates Marcus's probe, Marcus shouldn't ask back
+    const seekingConfirmation = /\b(right|correct|yeah|yep|okay|ok|sure|exactly|absolutely)\??$/i.test(userInput) ||
+      /^does that (make sense|work|sound good)/i.test(userInput) ||
+      /is that (right|correct|accurate)/i.test(userInput);
+    
+    if (seekingConfirmation) {
+      console.log(`🚫 [ApprovedQ] User seeking confirmation - Marcus will only acknowledge`);
+      return undefined;
+    }
+    
     // RULE 1: High resistance (>6) = NO questions. Just statements.
     if (resistance > 6) {
       return undefined; // Too resistant to ask - just push back

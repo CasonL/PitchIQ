@@ -495,7 +495,7 @@ const CharmerControllerContent = memo(({
         }
       }
       
-      // STRATEGY LAYER: Determine Marcus's emotional state, resistance, and what he'll reveal
+      // STRATEGY LAYER: Start in parallel - don't block AI generation
       const repQualitySignals = strategyLayerRef.current.analyzeRepQuality(userText, conversationHistory);
       
       // Build TurnContext from conversation history
@@ -537,18 +537,11 @@ const CharmerControllerContent = memo(({
         } : undefined
       };
       
-      strategyOutput = await strategyLayerRef.current.determineStrategy(strategyContext);
-      buyerState = strategyOutput.buyerState;
+      // ⚡ NON-BLOCKING: Start strategy calculation in parallel with AI generation
+      const strategyPromise = strategyLayerRef.current.determineStrategy(strategyContext);
       
-      // DEBUG: Capture strategy state changes
-      addDebugEvent('strategy', 'Buyer State Update', {
-        emotionalPosture: buyerState.emotionalPosture,
-        resistanceLevel: buyerState.resistanceLevel,
-        openness: buyerState.openness,
-        patience: buyerState.patience,
-        approvedQuestion: strategyOutput.approvedQuestion?.questionText,
-        coachingObjective: strategyOutput.coachingObjective
-      });
+      // Use previous buyer state for AI prompt (strategy will update after)
+      buyerState = buyerStateBefore;
       
       // OVERSEER: Start parallel scenario analysis (non-blocking)
       if (isOverseerEnabled) {
@@ -598,6 +591,20 @@ const CharmerControllerContent = memo(({
         }
       }).catch(err => {
         console.error('⚠️ Hybrid feedback analysis failed:', err);
+      });
+      
+      // ⚡ AWAIT STRATEGY: Now wait for strategy calculation to complete
+      strategyOutput = await strategyPromise;
+      buyerState = strategyOutput.buyerState;
+      
+      // DEBUG: Capture strategy state changes
+      addDebugEvent('strategy', 'Buyer State Update', {
+        emotionalPosture: buyerState.emotionalPosture,
+        resistanceLevel: buyerState.resistanceLevel,
+        openness: buyerState.openness,
+        patience: buyerState.patience,
+        approvedQuestion: strategyOutput.approvedQuestion?.questionText,
+        coachingObjective: strategyOutput.coachingObjective
       });
       
       // Update resistance tracking

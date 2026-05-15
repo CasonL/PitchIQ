@@ -336,14 +336,14 @@ const CharmerControllerContent = memo(({
       // Check if garbled (low confidence) - adapt response
       if (qualityCheck.isLikelyGarbled) {
         console.log('🔧 [Garbled Input] Low confidence detected - using adaptive prompt');
-        const currentPhaseStr = phaseManager.getCurrentPhase();
+        const currentPhaseStr = phaseManagerRef.current.getCurrentPhase();
         
         // Pass garbled text to AI - prompt has ADAPTIVE CLARIFICATION instructions
         aiResponse = await aiServiceRef.current.generateResponse({
           phase: currentPhaseStr,
-          conversationContext: phaseManager.getContext(),
+          conversationContext: phaseManagerRef.current.getContext(),
           userInput: userText,
-          phasePromptContext: phaseManager.getPhasePromptContext(),
+          phasePromptContext: phaseManagerRef.current.getPhasePromptContext(),
           conversationHistory: conversationHistory,
           questionCategory: classification.category
         }, undefined, undefined, getGuidance());

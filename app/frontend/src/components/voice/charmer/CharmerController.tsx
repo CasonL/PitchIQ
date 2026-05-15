@@ -611,10 +611,7 @@ const CharmerControllerContent = memo(({
       setLastResistance(currentResistance);
       setCurrentResistance(buyerState.resistanceLevel);
       
-      // Get response strategy based on classification (already classified at top of function)
-      const strategy = QuestionClassifier.getResponseStrategy(classification);
-      
-      console.log(`🧠 Question classified: ${classification.questionType} (${classification.category}) - response style: ${classification.category}`);
+      console.log(`🧠 Question classified: ${classification.questionType} (${classification.category})`);
       
       // Check if we have a speculative response ready
       if (speculativeResponseRef.current) {

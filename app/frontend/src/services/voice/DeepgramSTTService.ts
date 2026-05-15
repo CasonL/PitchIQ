@@ -108,7 +108,7 @@ export class DeepgramSTTService {
         smart_format: true,
         interim_results: !this.useSentenceStreaming, // Interim only in word mode
         utterance_end_ms: 2000, // 2s pause - allows multi-sentence pitches with natural pauses
-        vad_events: false
+        vad_events: true // VAD enabled - detects user speech for immediate interruption
       });
 
       // Setup event handlers
@@ -415,14 +415,15 @@ export class DeepgramSTTService {
     
     // Patterns that indicate the sentence likely continues:
     // - Conjunctions: and, or, but, so
-    // - Prepositions: with, in, on, at, to, for, from, of, like
+    // - Prepositions: with, in, on, at, to, for, from, of, like, around, about, between, through, etc.
     // - Adverbs: mainly, primarily, basically, just, only, really
     // - Question words mid-sentence: is it, are you, do you, can you
     // - Incomplete phrases: "such as", "as well as"
     const incompletePatterns = [
       /\b(and|or|but|so)$/i,
-      /\b(with|in|on|at|to|for|from|of|like)$/i,
+      /\b(with|in|on|at|to|for|from|of|like|around|about|between|through|over|under|after|before|during|without|within|against|among|across|behind|beside|near|past|since|until|up|down|out|off|by|into|onto)$/i,
       /\b(mainly|primarily|basically|just|only|really|actually|literally)$/i,
+      /\b(the|a|an|their|our|your|my|his|her|its|some|any|every|each)$/i, // Articles and possessives
       /\bis\s+it$/i,
       /\bare\s+you$/i,
       /\bdo\s+you$/i,
@@ -551,10 +552,12 @@ export class DeepgramSTTService {
         return;
       }
 
-      // ONLY ACCUMULATE FINAL TRANSCRIPTS
-      // Skip interim results entirely to avoid duplication from Deepgram's overlapping updates
+      // SEND INTERIM TRANSCRIPTS FOR INTERRUPTION DETECTION
+      // But only accumulate finals to avoid duplication
       if (!isFinal) {
-        console.log(`[Deepgram] ⏭️ Skipping interim: "${transcript}"`);
+        console.log(`[Deepgram] ⏭️ Skipping interim (but sending for interruption): "${transcript}"`);
+        // Send interim for real-time interruption detection in CharmerController
+        this.config.onTranscript(transcript, false);
         return;
       }
       

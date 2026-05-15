@@ -20,6 +20,7 @@ export interface VoiceManagerConfig {
   onError: (error: Error) => void;
   onCostUpdate?: (sttCost: number, ttsCost: number) => void;
   onInterruption?: (interruptedText: string) => void; // Called when user interrupts Marcus
+  onSpeechStart?: () => void; // Called immediately when user starts speaking (VAD detection)
 }
 
 export interface VoiceMetrics {
@@ -39,6 +40,7 @@ export class MarcusVoiceManager {
   private isStopping: boolean = false; // Prevent concurrent stop calls
   private currentSpeechId: string | null = null; // Track current speech session
   private recentMarcusSpeech: string[] = []; // Track Marcus's recent utterances for echo detection
+  private activeMarcusSpeeches: string[] = []; // Track ALL active Marcus speeches (handles sentence streaming with first + remainder)
   
   // Backchannel patterns (don't interrupt on these)
   private readonly BACKCHANNELS = ['mm-hmm', 'mhm', 'uh-huh', 'yeah', 'yep', 'right', 'okay', 'ok', 'sure', 'mm'];
@@ -61,6 +63,7 @@ export class MarcusVoiceManager {
     this.sttService = new DeepgramSTTService({
       onTranscript: this.handleTranscript.bind(this),
       onError: this.handleError.bind(this),
+      onSpeechStart: this.handleSpeechStart.bind(this),
       useSentenceStreaming: USE_SENTENCE_STREAMING,
     });
     this.ttsService = new CartesiaService({
@@ -108,6 +111,9 @@ export class MarcusVoiceManager {
       this.recentMarcusSpeech.shift(); // Keep only last 5 utterances
     }
     
+    // Track what Marcus is ACTIVELY saying (handles sentence streaming - first + remainder)
+    this.activeMarcusSpeeches.push(cleanText);
+    
     console.log('[MarcusVoiceManager] Speaking:', text, `(${speechId})`);
     
     // Reset interruption flag for new speech
@@ -144,6 +150,12 @@ export class MarcusVoiceManager {
       emotion: options?.emotion,
       speed: options?.speed,
     });
+    
+    // Remove this speech from active array now that it's finished
+    const index = this.activeMarcusSpeeches.indexOf(cleanText);
+    if (index > -1) {
+      this.activeMarcusSpeeches.splice(index, 1);
+    }
     
     this.config.onSpeakingStateChange(false);
     
@@ -192,6 +204,22 @@ export class MarcusVoiceManager {
   }
 
   /**
+   * Get recent Marcus speech for echo filtering
+   * Returns last 5 utterances (cleaned, lowercase)
+   */
+  getRecentSpeech(): string[] {
+    return [...this.recentMarcusSpeech];
+  }
+
+  /**
+   * Get what Marcus is CURRENTLY saying (for real-time echo filtering)
+   * Returns array of all active speeches (handles sentence streaming)
+   */
+  getCurrentSpeech(): string[] {
+    return [...this.activeMarcusSpeeches];
+  }
+
+  /**
    * Reset metrics
    */
   resetMetrics(): void {
@@ -215,6 +243,17 @@ export class MarcusVoiceManager {
   }
 
   // Private methods
+
+  /**
+   * Handle speech start - user began speaking (VAD detection)
+   * NOTE: VAD-based interruption disabled - too many false positives from Marcus's own voice
+   * Transcript-based echo filtering in CharmerController handles this more reliably
+   */
+  private handleSpeechStart(): void {
+    // VAD fires constantly during Marcus's speech - creates false interruptions
+    // Rely on transcript filtering instead (checks against recentMarcusSpeech)
+    // This is simpler and more reliable than trying to time-gate VAD events
+  }
 
   /**
    * Handle transcript from ASR - forward to controller layer

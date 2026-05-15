@@ -11,6 +11,12 @@ import { MARCUS_OBJECTION_STACKS } from './ObjectionStack';
 import { type BuyerState } from './StrategyLayer';
 import { API_ENDPOINTS } from '@/config/apiEndpoints';
 
+// A/B TEST: Set to true for condensed prompt (50% shorter, principle-based)
+const USE_CONDENSED_PROMPT = false; // CONDENSED TOO SHALLOW - uses original
+
+// SENTENCE STREAMING: Emit first sentence immediately while continuing to stream
+const USE_SENTENCE_STREAMING = true;
+
 /**
  * Tactical silence follow-up (pre-buffered with main response)
  * LLM generates this deterministically based on context
@@ -20,6 +26,11 @@ export interface TacticalFollowUp {
   text: string;  // Max 8 words
   type: 'micro_noise' | 'nudge_question';  // micro: "Mm." "Right." | nudge: "What are you thinking?"
 }
+
+/**
+ * Callback for sentence streaming - called when first sentence is ready
+ */
+export type SentenceStreamCallback = (firstSentence: string, emotion?: string) => void;
 
 // Conditional prompt segments - only injected when buyer state triggers them
 const CONFUSION_PROMPT = `YOU'RE CONFUSED - DON'T RESCUE THEM: They're not making sense. Say: "I'm not following" or "Wait, what?"`;
@@ -36,7 +47,84 @@ const MEDIUM_RESISTANCE_PROMPT = `You are somewhat guarded: Answer questions but
 
 const LOW_RESISTANCE_PROMPT = `You are relatively open: Share when asked good questions.`;
 
-// Character-driven prompt - Marcus adapts to whatever they're selling
+// CONDENSED VERSION - Principle-based, trusts GPT-4o to understand
+const getMarcusSystemPromptCondensed = (
+  marcusContext: 'B2B' | 'B2C',
+  conversationStyle: string = 'neutral_conversational',
+  exchangeCount: number = 0,
+  conversationContext?: ConversationContext,
+  marcusTraits?: {
+    painLevel: string;
+    urgency: string;
+    budget: string;
+    openness: string;
+    painPoints: string[];
+    currentSolution: string;
+    satisfactionLevel: number;
+    decisionTimeframe: string;
+    primaryConcern: string;
+  }
+) => {
+  const userName = conversationContext?.userName;
+  
+  let timingGuidance = '';
+  if (exchangeCount <= 2) {
+    timingGuidance = userName 
+      ? `Exchange ${exchangeCount}: You know it's ${userName}. ${exchangeCount === 1 ? 'Ask what they want.' : 'Respond to what they said - don\'t repeat questions.'}` 
+      : `Exchange ${exchangeCount}: Ask who this is.`;
+  } else if (exchangeCount <= 6) {
+    timingGuidance = `Exchange ${exchangeCount}: Still guarded. Brief answers.${exchangeCount > 4 ? ' Getting impatient.' : ''}`;
+  } else {
+    timingGuidance = `Exchange ${exchangeCount}: ${exchangeCount <= 10 ? 'Warming slightly.' : 'Rapport earned - can show interest.'}`;
+  }
+
+  return `You are Marcus Stindle - a real person, not an AI. You run Stindle Consulting, have 14-year-old twins, and don't sleep great.
+
+**PERSONALITY:** Genuinely warm with friends, guarded with strangers selling things. Use casual language ("man", "bro" with men only, "juggling the biz" not "managing obligations"). Grade 3 English. Vary sentence length. Be uncertain when you don't know something.
+
+**THIS CALL:** Cold call from stranger. ${timingGuidance}
+
+${marcusTraits ? `**YOUR REALITY:**
+- Current: ${marcusTraits.currentSolution} (${marcusTraits.satisfactionLevel}/10 satisfaction)
+- Pain: ${marcusTraits.painLevel} ${marcusTraits.painPoints.length > 0 ? `(hidden: ${marcusTraits.painPoints.join(', ')})` : ''}
+- Budget: ${marcusTraits.budget}
+- Urgency: ${marcusTraits.urgency} (${marcusTraits.decisionTimeframe})
+- Concern: ${marcusTraits.primaryConcern}
+
+**Object based on YOUR constraints, not generic excuses.**` : ''}
+
+**CORE RULES:**
+1. **Don't help them sell** - Answer questions, don't ask coaching questions like "What makes you different?" or "How does this work?"
+2. **Don't volunteer problems** - Stay guarded unless they earn trust (respect level 0.8+)
+3. **Answer questions directly** - Only deflect if genuinely confused or they're pitching features
+4. **Brief on cold calls** - "Okay." / "Sure." / "Uh huh." Don't reciprocate small talk.
+5. **Use silence handling context** - Respond naturally to [SILENCE: ...] messages based on what you just said
+
+**OBJECTION TAGGING (hidden):**
+When resistant, tag in META:
+- trust (don't believe claims)
+- cold_outreach (annoyed at being called)
+- timing (not urgent)
+- budget (cost concern)
+- skepticism (doubt it fits)
+- authority (can't decide alone)
+
+Severity 0-1 (0.9=blocking, 0.3=minor). Satisfied 0-1 (how addressed).
+
+**STRATEGIC MOMENTS (tag when happen):**
+- permission_signal: You give them time/permission
+- differentiation_ask: You ask how they're different
+- pain_reveal: You volunteer a problem first time
+- soft_exit: You signal wrapping up
+
+**FORMAT:**
+[emotion] Your spoken response
+<META>{"followup":"text or null","end_call":false,"objections":[{"id":"type","severity":0-1,"satisfied":0-1}],"user_respect_level":0-1,"marcus_irritation_delta":-0.2 to 0.2,"purpose_clarity_delta":-0.2 to 0.2,"extracted_name":null,"extracted_company":null,"strategic_moment":{"type":"permission_signal|etc|null","signal":"tip"},"question_handling":{"user_asked_question":bool,"marcus_answered":bool,"deflection_reason":null|"confused_about_offer"|"vague_question"|"already_answered"|"too_personal"|"feature_pitching"}}</META>
+
+**ALWAYS CLOSE THE META TAG.**`;
+};
+
+// ORIGINAL VERSION - Example-heavy, defensive over-specification
 const getMarcusSystemPrompt = (
   marcusContext: 'B2B' | 'B2C', 
   conversationStyle: string = 'neutral_conversational',
@@ -789,7 +877,7 @@ export class CharmerAIService {
     // In production, API key would come from environment or backend
     this.apiKey = apiKey || '';
     this.baseUrl = API_ENDPOINTS.OPENAI_CHAT; // Uses centralized config with env-based URL
-    this.model = MARCUS_AI_MODELS[model || 'gpt-4o-mini']; // Default to GPT-4o-mini
+    this.model = MARCUS_AI_MODELS[model || 'gpt-4o']; // Use GPT-4o for larger context (128k vs 16k)
   }
   
   /**
@@ -801,7 +889,8 @@ export class CharmerAIService {
     context: AIRequestContext,
     motivationBlock?: string,
     conversationStyle?: string,
-    overseerGuidance?: string
+    overseerGuidance?: string,
+    onFirstSentence?: SentenceStreamCallback
   ): Promise<AIResponse> {
     console.log(`🤖 Generating Marcus response for Phase ${context.phase} using ${this.model}`);
     
@@ -862,6 +951,8 @@ export class CharmerAIService {
       let rawContent = '';
       let buffer = '';
       let firstChunkTime: number | null = null;
+      let firstSentenceEmitted = false;
+      let streamingEmotion: string | undefined = undefined;
       
       console.log('📡 Starting SSE stream...');
       
@@ -907,6 +998,31 @@ export class CharmerAIService {
                   console.log(`⚡ First token in ${timeToFirst.toFixed(0)}ms`);
                 }
                 rawContent += delta;
+                
+                // SENTENCE STREAMING: Emit first complete sentence
+                if (USE_SENTENCE_STREAMING && !firstSentenceEmitted && onFirstSentence) {
+                  // Extract emotion tag if present
+                  let workingContent = rawContent;
+                  const emotionMatch = workingContent.match(/^\[(\w+)\]\s*/);
+                  if (emotionMatch) {
+                    streamingEmotion = emotionMatch[1].toLowerCase();
+                    workingContent = workingContent.replace(emotionMatch[0], '').trim();
+                  }
+                  
+                  // Look for first complete sentence (. ! ? followed by space or newline)
+                  const sentenceMatch = workingContent.match(/^[^.!?]+[.!?](?=\s|$)/);
+                  if (sentenceMatch) {
+                    const firstSentence = sentenceMatch[0].trim();
+                    // Only emit if sentence is substantial (3+ words) and not META tag
+                    const wordCount = firstSentence.split(/\s+/).length;
+                    if (wordCount >= 3 && !firstSentence.includes('<META>')) {
+                      firstSentenceEmitted = true;
+                      const sentenceTime = performance.now() - startTime;
+                      console.log(`🚀 First sentence ready in ${sentenceTime.toFixed(0)}ms: "${firstSentence.substring(0, 50)}..."`);
+                      onFirstSentence(firstSentence, streamingEmotion);
+                    }
+                  }
+                }
               }
             } catch (e) {
               // Skip invalid JSON chunks
@@ -1318,13 +1434,22 @@ ${focusedContext}`;
     // Each exchange = user message + Marcus response, so divide by 2 and add 1 for current
     const exchangeCount = Math.floor(context.conversationHistory.length / 2) + 1;
     
-    const systemPrompt = getMarcusSystemPrompt(
-      context.conversationContext.marcusContext,
-      conversationStyle || 'neutral_conversational',
-      exchangeCount,
-      context.conversationContext,
-      context.marcusTraits
-    );
+    // A/B TEST: Use condensed or original prompt
+    const systemPrompt = USE_CONDENSED_PROMPT 
+      ? getMarcusSystemPromptCondensed(
+          context.conversationContext.marcusContext,
+          conversationStyle || 'neutral_conversational',
+          exchangeCount,
+          context.conversationContext,
+          context.marcusTraits
+        )
+      : getMarcusSystemPrompt(
+          context.conversationContext.marcusContext,
+          conversationStyle || 'neutral_conversational',
+          exchangeCount,
+          context.conversationContext,
+          context.marcusTraits
+        );
     
     let fullPrompt = systemPrompt;
     

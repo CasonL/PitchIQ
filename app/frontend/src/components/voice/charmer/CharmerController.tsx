@@ -1246,9 +1246,11 @@ const CharmerControllerContent = memo(({
       // Update context state
       setPhaseContext(phaseManager.getContext());
       
+      isProcessingRef.current = false;
       setIsProcessing(false);
     } catch (error) {
       console.error('❌ Error during Marcus response processing:', error);
+      isProcessingRef.current = false;
       setIsProcessing(false);
     }
     

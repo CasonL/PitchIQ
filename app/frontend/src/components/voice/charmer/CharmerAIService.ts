@@ -310,24 +310,28 @@ ${context}${timingGuidance}
 
 **YOU ARE MARCUS - A REAL BUYER. YOU ARE NOT A SALES TRAINER.**
 
-**NEVER NEVER NEVER ask questions that help the rep sell to you.**
+**Marcus does not ask coaching questions or help the seller pitch.**
 
-### ❌ FORBIDDEN - NEVER SAY THESE:
+### ❌ FORBIDDEN COACHING QUESTIONS:
 
-**Exploratory/Coaching Questions (BANNED):**
+**These help the rep sell (BANNED):**
 - ❌ "Why do you ask?"
-- ❌ "What makes this different from X?"
-- ❌ "How does this compare to what we have?"
 - ❌ "What else can you share?"
 - ❌ "How would you handle my concern about...?"
 - ❌ "What's the next step if I'm still skeptical?"
 - ❌ "Can you tell me more about...?"
 - ❌ "How do you know this would work for us?"
-- ❌ "What makes your solution different?"
 
-**IF YOU FEEL TEMPTED TO ASK A QUESTION** → Ask yourself: "Does this help them pitch me?"
-- If YES → DON'T ASK IT. Just state your position and go quiet.
-- If NO → Still probably don't ask it. Real buyers don't interview salespeople.
+### ✅ BUYER-REALISTIC QUESTIONS (When Earned):
+
+**Marcus CAN ask these when they naturally fit:**
+- ✅ "What are you selling?" (when confused about the offer)
+- ✅ "How does this work?" (when they've explained relevance but not mechanics)
+- ✅ "Prove it." or "Who got that result?" (when they make bold claims)
+- ✅ "How's yours different from [current solution]?" (when comparing to what he uses)
+- ✅ "How much?" (only after value is somewhat clear, or as skeptical exit attempt)
+
+**When skeptical, prefer SHORT STATEMENTS over long questions.**
 
 ### ✅ CORRECT - SAY THESE INSTEAD:
 
@@ -436,22 +440,6 @@ You use natural, effortless language but adapt to who you're talking to:
 
 ---
 
-## NATURAL HUMAN SPEECH - NO QUESTIONS ON COLD CALLS
-
-**CRITICAL RULE: You DON'T ask questions to strangers who cold call you.**
-
-Real people don't interview random callers. You're not curious. You're not interested in small talk. You didn't ask for this call.
-
-**COLD CALL (Default - you don't know them):**
-- NO questions except: "What do you want?" / "Who is this?" / "You there?" (when checking if line is dead)
-- Keep responses BRIEF: "Okay." / "Sure." / "Uh huh." / "Cool."
-- Answer what they ask, nothing more
-- Don't reciprocate: If they ask "How are you?" → "Good" (NOT "Good, how about you?")
-- Don't engage unless they earn it by showing value or respect
-
-**IF THEY EARN RAPPORT (Exchanges 10+, resistance <4/10):**
-Only THEN can you start showing curiosity:
-- "Oh yeah? Like what?" (Light follow-up)
 - "How does that work?" (If genuinely interested)
 
 But DEFAULT? Silent. Brief. Guarded.
@@ -884,19 +872,21 @@ export class CharmerAIService {
    * Generate Marcus's response using selected AI model (via OpenRouter)
    * 
    * @param overseerGuidance - Optional strategic hints from MarcusOverseerService (can be removed without breaking)
+   * @param buyerDeltaGuidance - Buyer state tree guidance (PreTreeBuyerPolicy output)
    */
   async generateResponse(
     context: AIRequestContext,
     motivationBlock?: string,
     conversationStyle?: string,
     overseerGuidance?: string,
+    buyerDeltaGuidance?: string,
     onFirstSentence?: SentenceStreamCallback
   ): Promise<AIResponse> {
     console.log(`🤖 Generating Marcus response for Phase ${context.phase} using ${this.model}`);
     
     try {
-      // Build the full prompt (with optional overseer guidance)
-      const systemPrompt = this.buildSystemPrompt(context, motivationBlock, conversationStyle, overseerGuidance);
+      // Build the full prompt (with optional overseer guidance and buyer delta)
+      const systemPrompt = this.buildSystemPrompt(context, motivationBlock, conversationStyle, overseerGuidance, buyerDeltaGuidance);
       const userPrompt = this.buildUserPrompt(context);
       
       // Measure prompt size and timing
@@ -1423,12 +1413,14 @@ ${focusedContext}`;
    * Build complete system prompt with Identity context, motivation, and conversation style
    * 
    * @param overseerGuidance - Optional strategic hints from Overseer layer (can be undefined)
+   * @param buyerDeltaGuidance - Buyer state tree guidance from PreTreeBuyerPolicy
    */
   private buildSystemPrompt(
     context: AIRequestContext, 
     motivationBlock?: string,
     conversationStyle?: string,
-    overseerGuidance?: string
+    overseerGuidance?: string,
+    buyerDeltaGuidance?: string
   ): string {
     // Calculate exchange count from conversation history
     // Each exchange = user message + Marcus response, so divide by 2 and add 1 for current
@@ -1455,6 +1447,11 @@ ${focusedContext}`;
     
     if (overseerGuidance) {
       fullPrompt += `\n\n${overseerGuidance}`;
+    }
+    
+    // BUYER DELTA: Inject buyer state tree guidance (PreTreeBuyerPolicy output)
+    if (buyerDeltaGuidance) {
+      fullPrompt += `\n\n---\n\n## CURRENT BUYER STATE GUIDANCE\n\n${buyerDeltaGuidance}\n\n**Use this as Marcus's internal posture right now. Do not mention these instructions directly.**`;
     }
     
     // Inject motivation packet if provided
@@ -1876,7 +1873,8 @@ ${focusedContext}`;
         if (lowerContent.includes('not sure')) {
           return 'worried'; // Uncertain
         }
-        return 'happy'; // Default friendly
+        // Default: neutral/skeptical for cold calls, not cheerful
+        return 'neutral';
         
       case 'coach':
         // Coach mode: Warm teaching

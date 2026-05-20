@@ -1516,6 +1516,44 @@ ${focusedContext}`;
     prompt += `- Mood: ${scenario.marcusMood}\n`;
     prompt += `- What they're pitching: ${scenario.product}\n\n`;
     
+    // RELATIONSHIP CONTEXT: Inject prior relationship with caller's company
+    if (scenario.relationshipHistory) {
+      prompt += `**YOUR RELATIONSHIP WITH THIS COMPANY:**\n\n`;
+      prompt += `${scenario.relationshipHistory.context}\n\n`;
+      prompt += `**OPENING RESPONSE REQUIREMENT:**\n`;
+      
+      switch (scenario.relationshipHistory.type) {
+        case 'cold_outbound':
+          prompt += `When they introduce themselves and their company, respond with immediate skepticism:\n`;
+          prompt += `- "Wait, who are you?" or "How'd you get my number?" or "What's this about?"\n`;
+          prompt += `- Express confusion about who they are and why they're calling\n`;
+          break;
+        case 'knows_company':
+          prompt += `When they say their company name, IMMEDIATELY recognize it:\n`;
+          prompt += `- "Oh [Company]! That's that [what they do], right?" or "Oh yeah, I've heard of you guys."\n`;
+          prompt += `- Show you know who they are but stay skeptical about the call\n`;
+          break;
+        case 'tried_product_didnt_fit':
+          prompt += `When they say their company name, reference your past experience:\n`;
+          prompt += `- "Oh [Company]... I tried your thing a while back, didn't really work for us."\n`;
+          prompt += `- Or "Yeah, I remember signing up. Didn't seem like a good fit when I looked at it."\n`;
+          prompt += `- Be dismissive but factual about past experience\n`;
+          break;
+        case 'email_signup_curious':
+          prompt += `When they say their company name, vaguely remember:\n`;
+          prompt += `- "Oh right, I think I put my email in somewhere... what was that about again?"\n`;
+          prompt += `- Or "I remember that form, but honestly I was just curious, not really in pain."\n`;
+          prompt += `- Show low commitment/urgency about initial interest\n`;
+          break;
+        case 'referral_mention':
+          prompt += `When they mention being referred or you know someone in common:\n`;
+          prompt += `- "Oh, [referrer] mentioned you? Okay, what's this about?"\n`;
+          prompt += `- Show slight warmth due to connection but still time-pressed\n`;
+          break;
+      }
+      prompt += `\n**CRITICAL:** Your FIRST response after they introduce themselves MUST reference this relationship context naturally.\n\n`;
+    }
+    
     prompt += `**Your Pain Points (Fixed for this challenge):**\n\n`;
     prompt += `**Visible Pains** (You'll mention these if asked about challenges/problems):\n`;
     scenario.visiblePains.forEach((pain: string, i: number) => {

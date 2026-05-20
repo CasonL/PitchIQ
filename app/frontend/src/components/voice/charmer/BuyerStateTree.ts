@@ -133,9 +133,9 @@ export class BuyerStateTree {
   
   // Stickiness configuration
   private readonly MIN_TURNS_IN_STATE = 2;
-  private readonly CONFIDENCE_THRESHOLD_TRANSITION = 65;
-  private readonly STICKY_BONUS_PER_TURN = 5;
-  private readonly MAX_STICKY_BONUS = 15;
+  private readonly CONFIDENCE_THRESHOLD_TRANSITION = 50; // Reduced from 65 to allow faster transitions
+  private readonly STICKY_BONUS_PER_TURN = 3; // Reduced from 5 to lower stickiness
+  private readonly MAX_STICKY_BONUS = 12; // Reduced from 15
   private readonly TRANSITION_MARGIN = 10;
   
   constructor() {
@@ -481,6 +481,14 @@ export class BuyerStateTree {
     turnNumber: number
   ): Promise<BuyerStateTransition | null> {
     this.currentTurn = turnNumber;
+    
+    // DEBUG: Verify internal state
+    console.log('[BuyerStateTree.updateState]', {
+      activated: this.treeActivated,
+      generated: this.treeGenerated,
+      currentNodeId: this.currentNodeId,
+      nodeCount: this.nodes.size
+    });
     
     // Update latest config with fresh belief state
     if (this.latestConfig) {
@@ -848,13 +856,29 @@ export class BuyerStateTree {
    */
   private detectTriggers(candidate: BuyerStateNode, utterance: string): number {
     let bonus = 0;
+    const matchedTriggers: string[] = [];
+    
+    // DEBUG: Log available triggers for this candidate
+    if (candidate.softTriggers.length > 0 || candidate.hardTriggers.length > 0) {
+      console.log(`🔍 [Trigger Check] "${candidate.stateName}":`, {
+        softTriggers: candidate.softTriggers,
+        hardTriggers: candidate.hardTriggers,
+        registeredHardTriggers: Array.from(this.currentHardTriggers)
+      });
+    }
     
     // Check soft triggers only (hard triggers checked separately)
     candidate.softTriggers.forEach(trigger => {
       if (this.matchesTriggerPattern(trigger, utterance)) {
         bonus += 10;
+        matchedTriggers.push(trigger);
       }
     });
+    
+    // Log matched triggers
+    if (matchedTriggers.length > 0) {
+      console.log(`✅ [Trigger Match] "${candidate.stateName}" matched: ${matchedTriggers.join(', ')} (+${bonus})`);
+    }
     
     return bonus;
   }
@@ -952,11 +976,30 @@ export class BuyerStateTree {
   }
   
   /**
+   * Check if tree is activated
+   */
+  isActivated(): boolean {
+    return this.treeActivated;
+  }
+  
+  /**
    * Get current buyer state
    */
   getCurrentState(): BuyerStateNode | null {
     if (!this.currentNodeId) return null;
     return this.nodes.get(this.currentNodeId) || null;
+  }
+  
+  /**
+   * Get child nodes for a given node ID
+   */
+  getChildNodes(nodeId: string): BuyerStateNode[] {
+    const node = this.nodes.get(nodeId);
+    if (!node) return [];
+    
+    return node.childIds
+      .map(id => this.nodes.get(id))
+      .filter((child): child is BuyerStateNode => child !== undefined);
   }
   
   /**

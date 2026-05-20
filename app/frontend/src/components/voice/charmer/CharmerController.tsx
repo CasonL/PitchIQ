@@ -42,6 +42,11 @@ import { LocalStorageService } from './services/LocalStorageService';
 import { ObjectionGenerator, DiscoveryContext } from './ObjectionGenerator';
 import { ConversationTracker } from './ConversationTranscript';
 import { SystemDebugPanel, SystemDebugEvent } from './SystemDebugPanel';
+import { ProductConfidenceDetector } from './ProductConfidenceDetector';
+import { BuyerBeliefTracker } from './BuyerBeliefTracker';
+import { BuyerStateTree } from './BuyerStateTree';
+import { TreeDeltaManager } from './TreeDeltaManager';
+import { HARD_TRIGGERS, SELLER_SIGNALS, type SellerSignalId } from './BuyerTriggerConstants';
 
 interface CharmerControllerProps {
   onCallEnd?: () => void;
@@ -217,6 +222,12 @@ const CharmerControllerContent = memo(({
   const strategyLayerRef = useRef(new StrategyLayer());
   const hybridFeedbackRef = useRef(new MomentFeedbackIntegration());
   const objectionGeneratorRef = useRef(new ObjectionGenerator()); // Generate product-specific objections
+  
+  // Buyer-state modeling system (Phase 1)
+  const productConfidenceRef = useRef(new ProductConfidenceDetector());
+  const beliefTrackerRef = useRef(new BuyerBeliefTracker());
+  const stateTreeRef = useRef(new BuyerStateTree());
+  const deltaManagerRef = useRef(new TreeDeltaManager());
   const lastObjectionRef = useRef<string | undefined>(undefined); // Track last objection for escalation
   const utteranceCountRef = useRef(0); // Track number of complete utterances
   const processingTranscriptRef = useRef<string>(''); // Track which transcript we're processing
@@ -257,6 +268,7 @@ const CharmerControllerContent = memo(({
   const conversationTrackerRef = useRef<ConversationTracker | null>(null);
   const callStartTimeRef = useRef<number>(0);
   const nameMentionCountRef = useRef<{[key: string]: number}>({});
+  const sellerSignalsRef = useRef<Set<SellerSignalId>>(new Set());
   /**
    * Generate session ID
    */
@@ -346,7 +358,7 @@ const CharmerControllerContent = memo(({
           phasePromptContext: phaseManagerRef.current.getPhasePromptContext(),
           conversationHistory: conversationHistory,
           questionCategory: classification.category
-        }, undefined, undefined, getGuidance());
+        }, undefined, undefined, undefined);
         
         console.log(`🎤 Marcus [confused]: "${aiResponse.content}"`);
         
@@ -481,6 +493,73 @@ const CharmerControllerContent = memo(({
         }
       }
       
+      // Detect seller signals for PreTreeBuyerPolicy
+      // Split: PERSISTENT signals (accumulate across call) vs TURN-SPECIFIC signals (this turn only)
+      const turnSpecificSignals = new Set<SellerSignalId>();
+      
+      // PERSISTENT: Bold metric claim (call fact)
+      const metricClaimPattern = /\b(\d+%|\d+x|\d+\s*times|\d+\s*(percent|hours|days|weeks|months|dollars|k|thousand|million))\b.*\b(revenue|sales|conversion|close rate|win rate|productivity|efficiency|time|cost|ramp|onboarding)\b/i;
+      if (metricClaimPattern.test(userText)) {
+        sellerSignalsRef.current.add(SELLER_SIGNALS.BOLD_METRIC_CLAIM);
+        console.log('📊 [Seller Signal] Bold metric claim detected (persistent)');
+      }
+      
+      // PERSISTENT: Competitor mentioned (call fact)
+      const competitorPattern = /\b(gong|chorus|salesloft|outreach|hubspot|salesforce|competitor|alternative|other (tool|platform|solution)s?)\b/i;
+      if (competitorPattern.test(userText)) {
+        sellerSignalsRef.current.add(SELLER_SIGNALS.MENTIONED_COMPETITOR);
+        console.log('🏢 [Seller Signal] Competitor/alternative mentioned (persistent)');
+      }
+      
+      // PERSISTENT: Asked about current tools (call fact)
+      const currentToolsPattern = /\b(what (are you|do you) (using|use)|what do you have in place|what are you using today|current (solution|tool|platform|system|process)|how (are you|do you) (currently )?(doing|handling|managing)|what does that look like today)\b/i;
+      if (currentToolsPattern.test(userText)) {
+        sellerSignalsRef.current.add(SELLER_SIGNALS.ASKED_ABOUT_CURRENT_TOOLS);
+        console.log('🔧 [Seller Signal] Asked about current tools (persistent)');
+      }
+      
+      // PERSISTENT: AI mentioned (call fact)
+      const aiMentionPattern = /\b(AI|artificial intelligence|machine learning|GPT|ChatGPT|LLM)\b/i;
+      if (aiMentionPattern.test(userText)) {
+        sellerSignalsRef.current.add(SELLER_SIGNALS.MENTIONED_AI);
+        console.log('🤖 [Seller Signal] AI mentioned (persistent)');
+      }
+      
+      // TURN-SPECIFIC: Mechanism explained (this turn's behavior)
+      const mechanismPattern = /\b(we do that by|how it works is|the way it works|through|by|using|via|with|leveraging|powered by)\b.{0,120}\b(practice|analyze|simulate|roleplay|coach|score|detect|generate|train|personalize|adapt|integrate|record|review|recommend|platform|system|technology|AI|training|simulation|tool|process|method|approach)\b/i;
+      if (mechanismPattern.test(userText)) {
+        turnSpecificSignals.add(SELLER_SIGNALS.EXPLAINED_MECHANISM);
+        console.log('🔧 [Seller Signal] Mechanism explained (turn-specific)');
+      }
+      
+      // TURN-SPECIFIC: Proof provided (this turn's behavior)
+      const proofPattern = /\b(company|customer|client|team|organization)\s+(\w+\s+){0,3}(saw|achieved|got|reached|increased|improved|reduced)\b/i;
+      const examplePattern = /\b(for example|such as|case study|real example|specific example)\b/i;
+      const likeExamplePattern = /\blike\s+(a company|one customer|teams?|organizations?|businesses?|clients?)\b/i;
+      if (proofPattern.test(userText) || examplePattern.test(userText) || likeExamplePattern.test(userText)) {
+        turnSpecificSignals.add(SELLER_SIGNALS.PROVIDED_PROOF);
+        console.log('✅ [Seller Signal] Proof/example provided (turn-specific)');
+      }
+      
+      // TURN-SPECIFIC: Vague claim (this turn's behavior)
+      const vaguePattern = /\b(innovative|unique|cutting[- ]edge|revolutionary|game[- ]changing|next[- ]generation|solution|platform)\b/i;
+      const hasVagueLanguage = vaguePattern.test(userText);
+      const hasMechanism = mechanismPattern.test(userText);
+      const hasProof = proofPattern.test(userText) || examplePattern.test(userText);
+      if (hasVagueLanguage && !hasMechanism && !hasProof) {
+        turnSpecificSignals.add(SELLER_SIGNALS.VAGUE_CLAIM);
+        console.log('💭 [Seller Signal] Vague claim detected (turn-specific)');
+      }
+      
+      // TURN-SPECIFIC: Dodged mechanics question (this turn's behavior)
+      const lastMarcusMessage = conversationHistory[conversationHistory.length - 1];
+      const marcusAskedHow = lastMarcusMessage?.role === 'assistant' && /\b(how|what.*do|explain|walk me through)\b/i.test(lastMarcusMessage.content || '');
+      const hasClarifyingAttempt = /\b(it works by|basically|the idea is|what it does is|we help by|it uses|it gives|it lets)\b/i.test(userText);
+      if (marcusAskedHow && !mechanismPattern.test(userText) && !hasClarifyingAttempt) {
+        turnSpecificSignals.add(SELLER_SIGNALS.DODGED_MECHANICS);
+        console.log('🚫 [Seller Signal] Dodged mechanics question (turn-specific)');
+      }
+      
       // Extract pitch analysis for coaching potential
       if (extracted.detectedIssues && extracted.detectedIssues.length > 0) {
         const issue = CharmerContextExtractor.pickOneIssue(extracted.detectedIssues);
@@ -543,28 +622,22 @@ const CharmerControllerContent = memo(({
       // Use previous buyer state for AI prompt (strategy will update after)
       buyerState = buyerStateBefore;
       
-      // OVERSEER: Start parallel scenario analysis (non-blocking)
-      if (isOverseerEnabled) {
-        // DEBUG: Capture overseer analysis start
-        addDebugEvent('overseer', 'Overseer Planning Ahead', {
-          currentResistance: buyerState.resistanceLevel,
-          currentPhase: currentPhaseStr,
-          exchangeCount: conversationHistory.length,
-          difficulty: selectedScenario?.difficulty
-        });
-        
-        analyzeConversation({
-          conversationHistory,
-          currentResistance: buyerState.resistanceLevel,
-          currentPhase: currentPhaseStr,
-          exchangeCount: conversationHistory.length,
-          lastUserMessage: userText,
-          difficulty: selectedScenario?.difficulty,
-          scenario: selectedScenario,
-          budgetConstraint: selectedScenario?.traits?.budget,
-          idealOutcome: selectedScenario?.traits?.idealOutcome
-        });
-      }
+      // OVERSEER: DISABLED for voice realism tests
+      // Was generating JSON parsing errors and adding cost without benefit
+      // Re-enable later if needed for advanced coaching scenarios
+      // if (analyzeConversation) {
+      //   analyzeConversation({
+      //     conversationHistory,
+      //     currentResistance: buyerState.resistanceLevel,
+      //     currentPhase: currentPhaseStr,
+      //     exchangeCount: conversationHistory.length,
+      //     lastUserMessage: userText,
+      //     difficulty: selectedScenario?.difficulty,
+      //     scenario: selectedScenario,
+      //     budgetConstraint: selectedScenario?.traits?.budget,
+      //     idealOutcome: selectedScenario?.traits?.idealOutcome
+      //   });
+      // }
       
       // HYBRID FEEDBACK: Analyze utterance with context-aware LLM reasoning
       // This runs async and doesn't block Marcus's response
@@ -597,14 +670,179 @@ const CharmerControllerContent = memo(({
       strategyOutput = await strategyPromise;
       buyerState = strategyOutput.buyerState;
       
+      // 🌳 BUYER-STATE MODELING: Update dynamic buyer state tree
+      const turnNumber = Math.floor(conversationHistory.length / 2) + 1;
+      
+      // Step 1: Update product confidence
+      const productConfidence = productConfidenceRef.current.updateConfidence(
+        userText,
+        turnNumber
+      );
+      
+      // Step 2: Update belief tracker
+      const beliefs = beliefTrackerRef.current.updateBeliefs(
+        userText,
+        turnNumber,
+        repQualitySignals,
+        productConfidence.category
+      );
+      
+      // Step 3: Generate tree when product confidence reaches medium
+      if (productConfidence.shouldGenerateTree) {
+        await stateTreeRef.current.generateTree({
+          productName: productConfidence.product,
+          productCategory: productConfidence.category,
+          beliefState: beliefs,
+          maxDepth: 3,
+          maxChildrenPerNode: 4
+        }, turnNumber);
+        
+        productConfidenceRef.current.markTreeGenerated();
+      }
+      
+      // Step 4: Activate tree when product confidence reaches high
+      if (productConfidence.shouldActivateTree) {
+        stateTreeRef.current.activateTree();
+        productConfidenceRef.current.markTreeActivated();
+      }
+      
+      // Step 5: Map rep quality signals to hard trigger IDs (using shared constants)
+      const hardTriggers: string[] = [];
+      
+      // Map specific rep behaviors to trigger IDs that match BuyerStateTree
+      if (repQualitySignals.askedOpenEnded) {
+        hardTriggers.push(HARD_TRIGGERS.ASKS_GOOD_DISCOVERY_QUESTION);
+      }
+      if (repQualitySignals.acknowledgedPain) {
+        hardTriggers.push(HARD_TRIGGERS.DEMONSTRATES_GENUINE_CURIOSITY);
+      }
+      if (repQualitySignals.providedProof) {
+        hardTriggers.push(HARD_TRIGGERS.PROVIDES_SOCIAL_PROOF);
+      }
+      if (repQualitySignals.askedPermission) {
+        hardTriggers.push(HARD_TRIGGERS.ASKS_PERMISSION_TO_CONTINUE);
+      }
+      if (repQualitySignals.builtRapport) {
+        hardTriggers.push(HARD_TRIGGERS.BUILDS_RAPPORT);
+      }
+      // Note: Additional trigger mappings can be added as rep quality signals expand
+      
+      // Register hard triggers before state update
+      stateTreeRef.current.registerHardTriggers(hardTriggers);
+      
+      // DEBUG: Verify tree state before update
+      console.log('[Tree Pre-Update]', {
+        currentNode: stateTreeRef.current.getCurrentState()?.stateName,
+        productConfidence: productConfidence.confidence,
+        shouldGenerate: productConfidence.shouldGenerateTree,
+        shouldActivate: productConfidence.shouldActivateTree
+      });
+      
+      // Step 6: Update state tree (may trigger transition)
+      const stateTransition = await stateTreeRef.current.updateState(
+        userText,
+        beliefs,
+        productConfidence,
+        turnNumber
+      );
+      
+      // DEBUG: Log state tree updates
+      if (stateTransition) {
+        addDebugEvent('state', 'State Transition', {
+          from: stateTransition.fromNodeId,
+          to: stateTransition.toNodeId,
+          reason: stateTransition.reason,
+          confidence: stateTransition.confidence,
+          triggerType: stateTransition.triggerType
+        });
+      }
+      
+      addDebugEvent('state', 'Product Confidence', {
+        confidence: productConfidence.confidence,
+        product: productConfidence.product,
+        category: productConfidence.category,
+        signals: productConfidence.signals.slice(0, 5) // Show first 5 signals
+      });
+      
+      addDebugEvent('state', 'Belief State', {
+        understandsProduct: beliefs.understandsProduct,
+        seesRelevance: beliefs.seesRelevance,
+        trustsRep: beliefs.trustsRep,
+        painClarity: beliefs.painClarity,
+        valueClarity: beliefs.valueClarity,
+        urgency: beliefs.urgency
+      });
+      
+      // Step 7: Generate buyer-facing delta for Marcus's prompt with availability overlay
+      const currentNode = stateTreeRef.current.getCurrentState();
+      const childNodes = currentNode ? stateTreeRef.current.getChildNodes(currentNode.nodeId) : [];
+      const treeActivated = stateTreeRef.current.isActivated();
+      
+      // Convert scenario traits to numeric scores for availability determination
+      const convertUrgencyToNumber = (urgency: string): number => {
+        switch (urgency) {
+          case 'high': return 9;
+          case 'medium': return 5;
+          case 'low': return 2;
+          default: return 5;
+        }
+      };
+      
+      const convertOpennessToNumber = (openness: string): number => {
+        switch (openness) {
+          case 'skeptical': return 2;
+          case 'guarded': return 4;
+          case 'neutral': return 5;
+          case 'curious': return 7;
+          case 'eager': return 9;
+          default: return 5;
+        }
+      };
+      
+      // Extract scenario traits for availability determination
+      const scenarioTraits = selectedScenario?.traits ? {
+        urgency: convertUrgencyToNumber(selectedScenario.traits.urgency),
+        openness: convertOpennessToNumber(selectedScenario.traits.openness),
+        satisfaction: selectedScenario.traits.satisfactionLevel,
+        initialResistance: selectedScenario.traits.initialResistance,
+        patience: 10 - selectedScenario.traits.initialResistance // Inverse of resistance
+      } : undefined;
+      
+      // Combine persistent signals (call facts) with turn-specific signals (this turn's behavior)
+      const allRecentSignals = new Set([
+        ...sellerSignalsRef.current,  // Persistent: BOLD_METRIC_CLAIM, MENTIONED_AI, etc.
+        ...turnSpecificSignals         // Turn-specific: EXPLAINED_MECHANISM, VAGUE_CLAIM, etc.
+      ]);
+      
+      const buyerDelta = deltaManagerRef.current.generateBuyerDelta(
+        currentNode,
+        childNodes,
+        beliefs,
+        stateTransition,
+        turnNumber,
+        productConfidence,
+        treeActivated,
+        Array.from(allRecentSignals),  // Combined signals for PreTreeBuyerPolicy
+        scenarioTraits
+      );
+      
+      if (buyerDelta) {
+        addDebugEvent('state', 'Buyer Delta Generated', {
+          currentState: buyerDelta.currentState.name,
+          behaviorCount: buyerDelta.behaviorGuidance.length,
+          reactionCount: buyerDelta.reactionGuidance.length,
+          doNotRevealCount: buyerDelta.doNotReveal.length
+        });
+        console.log('🌳 [BuyerDelta] Generated for Marcus prompt:');
+        console.log(buyerDelta.guidanceText);
+      }
+      
       // DEBUG: Capture strategy state changes
       addDebugEvent('strategy', 'Buyer State Update', {
         emotionalPosture: buyerState.emotionalPosture,
         resistanceLevel: buyerState.resistanceLevel,
         openness: buyerState.openness,
-        patience: buyerState.patience,
-        approvedQuestion: strategyOutput.approvedQuestion?.questionText,
-        coachingObjective: strategyOutput.coachingObjective
+        patience: buyerState.patience
       });
       
       // Update resistance tracking
@@ -645,22 +883,11 @@ const CharmerControllerContent = memo(({
             return;
           }
           
-          // Build guidance for debug visibility
+          // Overseer still runs for debug logs but guidance not injected into prompt
           const overseerGuidance = getGuidance();
-          
-          // Build the system prompt for debugging
-          const debugPrompt = aiServiceRef.current.buildSystemPrompt({
-            phase: currentPhaseStr,
-            conversationContext: phaseManager.getContext(),
-            userInput: userText,
-            phasePromptContext: phaseManager.getPhasePromptContext(),
-            conversationHistory: conversationHistory,
-            scenario: selectedScenario,
-            questionCategory: classification.category
-          }, undefined, undefined, overseerGuidance);
-          
-          // DEBUG: Capture the actual prompt being sent to Marcus
-          addDebugEvent('prompt', 'Marcus System Prompt', debugPrompt);
+          if (overseerGuidance) {
+            console.log('🎭 [Overseer] Generated guidance (not injected):', overseerGuidance.substring(0, 200) + '...');
+          }
           
           aiResponse = await aiServiceRef.current.generateResponse({
             phase: currentPhaseStr,
@@ -670,7 +897,7 @@ const CharmerControllerContent = memo(({
             conversationHistory: conversationHistory,
             scenario: selectedScenario,
             questionCategory: classification.category
-          }, undefined, undefined, overseerGuidance, handleFirstSentence);
+          }, undefined, undefined, undefined, buyerDelta?.guidanceText, handleFirstSentence);
           
           // SAFETY: Check after generation completes
           if (utteranceCountRef.current !== processingUtteranceCount) {
@@ -693,9 +920,9 @@ const CharmerControllerContent = memo(({
         console.log(`🔍 Turn ${turnNumber}: Using full LLM intelligence (all patterns disabled)`);
         aiResponse = await aiServiceRef.current.generateResponse({
           phase: currentPhaseStr,
-          conversationContext: phaseManager.getContext(),
+          conversationContext: phaseManagerRef.current.getContext(),
           userInput: userText,
-          phasePromptContext: phaseManager.getPhasePromptContext(),
+          phasePromptContext: phaseManagerRef.current.getPhasePromptContext(),
           conversationHistory: conversationHistory,
           scenario: selectedScenario,
           buyerState: buyerState,
@@ -711,7 +938,7 @@ const CharmerControllerContent = memo(({
             decisionTimeframe: selectedScenario.traits.decisionTimeframe,
             primaryConcern: selectedScenario.traits.primaryConcern
           } : undefined
-        }, undefined, undefined, getGuidance(), handleFirstSentence);
+        }, undefined, undefined, undefined, buyerDelta?.guidanceText, handleFirstSentence);
         
         // SAFETY: Check after generation completes
         if (utteranceCountRef.current !== processingUtteranceCount) {
@@ -1139,7 +1366,7 @@ const CharmerControllerContent = memo(({
           conversationHistory: conversationHistory,
           scenario: selectedScenario,
           questionCategory: speculativeClassification.category
-        }, undefined, undefined, getGuidance()).catch(err => {
+        }, undefined, undefined, undefined, undefined).catch(err => {
           console.log('⚠️ Speculative generation error:', err);
           speculativeResponseRef.current = null;
           throw err;
@@ -1404,6 +1631,12 @@ const CharmerControllerContent = memo(({
     // Reset utterance counter for new call
     utteranceCountRef.current = 0;
     
+    // Reset buyer-state modeling system for new call
+    productConfidenceRef.current.reset();
+    beliefTrackerRef.current.reset();
+    stateTreeRef.current.reset();
+    console.log('🌳 Buyer-state system reset for new call');
+    
     // Reset phase manager with scenario context
     phaseManagerRef.current.reset();
     phaseManagerRef.current.updateContext({
@@ -1480,6 +1713,12 @@ const CharmerControllerContent = memo(({
     
     // Reset utterance counter for new call
     utteranceCountRef.current = 0;
+    
+    // Reset buyer-state modeling system for new call
+    productConfidenceRef.current.reset();
+    beliefTrackerRef.current.reset();
+    stateTreeRef.current.reset();
+    console.log('🌳 Buyer-state system reset for new call');
     
     // Reset hybrid feedback analyzer for new call
     hybridFeedbackRef.current.reset();

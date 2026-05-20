@@ -261,7 +261,7 @@ YOU ARE THIS MARCUS. Use this context to create a learning experience.
             { role: 'user', content: prompt }
           ],
           temperature: 0.8,
-          max_tokens: 1200
+          max_tokens: 250
         }),
         signal: signal
       });

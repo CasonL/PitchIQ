@@ -74,47 +74,49 @@ export class CharmerContextExtractor {
   
   /**
    * Extract user's name from transcript
-   * Only extracts during introductions (first 3 exchanges) or explicit corrections
+   * Only extracts during Turn 1 or explicit corrections
+   * After Turn 1, name is LOCKED unless explicit correction detected
    */
   static extractName(transcript: string, currentName?: string, utteranceCount: number = 0): string | null {
-    // Always check for name corrections (can happen anytime)
+    // Always check for explicit name corrections (can happen anytime)
     const correction = this.detectNameCorrection(transcript);
     if (correction) {
       console.log(`🔄 Name corrected: ${currentName} → ${correction}`);
       return correction;
     }
     
-    // If we already have a name and we're past introductions, skip extraction
-    if (currentName && utteranceCount > 3) {
+    // If we already have a name from Turn 1, it's LOCKED - only corrections allowed
+    if (currentName && utteranceCount > 1) {
+      console.log(`🔒 Name locked after Turn 1: ${currentName} (utterance ${utteranceCount})`);
       return null;
     }
     
-    // Patterns: "I'm X", "My name is X", "This is X", "X here"
+    // PRIORITY 1: "[Name] from [Company]" pattern (most reliable, Turn 1 only)
+    // Only use this pattern on Turn 1 to avoid false positives like "team go from A to Z"
+    if (utteranceCount <= 1) {
+      const fromCompanyPattern = /(?:^|\s)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+from\s+[A-Z]/i;
+      const fromMatch = transcript.match(fromCompanyPattern);
+      if (fromMatch && fromMatch[1]) {
+        const name = fromMatch[1].trim();
+        if (this.isValidName(name)) {
+          console.log(`✅ Extracted name (from company): ${name}`);
+          return name;
+        }
+      }
+    }
+    
+    // PRIORITY 2: Other patterns
     const patterns = [
-      /(?:i'm|i am)\s+([A-Z][a-z]+)/i,
-      /(?:my name is|my name's)\s+([A-Z][a-z]+)/i,
-      /(?:this is|it's)\s+([A-Z][a-z]+)/i,
-      /^([A-Z][a-z]+)(?:\s+here|\s+speaking)/i
+      /(?:my name is|my name's|i'm|i am)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+      /(?:this is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+      /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:here|calling|speaking)/i
     ];
     
     for (const pattern of patterns) {
       const match = transcript.match(pattern);
       if (match && match[1]) {
         const name = match[1].trim();
-        // Filter out common false positives and non-names
-        const blacklist = [
-          'hello', 'hi', 'hey', 'yes', 'yeah', 'sure', 'okay', 'thanks', 'great', 'good', 'fine',
-          'interesting', 'sorry', 'please', 'welcome', 'excuse', 'pardon', 'maybe', 'perfect',
-          'exactly', 'absolutely', 'definitely', 'actually', 'really', 'truly', 'honestly',
-          'that', 'this', 'pretty', 'very', 'quite', 'rather', 'fairly', 'somewhat', 'going', 'gone',
-          'been', 'getting', 'doing', 'having', 'being', 'working', 'making', 'taking', 'coming', 'keeping',
-          'part', 'reason', 'thing', 'something', 'anything', 'nothing', 'everything', 'someone',
-          'anyone', 'everyone', 'nobody', 'somebody', 'anyone', 'wondering', 'curious', 'looking',
-          'trying', 'calling', 'reaching', 'following', 'asking', 'telling', 'saying', 'thinking'
-        ];
-        // Additional validation: name should be at least 2 chars and not a common word
-        // Use case-insensitive blacklist check
-        if (!blacklist.includes(name.toLowerCase()) && name.length >= 2 && !/^(it|is|am|at|in|on|to|be|do|so|we|he|she)$/i.test(name)) {
+        if (this.isValidName(name)) {
           console.log(`✅ Extracted name: ${name}`);
           return name;
         }
@@ -122,6 +124,45 @@ export class CharmerContextExtractor {
     }
     
     return null;
+  }
+  
+  /**
+   * Validate extracted name against denylist
+   */
+  private static isValidName(name: string): boolean {
+    const denylist = [
+      // Common false positives from "it's [word]" pattern
+      'me', 'myself', 'i',
+      // Adverbs/qualifiers that sound like names
+      'mainly', 'actually', 'basically', 'just', 'really', 'truly', 'honestly',
+      // Greetings/responses
+      'hello', 'hi', 'hey', 'yes', 'yeah', 'sure', 'okay', 'thanks', 'great', 'good', 'fine',
+      'interesting', 'sorry', 'please', 'welcome', 'excuse', 'pardon', 'maybe', 'perfect',
+      'exactly', 'absolutely', 'definitely',
+      // Common words
+      'that', 'this', 'pretty', 'very', 'quite', 'rather', 'fairly', 'somewhat', 'going', 'gone',
+      'been', 'getting', 'doing', 'having', 'being', 'working', 'making', 'taking', 'coming', 'keeping',
+      'part', 'reason', 'thing', 'something', 'anything', 'nothing', 'everything', 'someone',
+      'anyone', 'everyone', 'nobody', 'somebody', 'wondering', 'curious', 'looking',
+      'trying', 'calling', 'reaching', 'following', 'asking', 'telling', 'saying', 'thinking'
+    ];
+    
+    // Check denylist (case-insensitive)
+    if (denylist.includes(name.toLowerCase())) {
+      return false;
+    }
+    
+    // Check common short words
+    if (/^(it|is|am|at|in|on|to|be|do|so|we|he|she)$/i.test(name)) {
+      return false;
+    }
+    
+    // Name should be at least 2 chars
+    if (name.length < 2) {
+      return false;
+    }
+    
+    return true;
   }
   
   /**

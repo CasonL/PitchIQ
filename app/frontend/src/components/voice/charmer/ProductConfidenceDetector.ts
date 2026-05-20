@@ -94,7 +94,8 @@ export class ProductConfidenceDetector {
     const confidence = this.getConfidenceLevel(this.confidenceScore);
     const previousConfidence = this.getConfidenceLevel(this.confidenceScore - scoreIncrease);
     
-    const shouldGenerate = confidence === "medium" && !this.treeGenerated;
+    // Generate tree when confidence reaches MEDIUM or higher (handles skip from NONE to HIGH)
+    const shouldGenerate = (confidence === "medium" || confidence === "high") && !this.treeGenerated;
     const shouldActivate = confidence === "high" && !this.treeActivated;
     
     this.logUpdate(perTurnSignals, newEvidence, newDiversityBonuses, scoreIncrease, previousConfidence, confidence);
@@ -127,8 +128,15 @@ export class ProductConfidenceDetector {
     
     const productKeywords = [
       'saas', 'software', 'platform', 'tool', 'solution', 'service',
-      'ai', 'crm', 'erp', 'api', 'automation', 'analytics', 'dashboard',
-      'app', 'application', 'system', 'technology'
+      'crm', 'erp', 'api', 'automation', 'analytics', 'dashboard',
+      'app', 'application', 'system', 'technology',
+      // Product categories
+      'training', 'coaching', 'learning', 'education', 'development',
+      // Buyer personas
+      'sales teams', 'sales reps', 'salespeople', 'account executives',
+      'sales managers', 'revenue teams', 'go-to-market',
+      // Competitors/context
+      'gong', 'salesforce', 'hubspot', 'outreach', 'salesloft'
     ];
     
     const useCasePatterns = [
@@ -136,7 +144,15 @@ export class ProductConfidenceDetector {
       /designed (for|to help)/i,
       /specifically for \w+ (teams?|companies?|businesses?)/i,
       /solve[sd]? (the )?(problem|challenge|issue) (of|with)/i,
-      /(sales|marketing|customer|revenue|productivity|efficiency|close rates?|conversion)/i
+      /(sales|marketing|customer|revenue|productivity|efficiency|close rates?|conversion)/i,
+      // Outcome metrics patterns
+      /\d+%\s+(increase|improvement|boost|growth|higher|better)/i,
+      /(increase|improve|boost).{1,30}\d+%/i,
+      /close rates?.{1,20}\d+%/i,
+      /conversion.{1,20}\d+%/i,
+      // Product category patterns
+      /(sales|revenue|go-to-market)\s+(training|coaching|enablement|development)/i,
+      /(training|coaching|learning)\s+(platform|solution|system|tool)/i
     ];
     
     const featurePatterns = [
@@ -148,7 +164,20 @@ export class ProductConfidenceDetector {
       /analytics/i,
       /reporting/i,
       /custom(izable|ization)/i,
-      /mobile/i
+      /mobile/i,
+      // AI as a feature (not product name)
+      /\bai\b/i,
+      /artificial intelligence/i,
+      /machine learning/i,
+      // Specific feature patterns
+      /ai\s+(role\s*plays?|simulations?|personas?|scenarios?)/i,
+      /(voice|conversational|interactive)\s+ai/i,
+      /(real-time|live|instant)\s+(feedback|coaching|analysis)/i,
+      /(personalized|adaptive|tailored|custom)\s+(training|coaching|learning)/i,
+      /(advanced|sophisticated|intelligent)\s+(coaching|analytics|feedback)/i,
+      // Comparison/context features
+      /(unlike|versus|compared to|different from)\s+\w+/i,
+      /(call\s+)?(recording|transcription|analysis)/i
     ];
     
     const painPointPatterns = [

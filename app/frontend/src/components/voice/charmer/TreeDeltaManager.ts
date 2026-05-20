@@ -8,12 +8,17 @@
  * - How Marcus should react to different seller actions
  * - What Marcus should not reveal too early
  * 
+ * Uses PreTreeBuyerPolicy for realistic behavior before tree activates.
+ * 
  * Phase 1: Buyer-facing deltas only
  * Phase 2+: Add seller-facing coaching deltas
  */
 
 import { BuyerStateNode, BuyerStateTransition, BuyerStateType } from './BuyerStateTree';
 import { BuyerBeliefState } from './BuyerBeliefTracker';
+import { PreTreeBuyerPolicy, PreTreeContext, PreTreeGuidance } from './PreTreeBuyerPolicy';
+import { ProductConfidence } from './ProductConfidenceDetector';
+import { AvailabilityPolicy, type AvailabilityState, type AvailabilityContext } from './AvailabilityPolicy';
 
 export interface BuyerDelta {
   currentState: {
@@ -36,14 +41,56 @@ export interface BuyerDelta {
 
 export class TreeDeltaManager {
   /**
-   * Generate buyer-facing prompt delta from current tree state
+   * Generate buyer-facing prompt delta from current tree state or pre-tree policy
+   * with availability overlay
    */
   generateBuyerDelta(
     currentNode: BuyerStateNode | null,
     childNodes: BuyerStateNode[],
     beliefState: BuyerBeliefState,
-    lastTransition: BuyerStateTransition | null
+    lastTransition: BuyerStateTransition | null,
+    turnNumber: number = 0,
+    productConfidence: ProductConfidence,
+    treeActivated: boolean = false,
+    recentSellerSignals: string[] = [],
+    scenarioTraits?: {
+      urgency: number;
+      openness: number;
+      satisfaction: number;
+      initialResistance: number;
+      patience: number;
+    }
   ): BuyerDelta | null {
+    // Determine availability state from scenario traits
+    const availability = this.determineAvailability(
+      turnNumber,
+      productConfidence,
+      beliefState,
+      scenarioTraits
+    );
+    
+    console.log(`🕐 [Availability] State: ${availability}`);
+    
+    // Use pre-tree guidance when:
+    // 1. Tree is not activated yet
+    // 2. Tree is stuck in Initial Contact after Turn 2 with HIGH product confidence
+    const stuckInInitialContact = currentNode?.stateName === 'Initial Contact' && 
+                                   turnNumber > 2 && 
+                                   productConfidence.confidence === 'high';
+    
+    const shouldUsePreTree = !treeActivated || stuckInInitialContact;
+    
+    if (shouldUsePreTree) {
+      console.log(`🌳 [TreeDelta] Using PRE-TREE guidance (activated=${treeActivated}, stuck=${stuckInInitialContact})`);
+      return this.generatePreTreeDelta(
+        beliefState,
+        turnNumber,
+        productConfidence,
+        recentSellerSignals,
+        availability
+      );
+    }
+    
     if (!currentNode) return null;
     
     // Extract current state info
@@ -55,7 +102,12 @@ export class TreeDeltaManager {
     };
     
     // Generate internal posture (what Marcus is thinking/feeling)
-    const internalPosture = this.generateInternalPosture(currentNode, beliefState);
+    const internalPosture = this.generateInternalPosture(
+      currentNode, 
+      beliefState, 
+      turnNumber, 
+      productConfidence.confidence
+    );
     
     // Generate behavior guidance (how Marcus should act)
     const behaviorGuidance = this.generateBehaviorGuidance(currentNode, beliefState);
@@ -87,16 +139,152 @@ export class TreeDeltaManager {
   }
   
   /**
-   * Generate internal posture (what Marcus is thinking/feeling)
+   * Determine availability state from scenario traits and context
    */
-  private generateInternalPosture(node: BuyerStateNode, beliefs: BuyerBeliefState): string {
+  private determineAvailability(
+    turnNumber: number,
+    productConfidence: ProductConfidence,
+    beliefState: BuyerBeliefState,
+    scenarioTraits?: {
+      urgency: number;
+      openness: number;
+      satisfaction: number;
+      initialResistance: number;
+      patience: number;
+    }
+  ): AvailabilityState {
+    // Default to available if no scenario traits provided
+    if (!scenarioTraits) {
+      return 'available';
+    }
+    
+    // Determine if seller has earned relevance
+    const hasEarnedRelevance = 
+      productConfidence.confidence === 'high' && 
+      (beliefState.seesRelevance >= 6 || beliefState.trustsRep >= 6);
+    
+    const context: AvailabilityContext = {
+      urgency: scenarioTraits.urgency,
+      openness: scenarioTraits.openness,
+      satisfaction: scenarioTraits.satisfaction,
+      initialResistance: scenarioTraits.initialResistance,
+      patience: scenarioTraits.patience,
+      turnNumber,
+      hasEarnedRelevance,
+      productConfidenceLevel: productConfidence.confidence
+    };
+    
+    return AvailabilityPolicy.determineAvailability(context);
+  }
+  
+  /**
+   * Generate pre-tree buyer guidance before tree takes over with availability overlay
+   */
+  private generatePreTreeDelta(
+    beliefState: BuyerBeliefState,
+    turnNumber: number,
+    productConfidence: ProductConfidence,
+    recentSellerSignals: string[],
+    availability: AvailabilityState
+  ): BuyerDelta {
+    // Split product/company detection for clearer pre-tree context
+    const detectedCompany = productConfidence.product?.includes(' ') ? undefined : productConfidence.product || undefined;
+    const detectedProductName = productConfidence.product || undefined;
+    const detectedProductDescription = productConfidence.category || undefined;
+    
+    const context: PreTreeContext = {
+      productConfidence,
+      beliefState,
+      turnNumber,
+      detectedCompany,
+      detectedProductName,
+      detectedProductDescription,
+      detectedCategory: productConfidence.category || undefined,
+      detectedFeatures: productConfidence.signals || [],
+      recentSellerSignals: recentSellerSignals as any[] // Will be SellerSignalId[] when CharmerController passes them
+    };
+    
+    const guidance = PreTreeBuyerPolicy.generateGuidance(context, availability);
+    
+    console.log(`🌳 [PreTree] Mode: ${guidance.mode}`);
+    console.log(`🌳 [PreTree] Posture: ${guidance.internalPosture.substring(0, 80)}...`);
+    console.log(`🌳 [PreTree] Examples: ${guidance.voiceExamples.join(' / ')}`);
+    
+    return {
+      currentState: {
+        type: 'clarification' as BuyerStateType,
+        subtype: 'pre_tree',
+        name: `Pre-Tree: ${guidance.mode}`,
+        description: guidance.internalPosture
+      },
+      internalPosture: guidance.internalPosture,
+      behaviorGuidance: guidance.promptGuidance,  // Use clean prompt guidance
+      reactionGuidance: [],
+      doNotReveal: this.generatePreTreeDoNotReveal(guidance.mode),
+      guidanceText: this.generatePreTreeGuidanceText(guidance)
+    };
+  }
+  
+  /**
+   * Generate do-not-reveal list for pre-tree mode
+   */
+  private generatePreTreeDoNotReveal(mode: string): string[] {
+    // Pre-tree modes should withhold deep information
+    return [
+      'Budget or specific numbers',
+      'Decision-making authority',
+      'Detailed pain points unless earned',
+      'Timeline or urgency details',
+      'Internal processes or team structure'
+    ];
+  }
+  
+  /**
+   * Generate guidance text for pre-tree mode
+   */
+  private generatePreTreeGuidanceText(guidance: PreTreeGuidance): string {
     const parts: string[] = [];
     
-    // Add state description as base posture
-    parts.push(node.stateDescription);
+    parts.push(`BUYER STATE: ${guidance.mode.replace(/_/g, ' ')}`);
+    parts.push(guidance.internalPosture);
+    parts.push('');
+    parts.push('REACTION RULES:');
+    guidance.promptGuidance.forEach(b => {
+      parts.push(`• ${b}`);
+    });
+    parts.push('');
+    parts.push(`Withhold: ${this.generatePreTreeDoNotReveal(guidance.mode).join(', ')}.`);
     
-    // Add belief-based internal thoughts
-    if (beliefs.understandsProduct < 3) {
+    return parts.join('\n');
+  }
+  
+  /**
+   * Generate internal posture (what Marcus is thinking/feeling)
+   */
+  private generateInternalPosture(
+    node: BuyerStateNode, 
+    beliefs: BuyerBeliefState,
+    turnNumber: number,
+    productConfidenceLevel: string
+  ): string {
+    const parts: string[] = [];
+    
+    // GUARD: Don't use "just picked up the phone" after Turn 2
+    const isEarlyCall = turnNumber <= 2;
+    const nodeDescriptionFiltered = isEarlyCall 
+      ? node.stateDescription
+      : node.stateDescription.replace(/Marcus just picked up the phone\./gi, '').trim();
+    
+    // Add state description as base posture (filtered)
+    if (nodeDescriptionFiltered) {
+      parts.push(nodeDescriptionFiltered);
+    }
+    
+    // GUARD: Don't say "don't understand what they're selling" if productConfidence is HIGH
+    const productIsUnderstood = productConfidenceLevel === 'high' || productConfidenceLevel === 'medium';
+    
+    // Add belief-based internal thoughts with guards
+    if (beliefs.understandsProduct < 3 && !productIsUnderstood) {
       parts.push("You don't really understand what they're selling yet.");
     }
     
@@ -275,6 +463,7 @@ export class TreeDeltaManager {
   
   /**
    * Generate natural language buyer guidance text for Marcus's prompt
+   * COMPRESSED FORMAT: Focused logic + 2-4 voice examples only
    */
   private generateBuyerGuidanceText(
     currentState: BuyerDelta['currentState'],
@@ -286,42 +475,109 @@ export class TreeDeltaManager {
   ): string {
     const parts: string[] = [];
     
-    // Part 1: Current state and internal posture
-    parts.push(`**Current State: ${currentState.name}**`);
+    // SECTION 1: Compressed buyer-state logic (no examples)
+    parts.push(`BUYER STATE: ${currentState.name}`);
     parts.push(internalPosture);
     
-    // Part 2: How to behave
-    if (behaviorGuidance.length > 0) {
-      parts.push(`\n**How to behave:**`);
-      parts.push(`(Use these as behavioral tendencies, not exact lines)`);
-      behaviorGuidance.forEach(guidance => {
-        parts.push(`- ${guidance}`);
+    // Compress behavior + reactions into bullet rules
+    if (behaviorGuidance.length > 0 || reactions.length > 0) {
+      parts.push(`\nREACTION RULES:`);
+      
+      // Take top 2 reactions only
+      const topReactions = reactions.slice(0, 2);
+      topReactions.forEach(r => {
+        parts.push(`• ${r.sellerAction}, ${r.marcusReaction}`);
+      });
+      
+      // Add 1-2 key behaviors if not redundant
+      const keyBehaviors = behaviorGuidance.slice(0, 2).filter(b => 
+        !topReactions.some(r => r.marcusReaction.toLowerCase().includes(b.toLowerCase().split(' ')[0]))
+      );
+      keyBehaviors.forEach(behavior => {
+        parts.push(`• ${behavior}`);
       });
     }
     
-    // Part 3: Reaction guidance
-    if (reactions.length > 0) {
-      parts.push(`\n**How to react to seller actions:**`);
-      reactions.slice(0, 4).forEach(r => {
-        parts.push(`- ${r.sellerAction}, ${r.marcusReaction}`);
-      });
-    }
-    
-    // Part 4: What not to reveal unless earned
+    // Compress do-not-reveal into single line
     if (doNotReveal.length > 0) {
-      parts.push(`\n**Do not reveal unless earned:**`);
-      parts.push(`(If seller builds relevance, trust, and asks good discovery questions, you may reveal limited information naturally)`);
-      doNotReveal.forEach(item => {
-        parts.push(`- ${item}`);
-      });
+      const compressed = doNotReveal.slice(0, 3).join(', ');
+      parts.push(`\nWithhold: ${compressed} unless earned.`);
     }
     
-    // Part 5: Transition note
-    if (lastTransition) {
-      parts.push(`\n*[Your state shifted due to: ${lastTransition.reason}]*`);
+    // SECTION 2: Voice examples (tone reference only)
+    const voiceExamples = this.generateVoiceExamples(currentState, reactions);
+    if (voiceExamples.length > 0) {
+      parts.push(`\nVOICE EXAMPLES (tone reference, not exact lines):`);
+      voiceExamples.forEach(ex => parts.push(`• "${ex}"`));
     }
     
     return parts.join('\n');
+  }
+  
+  /**
+   * Generate 2-4 focused voice examples for current state + likely transitions
+   */
+  private generateVoiceExamples(
+    currentState: BuyerDelta['currentState'],
+    reactions: BuyerDelta['reactionGuidance']
+  ): string[] {
+    const examples: string[] = [];
+    
+    // Example 1: Current state tone
+    const stateExamples: Record<string, string> = {
+      'Skeptical - Proof Request': "15% sounds nice. Who actually got that result?",
+      'Guarded - Cold Open': "Yeah, what's this about?",
+      'Distrust - Bold Claims': "That's a pretty big claim. What's the proof?",
+      'Clarification Needed': "Wait, what exactly are you saying?",
+      'Timing Concern': "Not really the right time for this.",
+      'Budget Concern': "I don't have budget for new tools right now.",
+      'Exit Attempt - Poor Fit': "I don't think this is a fit.",
+      'Buying Signal - Interested': "Okay, that's interesting. How does it work for teams like mine?"
+    };
+    
+    // Match state name to example
+    const stateEx = stateExamples[currentState.name];
+    if (stateEx) {
+      examples.push(stateEx);
+    } else {
+      // Generic fallback based on state type
+      if (currentState.type === 'distrust') {
+        examples.push("I'm not really following. What are you selling?");
+      } else if (currentState.type === 'clarification') {
+        examples.push("Hold on, I'm confused. What does this actually do?");
+      } else if (currentState.type === 'buying_signal') {
+        examples.push("Tell me more about how that works.");
+      }
+    }
+    
+    // Example 2-3: Most likely positive/negative reactions
+    const positiveReaction = reactions.find(r => 
+      r.marcusReaction.includes('open') || r.marcusReaction.includes('curious') || r.marcusReaction.includes('share')
+    );
+    const negativeReaction = reactions.find(r => 
+      r.marcusReaction.includes('skeptical') || r.marcusReaction.includes('guarded') || r.marcusReaction.includes('exit')
+    );
+    
+    if (positiveReaction) {
+      // Generate example for positive movement
+      if (positiveReaction.sellerAction.includes('value')) {
+        examples.push("Okay, that makes sense. How does it compare to Gong?");
+      } else if (positiveReaction.sellerAction.includes('discovery')) {
+        examples.push("Yeah, we do have some challenges with that.");
+      }
+    }
+    
+    if (negativeReaction) {
+      // Generate example for negative movement
+      if (negativeReaction.sellerAction.includes('claim') || negativeReaction.sellerAction.includes('proof')) {
+        examples.push("That's pretty vague. Give me something concrete.");
+      } else if (negativeReaction.sellerAction.includes('push')) {
+        examples.push("Whoa, slow down. I'm not ready for that.");
+      }
+    }
+    
+    // Cap at 2 examples max (keep guidance compact)
+    return examples.slice(0, 2);
   }
   
   

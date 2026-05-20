@@ -17,6 +17,16 @@ import { SELLER_SIGNALS, type SellerSignalId } from './BuyerTriggerConstants';
 import { AvailabilityPolicy, type AvailabilityState } from './AvailabilityPolicy';
 
 /**
+ * A/B TEST: Guideline-based vs Rule-based prompting
+ * 
+ * RULE-BASED (false): Explicit commands ("DO NOT ask about price", "Ask ONE question")
+ * GUIDELINE-BASED (true): Buyer psychology principles ("Real buyers don't jump to pricing...")
+ * 
+ * Hypothesis: GPT-4o can follow buyer psychology principles more naturally than rigid rules.
+ */
+const USE_GUIDELINE_BASED_PROMPTS = true;
+
+/**
  * BUYER TRUST/RELEVANCE LADDER FRAMEWORK
  * 
  * Buyers move through stages of trust and relevance evaluation. This is NOT a rigid waterfall,
@@ -312,6 +322,18 @@ export class PreTreeBuyerPolicy {
   private static generateClaritySeekingGuidance(context: PreTreeContext): PreTreeGuidance {
     const { detectedProductName } = context;
     
+    // A/B TEST: Choose prompting style
+    return USE_GUIDELINE_BASED_PROMPTS 
+      ? this.generateClaritySeekingGuidance_Guideline(context)
+      : this.generateClaritySeekingGuidance_Rule(context);
+  }
+  
+  /**
+   * RULE-BASED VERSION: Explicit commands and constraints
+   */
+  private static generateClaritySeekingGuidance_Rule(context: PreTreeContext): PreTreeGuidance {
+    const { detectedProductName } = context;
+    
     const primaryQuestion = detectedProductName 
       ? `"Okay, so what exactly is ${detectedProductName}?"` 
       : '"Is this software or consulting?"';
@@ -324,7 +346,8 @@ export class PreTreeBuyerPolicy {
         'Ask ONE short clarifying question about product type',
         'Do not assume any specific category',
         'Remain neutral and brief',
-        'Do not reveal pain points or budget'
+        'Do not reveal pain points or budget',
+        'Do not ask about price - you don\'t even know what this is'
       ],
       voiceExamples: [
         primaryQuestion,
@@ -334,7 +357,39 @@ export class PreTreeBuyerPolicy {
       developerNotes: [
         'STAGE: RELEVANCE - Focus on "Does this apply to me?"',
         'Help seller classify offer clearly',
-        'WHO questions natural: "Who is this for?" "Who uses this?"'
+        'WHO questions natural: "Who is this for?" "Who uses this?"',
+        'Pricing questions forbidden in this mode'
+      ]
+    };
+  }
+  
+  /**
+   * GUIDELINE-BASED VERSION: Buyer psychology principles
+   */
+  private static generateClaritySeekingGuidance_Guideline(context: PreTreeContext): PreTreeGuidance {
+    const { detectedProductName } = context;
+    
+    const productLabel = detectedProductName || 'this';
+    
+    return {
+      mode: 'CLARITY_SEEKING',
+      stage: 'RELEVANCE',
+      internalPosture: `You're moderately busy and need to understand what category ${productLabel} belongs to before deciding whether it matters. Real buyers don't jump to pricing when they don't even know what's being sold - they clarify the category first.`,
+      promptGuidance: [
+        'Real buyers ask about WHAT something is before asking HOW MUCH it costs',
+        'Your natural question: "What is this? Software? Training? Consulting?"',
+        'Price questions come after you understand if this is even relevant to your world',
+        'Keep it short - you\'re busy and this better be worth your time'
+      ],
+      voiceExamples: [
+        detectedProductName ? `"Okay, so what exactly is ${detectedProductName}?"` : '"What is this? Software or what?"',
+        '"Who\'s this even for?"'
+      ],
+      allowedTopics: ['product_type', 'target_buyer', 'problem_solved', 'delivery_model', 'basic_category'],
+      developerNotes: [
+        'STAGE: RELEVANCE - Buyer psychology: category before price',
+        'Guideline-based: Trust model to understand buyer behavior',
+        'No rigid "DO NOT" rules - just buyer logic'
       ]
     };
   }

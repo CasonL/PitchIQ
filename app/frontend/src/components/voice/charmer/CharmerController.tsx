@@ -15,13 +15,10 @@ import { CharmerAIService } from './CharmerAIService';
 import { QuestionClassifier, QuestionClassification } from './QuestionClassifier';
 import { JudgmentGate, JudgmentContext } from './JudgmentGate';
 import { StrategyLayer, StrategyContext, StrategyOutput, BuyerState } from './StrategyLayer';
-import { SentenceCompletenessAnalyzer } from './SentenceCompleteness';
 import { CognitiveCompletenessAnalyzer } from './CognitiveCompleteness';
-import { CHARMER_PERSONA } from '../../../data/staticPersonas/theCharmer';
 import { MarcusPostCallMoments } from './MarcusPostCallMoments';
 import { StrategicMomentCoach } from './StrategicMomentCoach';
 import { StrategicMomentDetector } from './StrategicMomentDetector';
-import { StrategicMomentPatternDetector } from './StrategicMomentPatternDetector';
 import { useOverseer } from './useOverseer';
 import { MomentViewModelMapper } from './MomentViewModelMapper';
 import { HybridFeedbackGenerator } from './HybridFeedbackGenerator';
@@ -34,7 +31,6 @@ import { MarcusChallengeLobby } from './MarcusChallengeLobby';
 import { getRandomMarcusTraits } from './MarcusTraits';
 import { FirstUtterancePatternDetector } from './FirstUtterancePatternDetector';
 import { TranscriptQualityDetector } from './TranscriptQualityDetector';
-import { TrainingWheels } from './TrainingWheels';
 import { FrameworkAnalyzer } from './FrameworkAnalyzer';
 import { CriticalMomentDetector } from './CriticalMomentDetector';
 import { CallCompletionData, StoredFeedbackData, StoredCallState } from './types/CallData';
@@ -212,6 +208,7 @@ const CharmerControllerContent = memo(({
   const lastTranscriptRef = useRef('');
   const transcriptRef = useRef(''); // Track current transcript for timeout callbacks
   const [isProcessing, setIsProcessing] = useState(false);
+  const isProcessingRef = useRef(false); // FIX 5: Ref to avoid stale closures in async voice pipelines
   const wasInterruptedRef = useRef(false);
   const incompleteUtteranceRef = useRef('');
   const lastMarcusSpeakTimeRef = useRef(0);
@@ -296,7 +293,7 @@ const CharmerControllerContent = memo(({
   const processUserInput = useCallback(async (userText: string, utteranceSnapshot: number) => {
     console.log(`🔧 [DEBUG] processUserInput called: utterance #${utteranceSnapshot}, isProcessing=${isProcessing}, text="${userText.substring(0, 60)}..."`);
     
-    if (isProcessing) {
+    if (isProcessingRef.current) {
       // Accumulate fragments - user is continuing their thought while Marcus processes
       console.log(`⏸️ Already processing - queuing utterance #${utteranceSnapshot}`);
       queuedUtterancesRef.current.push({ text: userText, count: utteranceSnapshot });
@@ -308,6 +305,7 @@ const CharmerControllerContent = memo(({
     const wasInterrupted = wasInterruptedRef.current;
     wasInterruptedRef.current = false;
     
+    isProcessingRef.current = true;
     setIsProcessing(true);
     const processingUtteranceCount = utteranceSnapshot;
     console.log(`📝 Processing user input: "${userText.substring(0, 50)}..." (utterance #${processingUtteranceCount})`);
@@ -320,24 +318,39 @@ const CharmerControllerContent = memo(({
     let buyerStateBefore: BuyerState | undefined;
     
     try {
-      // Sentence streaming callback - speak first sentence immediately while LLM generates
-      const handleFirstSentence = (firstSentence: string, emotion?: string) => {
-        console.log(`🚀 [Sentence Streaming] Speaking first sentence while generating...`);
-        firstSentenceSpokenRef.current = firstSentence;
-        const speed = currentPhase === 'coach' || currentPhase === 'exit' ? 0.85 : 0.75;
-        // Store the promise so we can await it before speaking the remainder
-        firstSentencePromiseRef.current = speakAsMarcus(firstSentence, {
-          voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
-          emotion: (emotion as any) || 'neutral',
-          speed: speed
-        });
-      };
-      
       // Classify question early - needed for all response paths
       const classification = QuestionClassifier.classify(userText);
       
       // Check transcript quality - detect garbled/poor STT
       const qualityCheck = TranscriptQualityDetector.assess(userText);
+      
+      // FIX 4: Heuristic pre-judgment before sentence streaming
+      // Disable streaming for risky/ambiguous turns to avoid speaking before JudgmentGate approves
+      const isAmbiguousTurn = 
+        qualityCheck.isLikelyGarbled ||
+        userText.length < 10 ||
+        processingUtteranceCount === 1;  // First turn is often ambiguous
+      
+      const allowFirstSentenceStreaming = !isAmbiguousTurn;
+      
+      // Sentence streaming callback - speak first sentence immediately while LLM generates
+      const handleFirstSentence = allowFirstSentenceStreaming 
+        ? (firstSentence: string, emotion?: string) => {
+            console.log(`🚀 [Sentence Streaming] Speaking first sentence while generating...`);
+            firstSentenceSpokenRef.current = firstSentence;
+            const speed = currentPhase === 'coach' || currentPhase === 'exit' ? 0.85 : 0.75;
+            // Store the promise so we can await it before speaking the remainder
+            firstSentencePromiseRef.current = speakAsMarcus(firstSentence, {
+              voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
+              emotion: (emotion as any) || 'neutral',
+              speed: speed
+            });
+          }
+        : undefined;  // Disable streaming for ambiguous turns
+      
+      if (!allowFirstSentenceStreaming) {
+        console.log(`⏸️ First-sentence streaming disabled (ambiguous turn: garbled=${qualityCheck.isLikelyGarbled}, short=${userText.length < 10}, firstTurn=${processingUtteranceCount === 1})`);
+      }
       
       if (qualityCheck.isLikelyGarbled) {
         console.log(`🔊 Poor transcript quality detected (${Math.round(qualityCheck.confidence * 100)}% confidence)`);
@@ -408,10 +421,17 @@ const CharmerControllerContent = memo(({
       // Update context with extracted info (allow name updates for corrections)
       if (extracted.name) {
         if (context.userName && extracted.name !== context.userName) {
-          // Name correction detected - reset counts and use corrected name immediately
-          nameMentionCountRef.current = { [extracted.name]: 1 };
-          phaseManager.updateContext({ userName: extracted.name });
-          console.log(`🔄 Name corrected: ${context.userName} → ${extracted.name}`);
+          // FIX 2: Lock Turn 1 names - only allow explicit corrections
+          // Prevents "Jason → team go" type bugs from weak name detection
+          const explicitCorrection = /\b(actually|sorry|my name is|it'?s|this is|call me)\s+[A-Z][a-z]+\b/i.test(userText);
+          
+          if (explicitCorrection) {
+            nameMentionCountRef.current = { [extracted.name]: 1 };
+            phaseManager.updateContext({ userName: extracted.name });
+            console.log(`🔄 Name corrected (explicit): ${context.userName} → ${extracted.name}`);
+          } else {
+            console.log(`🔒 Ignoring weak name correction (locked: ${context.userName}, detected: ${extracted.name})`);
+          }
         } else if (!context.userName) {
           // First time seeing this name
           if (!nameMentionCountRef.current[extracted.name]) {
@@ -674,6 +694,8 @@ const CharmerControllerContent = memo(({
       const turnNumber = Math.floor(conversationHistory.length / 2) + 1;
       
       // Step 1: Update product confidence
+      // TODO FIX 3: ProductConfidenceDetector should suppress product name extraction when PROVIDED_PROOF signal is present
+      // This prevents customer names like "Gap" from being detected as product names during case studies
       const productConfidence = productConfidenceRef.current.updateConfidence(
         userText,
         turnNumber
@@ -808,11 +830,14 @@ const CharmerControllerContent = memo(({
         patience: 10 - selectedScenario.traits.initialResistance // Inverse of resistance
       } : undefined;
       
-      // Combine persistent signals (call facts) with turn-specific signals (this turn's behavior)
-      const allRecentSignals = new Set([
-        ...sellerSignalsRef.current,  // Persistent: BOLD_METRIC_CLAIM, MENTIONED_AI, etc.
-        ...turnSpecificSignals         // Turn-specific: EXPLAINED_MECHANISM, VAGUE_CLAIM, etc.
-      ]);
+      // FIX 1: Do NOT blend persistent and turn-specific signals
+      // Keep them separated so PreTreeBuyerPolicy can distinguish:
+      // - Persistent: "Has bold claim ever been mentioned?" (call facts)
+      // - Turn-specific: "Did seller dodge mechanics THIS turn?" (this turn's behavior)
+      const separatedSignals = {
+        persistent: Array.from(sellerSignalsRef.current),
+        turnSpecific: Array.from(turnSpecificSignals)
+      };
       
       const buyerDelta = deltaManagerRef.current.generateBuyerDelta(
         currentNode,
@@ -822,7 +847,7 @@ const CharmerControllerContent = memo(({
         turnNumber,
         productConfidence,
         treeActivated,
-        Array.from(allRecentSignals),  // Combined signals for PreTreeBuyerPolicy
+        separatedSignals.persistent.concat(separatedSignals.turnSpecific),  // TODO: Update TreeDeltaManager to accept separated signals
         scenarioTraits
       );
       
@@ -1462,6 +1487,12 @@ const CharmerControllerContent = memo(({
       if (isSpeaking) {
         console.log(`🛑 User interrupted Marcus - stopping immediately`);
         stopSpeaking();
+        
+        // FIX 6: Clear queued utterances - user is changing direction
+        if (queuedUtterancesRef.current.length > 0) {
+          console.log(`🗑️ Clearing ${queuedUtterancesRef.current.length} queued utterances (user interrupted)`);
+          queuedUtterancesRef.current = [];
+        }
       }
       
       // IMMEDIATE PROCESSING: Process utterance as soon as user stops speaking

@@ -32,8 +32,9 @@ export class BuyerStatePromptBuilder {
     
     // CRITICAL: Default to statements, not questions
     prompt += `\n⛔ **YOUR RESPONSE STYLE:**\n`;
-    prompt += `Make STATEMENTS, not questions. Real buyers don't interview salespeople.\n`;
-    prompt += `Say what you think, then go quiet. Let THEM ask questions, not you.\n\n`;
+    prompt += `Prefer short buyer reactions over exploratory coaching questions.\n`;
+    prompt += `Ask questions only when buyer-realistic: clarify the offer, ask how it works, challenge proof, compare to current solution, or qualify price/timing when earned.\n`;
+    prompt += `Say what you think, then go quiet. Let THEM do most of the talking.\n\n`;
     
     // Backend-approved question (RARE - only when strategically appropriate)
     if (state.approvedQuestion) {

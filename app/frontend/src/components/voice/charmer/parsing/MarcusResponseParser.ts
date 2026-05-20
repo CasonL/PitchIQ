@@ -142,7 +142,13 @@ export class MarcusResponseParser {
     
     // Parse META JSON
     try {
-      const metaJson = JSON.parse(metaMatch[1]);
+      // Sanitize JSON: remove leading + from numbers, trailing commas
+      const sanitizedJson = metaMatch[1]
+        .replace(/:\s*\+([0-9.]+)/g, ': $1')
+        .replace(/,\s*}/g, '}')
+        .replace(/,\s*]/g, ']');
+      
+      const metaJson = JSON.parse(sanitizedJson);
       
       let endCall = false;
       let tacticalFollowUp: TacticalFollowUp | undefined = undefined;
@@ -301,7 +307,13 @@ export class MarcusResponseParser {
     const potentialJson = afterMeta.substring(0, lastBrace + 1);
     
     try {
-      const parsed = JSON.parse(potentialJson);
+      // Sanitize JSON: remove leading + from numbers, trailing commas
+      const sanitizedJson = potentialJson
+        .replace(/:\s*\+([0-9.]+)/g, ': $1')
+        .replace(/,\s*}/g, '}')
+        .replace(/,\s*]/g, ']');
+      
+      const parsed = JSON.parse(sanitizedJson);
       
       const endCall = parsed.end_call || false;
       let tacticalFollowUp: TacticalFollowUp | undefined = undefined;

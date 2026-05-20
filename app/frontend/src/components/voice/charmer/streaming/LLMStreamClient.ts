@@ -82,12 +82,13 @@ export class LLMStreamClient {
     console.log('📡 Starting SSE stream...');
     
     // Add streaming timeout - if no data for 15s, abort
-    let streamTimeout: NodeJS.Timeout | null = null;
+    let streamTimeout: ReturnType<typeof setTimeout> | null = null;
+    let streamTimedOut = false;
     const resetStreamTimeout = () => {
       if (streamTimeout) clearTimeout(streamTimeout);
       streamTimeout = setTimeout(() => {
+        streamTimedOut = true;
         reader.cancel();
-        throw new Error('Stream timed out - no data received for 15 seconds');
       }, 15000);
     };
     
@@ -96,6 +97,9 @@ export class LLMStreamClient {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        if (streamTimedOut) {
+          throw new Error('Stream timed out - no data received for 15 seconds');
+        }
         resetStreamTimeout();
         
         buffer += decoder.decode(value, { stream: true });

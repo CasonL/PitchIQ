@@ -17,9 +17,12 @@ export interface DeepgramConfig {
   useSentenceStreaming?: boolean; // A/B TEST: Use sentence streaming instead of interim results (default: false)
 }
 
+type ConnectionState = 'idle' | 'connecting' | 'open' | 'closing' | 'closed' | 'reconnecting';
+
 export class DeepgramSTTService {
   private liveClient: LiveClient | null = null;
   private config: DeepgramConfig;
+  private connectionState: ConnectionState = 'idle';
   private isConnected: boolean = false;
   private mediaRecorder: MediaRecorder | null = null;
   private mediaStream: MediaStream | null = null;
@@ -75,6 +78,12 @@ export class DeepgramSTTService {
    * Connect to Deepgram streaming endpoint using official SDK
    */
   async connect(): Promise<void> {
+    // Guard: Don't start new connection if already connecting/reconnecting
+    if (this.connectionState === 'connecting' || this.connectionState === 'reconnecting') {
+      console.log(`[Deepgram] 🚫 Connection already in progress (${this.connectionState})`);
+      return;
+    }
+    
     this.shouldStayConnected = true;
     this.reconnectAttempts = 0;
     return this.attemptConnection();
@@ -85,6 +94,9 @@ export class DeepgramSTTService {
    */
   private async attemptConnection(): Promise<void> {
     try {
+      this.connectionState = this.isReconnecting ? 'reconnecting' : 'connecting';
+      console.log(`[Deepgram] 🔌 Attempting connection (state: ${this.connectionState})`);
+      
       // Fetch API key if not provided
       const apiKey = this.config.apiKey || await this.fetchApiKey();
       if (!apiKey) {
@@ -113,7 +125,8 @@ export class DeepgramSTTService {
 
       // Setup event handlers
       this.liveClient.on(LiveTranscriptionEvents.Open, () => {
-        console.log('[Deepgram] SDK WebSocket connected');
+        console.log('[Deepgram] ✅ SDK WebSocket connected');
+        this.connectionState = 'open';
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.isReconnecting = false;
@@ -164,9 +177,19 @@ export class DeepgramSTTService {
         this.handleDisconnection('error');
       });
 
-      this.liveClient.on(LiveTranscriptionEvents.Close, () => {
-        console.log('[Deepgram] SDK WebSocket closed');
+      this.liveClient.on(LiveTranscriptionEvents.Close, (event: any) => {
+        console.log('[Deepgram] 🔴 SDK WebSocket closed', {
+          code: event?.code,
+          reason: event?.reason,
+          wasClean: event?.wasClean,
+          previousState: this.connectionState
+        });
+        this.connectionState = 'closed';
         this.isConnected = false;
+        
+        // Stop MediaRecorder immediately to prevent sending to closed socket
+        this.stopMediaRecorder();
+        
         this.handleDisconnection('close');
       });
 
@@ -203,8 +226,9 @@ export class DeepgramSTTService {
       return;
     }
 
-    if (this.isReconnecting) {
-      console.log('[Deepgram] Already attempting reconnection');
+    // Reconnect lock - prevent overlapping reconnection attempts
+    if (this.isReconnecting || this.connectionState === 'reconnecting') {
+      console.log('[Deepgram] 🔒 Already attempting reconnection');
       return;
     }
 
@@ -237,22 +261,22 @@ export class DeepgramSTTService {
 
     this.reconnectTimeout = setTimeout(async () => {
       try {
-        console.log('[Deepgram] Attempting to reconnect...');
-        // Clean up old connection first
-        if (this.liveClient) {
-          try {
-            this.liveClient.finish();
-          } catch (e) {
-            console.warn('[Deepgram] Error finishing old client:', e);
-          }
-          this.liveClient = null;
-        }
+        console.log('[Deepgram] 🔧 Cleaning up before reconnect...');
         
+        // Full cleanup before reconnecting
+        await this.cleanupDeepgramSession({
+          stopRecorder: true,
+          finishClient: true,
+          keepMicStream: true // Reuse existing mic stream
+        });
+        
+        console.log('[Deepgram] ♻️ Starting fresh connection...');
         // Attempt new connection
         await this.attemptConnection();
       } catch (error) {
-        console.error('[Deepgram] Reconnection attempt failed:', error);
+        console.error('[Deepgram] ❌ Reconnection attempt failed:', error);
         this.isReconnecting = false;
+        this.connectionState = 'closed';
         // Will trigger handleDisconnection again via error handler
       }
     }, backoffMs);
@@ -283,6 +307,15 @@ export class DeepgramSTTService {
         throw new Error('Deepgram client not initialized');
       }
 
+      // Log media stream diagnostics
+      const audioTracks = stream.getAudioTracks();
+      console.log('[Deepgram] 🎤 Audio stream diagnostics:', {
+        trackCount: audioTracks.length,
+        trackState: audioTracks[0]?.readyState,
+        trackEnabled: audioTracks[0]?.enabled,
+        trackMuted: audioTracks[0]?.muted
+      });
+
       // Use MediaRecorder to capture audio
       this.mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm'
@@ -290,11 +323,24 @@ export class DeepgramSTTService {
 
       let audioChunksSent = 0;
       this.mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0 && this.liveClient) {
-          this.liveClient.send(event.data);
-          audioChunksSent++;
-          if (audioChunksSent === 1) {
-            console.log('[Deepgram] First audio chunk sent via SDK');
+        // CRITICAL GUARD: Only send if connection is open
+        if (this.connectionState !== 'open' || !this.liveClient) {
+          // Silently skip - connection not ready or closed
+          return;
+        }
+        
+        if (event.data.size > 0) {
+          try {
+            this.liveClient.send(event.data);
+            audioChunksSent++;
+            if (audioChunksSent === 1) {
+              console.log('[Deepgram] ✅ First audio chunk sent', {
+                size: event.data.size,
+                recorderState: this.mediaRecorder?.state
+              });
+            }
+          } catch (error) {
+            console.error('[Deepgram] ❌ Error sending audio chunk:', error);
           }
         }
       };
@@ -306,7 +352,10 @@ export class DeepgramSTTService {
 
       // Start recording with 100ms chunks for low latency
       this.mediaRecorder.start(100);
-      console.log('[Deepgram] Audio streaming started via SDK');
+      console.log('[Deepgram] 🎙️ Audio streaming started', {
+        recorderState: this.mediaRecorder.state,
+        mimeType: this.mediaRecorder.mimeType
+      });
 
     } catch (error) {
       console.error('[Deepgram] Audio streaming error:', error);
@@ -315,20 +364,60 @@ export class DeepgramSTTService {
   }
 
   /**
+   * Stop MediaRecorder only (keep mic stream for reconnection)
+   */
+  private stopMediaRecorder(): void {
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      console.log('[Deepgram] 🛑 Stopping MediaRecorder');
+      try {
+        this.mediaRecorder.stop();
+      } catch (error) {
+        console.warn('[Deepgram] Error stopping MediaRecorder:', error);
+      }
+      this.mediaRecorder = null;
+    }
+  }
+
+  /**
    * Stop microphone and audio processing
    */
   private stopMicrophone(): void {
-    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-      this.mediaRecorder.stop();
-      this.mediaRecorder = null;
-    }
+    this.stopMediaRecorder();
 
     if (this.mediaStream) {
+      console.log('[Deepgram] 🛑 Stopping microphone stream');
       this.mediaStream.getTracks().forEach(track => track.stop());
       this.mediaStream = null;
     }
+  }
 
-    console.log('[Deepgram] Microphone stopped');
+  /**
+   * Clean up Deepgram session before reconnecting
+   */
+  private async cleanupDeepgramSession(options: {
+    stopRecorder: boolean;
+    finishClient: boolean;
+    keepMicStream: boolean;
+  }): Promise<void> {
+    console.log('[Deepgram] 🧹 Cleanup session', options);
+    
+    if (options.stopRecorder) {
+      this.stopMediaRecorder();
+    }
+    
+    if (options.finishClient && this.liveClient) {
+      try {
+        this.liveClient.finish();
+      } catch (error) {
+        console.warn('[Deepgram] Error finishing client:', error);
+      }
+      this.liveClient = null;
+    }
+    
+    if (!options.keepMicStream && this.mediaStream) {
+      this.mediaStream.getTracks().forEach(track => track.stop());
+      this.mediaStream = null;
+    }
   }
 
   /**
@@ -592,11 +681,12 @@ export class DeepgramSTTService {
    * Disconnect from Deepgram SDK
    */
   async disconnect(): Promise<void> {
-    console.log('[Deepgram] Disconnecting SDK...');
+    console.log('[Deepgram] 🔌 Disconnecting SDK...');
     
     // Mark that we should NOT reconnect
     this.shouldStayConnected = false;
     this.isReconnecting = false;
+    this.connectionState = 'closing';
     
     // Clear any pending reconnection
     if (this.reconnectTimeout) {
@@ -618,6 +708,7 @@ export class DeepgramSTTService {
     }
 
     this.isConnected = false;
+    this.connectionState = 'closed';
     
     if (this.config.onConnectionChange) {
       this.config.onConnectionChange(false, false);

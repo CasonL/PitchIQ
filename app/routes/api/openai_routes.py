@@ -142,7 +142,14 @@ def chat():
         
         # Non-streaming response (legacy)
         json_parse_start = time.time()
-        result = response.json()
+        try:
+            result = response.json()
+        except Exception as json_error:
+            logger.error(f"❌ JSON parse failed: {json_error}")
+            logger.error(f"Response status: {response.status_code}")
+            logger.error(f"Response headers: {dict(response.headers)}")
+            logger.error(f"Response text (first 500 chars): {response.text[:500]}")
+            raise
         logger.info(f"⏱️ JSON parse time: {(time.time() - json_parse_start)*1000:.0f}ms")
         logger.info(f"Generated {result.get('usage', {}).get('completion_tokens', 0)} tokens with {model}")
         

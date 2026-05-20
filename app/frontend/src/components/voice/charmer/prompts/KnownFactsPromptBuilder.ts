@@ -42,11 +42,10 @@ export class KnownFactsPromptBuilder {
     });
     
     prompt += `\n**CRITICAL MEMORY RULES:**\n`;
-    prompt += `- When asking follow-up questions, REFERENCE what they already told you\n`;
-    prompt += `- DON'T say "What makes it different?" - you know they said "${context.product || 'their solution'}"\n`;
-    prompt += `- Instead say: "You mentioned ${context.product || 'this'} - how is YOURS different from other ${context.extractedFeatures && context.extractedFeatures.length > 0 ? context.extractedFeatures[0] : 'solutions'} out there?"\n`;
+    prompt += `- Do not ask as if you missed information already provided\n`;
+    prompt += `- Reference known facts naturally when skeptical or pushing back\n`;
     prompt += `- Be skeptical OF what they said, not ignorant that they said it\n`;
-    prompt += `- If they repeat themselves, call it out: "You already said that. What ELSE?"\n\n`;
+    prompt += `- If they repeat themselves, call it out\n\n`;
     
     return prompt;
   }

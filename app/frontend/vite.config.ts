@@ -24,11 +24,11 @@ export default defineConfig(({ mode }) => ({
     },
     proxy: {
       '/socket.io': {
-        target: 'ws://127.0.0.1:5000',
+        target: 'ws://127.0.0.1:8080',
         ws: true,
       },
       '/api': {
-        target: 'http://127.0.0.1:5000',
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
         secure: false,
         ws: true,
@@ -45,17 +45,17 @@ export default defineConfig(({ mode }) => ({
         },
       },
       '/static': {
-        target: 'http://127.0.0.1:5000',
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
         secure: false,
       },
       '/auth': {
-        target: 'http://127.0.0.1:5000',
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
         secure: false,
       },
       '/training': {
-        target: 'http://127.0.0.1:5000',
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
         secure: false,
       },

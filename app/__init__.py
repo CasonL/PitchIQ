@@ -201,7 +201,7 @@ def create_app(config_name='dev'):
     print("\n=== DEBUG: Checking company route registration ===")
     try:
         from app.routes.api.company_routes import company_bp
-        print("✓ Successfully imported company_bp")
+        print("[OK] Successfully imported company_bp")
         print(f"  - Blueprint name: {company_bp.name}")
         print(f"  - URL prefix: {getattr(company_bp, 'url_prefix', 'Not set')}")
         print(f"  - Registered rules: {len(company_bp.deferred_functions) if hasattr(company_bp, 'deferred_functions') else 'N/A'}")
@@ -210,9 +210,9 @@ def create_app(config_name='dev'):
         if 'company' not in flask_instance.blueprints:
             # Register the company blueprint
             flask_instance.register_blueprint(company_bp, url_prefix='/api')
-            print("✓ Successfully registered company_bp")
+            print("[OK] Successfully registered company_bp")
         else:
-            print("ℹ️ company_bp is already registered")
+            print("[INFO] company_bp is already registered")
         
         # Print all registered routes for this blueprint
         print("\nRegistered routes:")
@@ -221,7 +221,7 @@ def create_app(config_name='dev'):
                 print(f"  - {rule.endpoint}: {rule}")
                 
     except Exception as e:
-        print(f"✗ Error with company routes: {str(e)}")
+        print(f"[ERROR] Error with company routes: {str(e)}")
         import traceback
         traceback.print_exc()
     

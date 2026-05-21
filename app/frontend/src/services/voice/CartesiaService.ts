@@ -92,9 +92,11 @@ export class CartesiaService {
   constructor(config: CartesiaConfig) {
     this.config = config;
     this.initAudioContext();
-    // Pre-fetch API key and connect WebSocket to avoid delay on first speak
-    this.prefetchApiKey();
-    this.connectWebSocket();
+    // Pre-fetch API key, THEN connect WebSocket (avoids race condition where
+    // connectWebSocket polls for key that hasn't arrived yet)
+    this.prefetchApiKey().then(() => this.connectWebSocket()).catch((err) => {
+      console.warn('[Cartesia] Pre-connect failed (will reconnect on first speak):', err?.message);
+    });
   }
 
   /**
@@ -127,11 +129,11 @@ export class CartesiaService {
       console.log('[Cartesia] Streaming synthesis:', text);
       const startTime = performance.now();
 
-      // Get API key from backend (secure)
+      // Get API key from backend (secure) - same endpoint as prefetchApiKey
       if (!this.apiKey) {
-        const response = await fetch('/.netlify/functions/cartesia-key');
+        const response = await fetch('/api/cartesia/token');
         const data = await response.json();
-        this.apiKey = data.api_key;
+        this.apiKey = data.key || data.api_key || data.token;
       }
 
       // Ensure WebSocket is connected

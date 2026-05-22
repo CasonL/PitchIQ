@@ -30,6 +30,8 @@ export interface SpeakOptions {
 // Cartesia emotions: anger, positivity, surprise, sadness, curiosity
 // Format: ["emotion_name:level"] where level is: lowest, low, (moderate), high, highest
 // BOOSTED LEVELS: Marcus is charismatic and expressive - use high/highest for clear emotional tone
+const ENABLE_CARTESIA_EMOTIONS = false; // Feature flag - set true to re-enable emotion control
+
 const EMOTION_MAP: Record<string, string[]> = {
   // Neutral/baseline
   'neutral': [], // No emotion tags = neutral
@@ -61,20 +63,32 @@ const EMOTION_MAP: Record<string, string[]> = {
 export class CartesiaService {
   private config: CartesiaConfig;
   private audioContext: AudioContext | null = null;
-  private currentSource: AudioBufferSourceNode | null = null;
   private apiKey: string = '';
-  
-  // WebSocket streaming
+
+  // WebSocket
   private ws: WebSocket | null = null;
   private isConnected: boolean = false;
+  private connectPromise: Promise<void> | null = null; // Connection lock - prevents duplicate concurrent connections
+  private activeContextId: string | null = null; // Routes messages to the active synthesis only
+  private synthStartTime: number = 0;
+  private streamSynthesisResolve: (() => void) | null = null;
+  private streamSynthesisReject: ((err: Error) => void) | null = null;
+  private _firstChunkLogged = false;
+
+  // Playback state
   private audioQueue: Float32Array[] = [];
   private isPlaying: boolean = false;
   private scheduledEndTime: number = 0;
-  private minBufferChunks: number = 2; // Wait for at least 2 chunks before playing
-  private playbackCompleteResolve: (() => void) | null = null; // Resolve when playback actually finishes
-  private streamingComplete: boolean = false; // Track if streaming is done
-  private playbackResolved: boolean = false; // Track if we've already resolved (prevent double-resolution)
-  private timeoutHandle: NodeJS.Timeout | null = null; // Safety timeout handle
+  private minBufferChunks: number = 2;
+  private playbackCompleteResolve: (() => void) | null = null;
+  private streamingComplete: boolean = false;
+  private playbackResolved: boolean = false;
+  private timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+
+  // Interruption safety
+  private activeGenerationId = 0; // Incremented on each speak/stop - invalidates stale chunks
+  private activeSources = new Set<AudioBufferSourceNode>(); // Every scheduled source, for hard stop
+  private playbackTimers = new Set<ReturnType<typeof setTimeout>>(); // Every scheduled timer, for hard stop
 
   // Voice options (from Cartesia's library)
   private static readonly VOICES = {
@@ -113,8 +127,11 @@ export class CartesiaService {
   private async prefetchApiKey(): Promise<void> {
     try {
       const response = await fetch('/api/cartesia/token');
+      if (!response.ok) throw new Error(`Token fetch failed: ${response.status}`);
       const data = await response.json();
-      this.apiKey = data.key || data.api_key || data.token;
+      const key = data.key || data.api_key || data.token;
+      if (!key) throw new Error('Token response missing key');
+      this.apiKey = key;
       console.log('[Cartesia] API key pre-fetched and ready');
     } catch (error) {
       console.warn('[Cartesia] Failed to pre-fetch API key, will fetch on first speak');
@@ -129,62 +146,60 @@ export class CartesiaService {
       console.log('[Cartesia] Streaming synthesis:', text);
       const startTime = performance.now();
 
-      // Get API key from backend (secure) - same endpoint as prefetchApiKey
+      // Fix 9: Lazy-init AudioContext (browser may block before user gesture)
+      if (!this.audioContext) this.initAudioContext();
+      if (this.audioContext!.state === 'suspended') await this.audioContext!.resume();
+
+      // Fix 6: Harden API key fetch
       if (!this.apiKey) {
         const response = await fetch('/api/cartesia/token');
+        if (!response.ok) {
+          const body = await response.text();
+          throw new Error(`Cartesia token failed: ${response.status} ${body.slice(0, 200)}`);
+        }
         const data = await response.json();
-        this.apiKey = data.key || data.api_key || data.token;
+        const key = data.key || data.api_key || data.token;
+        if (!key) throw new Error('Cartesia token response missing key');
+        this.apiKey = key;
       }
 
-      // Ensure WebSocket is connected
-      if (!this.isConnected) {
-        await this.connectWebSocket();
-      }
+      if (!this.isConnected) await this.connectWebSocket();
 
-      // Stop current speech if any
+      // Stop any in-progress speech, then claim this generation's ID
       await this.stop();
+      const generationId = ++this.activeGenerationId;
 
-      // Clear audio queue for new speech
       this.audioQueue = [];
       this.scheduledEndTime = 0;
       this.streamingComplete = false;
       this.playbackResolved = false;
-      
-      // Clear any existing timeout
-      if (this.timeoutHandle) {
-        clearTimeout(this.timeoutHandle);
-        this.timeoutHandle = null;
-      }
+      if (this.timeoutHandle) { clearTimeout(this.timeoutHandle); this.timeoutHandle = null; }
 
       this.config.onSpeakingStart();
 
-      // Create promise that resolves when playback actually completes
       const playbackCompletePromise = new Promise<void>((resolve) => {
         this.playbackCompleteResolve = resolve;
       });
 
-      // Convert voice ID if needed
       let voiceId = options.voiceId || 'confident-male';
       if (CartesiaService.VOICES[voiceId as keyof typeof CartesiaService.VOICES]) {
         voiceId = CartesiaService.VOICES[voiceId as keyof typeof CartesiaService.VOICES];
       }
-      
+
       const emotionKey = options.emotion || 'neutral';
-      // Disable emotions temporarily to test if they're causing slowdown
-      const emotionTags: string[] = []; // EMOTION_MAP[emotionKey] || EMOTION_MAP['neutral'];
+      const emotionTags: string[] = ENABLE_CARTESIA_EMOTIONS
+        ? (EMOTION_MAP[emotionKey] || EMOTION_MAP['neutral'])
+        : [];
       const speed = options.speed || 1.0;
-      
+
       console.log('[Cartesia] Using voice ID:', voiceId);
       console.log('[Cartesia] Emotion DISABLED for performance test:', emotionKey, '→', emotionTags);
 
-      // Start streaming synthesis
-      await this.streamSynthesize(text, voiceId, emotionTags, speed, startTime);
+      await this.streamSynthesize(text, voiceId, emotionTags, speed, startTime, generationId);
 
-      // Dynamic safety timeout based on text length
-      // Realistic speech: ~150ms per character + 2s buffer for network/processing
       const estimatedMs = Math.max(8000, Math.min(20000, (text.length * 150) + 2000));
       console.log(`[Cartesia] Setting safety timeout: ${estimatedMs}ms (text length: ${text.length})`);
-      
+
       const timeoutPromise = new Promise<void>((resolve) => {
         this.timeoutHandle = setTimeout(() => {
           console.warn('[Cartesia] ⚠️ Safety timeout fired - force resolving playback');
@@ -193,23 +208,15 @@ export class CartesiaService {
         }, estimatedMs);
       });
 
-      // Wait for playback with safety timeout
       await Promise.race([playbackCompletePromise, timeoutPromise]);
-      
-      // Clear timeout if playback completed naturally
-      if (this.timeoutHandle) {
-        clearTimeout(this.timeoutHandle);
-        this.timeoutHandle = null;
-      }
-      
+
+      if (this.timeoutHandle) { clearTimeout(this.timeoutHandle); this.timeoutHandle = null; }
       console.log('[Cartesia] ✅ Audio playback fully complete');
 
     } catch (error) {
       console.error('[Cartesia] Synthesis error:', error);
       this.config.onError(error as Error);
       this.config.onSpeakingEnd();
-      
-      // Resolve playback promise on error to prevent hanging
       this.resolvePlaybackOnce('error');
     }
   }
@@ -219,46 +226,44 @@ export class CartesiaService {
    */
   async stop(): Promise<void> {
     console.log('[Cartesia] 🛑 IMMEDIATE STOP requested');
-    
-    // Reset resolved flag so we can properly clean up
-    this.playbackResolved = false;
-    
-    // Clear audio queue to prevent any more chunks from playing
+
+    // Fix 3: Increment generationId - invalidates all pending chunks and timers
+    this.activeGenerationId++;
+
     this.audioQueue = [];
     this.isPlaying = false;
     this.streamingComplete = false;
-    
-    // Clear timeout
-    if (this.timeoutHandle) {
-      clearTimeout(this.timeoutHandle);
-      this.timeoutHandle = null;
+
+    // Fix 2: Clear every scheduled playback timer
+    for (const timer of this.playbackTimers) clearTimeout(timer);
+    this.playbackTimers.clear();
+
+    if (this.timeoutHandle) { clearTimeout(this.timeoutHandle); this.timeoutHandle = null; }
+
+    // Fix 1: Stop and disconnect EVERY scheduled AudioBufferSourceNode (not just currentSource)
+    for (const source of this.activeSources) {
+      try { source.stop(0); source.disconnect(); } catch {}
     }
-    
-    // Resolve playback promise on stop to prevent hanging
-    this.resolvePlaybackOnce('stop');
-    
-    // Stop current audio source immediately
-    if (this.currentSource) {
-      try {
-        this.currentSource.stop(0); // Stop immediately (0 = now)
-        this.currentSource.disconnect();
-      } catch (e) {
-        // Source may have already ended - that's okay
-      }
-      this.currentSource = null;
+    this.activeSources.clear();
+
+    // Fix 5: Always notify UI that speaking stopped
+    this.config.onSpeakingEnd();
+
+    // Fix 4: Only resolve if not already resolved (avoids weird state on double-stop)
+    if (!this.playbackResolved) {
+      this.resolvePlaybackOnce('stop');
     }
-    
-    // Suspend audio context to kill any buffered audio
+
+    // Flush any remaining scheduled audio via suspend/resume cycle
     if (this.audioContext && this.audioContext.state === 'running') {
       try {
         await this.audioContext.suspend();
-        // Resume immediately so we're ready for next speech
         await this.audioContext.resume();
       } catch (e) {
         console.warn('[Cartesia] Could not suspend/resume audio context:', e);
       }
     }
-    
+
     console.log('[Cartesia] ✅ Speech stopped immediately');
   }
 
@@ -276,32 +281,39 @@ export class CartesiaService {
    */
   private async connectWebSocket(): Promise<void> {
     if (this.isConnected && this.ws) return;
+    // Fix 7: Connection lock - prevents twin WebSocket connections
+    if (this.connectPromise) return this.connectPromise;
+    this.connectPromise = this._doConnect().finally(() => { this.connectPromise = null; });
+    return this.connectPromise;
+  }
 
+  private async _doConnect(): Promise<void> {
     try {
       console.log('[Cartesia] Connecting to WebSocket...');
 
-      // Wait for API key if not loaded yet
       let attempts = 0;
       while (!this.apiKey && attempts < 10) {
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
       }
-
-      if (!this.apiKey) {
-        throw new Error('API key not available');
-      }
+      if (!this.apiKey) throw new Error('API key not available');
 
       const wsUrl = `wss://api.cartesia.ai/tts/websocket?api_key=${this.apiKey}&cartesia_version=2025-04-16`;
       this.ws = new WebSocket(wsUrl);
 
-      return new Promise((resolve, reject) => {
+      return new Promise<void>((resolve, reject) => {
+        // Connection timeout - a WS that neither opens nor errors can hang indefinitely
+        const connTimeout = setTimeout(() => reject(new Error('WebSocket connection timed out')), 10000);
+
         this.ws!.onopen = () => {
+          clearTimeout(connTimeout);
           console.log('[Cartesia] WebSocket connected');
           this.isConnected = true;
           resolve();
         };
 
         this.ws!.onerror = (error) => {
+          clearTimeout(connTimeout);
           console.error('[Cartesia] WebSocket error:', error);
           this.isConnected = false;
           reject(new Error('WebSocket connection failed'));
@@ -312,9 +324,8 @@ export class CartesiaService {
           this.isConnected = false;
         };
 
-        this.ws!.onmessage = (event) => {
-          this.handleWebSocketMessage(event.data);
-        };
+        // Fix 8: Stable permanent handler - no per-synthesis override needed
+        this.ws!.onmessage = (event) => this.handleWebSocketMessage(event.data);
       });
     } catch (error) {
       console.error('[Cartesia] Failed to connect WebSocket:', error);
@@ -330,103 +341,83 @@ export class CartesiaService {
     voiceId: string,
     emotionTags: string[],
     speed: number,
-    startTime: number
+    startTime: number,
+    generationId: number
   ): Promise<void> {
-    if (!this.ws || !this.isConnected) {
-      throw new Error('WebSocket not connected');
-    }
+    if (!this.ws || !this.isConnected) throw new Error('WebSocket not connected');
 
-    return new Promise((resolve, reject) => {
-      let firstChunkReceived = false;
+    const contextId = `marcus_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    this.activeContextId = contextId;
+    this.synthStartTime = startTime;
+    this._firstChunkLogged = false;
+    this._pendingGenerationId = generationId;
 
-      // Set up message handler for this synthesis
-      const originalHandler = this.ws!.onmessage;
-      this.ws!.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
+    const experimentalControls: any = { speed: speed.toString() };
+    if (emotionTags.length > 0) experimentalControls.emotion = emotionTags;
 
-          if (message.type === 'chunk' && message.data) {
-            if (!firstChunkReceived) {
-              firstChunkReceived = true;
-              const elapsed = performance.now() - startTime;
-              console.log(`[Cartesia] First chunk in ${elapsed.toFixed(0)}ms`);
-            }
+    const request = {
+      context_id: contextId,
+      model_id: 'sonic-2',
+      transcript: text,
+      voice: { mode: 'id', id: voiceId },
+      output_format: { container: 'raw', encoding: 'pcm_f32le', sample_rate: 48000 },
+      language: 'en',
+      _experimental: { voice: { __experimental_controls: experimentalControls } },
+    };
 
-            // Decode base64 audio chunk
-            const audioChunk = this.base64ToFloat32(message.data);
-            this.audioQueue.push(audioChunk);
-            
-            // Start playback once we have minimum buffer
-            if (!this.isPlaying && this.audioQueue.length >= this.minBufferChunks) {
-              this.isPlaying = true;
-              this.playQueuedAudio();
-            }
-          } else if (message.type === 'done') {
-            const totalTime = performance.now() - startTime;
-            console.log(`[Cartesia] 📥 Streaming complete in ${totalTime.toFixed(0)}ms (audio still playing)`);
-            this.streamingComplete = true;
-            this.ws!.onmessage = originalHandler;
-            
-            // Check for completion immediately after marking stream complete
-            this.checkForPlaybackCompletion();
-            
-            resolve();
-          } else if (message.type === 'error') {
-            console.error('[Cartesia] Streaming error:', message.error);
-            this.ws!.onmessage = originalHandler;
-            reject(new Error(message.error));
-          }
-        } catch (error) {
-          console.error('[Cartesia] Message handling error:', error);
-        }
-      };
-
-      // Send synthesis request with required context_id
-      const contextId = `marcus_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      
-      // Build experimental controls
-      const experimentalControls: any = {
-        speed: speed.toString(),
-      };
-      
-      // Only add emotion if we have tags (neutral has empty array)
-      if (emotionTags.length > 0) {
-        experimentalControls.emotion = emotionTags;
-      }
-      
-      const request = {
-        context_id: contextId,
-        model_id: 'sonic-2', // Sonic 2.0 - fastest and most natural
-        transcript: text,
-        voice: {
-          mode: 'id',
-          id: voiceId,
-        },
-        output_format: {
-          container: 'raw',
-          encoding: 'pcm_f32le',
-          sample_rate: 48000,
-        },
-        language: 'en',
-        _experimental: {
-          voice: {
-            __experimental_controls: experimentalControls,
-          },
-        },
-      };
-
+    // Fix 8: Register callbacks on class fields - handleWebSocketMessage will call them
+    return new Promise<void>((resolve, reject) => {
+      this.streamSynthesisResolve = resolve;
+      this.streamSynthesisReject = reject;
       this.ws!.send(JSON.stringify(request));
       console.log('[Cartesia] Synthesis request sent via WebSocket (context:', contextId + ')');
     });
   }
 
+  private _pendingGenerationId = 0; // generationId captured at streamSynthesize time
+
   /**
-   * Handle WebSocket messages
+   * Fix 8: Stable permanent WebSocket message handler - routes by activeContextId
    */
   private handleWebSocketMessage(data: string): void {
     try {
       const message = JSON.parse(data);
-      console.log('[Cartesia] WebSocket message:', message.type);
+
+      // Drop messages from stale/cancelled syntheses
+      if (message.context_id && message.context_id !== this.activeContextId) {
+        console.log(`[Cartesia] Ignoring stale message (context: ${message.context_id})`);
+        return;
+      }
+
+      if (message.type === 'chunk' && message.data) {
+        if (!this._firstChunkLogged) {
+          this._firstChunkLogged = true;
+          const elapsed = performance.now() - this.synthStartTime;
+          console.log(`[Cartesia] First chunk in ${elapsed.toFixed(0)}ms`);
+        }
+        const audioChunk = this.base64ToFloat32(message.data);
+        this.audioQueue.push(audioChunk);
+        if (!this.isPlaying && this.audioQueue.length >= this.minBufferChunks) {
+          this.isPlaying = true;
+          this.playQueuedAudio(this._pendingGenerationId);
+        }
+
+      } else if (message.type === 'done') {
+        const totalTime = performance.now() - this.synthStartTime;
+        console.log(`[Cartesia] 📥 Streaming complete in ${totalTime.toFixed(0)}ms (audio still playing)`);
+        this.streamingComplete = true;
+        this.streamSynthesisResolve?.();
+        this.streamSynthesisResolve = null;
+        this.streamSynthesisReject = null;
+        this.checkForPlaybackCompletion();
+
+      } else if (message.type === 'error') {
+        console.error('[Cartesia] Streaming error:', message.error);
+        const err = new Error(message.error);
+        this.streamSynthesisReject?.(err);
+        this.streamSynthesisResolve = null;
+        this.streamSynthesisReject = null;
+      }
     } catch (error) {
       console.error('[Cartesia] Message parse error:', error);
     }
@@ -464,14 +455,17 @@ export class CartesiaService {
       console.log(`[Cartesia] 📊 Audio timing: now=${now.toFixed(2)}s, scheduled=${this.scheduledEndTime.toFixed(2)}s, remaining=${remainingTime.toFixed(2)}s`);
       
       if (remainingTime > 0.01) {
-        // Audio still playing - wait for it to finish
-        const waitMs = Math.ceil(remainingTime * 1000) + 50; // Add 50ms buffer
+        const waitMs = Math.ceil(remainingTime * 1000) + 50;
         console.log(`[Cartesia] ⏳ Waiting ${waitMs}ms for scheduled audio to finish`);
-        setTimeout(() => {
+        // Fix 2: Register this timer so stop() can cancel it
+        let timer: ReturnType<typeof setTimeout>;
+        timer = setTimeout(() => {
+          this.playbackTimers.delete(timer);
           this.isPlaying = false;
           this.config.onSpeakingEnd();
           this.resolvePlaybackOnce('scheduled_audio_complete');
         }, waitMs);
+        this.playbackTimers.add(timer);
       } else {
         // Audio finished - resolve immediately
         console.log(`[Cartesia] 🎵 Audio finished immediately (no remaining time)`);
@@ -509,98 +503,55 @@ export class CartesiaService {
   /**
    * Play queued audio chunks in real-time with smooth scheduling
    */
-  private playQueuedAudio(): void {
+  private playQueuedAudio(generationId: number): void {
+    // Fix 3: Guard - ignore if generation was superseded by stop() or new speak()
+    if (generationId !== this.activeGenerationId) return;
+
     if (this.audioQueue.length === 0) {
-      console.log(`[Cartesia] 📭 Queue empty, checking for completion...`);
-      
-      // Check for completion when queue empties
+      console.log(`[Cartesia] 💭 Queue empty, checking for completion...`);
       this.checkForPlaybackCompletion();
-      
-      // Check again in a moment in case more chunks are coming
-      setTimeout(() => {
-        if (this.audioQueue.length > 0) {
+      // Fix 2: Track this lookahead timer
+      let timer: ReturnType<typeof setTimeout>;
+      timer = setTimeout(() => {
+        this.playbackTimers.delete(timer);
+        if (this.audioQueue.length > 0 && generationId === this.activeGenerationId) {
           console.log(`[Cartesia] 📥 More chunks arrived, resuming playback`);
-          this.playQueuedAudio();
+          this.playQueuedAudio(generationId);
         }
       }, 50);
+      this.playbackTimers.add(timer);
       return;
     }
 
     const chunk = this.audioQueue.shift()!;
+    if (!this.audioContext) this.initAudioContext();
 
-    if (!this.audioContext) {
-      this.initAudioContext();
-    }
-
-    // Create buffer for this chunk
-    const audioBuffer = this.audioContext!.createBuffer(
-      1, // mono
-      chunk.length,
-      48000
-    );
-
-    // Copy chunk data to audio buffer (type assertion needed for strict TS)
+    const audioBuffer = this.audioContext!.createBuffer(1, chunk.length, 48000);
     audioBuffer.copyToChannel(chunk as Float32Array<ArrayBuffer>, 0);
 
-    // Create source and schedule playback
     const source = this.audioContext!.createBufferSource();
     source.buffer = audioBuffer;
     source.connect(this.audioContext!.destination);
 
-    // Calculate when to start this chunk
+    // Fix 1: Track every source so stop() can cancel all scheduled audio
+    this.activeSources.add(source);
+    source.onended = () => this.activeSources.delete(source);
+
     const now = this.audioContext!.currentTime;
     const startTime = Math.max(now, this.scheduledEndTime);
-    
-    // Schedule this chunk
     source.start(startTime);
-    
-    // Update scheduled end time for next chunk
     this.scheduledEndTime = startTime + audioBuffer.duration;
-    
-    // Schedule next chunk playback slightly before this one ends
+
     const nextChunkDelay = Math.max(10, (audioBuffer.duration * 1000) - 50);
-    setTimeout(() => {
-      this.playQueuedAudio();
+    // Fix 2: Track this scheduling timer
+    let timer: ReturnType<typeof setTimeout>;
+    timer = setTimeout(() => {
+      this.playbackTimers.delete(timer);
+      this.playQueuedAudio(generationId);
     }, nextChunkDelay);
+    this.playbackTimers.add(timer);
 
-    this.currentSource = source;
-    
     console.log(`[Cartesia] 🔊 Playing chunk: ${chunk.length} samples, duration=${audioBuffer.duration.toFixed(2)}s, next in ${nextChunkDelay.toFixed(0)}ms`);
-  }
-
-  private async playAudio(audioData: ArrayBuffer): Promise<void> {
-    if (!this.audioContext) {
-      this.initAudioContext();
-    }
-
-    // Cartesia returns Float32 PCM data
-    const float32Array = new Float32Array(audioData);
-
-    // Create audio buffer
-    const audioBuffer = this.audioContext!.createBuffer(
-      1, // mono
-      float32Array.length,
-      48000
-    );
-
-    // Copy data to buffer (type assertion needed for strict TS)
-    audioBuffer.copyToChannel(float32Array as Float32Array<ArrayBuffer>, 0);
-
-    // Create source and play
-    this.currentSource = this.audioContext!.createBufferSource();
-    this.currentSource.buffer = audioBuffer;
-    this.currentSource.connect(this.audioContext!.destination);
-
-    return new Promise((resolve) => {
-      this.currentSource!.onended = () => {
-        console.log('[Cartesia] Playback finished');
-        this.currentSource = null;
-        resolve();
-      };
-
-      this.currentSource!.start();
-      console.log('[Cartesia] Playback started');
-    });
   }
 
   /**

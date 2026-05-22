@@ -1,7 +1,7 @@
 """
 GPT-4o-mini API Service
 
-This module provides a unified interface for interacting with the GPT-4o-mini API
+This module provides a unified interface for interacting with the GPT-4.1-mini API
 for the Sales Training AI application.
 """
 import logging
@@ -43,7 +43,7 @@ TEMPERATURE_RANGES = {
 }
 
 class GPT4oService:
-    """Service for interacting with GPT-4o-mini API."""
+    """Service for interacting with GPT-4.1-mini API."""
     
     _instance = None
     
@@ -107,7 +107,7 @@ class GPT4oService:
             # Test the API key with a minimal API call
             logger.info("Testing API key with minimal request using new SDK client")
             test_response = self.client.chat.completions.create(
-                model=DEFAULT_MODEL,  # Use a known model for testing instead of DEFAULT_MODEL
+                model="gpt-3.5-turbo",  # Use a known model for testing instead of DEFAULT_MODEL
                 messages=[{"role": "user", "content": "Hello"}],
                 max_tokens=5
             )
@@ -121,7 +121,6 @@ class GPT4oService:
             logger.error(f"Full exception details: {traceback.format_exc()}")
             self.api_available = False
             self.client = None
-            self._initialized = True  # Fix: Prevent repeated failed reinitializations
     
     def generate_response(
         self, 
@@ -131,7 +130,7 @@ class GPT4oService:
         max_tokens: int = MAX_TOKENS
     ) -> str:
         """
-        Generate a response from GPT-4o-mini based on conversation history.
+        Generate a response from GPT-4.1-mini based on conversation history.
         
         Args:
             messages: List of message dictionaries with 'role' and 'content'
@@ -142,13 +141,13 @@ class GPT4oService:
         Returns:
             Generated text response
         """
-        logger.info("📣 Generating response with GPT-4o-mini")
+        logger.info("📣 Generating response with GPT-4.1-mini")
         
         # Check if API is available
         if not hasattr(self, 'api_available') or not self.api_available:
-            logger.error("GPT-4o-mini API is not available. Cannot generate response.")
+            logger.error("GPT-4.1-mini API is not available. Cannot generate response.")
             logger.debug(f"api_available attribute check: hasattr={hasattr(self, 'api_available')}, value={getattr(self, 'api_available', None)}")
-            raise GPT4oServiceError("GPT-4o-mini API is not properly configured. Please check your API key.")
+            raise GPT4oServiceError("GPT-4.1-mini API is not properly configured. Please check your API key.")
         
         try:
             # Format messages for OpenAI API
@@ -190,7 +189,7 @@ class GPT4oService:
             for attempt in range(max_retries):
                 try:
                     start_time = time.time()
-                    logger.info(f"Sending request to GPT-4o-mini API (attempt {attempt+1}/{max_retries})")
+                    logger.info(f"Sending request to GPT-4.1-mini API (attempt {attempt+1}/{max_retries})")
                     
                     # Log request details at debug level
                     logger.debug(f"System prompt (if in messages): {formatted_messages[0]['content'][:30] if formatted_messages and formatted_messages[0]['role'] == 'system' else 'No system prompt'}")
@@ -204,20 +203,20 @@ class GPT4oService:
                     )
                     
                     duration = time.time() - start_time
-                    logger.info(f"GPT-4o-mini API request completed in {duration:.2f}s")
+                    logger.info(f"GPT-4.1-mini API request completed in {duration:.2f}s")
                     
                     # Extract the assistant's response
                     if response and response.choices and len(response.choices) > 0:
                         return response.choices[0].message.content
                     else:
-                        logger.error("Empty or invalid content received from GPT-4o-mini API")
+                        logger.error("Empty or invalid content received from GPT-4.1-mini API")
                         if attempt < max_retries - 1:
                             wait_time = backoff_factor ** attempt
                             logger.warning(f"Empty response, retrying in {wait_time}s")
                             time.sleep(wait_time)
                         else:
                             # Return fallback response instead of raising exception on final attempt
-                            logger.warning("Returning fallback response after empty GPT-4o-mini API responses")
+                            logger.warning("Returning fallback response after empty GPT-4.1-mini API responses")
                             return "I apologize, but I'm having trouble generating a response at the moment. Could you please try again or rephrase your message?"
                         
                 except Exception as e:
@@ -228,7 +227,7 @@ class GPT4oService:
                             time.sleep(wait_time)
                         else:
                             logger.error(f"Final rate limit error after {max_retries} attempts: {str(e)}")
-                            raise GPT4oServiceError(f"GPT-4o-mini API rate limit exceeded after {max_retries} attempts: {e}") from e
+                            raise GPT4oServiceError(f"GPT-4.1-mini API rate limit exceeded after {max_retries} attempts: {e}") from e
                     elif "api" in str(e).lower():
                         if attempt < max_retries - 1:
                             wait_time = backoff_factor ** attempt
@@ -236,7 +235,7 @@ class GPT4oService:
                             time.sleep(wait_time)
                         else:
                             logger.error(f"Final API error after {max_retries} attempts: {str(e)}")
-                            raise GPT4oServiceError(f"GPT-4o-mini API connection failed after {max_retries} attempts: {e}") from e
+                            raise GPT4oServiceError(f"GPT-4.1-mini API connection failed after {max_retries} attempts: {e}") from e
                     else:
                         if attempt < max_retries - 1:
                             wait_time = backoff_factor ** attempt
@@ -244,17 +243,17 @@ class GPT4oService:
                             time.sleep(wait_time)
                         else:
                             logger.error(f"Final unknown error after {max_retries} attempts: {str(e)}")
-                            raise GPT4oServiceError(f"GPT-4o-mini API error after {max_retries} attempts: {e}") from e
+                            raise GPT4oServiceError(f"GPT-4.1-mini API error after {max_retries} attempts: {e}") from e
             
             # If we get here, all retries failed
-            logger.error(f"GPT-4o-mini API failed to respond properly after {max_retries} attempts, using fallback response")
+            logger.error(f"GPT-4.1-mini API failed to respond properly after {max_retries} attempts, using fallback response")
             return "I apologize, but I'm having trouble processing your request right now."
                 
         except GPT4oServiceError:
              raise
         except Exception as e:
             error_details = str(e)
-            logger.error(f"Unexpected error during GPT-4o-mini API call: {error_details}")
+            logger.error(f"Unexpected error during GPT-4.1-mini API call: {error_details}")
 
             # Return a fallback response instead of raising an exception
             logger.error(f"Using fallback response for error: {error_details}")
@@ -568,7 +567,8 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
         fallback_persona_str = json.dumps(fallback_persona_json, indent=2)
         
         if is_error:
-            logger.error(f"Fallback persona generated due to error: {error_message}")            # Error info is already included in _meta.error_info - don\'t append text after JSON
+            logger.error(f"Fallback persona generated due to error: {error_message}")
+            fallback_persona_str += f"\nError Info: Generation failed - {error_message}"
             
         return fallback_persona_str
     
@@ -645,15 +645,12 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
         conversation_state: Dict[str, Any] = None,
         conversation_id: str = None # Keep for potential future use
     ) -> str:
-        user_info = user_info or {}
         salesperson_name = user_info.get("name", "Salesperson")
         
         # --- Persona Details Extraction ---
         # Basic Info
         persona_name = persona.get("name", "Customer")
         persona_role = persona.get("role", "Potential Customer")
-        # Use deep/internal information for AI behavior, not the surface info shown to user
-        internal_data = persona.get("_internal", {})
         
         # Detailed Descriptions (NEW) - Use deep context for AI behavior
         if internal_data:
@@ -730,16 +727,6 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
         rapport_score = 0
         coop_factor = 1.0
         user_hit_passion = False
-        # Fix: Add defaults before conversation_state check to prevent UnboundLocalError
-        should_hint_passion = False
-        outcome = "undecided"
-        outcome_conf = 0.0
-        elapsed_min = 0.0
-        time_warning = False
-        time_cue_5min = False
-        time_cue_3min = False
-        time_cue_1min = False
-        force_wrap_up = False
         if conversation_state:
             # Assuming conversation_state["likely_phase"] might be an Enum object or a string
             raw_phase = conversation_state.get("likely_phase", "rapport")
@@ -759,7 +746,6 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
             time_cue_5min = conversation_state.get("time_cue_5min", False)
             time_cue_3min = conversation_state.get("time_cue_3min", False)
             time_cue_1min = conversation_state.get("time_cue_1min", False)
-            force_wrap_up = conversation_state.get("force_wrap_up", False)
 
         # --- MVP Scenario Definition (Consistent) ---
         call_objective = "This is a 10-minute voice-to-voice discovery call. Your main goal is to understand the salesperson's offering and see if it addresses your primary concern. The salesperson (Cason) will likely try to build rapport and then uncover your needs."
@@ -1026,13 +1012,15 @@ Remember, {salesperson_name} is practicing their sales skills. Your role is to b
                 messages=messages,
                 temperature=0.7,
                 max_tokens=100
-            )            # Fix: generate_response returns a string, not OpenAI response object
-            if response and response.strip():
+            )
+            
+            # Process the response
+            if response.choices:
+                greeting = response.choices[0].message.content
+                
                 # Post-process to remove any artifacts
-                if hasattr(self, '_post_process_response'):
-                    greeting = self._post_process_response(response)
-                else:
-                    greeting = response.strip()
+                greeting = self._post_process_response(greeting)
+                
                 return greeting
             else:
                 logger.warning("Empty initial greeting response")
@@ -1120,10 +1108,10 @@ _gpt4o_service = None
 
 def get_gpt4o_service() -> GPT4oService:
     """
-    Get the GPT-4o-mini service singleton instance.
+    Get the GPT-4.1-mini service singleton instance.
     
     Returns:
-        GPT4oService: An instance of the GPT-4o-mini service
+        GPT4oService: An instance of the GPT-4.1-mini service
     """
     global _gpt4o_service
     if _gpt4o_service is None:
@@ -1136,7 +1124,7 @@ def get_completion(
     max_tokens: int = MAX_TOKENS
 ) -> str:
     """
-    Simple helper to get a completion from GPT-4o-mini.
+    Simple helper to get a completion from GPT-4.1-mini.
     
     Args:
         prompt: The user's prompt text

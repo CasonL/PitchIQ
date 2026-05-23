@@ -325,11 +325,10 @@ const CharmerControllerContent = memo(({
       const qualityCheck = TranscriptQualityDetector.assess(userText);
       
       // FIX 4: Heuristic pre-judgment before sentence streaming
-      // Disable streaming for risky/ambiguous turns to avoid speaking before JudgmentGate approves
+      // AGGRESSIVE STREAMING: Only disable for technical failures, enable for first turns
       const isAmbiguousTurn = 
         qualityCheck.isLikelyGarbled ||
-        userText.length < 10 ||
-        processingUtteranceCount === 1;  // First turn is often ambiguous
+        userText.length < 5;  // Only disable for very short/garbled input
       
       const allowFirstSentenceStreaming = !isAmbiguousTurn;
       

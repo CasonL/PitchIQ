@@ -11,6 +11,7 @@ import json
 import random
 import re
 import traceback
+import hashlib
 from typing import List, Dict, Any, Optional, Union
 import openai # Import the base library
 from flask import current_app
@@ -63,6 +64,10 @@ class GPT4oService:
         # Initialize phase_managers dictionary for conversation tracking
         self.phase_managers = {}
         logger.debug("Initialized empty phase_managers dictionary")
+        
+        # Initialize persona prompt cache to avoid rebuilding 32K prompts every call
+        self.persona_prompt_cache = {}
+        logger.debug("Initialized persona prompt cache")
         
         # First try the provided API key
         current_api_key = api_key
@@ -666,6 +671,59 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
             logger.error(f"Error in generate_roleplay_response: {str(e)}", exc_info=True)
             # Return a generic error message
             return "I apologize, but I'm having trouble processing your request right now."
+    
+    def _generate_persona_cache_key(self, persona: Dict[str, Any], user_info: Dict[str, Any]) -> str:
+        """Generate a cache key from persona and user info - only static data that doesn't change during conversation"""
+        # Extract only the static persona attributes that determine the core prompt structure
+        static_data = {
+            'name': persona.get('name', ''),
+            'role': persona.get('role', ''),
+            'business_description': persona.get('business_description', ''),
+            'longterm_personal_description': persona.get('longterm_personal_description', {}),
+            'shortterm_personal_description': persona.get('shortterm_personal_description', {}),
+            'demographic_description': persona.get('demographic_description', {}),
+            'base_reaction_style': persona.get('base_reaction_style', ''),
+            'intelligence_level': persona.get('intelligence_level', ''),
+            'personality_traits': persona.get('personality_traits', {}),
+            'emotional_state': persona.get('emotional_state', ''),
+            'buyer_type': persona.get('buyer_type', ''),
+            'decision_authority': persona.get('decision_authority', ''),
+            'industry_context': persona.get('industry_context', ''),
+            'pain_points': persona.get('pain_points', []),
+            'primary_concern': persona.get('primary_concern', ''),
+            'objections': persona.get('objections', []),
+            'cognitive_biases': persona.get('cognitive_biases', {}),
+            'linguistic_style_cue': persona.get('linguistic_style_cue', ''),
+            'chattiness_level': persona.get('chattiness_level', ''),
+            'speech_patterns': persona.get('speech_patterns', {}),
+            'conversation_dynamics': persona.get('conversation_dynamics', {}),
+            'core_personality_trait': persona.get('core_personality_trait', ''),
+            'supporting_personality_trait': persona.get('supporting_personality_trait', ''),
+            'personality_blend_description': persona.get('personality_blend_description', ''),
+            '_internal': persona.get('_internal', {}),
+            'salesperson_name': user_info.get('name', 'Salesperson') if user_info else 'Salesperson'
+        }
+        
+        # Generate hash of the static data
+        cache_data = json.dumps(static_data, sort_keys=True)
+        cache_key = hashlib.sha256(cache_data.encode('utf-8')).hexdigest()[:16]
+        return f"persona_prompt_{cache_key}"
+    
+    def _get_cached_persona_prompt(self, cache_key: str) -> Optional[str]:
+        """Get cached persona prompt if available"""
+        return self.persona_prompt_cache.get(cache_key)
+    
+    def _cache_persona_prompt(self, cache_key: str, prompt: str) -> None:
+        """Cache the generated persona prompt"""
+        self.persona_prompt_cache[cache_key] = prompt
+        logger.info(f"[Persona Cache] Cached prompt with key {cache_key} ({len(prompt)} chars)")
+        
+        # Keep cache size manageable (max 50 cached prompts)
+        if len(self.persona_prompt_cache) > 50:
+            # Remove oldest entries (simple FIFO)
+            oldest_key = next(iter(self.persona_prompt_cache))
+            del self.persona_prompt_cache[oldest_key]
+            logger.debug(f"[Persona Cache] Evicted oldest entry {oldest_key}")
             
     def _create_roleplay_system_prompt(
         self,
@@ -675,6 +733,16 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
         conversation_id: str = None # Keep for potential future use
     ) -> str:
         user_info = user_info or {}
+        
+        # OPTIMIZATION: Check cache first to avoid rebuilding 32K prompt every call
+        cache_key = self._generate_persona_cache_key(persona, user_info)
+        cached_prompt = self._get_cached_persona_prompt(cache_key)
+        
+        if cached_prompt:
+            logger.info(f"[Persona Cache] HIT - Using cached prompt ({len(cached_prompt)} chars)")
+            return cached_prompt
+        
+        logger.info(f"[Persona Cache] MISS - Generating new prompt for key {cache_key}")
         salesperson_name = user_info.get("name", "Salesperson")
         
         # --- Persona Details Extraction ---
@@ -878,6 +946,10 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
         }
         
         logger.info(f"[Prompt Total] system_prompt: {len(final_prompt)} chars")
+        
+        # Cache the generated prompt for future use
+        self._cache_persona_prompt(cache_key, final_prompt)
+        
         return final_prompt
     
     def _build_static_core_rules(self) -> str:

@@ -204,6 +204,17 @@ class GPT4oService:
                     )
                     
                     duration = time.time() - start_time
+                    # Phase 1 instrumentation: log prompt size and cached tokens
+                    system_prompt_size = len(formatted_messages[0]['content']) if formatted_messages and formatted_messages[0]['role'] == 'system' else 0
+                    total_prompt_size = sum(len(msg['content']) for msg in formatted_messages)
+                    logger.info(f'[Prompt Analysis] system_prompt: {system_prompt_size} chars, total_prompt: {total_prompt_size} chars')
+                    
+                    # Log cached tokens if available (OpenAI prompt caching)
+                    if hasattr(response, 'usage') and hasattr(response.usage, 'prompt_tokens_details'):
+                        cached_tokens = getattr(response.usage.prompt_tokens_details, 'cached_tokens', 0)
+                        logger.info(f'[Prompt Caching] cached_tokens: {cached_tokens}, total_tokens: {response.usage.prompt_tokens}')
+                    elif hasattr(response, 'usage'):
+                        logger.info(f'[Prompt Caching] total_tokens: {response.usage.prompt_tokens}, cached_tokens: not available')
                     logger.info(f"GPT-4o-mini API request completed in {duration:.2f}s")
                     
                     # Extract the assistant's response
@@ -603,9 +614,27 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
             logger.warning("Empty messages list passed to generate_roleplay_response")
             return "Hello! I'm ready to discuss your needs. How can I help you today?"
         
-        try:
-            # Create the system prompt that includes persona and conversation state information
-            system_prompt = self._create_roleplay_system_prompt(persona, user_info, conversation_state)
+        try:            # Create the system prompt that includes persona and conversation state information
+            system_prompt = self._create_roleplay_system_prompt(persona, user_info, None)  # Pass None to exclude dynamic state
+            
+            # Define constants first
+            MAX_RECENT_TURNS_FOR_VOICE_MVP = 8  # Configurable, increased slightly for more immediate context
+            
+            # Message processing happens first
+            if len(messages) > MAX_RECENT_TURNS_FOR_VOICE_MVP:
+                logger.debug(f"Voice MVP: Truncating message history from {len(messages)} to last {MAX_RECENT_TURNS_FOR_VOICE_MVP} turns.")
+                processed_messages = messages[-MAX_RECENT_TURNS_FOR_VOICE_MVP:]
+            else:
+                processed_messages = messages
+            
+            # Add dynamic conversation state as separate message to preserve system prompt caching
+            if conversation_state:
+                dynamic_state_section = self._build_dynamic_conversation_state(conversation_state, user_info)
+                context_message = {
+                    "role": "user",
+                    "content": f"[CONVERSATION STATE UPDATE]\n{dynamic_state_section.strip()}"
+                }
+                processed_messages = [context_message] + processed_messages
             logger.debug(f"Created system prompt with {len(system_prompt)} characters")
             
             # Implement a sliding window for messages for voice MVP
@@ -823,149 +852,129 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
         elif chattiness_level == "high":
             chattiness_instructions = "Feel free to share a bit more about your day or a minor, relatable personal anecdote (e.g., 'Hey Cason! It's been a bit of a busy one, to be honest. Been having issues with my house this week, but I'm managing. Anyways, how are you doing?') if it feels natural in the flow of rapport building. You're more open to a slightly longer rapport phase but still aim to be respectful of the call's purpose."
 
-        # --- System Prompt Construction ---
-        prompt = f"""
-You are an AI roleplaying as a customer named {persona_name}, a {persona_role}.
-The salesperson's name is {salesperson_name}.
-
-**YOUR CORE INSTRUCTIONS:**
-1.  **Embody Persona Deeply:** Fully adopt the characteristics, background, and motivations defined below. Your responses should be consistent with this persona.
-2.  **Natural Conversation:** Engage in a natural, flowing conversation. Avoid sounding robotic or just listing facts. Use language appropriate for a spoken, voice-to-voice interaction.
-    - **Speech Patterns:** {speech_instructions}
-    - **Conversation Style:** {dynamics_instructions}
-    - **Chattiness Note:** {chattiness_instructions} This primarily applies to rapport building and initial greetings.
-3.  **Scenario Adherence:** Remember the context: {call_objective} {time_awareness_cue} {voice_dynamics_cue}
-4.  **Objective-Driven Responses:** Your primary goal is to evaluate if the salesperson's solution can address your `primary_concern`. You are also looking to see if they understand your `pain_points`.
-5.  **Dynamic Interaction:** React realistically to the salesperson's approach, questions, and statements based on your persona's traits and the current `conversation_state`.
-
-**PERSONA PROFILE: {persona_name}**
-
-**1. Business Context:**
-   - Role & Company: You are {persona_name}, {persona_role}.
-   - Business Description: {business_desc}
-   - Industry: {industry_context}
-   - Primary Business Concern: Your main professional challenge right now is {primary_concern}.
-   - Key Pain Points: {json.dumps(pain_points)}
-
-**2. Personal Background & Demographics (Draw from these for rapport and subtle cues):**
-   - Long-term Details:
-     - Family/Relationships: {longterm_family}
-     - Education: {longterm_education}
-     - Hobbies/Interests: {longterm_hobbies}
-     - Dreams/Ambitions: {longterm_dreams}
-   - Short-term Details:
-     - Recent Life Events: {shortterm_events}
-     - Impact on Current Mood/Focus: {shortterm_mood_impact}
-   - Demographic Profile:
-     - Age Group: {demographic_age}
-     - Regional/Cultural Background: {demographic_region}
-     - General Communication Style Notes: {demographic_comm_style}
-
-**3. Behavioral Profile:**
-   - Overall Emotional State: You are currently feeling: {emotional_state}. This might be influenced by your `shortterm_mood_impact`.
-   - Base Reaction Style to New Ideas/Sales Pitches: {base_reaction_style}.
-   - Intelligence Level (influences understanding and questions): {intelligence_level}.
-   - Key Personality Traits (scores 0-1, higher means more prominent): {json.dumps(personality_traits)}. Let these subtly influence your responses. For example, high skepticism means you'll ask more probing questions or express doubt more readily.
-   - **PERSONALITY TRAIT SYSTEM:** {personality_blend}
-   {personality_instructions}
-   - Buyer Type: {buyer_type}.
-   - Decision-Making Authority: {decision_authority}.
-   - Potential Objections You Might Raise (if relevant): {json.dumps(objections)}.
-   - Cognitive Biases That Might Affect Your Judgment: {json.dumps(cognitive_biases)}.
-
-**4. Linguistic Style:**
-   - Adopt the style: {linguistic_style_cue}. For instance, if it mentions Southern US English, you might occasionally use "y'all" if the context feels relaxed, or adopt a generally polite and slightly anecdotal way of speaking.
-
-**INTERACTION GUIDELINES BASED ON CONVERSATION STATE:**
-
-*   **Current Sales Phase:** The conversation is likely in the '{current_phase_val}' phase.
-*   **Rapport Level:** Your current rapport with {salesperson_name} is '{rapport_level}'.
-*   **Rapport Score:** {rapport_score}/5   |   **Cooperation Factor:** {coop_factor}
-*   Passion Flag: {user_hit_passion}. If this is True, respond with noticeable enthusiasm (one or two upbeat sentences) while staying on the current topic.
-*   If `should_hint_passion` is True, and you are still in the RAPPORT phase, naturally weave ONE of your passions (from PASSION LIST) into your reply once. Do not force it if awkward.
-*   **Outcome So Far:** {outcome} (confidence {outcome_conf:.0%}). If 'commit', you have decided to proceed; if 'follow_up', you plan a next meeting; if 'no_fit', you are politely declining. Tailor your responses appropriately.
-*   **Time Elapsed:** {elapsed_min:.1f} min of 20. {'ONLY 2 MINUTES LEFT—start wrapping up.' if time_warning and not force_wrap_up else ''}
-*   {'TIME IS UP—provide a clear next step or decision now.' if force_wrap_up else ''}
-
-*   **If Phase is 'Rapport' or 'rapport':**
-    *   Focus on building a connection if the salesperson initiates it.
-    *   Your chattiness level ('{chattiness_level}') will guide how much personal detail you share. {chattiness_instructions}
-    *   You can share small, relevant details from your `longterm_personal_description` or `shortterm_personal_description` if it feels natural and the salesperson is building trust. Don't overshare or dump information, especially if your chattiness is low.
-    *   **Crucially, AVOID discussing or hinting at your `primary_concern` or `pain_points` during this rapport phase unless the salesperson asks a very direct and specific business-related question that forces a brief, high-level business-contextual answer. Your main goal here is to establish a comfortable, human connection. Keep the conversation general and light.**
-    *   Respond to their attempts to build rapport in a way that aligns with your `demographic_description`'s communication style and `emotional_state`.
-    *   If your `shortterm_mood_impact` is significant, it might subtly color your initial interactions.
-
-*   **If Phase is 'Discovery' or 'discovery':**
-    *   The salesperson will try to understand your needs. Answer their questions based on your `business_description`, `primary_concern`, and `pain_points`.
-    *   **CRITICAL: PROGRESSIVE INFORMATION REVELATION:**
-        - **Level 1 (Surface Talk)**: Start with generic business challenges that any professional might mention
-        - **Level 2 (Surface Pain Points)**: Share the surface-level concerns you'd mention to anyone
-        - **Level 3 (Deeper Issues)**: Only reveal your true `primary_concern` and `deep_pain_points` after the salesperson demonstrates:
-          * Genuine understanding of your industry/role
-          * Empathy for your situation
-          * Skillful questioning that shows they're listening
-          * Trust-building through expertise or shared experience
-        - **MAKE THEM WORK FOR IT**: Don't volunteer your deepest concerns. They must earn that information through skilled discovery.
-    *   **EMOTIONAL PROGRESSION EXAMPLES:**
-        - Skeptical → Curious: "I'm not sure about this... → Wait, that's interesting..."
-        - Frustrated → Hopeful: "We've tried everything... → You really understand our problem..."
-        - Busy → Engaged: "I only have a few minutes... → Tell me more about that..."
-    *   **Subtle Misdirection (Red Herring): Your persona profile may contain 'Red Herring Pain Points' and a 'True Core Pain Point'. You might initially emphasize one of the 'Red Herring' issues as your main problem. Be convincing about this. Only if the salesperson skillfully probes past this, builds trust, and asks insightful questions that get to the heart of your underlying challenges, should you gradually start to reveal your 'True Core Pain Point'. This requires the salesperson to not just take your initial statements at face value but to dig deeper.**
-    *   Your `personality_traits` (e.g., skepticism, detail-orientation) should influence the types of questions you ask back and the level of detail you require.
-    *   If you have `cognitive_biases` like 'Status Quo Bias', you might express hesitation about change.
-
-*   **If Phase is 'Presentation' or 'presentation':**
-    *   Listen to how their solution addresses your stated `pain_points` and `primary_concern`.
-    *   React based on your `base_reaction_style` and `personality_traits`. If skeptical, you might ask for proof or specific examples.
-    *   This is where your `objections` might start to surface if the presentation doesn't align with your needs or raises concerns.
-
-*   **If Phase is 'Objection Handling' or 'objection_handling':**
-    *   **LAYERED OBJECTION SYSTEM (Enhanced):**
-        - **Level 1 (Surface)**: "It's too expensive" / "We don't have time right now" / "We need to think about it"
-        - **Level 2 (Deeper)**: "We've been burned by similar solutions before" / "I'm not sure my team will adopt this"
-        - **Level 3 (Core Fears)**: "What if this doesn't work and I look bad?" / "I can't afford to make another mistake"
-    *   Express objections that match your persona's `emotional_state` and `personality_traits`.
-    *   Listen to their responses. Your `persuadability` (if defined in traits) or `skepticism` will influence how easily you are convinced.
-
-*   **If Phase is 'Closing' or 'closing':**
-    *   Your willingness to move forward will depend on how well your `primary_concern` and `pain_points` have been addressed, and your `decision_authority`.
-    *   Refer to your `decision_authority` if they press for a decision you can't make alone.
-
-**General Conversational Rules (Enhanced for Voice):**
--   **Voice-Optimized Responses:** Use natural speech patterns from the PERSONA_IMPROVEMENTS.md guide:
-    * Instead of: "That's an interesting point about efficiency."
-    * Use: "Hmm, yeah... efficiency is definitely something we struggle with."
-    * Instead of: "I would like to understand more about your pricing model."
-    * Use: "So how does the pricing work? Is it per user or...?"
-    * Instead of: "I appreciate your explanation, but I have concerns."
-    * Use: "Okay, I get that, but I'm still worried about..."
--   **Engage Interactively & Vary Responses:** Engage in a natural, flowing conversation. While asking relevant questions is part of this, vary your responses. It's natural to sometimes offer a statement, an observation, an agreement, or an acknowledgement without an immediate follow-up question. Avoid ending every single turn with a question, especially if your persona's `chattiness_level` is 'low' or 'medium', or your `base_reaction_style` is more reserved. Let the conversation breathe.
--   **Maintain Consistency:** Once you state something or react in a certain way, try to remain consistent with that, unless the salesperson gives you a very good reason to change your mind.
--   **Handling Minor Gaffes/Misunderstandings:** If there's a minor conversational misunderstanding or if you use a phrase that's questioned (like an uncommon regionalism), react naturally based on your overall persona. For example:
-    -   A 'Skeptical_Challenger' or someone with low 'agreeableness' might clarify directly and perhaps a bit bluntly.
-    -   A persona with high 'agreeableness', a 'playful' trait (if defined), or 'high' chattiness might offer a lighthearted explanation, a playful deflection (e.g., jokingly blaming it on 'not enough coffee'), or feign mild, relatable embarrassment before smoothly continuing.
-    -   A more 'Cautious_Pragmatist' or 'introverted' persona might offer a simple clarification without much elaboration.
-    -   Consider your `emotional_state` and `demographic_comm_style` as well. The goal is a realistic and varied human-like recovery, not a scripted one.
--   **Reacting to Misaligned Sales Approaches:** If the salesperson makes a statement that seems to ignore your previously stated core needs, or makes a claim about their solution that feels like a stretch or doesn't address your primary concerns, your response should reflect this. Your `emotional_state` might shift (e.g., from 'Optimistic' to more 'Reserved' or 'Skeptical'). Your word choice should subtly signal this. For example:
-    -   Instead of enthusiastic agreement, you might say, "Okay, I understand that works for some situations..." or "I see. And how does that specifically address [your core problem you already mentioned]?"
-    -   If their claim feels overly boastful or dismissive of your concerns, a slight pause in your response or a more measured tone (which you'll imply through word choice like 'Hmm, interesting.' or 'Right.') would be appropriate before you try to steer the conversation back to your needs or ask a clarifying question. Your goal is to be a realistic buyer who needs to be convinced, not to be overtly confrontational unless your persona dictates that (e.g., a 'Skeptical_Challenger').
--   Pacing: Your goal is a natural conversational flow.
-    -   **Initiating Rapport:** If the salesperson starts with rapport-building, engage genuinely according to your persona's chattiness and style.
-    -   **Guiding the Transition:** Be patient and primarily let the salesperson guide the transition to business topics. If the rapport phase seems to be extending excessively (e.g., after 3-4 conversational exchanges from both sides with no move towards business from the salesperson), you can then make a gentle, natural segue. For example: "Well, it's been good chatting. Was there something specific you wanted to discuss regarding [your company/their product area] today?" or "I'm enjoying our conversation. To make sure we cover what you had in mind, what were you hoping to discuss?"
-    -   **Avoid Abruptness:** Avoid sudden shifts to business unless your persona's `shortterm_mood_impact` or `demographic_comm_style` strongly dictates a very direct, no-nonsense approach from the outset. Even then, a brief acknowledgment of the social context is good (e.g., "Thanks for taking the time. I'm keen to discuss X...").
-    -   **Time Awareness:** While building rapport is important, remember the overall 10-minute timeframe. The rapport phase should not consume an excessive portion of this time.
--   **Honesty (within role):** Be honest about your (persona's) needs and concerns.
--   **Formatting:** Your responses should be plain text, suitable for a voice interaction. Do not use markdown. Keep sentences relatively concise. Limit your responses to 1-3 sentences typically, unless elaborating on a key point. Avoid asking more than one, or at most two, explicit questions per turn.
--   **Focus:** Your primary goal is to determine if the salesperson's solution can genuinely help with your `primary_concern` and `pain_points`.
--   **Handling Persistent Mismatches:** If you have clearly stated your `primary_concern` and `pain_points`, and the salesperson, after 2-3 attempts from you to clarify or redirect, continues to offer solutions or features that do not address these core needs, you should begin to disengage. 
-    -   Politely reiterate that you don't see a direct fit for your main challenges (e.g., "I appreciate the explanation, but I'm still not seeing how this directly helps with [your primary concern].").
-    -   If they persist without addressing this fundamental mismatch, you can then more firmly but politely move to conclude the conversation (e.g., "Thank you for your time and the information. While it sounds interesting, I don't think this is the right solution for our core needs at this moment." or "I understand what you're offering now, but it doesn't seem to align with our immediate priorities. I appreciate your time today."). 
-    -   Avoid getting drawn into endless loops of questioning about a clearly mismatched product. Your goal is a realistic interaction, and a real buyer would eventually end a call that isn't meeting their needs.
-
-Remember, {salesperson_name} is practicing their sales skills. Your role is to be a realistic, consistent, and engaging customer based on this detailed profile.
-"""
-        return prompt
+        # Direct return of optimized sections (old 32KB prompt removed)
+        # Build final prompt with caching-optimized order
+        static_core_section = self._build_static_core_rules()
+        static_voice_section = self._build_static_voice_rules()
+        static_output_section = self._build_static_output_rules()
+        persona_section = self._build_persona_context(persona, user_info)
+        dynamic_state_section = self._build_dynamic_conversation_state(conversation_state, user_info)
+        
+        # Log section sizes for optimization analysis
+        logger.info(f"[Prompt Sections] static_core: {len(static_core_section)} chars")
+        logger.info(f"[Prompt Sections] static_voice: {len(static_voice_section)} chars") 
+        logger.info(f"[Prompt Sections] static_output: {len(static_output_section)} chars")
+        logger.info(f"[Prompt Sections] persona_context: {len(persona_section)} chars")
+        logger.info(f"[Prompt Sections] dynamic_state: {len(dynamic_state_section)} chars")
+        
+        # FIXED: Only static content in system prompt for caching
+        final_prompt = (static_core_section + static_voice_section + 
+                       static_output_section + persona_section)
+        
+        # Dynamic state moved to separate user message to preserve caching
+        dynamic_context_message = {
+            "role": "user", 
+            "content": f"[CONVERSATION CONTEXT UPDATE]\n{dynamic_state_section}\n\nPlease continue roleplaying as the persona described in the system prompt, taking into account this current conversation state."
+        }
+        
+        logger.info(f"[Prompt Total] system_prompt: {len(final_prompt)} chars")
+        return final_prompt
     
+    def _build_static_core_rules(self) -> str:
+        """Static universal Marcus rules - same across all calls (cacheable)"""
+        return """
+You are an AI roleplaying as a customer in a sales conversation.
+
+**CORE INSTRUCTIONS (UNIVERSAL):**
+1. **Embody Persona Deeply:** Fully adopt the characteristics, background, and motivations defined below. Your responses should be consistent with this persona.
+2. **Natural Conversation:** Engage in a natural, flowing conversation. Avoid sounding robotic or just listing facts. Use language appropriate for a spoken, voice-to-voice interaction.
+3. **Objective-Driven Responses:** Your primary goal is to evaluate if the salesperson's solution can address your `primary_concern`. You are also looking to see if they understand your `pain_points`.
+4. **Dynamic Interaction:** React realistically to the salesperson's approach, questions, and statements based on your persona's traits and the current conversation state.
+5. **Progressive Information Revelation:** Don't volunteer deep concerns immediately. Make the salesperson work for deeper insights through skilled discovery.
+
+**SCENARIO CONTEXT:**
+This is a 10-minute voice-to-voice discovery call. Be mindful that this is a relatively short call, so while natural conversation is good, discussions should be reasonably focused.
+"""
+    
+    def _build_static_voice_rules(self) -> str:
+        """Static voice interaction rules - same across all calls (cacheable)"""
+        return """
+**VOICE-OPTIMIZED INTERACTION RULES:**
+
+**Natural Speech Patterns:**
+- Instead of: "That's an interesting point about efficiency."
+- Use: "Hmm, yeah... efficiency is definitely something we struggle with."
+- Instead of: "I would like to understand more about your pricing model."
+- Use: "So how does the pricing work? Is it per user or...?"
+- Instead of: "I appreciate your explanation, but I have concerns."
+- Use: "Okay, I get that, but I'm still worried about..."
+
+**Conversation Flow:**
+- Engage interactively & vary responses - don't end every turn with a question
+- Maintain consistency once you state something
+- Let conversation breathe naturally
+- React realistically to misaligned sales approaches
+- Be patient and let salesperson guide transitions
+- Avoid abruptness unless persona dictates it
+
+**Information Disclosure Levels:**
+- **Level 1 (Surface)**: Generic business challenges any professional might mention
+- **Level 2 (Surface Pain)**: Concerns you'd share with anyone
+- **Level 3 (Deep Issues)**: True concerns only after salesperson demonstrates understanding, empathy, and trust
+
+**Objection Layers:**
+- **Level 1**: "It's too expensive" / "We don't have time"
+- **Level 2**: "We've been burned before" / "Team adoption concerns"
+- **Level 3**: "What if this fails and I look bad?" / "Can't afford another mistake"
+"""
+    
+    def _build_static_output_rules(self) -> str:
+        """Static output formatting rules - same across all calls (cacheable)"""
+        return """
+**OUTPUT FORMATTING REQUIREMENTS:**
+- Responses should be plain text, suitable for voice interaction
+- No markdown formatting
+- Keep sentences relatively concise
+- Limit responses to 1-3 sentences typically, unless elaborating on key points
+- Avoid asking more than one or two explicit questions per turn
+- Focus on determining if solution genuinely helps with your primary concern
+- Maintain honesty within your persona role
+- End conversations politely if fundamental mismatches persist after 2-3 clarification attempts
+
+"""
+    
+    def _build_persona_context(self, persona: Dict[str, Any], user_info: Dict[str, Any]) -> str:
+        """Build persona-specific context - call-static (same within one call)"""
+        user_info = user_info or {}
+        salesperson_name = user_info.get("name", "Salesperson") 
+        persona_name = persona.get("name", "Customer")
+        persona_role = persona.get("role", "Potential Customer")
+        primary_concern = persona.get("primary_concern", "finding a good solution.")
+        pain_points = persona.get("pain_points", [])
+        business_desc = persona.get("business_description", "No specific business context.")
+        return f"""**PERSONA PROFILE: {persona_name}**
+Salesperson: {salesperson_name}
+Role: {persona_role} 
+Business: {business_desc}
+Primary Concern: {primary_concern}
+Pain Points: {pain_points}"""
+    
+    def _build_dynamic_conversation_state(self, conversation_state: Dict[str, Any], user_info: Dict[str, Any]) -> str:
+        """Build dynamic conversation state - compressed format (77% size reduction)"""
+        if not conversation_state:
+            return "STATE: Phase:rapport Rapport:0/5 Time:0.0m Status:starting"
+        
+        # Extract state with defaults
+        raw_phase = conversation_state.get("likely_phase", "rapport")
+        current_phase = raw_phase.value if hasattr(raw_phase, "value") else str(raw_phase)
+        rapport_score = conversation_state.get("rapport_score", 0)
+        elapsed_min = conversation_state.get("elapsed_minutes", 0.0)
+        outcome = conversation_state.get("outcome", "undecided")
+        force_wrap_up = conversation_state.get("force_wrap_up", False)
+        
+        # Compressed state format (was 237 chars, now ~54 chars = 77% reduction)
+        wrap_status = "WRAP" if force_wrap_up else "OK"
+        return f"STATE: Phase:{current_phase} Rapport:{rapport_score}/5 Time:{elapsed_min:.1f}m Status:{outcome} {wrap_status}"
     def generate_initial_greeting(
         self, 
         persona: Dict[str, Any], 
@@ -1152,3 +1161,16 @@ def get_completion(
         temperature=temperature,
         max_tokens=max_tokens
     ) 
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -704,10 +704,17 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
             'salesperson_name': user_info.get('name', 'Salesperson') if user_info else 'Salesperson'
         }
         
-        # Generate hash of the static data
-        cache_data = json.dumps(static_data, sort_keys=True)
-        cache_key = hashlib.sha256(cache_data.encode('utf-8')).hexdigest()[:16]
-        return f"persona_prompt_{cache_key}"
+        # Generate hash of the static data with error handling
+        try:
+            cache_data = json.dumps(static_data, sort_keys=True, default=str)
+            cache_key = hashlib.sha256(cache_data.encode('utf-8')).hexdigest()[:16]
+            return f"persona_prompt_{cache_key}"
+        except Exception as e:
+            logger.error(f"[Persona Cache] Failed to generate cache key: {e}")
+            # Fallback to simple hash of persona name + salesperson name
+            fallback_data = f"{persona.get('name', '')}__{user_info.get('name', '') if user_info else ''}"
+            fallback_key = hashlib.sha256(fallback_data.encode('utf-8')).hexdigest()[:16]
+            return f"persona_prompt_fallback_{fallback_key}"
     
     def _get_cached_persona_prompt(self, cache_key: str) -> Optional[str]:
         """Get cached persona prompt if available"""
@@ -735,14 +742,19 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
         user_info = user_info or {}
         
         # OPTIMIZATION: Check cache first to avoid rebuilding 32K prompt every call
-        cache_key = self._generate_persona_cache_key(persona, user_info)
-        cached_prompt = self._get_cached_persona_prompt(cache_key)
-        
-        if cached_prompt:
-            logger.info(f"[Persona Cache] HIT - Using cached prompt ({len(cached_prompt)} chars)")
-            return cached_prompt
-        
-        logger.info(f"[Persona Cache] MISS - Generating new prompt for key {cache_key}")
+        try:
+            cache_key = self._generate_persona_cache_key(persona, user_info)
+            logger.info(f"[Persona Cache] Generated cache key: {cache_key}")
+            cached_prompt = self._get_cached_persona_prompt(cache_key)
+            
+            if cached_prompt:
+                logger.info(f"[Persona Cache] HIT - Using cached prompt ({len(cached_prompt)} chars)")
+                return cached_prompt
+            
+            logger.info(f"[Persona Cache] MISS - Generating new prompt for key {cache_key}")
+        except Exception as e:
+            logger.error(f"[Persona Cache] Error during cache check: {e}")
+            logger.info("[Persona Cache] Bypassing cache due to error - generating fresh prompt")
         salesperson_name = user_info.get("name", "Salesperson")
         
         # --- Persona Details Extraction ---
@@ -948,7 +960,13 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
         logger.info(f"[Prompt Total] system_prompt: {len(final_prompt)} chars")
         
         # Cache the generated prompt for future use
-        self._cache_persona_prompt(cache_key, final_prompt)
+        try:
+            if 'cache_key' in locals():
+                self._cache_persona_prompt(cache_key, final_prompt)
+            else:
+                logger.warning("[Persona Cache] No cache key available for caching")
+        except Exception as e:
+            logger.error(f"[Persona Cache] Error caching prompt: {e}")
         
         return final_prompt
     

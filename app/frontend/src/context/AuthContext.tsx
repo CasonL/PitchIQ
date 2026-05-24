@@ -51,7 +51,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const queryClient = useQueryClient();
   const { data: user, isLoading, refetch } = useQuery<User | null>({
     queryKey: ['userStatus'],
-    queryFn: fetchUserStatus,
+    queryFn: async () => {
+      const { fetchUserStatusWithRetry } = await import('@/lib/apiWithTimeout');
+      return fetchUserStatusWithRetry();
+    },
     staleTime: 15 * 60 * 1000, // 15 minutes instead of 5
     refetchOnWindowFocus: false, // Disable aggressive refetching
     refetchInterval: 10 * 60 * 1000, // Check every 10 minutes instead of on focus

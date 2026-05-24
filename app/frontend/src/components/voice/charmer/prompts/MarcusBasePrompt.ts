@@ -7,7 +7,7 @@
 import type { ConversationContext } from '../CharmerPhaseManager';
 
 // A/B TEST: Set to true for condensed prompt (50% shorter, principle-based)
-export const USE_CONDENSED_PROMPT = false; // CONDENSED TOO SHALLOW - uses original
+export const USE_CONDENSED_PROMPT = true; // TESTING: 50% shorter prompts for faster first token
 
 // Conditional prompt segments - only injected when buyer state triggers them
 export const CONFUSION_PROMPT = `YOU'RE CONFUSED - DON'T RESCUE THEM: They're not making sense. Say: "I'm not following" or "Wait, what?"`;

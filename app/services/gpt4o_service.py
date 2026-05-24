@@ -674,7 +674,11 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
     
     def _generate_persona_cache_key(self, persona: Dict[str, Any], user_info: Dict[str, Any]) -> str:
         """Generate a cache key from persona and user info - only static data that doesn't change during conversation"""
+        logger.info("[Persona Cache] _generate_persona_cache_key called...")
+        logger.info(f"[Persona Cache] persona type: {type(persona)}, user_info type: {type(user_info)}")
+        
         # Extract only the static persona attributes that determine the core prompt structure
+        logger.info("[Persona Cache] Extracting static data...")
         static_data = {
             'name': persona.get('name', ''),
             'role': persona.get('role', ''),
@@ -705,15 +709,24 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
         }
         
         # Generate hash of the static data with error handling
+        logger.info("[Persona Cache] Starting JSON serialization...")
         try:
+            logger.info(f"[Persona Cache] static_data keys: {list(static_data.keys())}")
             cache_data = json.dumps(static_data, sort_keys=True, default=str)
+            logger.info(f"[Persona Cache] JSON serialization successful, data length: {len(cache_data)}")
+            
+            logger.info("[Persona Cache] Generating hash...")
             cache_key = hashlib.sha256(cache_data.encode('utf-8')).hexdigest()[:16]
+            logger.info(f"[Persona Cache] Hash generated successfully: {cache_key}")
             return f"persona_prompt_{cache_key}"
         except Exception as e:
             logger.error(f"[Persona Cache] Failed to generate cache key: {e}")
+            logger.error(f"[Persona Cache] Key generation traceback: {traceback.format_exc()}")
             # Fallback to simple hash of persona name + salesperson name
+            logger.info("[Persona Cache] Using fallback key generation...")
             fallback_data = f"{persona.get('name', '')}__{user_info.get('name', '') if user_info else ''}"
             fallback_key = hashlib.sha256(fallback_data.encode('utf-8')).hexdigest()[:16]
+            logger.info(f"[Persona Cache] Fallback key generated: fallback_{fallback_key}")
             return f"persona_prompt_fallback_{fallback_key}"
     
     def _get_cached_persona_prompt(self, cache_key: str) -> Optional[str]:
@@ -742,9 +755,13 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
         user_info = user_info or {}
         
         # OPTIMIZATION: Check cache first to avoid rebuilding 32K prompt every call
+        logger.info("[Persona Cache] Starting cache check...")
         try:
+            logger.info("[Persona Cache] Calling _generate_persona_cache_key...")
             cache_key = self._generate_persona_cache_key(persona, user_info)
             logger.info(f"[Persona Cache] Generated cache key: {cache_key}")
+            
+            logger.info("[Persona Cache] Checking for cached prompt...")
             cached_prompt = self._get_cached_persona_prompt(cache_key)
             
             if cached_prompt:
@@ -754,6 +771,7 @@ IMPORTANT: Make this persona feel like a REAL PERSON with genuine concerns, real
             logger.info(f"[Persona Cache] MISS - Generating new prompt for key {cache_key}")
         except Exception as e:
             logger.error(f"[Persona Cache] Error during cache check: {e}")
+            logger.error(f"[Persona Cache] Exception traceback: {traceback.format_exc()}")
             logger.info("[Persona Cache] Bypassing cache due to error - generating fresh prompt")
         salesperson_name = user_info.get("name", "Salesperson")
         

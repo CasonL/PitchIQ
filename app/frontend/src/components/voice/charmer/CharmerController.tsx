@@ -15,6 +15,7 @@ import { CharmerAIService } from './CharmerAIService';
 import { QuestionClassifier, QuestionClassification } from './QuestionClassifier';
 import { JudgmentGate, JudgmentContext } from './JudgmentGate';
 import { StrategyLayer, StrategyContext, StrategyOutput, BuyerState } from './StrategyLayer';
+import { ProductConversationFitService } from './prompts/ProductConversationFitService';
 import { CognitiveCompletenessAnalyzer } from './CognitiveCompleteness';
 import { MarcusPostCallMoments } from './MarcusPostCallMoments';
 import { StrategicMomentCoach } from './StrategicMomentCoach';
@@ -710,9 +711,18 @@ const CharmerControllerContent = memo(({
       
       // Step 3: Generate tree when product confidence reaches medium
       if (productConfidence.shouldGenerateTree) {
+        // CRITICAL: Generate product physics for realistic buyer state selection
+        const productPhysics = ProductConversationFitService.analyzeProduct(
+          userText,
+          [productConfidence.product || '', productConfidence.category || ''].filter(Boolean)
+        );
+        
+        console.log(`🏗️ [ProductPhysics] Tree generation with archetype: ${productPhysics.archetype}`);
+        
         await stateTreeRef.current.generateTree({
           productName: productConfidence.product,
           productCategory: productConfidence.category,
+          productPhysics: productPhysics,  // NOW TREE USES PRODUCT PHYSICS!
           beliefState: beliefs,
           maxDepth: 3,
           maxChildrenPerNode: 4

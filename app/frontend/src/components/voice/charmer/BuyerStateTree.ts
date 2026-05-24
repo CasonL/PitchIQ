@@ -17,6 +17,7 @@
 
 import { BuyerBeliefState } from './BuyerBeliefTracker';
 import { ProductConfidence } from './ProductConfidenceDetector';
+import { ProductConversationPhysics } from './prompts/ProductConversationFitService';
 
 export type BuyerStateNodeLifecycle = 
   | 'active'        // Available for selection
@@ -98,6 +99,7 @@ export interface CandidateScore {
   hardTriggerForced: boolean;
   lifecyclePenalty: number;
   depthPenalty: number;
+  productPhysicsScore: number;  // Product realism boost/penalty
   finalScore: number;
   selected: boolean;
   reasonSelected?: string;
@@ -107,6 +109,7 @@ export interface CandidateScore {
 export interface TreeGenerationConfig {
   productName: string | null;
   productCategory: string | null;
+  productPhysics: ProductConversationPhysics;  // CRITICAL: Product physics for realistic state selection
   beliefState: BuyerBeliefState;
   maxDepth: number;
   maxChildrenPerNode: number;
@@ -526,9 +529,9 @@ export class BuyerStateTree {
       return null;
     }
     
-    // Score candidates with detailed breakdown
+    // Score candidates with detailed breakdown - NOW WITH PRODUCT PHYSICS
     const scoredCandidates = candidates.map(candidate => 
-      this.scoreCandidate(candidate, currentNode, beliefs, userUtterance)
+      this.scoreCandidate(candidate, currentNode, beliefs, userUtterance, this.latestConfig?.productPhysics)
     );
     
     // Update currentConfidence on all candidate nodes
@@ -715,12 +718,14 @@ export class BuyerStateTree {
   
   /**
    * Score a candidate state with detailed breakdown
+   * NOW INCLUDES: Product physics for realistic buyer behavior per product type
    */
   private scoreCandidate(
     candidate: BuyerStateNode,
     currentNode: BuyerStateNode,
     beliefs: BuyerBeliefState,
-    userUtterance: string
+    userUtterance: string,
+    productPhysics?: ProductConversationPhysics
   ): CandidateScore {
     let score = candidate.baseConfidence;
     
@@ -735,14 +740,21 @@ export class BuyerStateTree {
     const triggerBonus = this.detectTriggers(candidate, userUtterance);
     score += triggerBonus;
     
-    // Factor 3: Depth penalty (prefer staying shallow early)
+    // Factor 3: PRODUCT PHYSICS - boost realistic states, penalize unrealistic ones
+    let productPhysicsScore = 0;
+    if (productPhysics) {
+      productPhysicsScore = this.calculateProductPhysicsScore(candidate, productPhysics);
+      score += productPhysicsScore;
+    }
+    
+    // Factor 4: Depth penalty (prefer staying shallow early)
     let depthPenalty = 0;
     if (candidate.depth > 2 && this.currentTurn < 10) {
       depthPenalty = -10;
       score += depthPenalty;
     }
     
-    // Factor 4: Lifecycle penalty
+    // Factor 5: Lifecycle penalty
     let lifecyclePenalty = 0;
     if (candidate.lifecycle === 'deprioritized') {
       lifecyclePenalty = -15;
@@ -766,7 +778,9 @@ export class BuyerStateTree {
       lifecyclePenalty,
       depthPenalty,
       finalScore,
-      selected: false
+      selected: false,
+      // Add product physics score for debugging
+      productPhysicsScore: productPhysicsScore
     };
   }
   
@@ -849,6 +863,120 @@ export class BuyerStateTree {
     }
     
     return alignment;
+  }
+  
+  /**
+   * CRITICAL: Calculate product physics score - boosts realistic states, penalizes unrealistic ones
+   * This prevents SaaS-shaped responses for chemicals/equipment/etc.
+   */
+  private calculateProductPhysicsScore(
+    candidate: BuyerStateNode,
+    productPhysics: ProductConversationPhysics
+  ): number {
+    let score = 0;
+    
+    // Map state types to product archetypes for realism scoring
+    const stateRealism = this.getStateRealismForProduct(
+      candidate.stateType,
+      candidate.stateSubtype,
+      productPhysics.archetype
+    );
+    
+    if (stateRealism.realistic) {
+      score += stateRealism.boost;
+      console.log(`🏗️ [ProductPhysics] "${candidate.stateName}" +${stateRealism.boost} (realistic for ${productPhysics.archetype})`);
+    } else if (stateRealism.unrealistic) {
+      score += stateRealism.penalty; // penalty is negative
+      console.log(`⚠️ [ProductPhysics] "${candidate.stateName}" ${stateRealism.penalty} (unrealistic for ${productPhysics.archetype})`);
+    }
+    
+    return score;
+  }
+  
+  /**
+   * Determine if a buyer state is realistic for a product archetype
+   */
+  private getStateRealismForProduct(
+    stateType: BuyerStateType,
+    stateSubtype: string | null,
+    archetype: string
+  ): { realistic?: boolean; unrealistic?: boolean; boost: number; penalty: number } {
+    
+    // Chemical/Industrial Supply - realistic states
+    if (archetype === 'chemical_or_industrial_supply') {
+      switch (stateType) {
+        case 'clarification':
+          if (stateSubtype?.includes('spec') || stateSubtype?.includes('grade') || stateSubtype?.includes('SDS')) {
+            return { realistic: true, boost: 18, penalty: 0 };
+          }
+          if (stateSubtype?.includes('compliance') || stateSubtype?.includes('handling')) {
+            return { realistic: true, boost: 15, penalty: 0 };
+          }
+          break;
+        case 'current_solution_comparison':
+          return { realistic: true, boost: 12, penalty: 0 };
+        case 'price_concern':
+          if (stateSubtype?.includes('volume') || stateSubtype?.includes('bulk')) {
+            return { realistic: true, boost: 10, penalty: 0 };
+          }
+          break;
+        case 'fit_concern':
+          if (stateSubtype?.includes('application') || stateSubtype?.includes('process')) {
+            return { realistic: true, boost: 8, penalty: 0 };
+          }
+          break;
+      }
+      
+      // Penalize SaaS-ish states for chemicals
+      if (stateSubtype?.includes('platform') || stateSubtype?.includes('onboarding') || 
+          stateSubtype?.includes('dashboard') || stateSubtype?.includes('integration')) {
+        return { unrealistic: true, boost: 0, penalty: -15 };
+      }
+    }
+    
+    // SaaS - realistic states  
+    if (archetype === 'saas') {
+      switch (stateType) {
+        case 'clarification':
+          if (stateSubtype?.includes('platform') || stateSubtype?.includes('integration')) {
+            return { realistic: true, boost: 15, penalty: 0 };
+          }
+          if (stateSubtype?.includes('onboarding') || stateSubtype?.includes('workflow')) {
+            return { realistic: true, boost: 12, penalty: 0 };
+          }
+          break;
+        case 'risk_concern':
+          if (stateSubtype?.includes('data') || stateSubtype?.includes('security')) {
+            return { realistic: true, boost: 10, penalty: 0 };
+          }
+          break;
+      }
+      
+      // Penalize chemical-ish states for SaaS
+      if (stateSubtype?.includes('spec') || stateSubtype?.includes('SDS') || 
+          stateSubtype?.includes('grade') || stateSubtype?.includes('handling')) {
+        return { unrealistic: true, boost: 0, penalty: -12 };
+      }
+    }
+    
+    // Equipment/Hardware - realistic states
+    if (archetype === 'equipment_or_hardware') {
+      switch (stateType) {
+        case 'clarification':
+          if (stateSubtype?.includes('specs') || stateSubtype?.includes('installation')) {
+            return { realistic: true, boost: 15, penalty: 0 };
+          }
+          break;
+        case 'risk_concern':
+          if (stateSubtype?.includes('maintenance') || stateSubtype?.includes('reliability')) {
+            return { realistic: true, boost: 12, penalty: 0 };
+          }
+          break;
+      }
+    }
+    
+    // Default: neutral (no boost or penalty)
+    return { boost: 0, penalty: 0 };
   }
   
   /**

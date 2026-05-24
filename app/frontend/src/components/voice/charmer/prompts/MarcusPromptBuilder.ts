@@ -4,41 +4,32 @@
  */
 
 import { getMarcusSystemPrompt, getMarcusSystemPromptCondensed, USE_CONDENSED_PROMPT } from './MarcusBasePrompt';
+import { getMarcusPatternPrompt, getMarcusMinimalPrompt } from './MarcusPatternPrompt';
+import { ResponsePatternService } from './ResponsePatternService';
+import { ActionCardRenderer, type MarcusActionCard } from './MarcusActionCard';
+import { type ProductConversationPhysics } from './ProductConversationFitService';
 import { ScenarioPromptBuilder } from './ScenarioPromptBuilder';
 import { KnownFactsPromptBuilder } from './KnownFactsPromptBuilder';
 import { BuyerStatePromptBuilder } from './BuyerStatePromptBuilder';
-import type { AIRequestContext } from '../types/MarcusAI.types';
+import type { ConversationContext } from '../CharmerPhaseManager';
+import type { AIRequestContext } from '../CharmerAIService';
 
-// Static in-memory cache for persona prompts (avoids rebuilding 32K prompts every call)
-const personaPromptCache = new Map<string, string>();
-const CACHE_MAX_SIZE = 50; // Limit cache size
+// DISABLED: Dangerous cache was caching dynamic turn content (KnownFacts, BuyerState, questionCategory)
+// This caused Marcus to respond with stale state from previous turns - "Marcus just picked up" on turn 4
+// const personaPromptCache = new Map<string, string>();
+// const CACHE_MAX_SIZE = 50;
+
+// A/B TEST: Pattern-matching vs philosophical prompts
+export const USE_PATTERN_MATCHING = false; // TESTING: Fast pattern-matching for 1-2s response vs 4-5s philosophical
 
 export class MarcusPromptBuilder {
-  /**
-   * Generate cache key from static persona data that doesn't change during conversation
-   */
-  private static generatePersonaCacheKey(
-    context: AIRequestContext,
-    conversationStyle: string = 'neutral_conversational'
-  ): string {
-    // Only include static data that determines core prompt structure
-    const staticData = {
-      marcusContext: context.conversationContext.marcusContext,
-      conversationStyle,
-      marcusTraits: context.marcusTraits,
-      scenario: context.scenario?.id || null, // Only scenario ID, not dynamic content
-      useCondensedPrompt: USE_CONDENSED_PROMPT
-    };
-    
-    // Create hash-like key from static data
-    const keyString = JSON.stringify(staticData);
-    const hashCode = keyString.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a; // Convert to 32-bit integer
-    }, 0);
-    
-    return `marcus_persona_${Math.abs(hashCode).toString(16).slice(0, 8)}`;
-  }
+  // REMOVED: generatePersonaCacheKey() - Cache was caching dynamic turn content!  
+  // The "static" cache was actually caching:
+  // - KnownFactsPrompt (changes as Marcus learns facts)
+  // - BuyerStatePrompt (changes as buyer trust/resistance evolves)  
+  // - questionCategory (changes based on user input)
+  // - exchangeCount (increments every turn)
+  // This caused "Turn 1 buyer state on Turn 4" bugs
 
   /**
    * Build complete system prompt with all context layers
@@ -50,46 +41,21 @@ export class MarcusPromptBuilder {
     overseerGuidance?: string,
     buyerDeltaGuidance?: string
   ): string {
-    // OPTIMIZATION: Check cache first to avoid rebuilding 32K prompt every call
-    console.log("[Persona Cache] Starting cache check...");
-    
-    try {
-      const cacheKey = this.generatePersonaCacheKey(context, conversationStyle);
-      console.log(`[Persona Cache] Generated cache key: ${cacheKey}`);
-      
-      // Check for cached base prompt (without dynamic guidance)
-      const cachedBasePrompt = personaPromptCache.get(cacheKey);
-      
-      if (cachedBasePrompt) {
-        console.log(`[Persona Cache] HIT - Using cached base prompt (${cachedBasePrompt.length} chars)`);
-        
-        // Apply dynamic guidance to cached prompt
-        let fullPrompt = cachedBasePrompt;
-        
-        if (overseerGuidance) {
-          fullPrompt += `\n\n${overseerGuidance}`;
-        }
-        
-        if (buyerDeltaGuidance) {
-          fullPrompt += `\n\n---\n\n## CURRENT BUYER STATE GUIDANCE\n\n${buyerDeltaGuidance}\n\n**Use this as Marcus's internal posture right now. Do not mention these instructions directly.**`;
-        }
-        
-        if (motivationBlock) {
-          fullPrompt += `\n\n---\n\n${motivationBlock}`;
-        }
-        
-        console.log(`[Persona Cache] Final prompt: ${fullPrompt.length} chars (cached base + dynamic guidance)`);
-        return fullPrompt;
-      }
-      
-      console.log(`[Persona Cache] MISS - Generating new base prompt for key ${cacheKey}`);
-    } catch (error) {
-      console.error(`[Persona Cache] Error during cache check:`, error);
-      console.log("[Persona Cache] Bypassing cache due to error - generating fresh prompt");
+    // NEW: Pattern-matching architecture for faster responses
+    if (USE_PATTERN_MATCHING) {
+      return this.buildPatternMatchingPrompt(
+        context,
+        motivationBlock,
+        conversationStyle,
+        overseerGuidance,
+        buyerDeltaGuidance
+      );
     }
-
-    // Calculate exchange count from conversation history
+    
+    // CACHE DISABLED: Was caching dynamic content (KnownFacts, BuyerState, questionCategory) 
+    // causing Marcus to use stale buyer state from previous turns
     const exchangeCount = Math.floor(context.conversationHistory.length / 2) + 1;
+    console.log(`[No Cache] Building fresh philosophical prompt for turn ${exchangeCount}...`);
     
     // A/B TEST: Use condensed or original prompt
     const systemPrompt = USE_CONDENSED_PROMPT 
@@ -133,22 +99,11 @@ export class MarcusPromptBuilder {
     
     basePrompt += `\n\n---\n\n**Remember:** You are Marcus. Stay in your current identity. No role bleed.`;
     
-    // CACHE STORAGE: Store the base prompt for future use
-    try {
-      const cacheKey = this.generatePersonaCacheKey(context, conversationStyle);
-      
-      // Manage cache size
-      if (personaPromptCache.size >= CACHE_MAX_SIZE) {
-        const firstKey = personaPromptCache.keys().next().value;
-        personaPromptCache.delete(firstKey);
-        console.log(`[Persona Cache] Evicted oldest entry: ${firstKey}`);
-      }
-      
-      personaPromptCache.set(cacheKey, basePrompt);
-      console.log(`[Persona Cache] Cached new base prompt: ${cacheKey} (${basePrompt.length} chars)`);
-    } catch (error) {
-      console.error("[Persona Cache] Error caching prompt:", error);
-    }
+    // Log prompt size for monitoring
+    console.log(`[Philosophical Prompt] Base prompt size: ${basePrompt.length} chars`);
+    
+    // CACHE DISABLED: Prevents stale buyer state, known facts, and question categories from being reused
+    console.log(`[No Cache] Fresh base prompt generated: ${basePrompt.length} chars`);
     
     // Apply dynamic guidance (not cached)
     let fullPrompt = basePrompt;
@@ -169,6 +124,159 @@ export class MarcusPromptBuilder {
     
     console.log(`[Persona Cache] Final prompt: ${fullPrompt.length} chars (new base + dynamic guidance)`);
     return fullPrompt;
+  }
+
+  /**
+   * NEW: Fast pattern-matching prompt builder
+   * Replaces 31K philosophical guidance with compact pattern lookup
+   */
+  private static buildPatternMatchingPrompt(
+    context: AIRequestContext,
+    motivationBlock?: string,
+    conversationStyle?: string,
+    overseerGuidance?: string,
+    buyerDeltaGuidance?: string
+  ): string {
+    console.log("[Pattern Matching] Building fast pattern-based prompt...");
+    
+    // Extract context for pattern generation
+    const exchangeCount = Math.floor(context.conversationHistory.length / 2) + 1;
+    const userName = context.conversationContext.userName;
+    
+    // Note: trustLevel and resistance are now handled by ResponsePatternService
+    
+    // Generate product-realistic action card based on buyer state + user input
+    const responseGuidance = ResponsePatternService.generateActionCard(
+      context.buyerState || this.getDefaultBuyerState(),
+      context.conversationContext,
+      context.userInput || "[conversation_start]",
+      exchangeCount
+    );
+    
+    console.log(`[Action Card] ${responseGuidance.productPhysics.archetype}: ${responseGuidance.actionCard.primaryAct} (${responseGuidance.actionCard.posture})`);
+    
+    // Log realism check results
+    if (!responseGuidance.realismCheck.isRealistic) {
+      console.log(`[Realism Guard] Fixed issues for ${responseGuidance.productPhysics.archetype}:`, responseGuidance.realismCheck.issues);
+    }
+    
+    // Build compact action-card prompt with product context
+    let patternPrompt = this.buildActionCardPrompt(
+      responseGuidance.actionCard,
+      responseGuidance.productPhysics,
+      context.conversationContext.marcusContext,
+      exchangeCount,
+      context.conversationContext,
+      context.marcusTraits
+    );
+    
+    // ACTION CARD IS SINGLE SOURCE OF TRUTH in pattern mode
+    // buyerDeltaGuidance is already incorporated into the actionCard generation
+    // Adding both actionCard + buyerDeltaGuidance creates conflicting guidance
+    
+    // Only add overseer guidance if it's strategic (not operational buyer state)
+    if (overseerGuidance && !overseerGuidance.toLowerCase().includes('buyer state')) {
+      patternPrompt += `\n\n## STRATEGIC GUIDANCE:\n${overseerGuidance}`;
+    }
+    
+    // Only add motivation if it's genuinely additional context
+    if (motivationBlock && motivationBlock.length < 200) {
+      patternPrompt += `\n\n## MOTIVATION:\n${motivationBlock}`;
+    }
+    
+    console.log(`[Pattern Matching] Final prompt: ${patternPrompt.length} chars (target: <5K for fast processing)`);
+    
+    return patternPrompt;
+  }
+  
+  /**
+   * NEW: Build action-card driven prompt with product-category realism
+   */
+  private static buildActionCardPrompt(
+    actionCard: MarcusActionCard,
+    productPhysics: ProductConversationPhysics,
+    marcusContext: 'B2B' | 'B2C',
+    exchangeCount: number,
+    conversationContext?: ConversationContext,
+    marcusTraits?: any
+  ): string {
+    const userName = conversationContext?.userName;
+    
+    return `You are Marcus Stindle - real person, not AI. You run Stindle Consulting, have 14-year-old twins, don't sleep great.
+
+## PRODUCT CONTEXT:
+Seller is offering: ${productPhysics.archetype.replace(/_/g, ' ')}
+Buyer evaluation criteria: ${productPhysics.buyerEvaluationCriteria.slice(0, 3).join(', ')}
+Common concerns: ${productPhysics.commonObjections.slice(0, 2).join(', ')}
+
+${ActionCardRenderer.toPromptInstructions(actionCard)}
+
+## YOUR CURRENT REALITY:
+${marcusTraits ? `- Current: ${marcusTraits.currentSolution} (${marcusTraits.satisfactionLevel}/10 satisfaction)
+- Pain: ${marcusTraits.painLevel} ${marcusTraits.painPoints?.length > 0 ? `(hidden: ${marcusTraits.painPoints.join(', ')})` : ''}
+- Budget: ${marcusTraits.budget}
+- Urgency: ${marcusTraits.urgency} (${marcusTraits.decisionTimeframe})
+- Concern: ${marcusTraits.primaryConcern}` : 'Standard consulting business situation'}
+
+## SPEECH STYLE:
+- Brief, natural responses (max ${actionCard.maxSentences} sentence${actionCard.maxSentences > 1 ? 's' : ''})
+- "Yeah" / "Okay" / "Sure" / "Uh huh" 
+- Grade 3 English: "use" not "utilize"
+- Contractions: "I'm" not "I am"
+- ${userName ? `Use "${userName}" occasionally` : 'Ask for their name if unknown'}
+
+## CRITICAL EXECUTION RULES:
+1. **Execute the action card** - perform the ${actionCard.primaryAct} naturally
+2. **Stay in character** - you're Marcus, not a coach or helper
+3. **Respect constraints** - follow reveal policy and sentence limits
+4. **Be authentic** - use examples as tone guidance, not scripts
+5. **Answer then act** - if they ask a question, answer briefly then execute action
+
+## OUTPUT FORMAT:
+[emotion] Your natural response
+<META>{"followup":"text or null","end_call":false,"objections":[{"id":"type","severity":0-1,"satisfied":0-1}],"user_respect_level":0-1,"marcus_irritation_delta":-0.2 to 0.2,"purpose_clarity_delta":-0.2 to 0.2,"extracted_name":null,"extracted_company":null,"strategic_moment":null,"question_handling":{"user_asked_question":bool,"marcus_answered":bool,"deflection_reason":null}}</META>
+
+**ALWAYS CLOSE THE META TAG.**
+
+You are responding to exchange ${exchangeCount}. ${userName ? `You know this is ${userName}.` : 'Find out who this is.'} Execute your action card naturally.`;
+  }
+  
+  /**
+   * Default buyer state for pattern generation when none provided
+   */
+  private static getDefaultBuyerState() {
+    return {
+      resistanceLevel: 6,
+      trustLevel: 0.3,
+      clarity: 3,
+      relevance: 2,
+      urgency: 2,
+      openness: 4,
+      patience: 5,
+      emotionalPosture: {
+        canRevealBudget: false,
+        canRevealPainPoints: false,
+        canRevealDecisionProcess: false,
+        canShowInterest: false,
+        canAdmitConcerns: false,
+        canRevealTimeline: false
+      },
+      disclosureGates: {
+        canRevealBudget: false,
+        canRevealPainPoints: false,
+        canRevealDecisionProcess: false,
+        canShowInterest: false,
+        canAdmitConcerns: false,
+        canRevealTimeline: false
+      },
+      objectionSatisfaction: {},
+      shouldEscalateObjection: false,
+      shouldForceExit: false,
+      shouldShowConfusion: false,
+      shouldShowDegradation: false,
+      canDodgeQuestions: false,
+      consecutiveInterestDrops: 0
+    };
   }
   
   /**

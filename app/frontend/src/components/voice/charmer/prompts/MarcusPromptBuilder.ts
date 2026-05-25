@@ -39,7 +39,8 @@ export class MarcusPromptBuilder {
     motivationBlock?: string,
     conversationStyle?: string,
     overseerGuidance?: string,
-    buyerDeltaGuidance?: string
+    buyerDeltaGuidance?: string,
+    callBackstoryBlock?: string
   ): string {
     // NEW: Pattern-matching architecture for faster responses
     if (USE_PATTERN_MATCHING) {
@@ -116,6 +117,11 @@ export class MarcusPromptBuilder {
     // BUYER DELTA: Inject buyer state tree guidance (PreTreeBuyerPolicy output)
     if (buyerDeltaGuidance) {
       fullPrompt += `\n\n---\n\n## CURRENT BUYER STATE GUIDANCE\n\n${buyerDeltaGuidance}\n\n**Use this as Marcus's internal posture right now. Do not mention these instructions directly.**`;
+    }
+    
+    // Inject call backstory if provided (from CallDetailsCreator)
+    if (callBackstoryBlock) {
+      fullPrompt += `\n\n${callBackstoryBlock}`;
     }
     
     // Inject motivation packet if provided

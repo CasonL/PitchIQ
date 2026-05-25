@@ -38,6 +38,7 @@ import { CallCompletionData, StoredFeedbackData, StoredCallState } from './types
 import { LocalStorageService } from './services/LocalStorageService';
 import { ObjectionGenerator, DiscoveryContext } from './ObjectionGenerator';
 import { ConversationTracker } from './ConversationTranscript';
+import { CallDetailsCreator, CallDetailsResult } from './CallDetailsCreator';
 import { SystemDebugPanel, SystemDebugEvent } from './SystemDebugPanel';
 import { ProductConfidenceDetector } from './ProductConfidenceDetector';
 import { BuyerBeliefTracker } from './BuyerBeliefTracker';
@@ -116,6 +117,9 @@ const CharmerControllerContent = memo(({
   });
   const [isRinging, setIsRinging] = useState(false);
   const ringTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Call details - generated during ring period
+  const callDetailsRef = useRef<CallDetailsResult | null>(null);
   const firstSentenceSpokenRef = useRef<string | null>(null); // Track first sentence if streamed
   const firstSentencePromiseRef = useRef<Promise<void> | null>(null); // Await TTS completion before remainder
   
@@ -725,7 +729,8 @@ const CharmerControllerContent = memo(({
           productPhysics: productPhysics,  // NOW TREE USES PRODUCT PHYSICS!
           beliefState: beliefs,
           maxDepth: 3,
-          maxChildrenPerNode: 4
+          maxChildrenPerNode: 4,
+          callContext: callDetailsRef.current?.treeContext
         }, turnNumber);
         
         productConfidenceRef.current.markTreeGenerated();
@@ -931,7 +936,7 @@ const CharmerControllerContent = memo(({
             conversationHistory: conversationHistory,
             scenario: selectedScenario,
             questionCategory: classification.category
-          }, undefined, undefined, undefined, buyerDelta?.guidanceText, handleFirstSentence);
+          }, undefined, undefined, undefined, callDetailsRef.current?.marcusPromptBlock, buyerDelta?.guidanceText, handleFirstSentence);
           
           // SAFETY: Check after generation completes
           if (utteranceCountRef.current !== processingUtteranceCount) {
@@ -1721,6 +1726,19 @@ const CharmerControllerContent = memo(({
           .catch(err => console.error('Phone ring error:', err));
       }
     }
+    
+    // Generate call details during ring period (zero latency cost)
+    CallDetailsCreator.generate(
+      scenario.product,
+      scenario.name,
+      callVariationSeed
+    ).then(details => {
+      callDetailsRef.current = details;
+      console.log('🎭 Call details generated during ring period');
+    }).catch(err => {
+      console.warn('🎭 Call details generation failed, using fallback', err);
+      callDetailsRef.current = null;
+    });
     
     // Wait 10 seconds for phone to ring, THEN connect to Marcus
     const startTime = Date.now();

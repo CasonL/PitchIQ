@@ -73,6 +73,11 @@ export interface TreeGenerationConfig {
   beliefState: BuyerBeliefState;
   maxDepth: number;
   maxChildrenPerNode: number;
+  // Call details context for colorized branches
+  callContext?: {
+    productUseCase?: string;
+    buyerBackground?: string;
+  };
 }
 
 export interface CandidateScore {

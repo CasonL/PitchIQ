@@ -48,6 +48,7 @@ export class CharmerAIService {
     motivationBlock?: string,
     conversationStyle?: string,
     overseerGuidance?: string,
+    callBackstoryBlock?: string,
     buyerDeltaGuidance?: string,
     onFirstSentence?: SentenceStreamCallback
   ): Promise<AIResponse> {
@@ -60,7 +61,8 @@ export class CharmerAIService {
         motivationBlock,
         conversationStyle,
         overseerGuidance,
-        buyerDeltaGuidance
+        buyerDeltaGuidance,
+        callBackstoryBlock
       );
       const userPrompt = MarcusPromptBuilder.buildUserPrompt(context);
       

@@ -14,7 +14,7 @@ import { CharmerContextExtractor } from './CharmerContextExtractor';
 import { CharmerAIService } from './CharmerAIService';
 import { QuestionClassifier, QuestionClassification } from './QuestionClassifier';
 import { JudgmentGate, JudgmentContext } from './JudgmentGate';
-import { StrategyLayer, StrategyContext, StrategyOutput, BuyerState } from './StrategyLayer';
+import { StrategyLayer, StrategyContext, StrategyOutput, BuyerState, TurnContext } from './StrategyLayer';
 import { ProductConversationFitService } from './prompts/ProductConversationFitService';
 import { CognitiveCompletenessAnalyzer } from './CognitiveCompleteness';
 import { MarcusPostCallMoments } from './MarcusPostCallMoments';
@@ -322,6 +322,22 @@ const CharmerControllerContent = memo(({
     console.log('🧹 Call runtime state reset complete');
   }, []);
   
+  /**
+   * Clear first-sentence streaming state
+   */
+  const clearFirstSentenceStreaming = useCallback(() => {
+    firstSentenceSpokenRef.current = null;
+    firstSentencePromiseRef.current = null;
+  }, []);
+  
+  /**
+   * Finish processing and unlock pipeline
+   */
+  const finishProcessing = useCallback(() => {
+    isProcessingRef.current = false;
+    setIsProcessing(false);
+  }, []);
+  
   // Greeting now handled by Deepgram Agent API automatically
   
   /**
@@ -363,14 +379,26 @@ const CharmerControllerContent = memo(({
       
       // SAFE BACKCHANNELS: Only stream neutral acknowledgments before Judgment Gate
       // Prevents Marcus from blurting substantive responses that should be suppressed/held
-      const SAFE_BACKCHANNELS = ['Mm.', 'Okay.', 'I hear you.', 'Right.', 'Yeah.', 'Uh-huh.', 'Got it.'];
+      const normalizeBackchannel = (text: string) =>
+        text
+          .trim()
+          .toLowerCase()
+          .replace(/[.!?,…]+$/g, '');
+      
+      const SAFE_BACKCHANNELS = new Set([
+        'mm',
+        'okay',
+        'i hear you',
+        'right',
+        'yeah',
+        'uh-huh',
+        'got it'
+      ]);
       
       // Sentence streaming callback - only streams SAFE backchannels before judgment
       const handleFirstSentence = (firstSentence: string, emotion?: string) => {
-        // Only stream if it's a safe backchannel AND not garbled/ambiguous input
-        const isSafeBackchannel = SAFE_BACKCHANNELS.some(bc => 
-          firstSentence.trim().toLowerCase().startsWith(bc.toLowerCase().slice(0, -1))
-        );
+        // Only stream if it's an EXACT safe backchannel match AND not garbled/ambiguous input
+        const isSafeBackchannel = SAFE_BACKCHANNELS.has(normalizeBackchannel(firstSentence));
         const isAmbiguousTurn = qualityCheck.isLikelyGarbled || userText.length < 5;
         
         if (isSafeBackchannel && !isAmbiguousTurn) {
@@ -1117,6 +1145,8 @@ const CharmerControllerContent = memo(({
       if (judgment.action === 'suppress') {
         console.log(`🚫 [Judgment Gate] SUPPRESS - ${judgment.reason}`);
         judgmentGateRef.current.logSuppression(userText, aiResponse.content, judgment);
+        firstSentenceSpokenRef.current = null;
+        firstSentencePromiseRef.current = null;
         isProcessingRef.current = false;
         setIsProcessing(false);
         return;
@@ -1128,6 +1158,8 @@ const CharmerControllerContent = memo(({
         console.log(`   Waiting for user to clarify ambiguous input (no artificial delay)`);
         // TODO: Future - route to multi-LLM strategic analysis for complex moments
         // For now, suppress and wait for user continuation
+        firstSentenceSpokenRef.current = null;
+        firstSentencePromiseRef.current = null;
         isProcessingRef.current = false;
         setIsProcessing(false);
         
@@ -1314,14 +1346,14 @@ const CharmerControllerContent = memo(({
   
   // Wrapper that handles queue processing - ensures queued utterances are always processed
   const processUserInputWithQueue = useCallback(async (userText: string, utteranceSnapshot: number) => {
-    const wasProcessing = isProcessing;
+    const wasAlreadyProcessing = isProcessingRef.current;
     
     try {
       await processUserInput(userText, utteranceSnapshot);
     } finally {
       // CRITICAL: Only process queue if we actually completed processing
       // Don't process if we were already processing (early return via queuing)
-      if (!wasProcessing && queuedUtterancesRef.current.length > 0) {
+      if (!wasAlreadyProcessing && !isProcessingRef.current && queuedUtterancesRef.current.length > 0) {
         const allFragments = queuedUtterancesRef.current;
         const combinedText = allFragments.map(f => f.text).join(' ');
         const lastCount = allFragments[allFragments.length - 1].count;

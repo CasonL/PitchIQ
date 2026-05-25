@@ -293,6 +293,35 @@ const CharmerControllerContent = memo(({
     setPhaseContext(phaseManagerRef.current.getContext());
   }, []);
   
+  /**
+   * Reset all runtime state for a new call - prevents state leakage between calls
+   */
+  const resetCallRuntimeState = useCallback(() => {
+    utteranceCountRef.current = 0;
+    processedUtterancesRef.current.clear();
+    
+    productConfidenceRef.current.reset();
+    beliefTrackerRef.current.reset();
+    stateTreeRef.current.reset();
+    deltaManagerRef.current.reset?.();
+    
+    sellerSignalsRef.current.clear();
+    lastObjectionRef.current = undefined;
+    nameMentionCountRef.current = {};
+    
+    queuedUtterancesRef.current = [];
+    pendingUtteranceRef.current = null;
+    speculativeResponseRef.current = null;
+    
+    firstSentenceSpokenRef.current = null;
+    firstSentencePromiseRef.current = null;
+    wasInterruptedRef.current = false;
+    
+    hybridFeedbackRef.current.reset?.();
+    
+    console.log('🧹 Call runtime state reset complete');
+  }, []);
+  
   // Greeting now handled by Deepgram Agent API automatically
   
   /**
@@ -983,7 +1012,7 @@ const CharmerControllerContent = memo(({
             decisionTimeframe: selectedScenario.traits.decisionTimeframe,
             primaryConcern: selectedScenario.traits.primaryConcern
           } : undefined
-        }, undefined, undefined, undefined, buyerDelta?.guidanceText, handleFirstSentence);
+        }, undefined, undefined, undefined, callDetailsRef.current?.marcusPromptBlock, buyerDelta?.guidanceText, handleFirstSentence);
         
         // SAFETY: Check after generation completes
         if (utteranceCountRef.current !== processingUtteranceCount) {
@@ -1708,17 +1737,8 @@ const CharmerControllerContent = memo(({
     conversationTrackerRef.current = new ConversationTracker(callStartTimeRef.current);
     console.log('📋 Conversation tracker initialized');
     
-    // Reset utterance counter for new call
-    utteranceCountRef.current = 0;
-    
-    // Clear processed utterances tracker for new call
-    processedUtterancesRef.current.clear();
-    
-    // Reset buyer-state modeling system for new call
-    productConfidenceRef.current.reset();
-    beliefTrackerRef.current.reset();
-    stateTreeRef.current.reset();
-    console.log('🌳 Buyer-state system reset for new call');
+    // Reset all runtime state for new call
+    resetCallRuntimeState();
     
     // Reset phase manager with scenario context
     const callVariationSeed = Math.floor(Math.random() * 100);
@@ -1810,21 +1830,8 @@ const CharmerControllerContent = memo(({
     conversationTrackerRef.current = new ConversationTracker(callStartTimeRef.current);
     console.log('📋 Conversation tracker initialized');
     
-    // Reset utterance counter for new call
-    utteranceCountRef.current = 0;
-    
-    // Clear processed utterances tracker for new call
-    processedUtterancesRef.current.clear();
-    
-    // Reset buyer-state modeling system for new call
-    productConfidenceRef.current.reset();
-    beliefTrackerRef.current.reset();
-    stateTreeRef.current.reset();
-    console.log('🌳 Buyer-state system reset for new call');
-    
-    // Reset hybrid feedback analyzer for new call
-    hybridFeedbackRef.current.reset();
-    console.log('🔄 Hybrid feedback analyzer reset');
+    // Reset all runtime state for new call
+    resetCallRuntimeState();
     
     // Reset phase manager with scenario context
     phaseManagerRef.current.reset();

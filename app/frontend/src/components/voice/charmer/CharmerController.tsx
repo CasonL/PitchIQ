@@ -404,6 +404,7 @@ const CharmerControllerContent = memo(({
           conversationTrackerRef.current.addMarcusMessage(aiResponse.content, 5);
         }
         
+        isProcessingRef.current = false;
         setIsProcessing(false);
         return;
       }
@@ -911,6 +912,7 @@ const CharmerControllerContent = memo(({
             }
             firstSentenceSpokenRef.current = null;
             firstSentencePromiseRef.current = null;
+            isProcessingRef.current = false;
             setIsProcessing(false);
             return;
           }
@@ -921,6 +923,7 @@ const CharmerControllerContent = memo(({
           // SAFETY: Check before starting fresh generation
           if (utteranceCountRef.current !== processingUtteranceCount) {
             console.log('🚫 User started new utterance - aborting fresh generation');
+            isProcessingRef.current = false;
             setIsProcessing(false);
             return;
           }
@@ -950,6 +953,7 @@ const CharmerControllerContent = memo(({
             }
             firstSentenceSpokenRef.current = null;
             firstSentencePromiseRef.current = null;
+            isProcessingRef.current = false;
             setIsProcessing(false);
             return;
           }
@@ -992,6 +996,7 @@ const CharmerControllerContent = memo(({
           }
           firstSentenceSpokenRef.current = null;
           firstSentencePromiseRef.current = null;
+          isProcessingRef.current = false;
           setIsProcessing(false);
           return;
         }
@@ -1001,6 +1006,7 @@ const CharmerControllerContent = memo(({
       // (flag captured at start, already cleared from ref)
       if (wasInterrupted) {
         console.log('🛑 Response cancelled - user was interrupting when this utterance arrived');
+        isProcessingRef.current = false;
         setIsProcessing(false);
         return;
       }
@@ -1022,6 +1028,7 @@ const CharmerControllerContent = memo(({
         console.error('❌ Could not speak error message:', ttsError);
       }
       
+      isProcessingRef.current = false;
       setIsProcessing(false);
       
       // End call due to backend failure
@@ -1039,6 +1046,7 @@ const CharmerControllerContent = memo(({
       if (wasInterruptedRef.current) {
         console.log('🛑 Response cancelled - user interrupted during generation');
         wasInterruptedRef.current = false;
+        isProcessingRef.current = false;
         setIsProcessing(false);
         return;
       }
@@ -1081,6 +1089,7 @@ const CharmerControllerContent = memo(({
       if (judgment.action === 'suppress') {
         console.log(`🚫 [Judgment Gate] SUPPRESS - ${judgment.reason}`);
         judgmentGateRef.current.logSuppression(userText, aiResponse.content, judgment);
+        isProcessingRef.current = false;
         setIsProcessing(false);
         return;
       }
@@ -1091,6 +1100,7 @@ const CharmerControllerContent = memo(({
         console.log(`   Waiting for user to clarify ambiguous input (no artificial delay)`);
         // TODO: Future - route to multi-LLM strategic analysis for complex moments
         // For now, suppress and wait for user continuation
+        isProcessingRef.current = false;
         setIsProcessing(false);
         
         // CRITICAL: Check if utterances queued while we were processing
@@ -1173,6 +1183,7 @@ const CharmerControllerContent = memo(({
       if (wasInterruptedRef.current) {
         console.log('🛑 Response interrupted during speaking');
         wasInterruptedRef.current = false;
+        isProcessingRef.current = false;
         setIsProcessing(false);
         return;
       }

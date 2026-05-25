@@ -966,10 +966,8 @@ const CharmerControllerContent = memo(({
               console.log('🔇 Stopping first sentence TTS (response scrapped)');
               stopSpeaking();
             }
-            firstSentenceSpokenRef.current = null;
-            firstSentencePromiseRef.current = null;
-            isProcessingRef.current = false;
-            setIsProcessing(false);
+            clearFirstSentenceStreaming();
+            finishProcessing();
             return;
           }
         } catch (err) {
@@ -979,8 +977,7 @@ const CharmerControllerContent = memo(({
           // SAFETY: Check before starting fresh generation
           if (utteranceCountRef.current !== processingUtteranceCount) {
             console.log('🚫 User started new utterance - aborting fresh generation');
-            isProcessingRef.current = false;
-            setIsProcessing(false);
+            finishProcessing();
             return;
           }
           
@@ -1007,10 +1004,8 @@ const CharmerControllerContent = memo(({
               console.log('🔇 Stopping first sentence TTS (response scrapped)');
               stopSpeaking();
             }
-            firstSentenceSpokenRef.current = null;
-            firstSentencePromiseRef.current = null;
-            isProcessingRef.current = false;
-            setIsProcessing(false);
+            clearFirstSentenceStreaming();
+            finishProcessing();
             return;
           }
         }
@@ -1050,10 +1045,8 @@ const CharmerControllerContent = memo(({
             console.log('🔇 Stopping first sentence TTS (response scrapped)');
             stopSpeaking();
           }
-          firstSentenceSpokenRef.current = null;
-          firstSentencePromiseRef.current = null;
-          isProcessingRef.current = false;
-          setIsProcessing(false);
+          clearFirstSentenceStreaming();
+          finishProcessing();
           return;
         }
       }
@@ -1062,8 +1055,7 @@ const CharmerControllerContent = memo(({
       // (flag captured at start, already cleared from ref)
       if (wasInterrupted) {
         console.log('🛑 Response cancelled - user was interrupting when this utterance arrived');
-        isProcessingRef.current = false;
-        setIsProcessing(false);
+        finishProcessing();
         return;
       }
     } catch (aiError) {
@@ -1084,8 +1076,7 @@ const CharmerControllerContent = memo(({
         console.error('❌ Could not speak error message:', ttsError);
       }
       
-      isProcessingRef.current = false;
-      setIsProcessing(false);
+      finishProcessing();
       
       // End call due to backend failure
       setTimeout(() => {
@@ -1102,8 +1093,7 @@ const CharmerControllerContent = memo(({
       if (wasInterruptedRef.current) {
         console.log('🛑 Response cancelled - user interrupted during generation');
         wasInterruptedRef.current = false;
-        isProcessingRef.current = false;
-        setIsProcessing(false);
+        finishProcessing();
         return;
       }
       
@@ -1145,10 +1135,8 @@ const CharmerControllerContent = memo(({
       if (judgment.action === 'suppress') {
         console.log(`🚫 [Judgment Gate] SUPPRESS - ${judgment.reason}`);
         judgmentGateRef.current.logSuppression(userText, aiResponse.content, judgment);
-        firstSentenceSpokenRef.current = null;
-        firstSentencePromiseRef.current = null;
-        isProcessingRef.current = false;
-        setIsProcessing(false);
+        clearFirstSentenceStreaming();
+        finishProcessing();
         return;
       }
       
@@ -1158,10 +1146,8 @@ const CharmerControllerContent = memo(({
         console.log(`   Waiting for user to clarify ambiguous input (no artificial delay)`);
         // TODO: Future - route to multi-LLM strategic analysis for complex moments
         // For now, suppress and wait for user continuation
-        firstSentenceSpokenRef.current = null;
-        firstSentencePromiseRef.current = null;
-        isProcessingRef.current = false;
-        setIsProcessing(false);
+        clearFirstSentenceStreaming();
+        finishProcessing();
         
         // CRITICAL: Check if utterances queued while we were processing
         // If so, process them after a small delay to allow state to settle
@@ -1243,8 +1229,7 @@ const CharmerControllerContent = memo(({
       if (wasInterruptedRef.current) {
         console.log('🛑 Response interrupted during speaking');
         wasInterruptedRef.current = false;
-        isProcessingRef.current = false;
-        setIsProcessing(false);
+        finishProcessing();
         return;
       }
       
@@ -1334,15 +1319,13 @@ const CharmerControllerContent = memo(({
       // Update context state
       setPhaseContext(phaseManager.getContext());
       
-      isProcessingRef.current = false;
-      setIsProcessing(false);
+      finishProcessing();
     } catch (error) {
       console.error('❌ Error during Marcus response processing:', error);
-      isProcessingRef.current = false;
-      setIsProcessing(false);
+      finishProcessing();
     }
     
-  }, [isProcessing, conversationHistory, transitionToPhase]);
+  }, [conversationHistory, transitionToPhase, clearFirstSentenceStreaming, finishProcessing]);
   
   // Wrapper that handles queue processing - ensures queued utterances are always processed
   const processUserInputWithQueue = useCallback(async (userText: string, utteranceSnapshot: number) => {
@@ -1367,7 +1350,7 @@ const CharmerControllerContent = memo(({
         }, 100);
       }
     }
-  }, [processUserInput, isProcessing]);
+  }, [processUserInput]);
   
   /**
    * Detect continuation cues - patterns suggesting user will keep talking

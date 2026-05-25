@@ -123,6 +123,9 @@ const CharmerControllerContent = memo(({
   const firstSentenceSpokenRef = useRef<string | null>(null); // Track first sentence if streamed
   const firstSentencePromiseRef = useRef<Promise<void> | null>(null); // Await TTS completion before remainder
   
+  // Processed utterances tracker - prevent re-processing same transcript
+  const processedUtterancesRef = useRef<Set<string>>(new Set());
+  
   // Phone ringing audio with Web Audio API for volume boost
   const phoneRingAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -1324,6 +1327,12 @@ const CharmerControllerContent = memo(({
   useEffect(() => {
     if (!transcript || transcript === lastTranscriptRef.current) return;
     
+    // CRITICAL: Prevent re-processing same utterance (Deepgram buffer flushes)
+    if (isFinalTranscript && processedUtterancesRef.current.has(transcript)) {
+      console.log(`🔁 Skipping already-processed utterance: "${transcript.substring(0, 60)}..."`);
+      return;
+    }
+    
     // Update transcript ref for timeout callbacks
     transcriptRef.current = transcript;
     
@@ -1539,6 +1548,9 @@ const CharmerControllerContent = memo(({
       console.log(`🎙️ User speech: "${mergedContent}"`);
       console.log(`🔧 [DEBUG] Calling processUserInput for utterance #${currentUtterance}, isProcessing=${isProcessing}`);
       
+      // Mark this transcript as processed to prevent re-processing
+      processedUtterancesRef.current.add(transcript);
+      
       processUserInputWithQueue(mergedContent, currentUtterance);
       pendingUtteranceRef.current = null;
       
@@ -1689,6 +1701,9 @@ const CharmerControllerContent = memo(({
     // Reset utterance counter for new call
     utteranceCountRef.current = 0;
     
+    // Clear processed utterances tracker for new call
+    processedUtterancesRef.current.clear();
+    
     // Reset buyer-state modeling system for new call
     productConfidenceRef.current.reset();
     beliefTrackerRef.current.reset();
@@ -1787,6 +1802,9 @@ const CharmerControllerContent = memo(({
     
     // Reset utterance counter for new call
     utteranceCountRef.current = 0;
+    
+    // Clear processed utterances tracker for new call
+    processedUtterancesRef.current.clear();
     
     // Reset buyer-state modeling system for new call
     productConfidenceRef.current.reset();

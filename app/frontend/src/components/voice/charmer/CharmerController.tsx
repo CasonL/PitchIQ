@@ -126,6 +126,9 @@ const CharmerControllerContent = memo(({
   // Processed utterances tracker - prevent re-processing same transcript
   const processedUtterancesRef = useRef<Set<string>>(new Set());
   
+  // Tree generation in-flight tracker - prevent blocking voice path
+  const treeGenerationInFlightRef = useRef(false);
+  
   // Phone ringing audio with Web Audio API for volume boost
   const phoneRingAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -783,17 +786,30 @@ const CharmerControllerContent = memo(({
         
         console.log(`🏗️ [ProductPhysics] Tree generation with archetype: ${productPhysics.archetype}`);
         
-        await stateTreeRef.current.generateTree({
-          productName: productConfidence.product,
-          productCategory: productConfidence.category,
-          productPhysics: productPhysics,  // NOW TREE USES PRODUCT PHYSICS!
-          beliefState: beliefs,
-          maxDepth: 3,
-          maxChildrenPerNode: 4,
-          callContext: callDetailsRef.current?.treeContext
-        }, turnNumber);
-        
-        productConfidenceRef.current.markTreeGenerated();
+        // Generate tree asynchronously to avoid blocking voice response path
+        if (!treeGenerationInFlightRef.current) {
+          treeGenerationInFlightRef.current = true;
+          
+          stateTreeRef.current.generateTree({
+            productName: productConfidence.product,
+            productCategory: productConfidence.category,
+            productPhysics: productPhysics,  // NOW TREE USES PRODUCT PHYSICS!
+            beliefState: beliefs,
+            maxDepth: 3,
+            maxChildrenPerNode: 4,
+            callContext: callDetailsRef.current?.treeContext
+          }, turnNumber)
+            .then(() => {
+              productConfidenceRef.current.markTreeGenerated();
+              console.log('🌳 Tree generation completed asynchronously');
+            })
+            .catch(err => {
+              console.error('❌ Tree generation failed:', err);
+            })
+            .finally(() => {
+              treeGenerationInFlightRef.current = false;
+            });
+        }
       }
       
       // Step 4: Activate tree when product confidence reaches high

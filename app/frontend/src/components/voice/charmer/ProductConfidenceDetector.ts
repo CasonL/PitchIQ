@@ -31,6 +31,7 @@ interface SignalEvidence {
   features: Set<string>;
   painPoints: Set<string>;
   hasExplicitName: boolean;
+  productIntros: Set<string>;
 }
 
 interface DiversityMilestones {
@@ -53,13 +54,16 @@ export class ProductConfidenceDetector {
   private treeGenerated: boolean = false;
   private treeActivated: boolean = false;
   
+  private categoryDetectedThisTurn: boolean = false;
+
   constructor() {
     this.cumulativeEvidence = {
       keywords: new Set(),
       useCases: new Set(),
       features: new Set(),
       painPoints: new Set(),
-      hasExplicitName: false
+      hasExplicitName: false,
+      productIntros: new Set()
     };
     this.diversityMilestones = {
       keywords3: false,
@@ -79,10 +83,10 @@ export class ProductConfidenceDetector {
     const perTurnSignals = this.extractSignals(userUtterance);
     const newEvidence = this.dedupeAndAccumulate(perTurnSignals);
     
-    this.inferCategory(userUtterance);
+    const newCategoryDetected = this.inferCategory(userUtterance);
     
     const newDiversityBonuses = this.checkDiversityMilestones();
-    const scoreIncrease = this.calculateScoreIncrease(newEvidence, newDiversityBonuses);
+    const scoreIncrease = this.calculateScoreIncrease(newEvidence, newDiversityBonuses, newCategoryDetected);
     
     this.confidenceScore = Math.min(100, this.confidenceScore + scoreIncrease);
     
@@ -123,13 +127,37 @@ export class ProductConfidenceDetector {
       useCases: new Set(),
       features: new Set(),
       painPoints: new Set(),
-      hasExplicitName: false
+      hasExplicitName: false,
+      productIntros: new Set()
     };
+
+    // Broad product pitch openers — catches physical, chemical, SaaS, anything
+    const productIntroPatterns = [
+      /\bwe(?:'re| are)?\s+(?:offering|selling|supplying|providing|distributing|manufacturing)\b/i,
+      /\b(?:calling|reaching out)\s+(?:about|regarding|for|on)\b/i,
+      /\bsigned up\s+(?:on|for|to)\s+(?:our\s+)?(?:email|mailing|newsletter)?\s*list\b/i,
+      /\bwe\s+(?:noticed|saw|see)\s+you\b/i,
+      /\bour\s+(?:product|service|solution|offering|supply|supplies|pricing)\b/i,
+      /\bcompetitive\s+(?:price|pricing|rates?)\b/i,
+      /\bwe\s+offer\b/i,
+      /\bstill\s+interested\b/i,
+    ];
+
+    productIntroPatterns.forEach(pattern => {
+      if (pattern.test(utterance)) {
+        signals.productIntros.add(pattern.source);
+      }
+    });
     
     const productKeywords = [
+      // SaaS / software
       'saas', 'software', 'platform', 'tool', 'solution', 'service',
       'crm', 'erp', 'api', 'automation', 'analytics', 'dashboard',
       'app', 'application', 'system', 'technology',
+      // Physical / industrial products
+      'product', 'supply', 'supplies', 'chemical', 'chemicals',
+      'antifreeze', 'equipment', 'hardware', 'material', 'materials',
+      'parts', 'components', 'inventory', 'stock', 'goods',
       // Product categories
       'training', 'coaching', 'learning', 'education', 'development',
       // Buyer personas
@@ -252,7 +280,8 @@ export class ProductConfidenceDetector {
       useCases: new Set(),
       features: new Set(),
       painPoints: new Set(),
-      hasExplicitName: false
+      hasExplicitName: false,
+      productIntros: new Set()
     };
     
     perTurnSignals.keywords.forEach(keyword => {
@@ -287,6 +316,13 @@ export class ProductConfidenceDetector {
       newEvidence.hasExplicitName = true;
       this.cumulativeEvidence.hasExplicitName = true;
     }
+
+    perTurnSignals.productIntros.forEach(intro => {
+      if (!this.cumulativeEvidence.productIntros.has(intro)) {
+        newEvidence.productIntros.add(intro);
+        this.cumulativeEvidence.productIntros.add(intro);
+      }
+    });
     
     return newEvidence;
   }
@@ -335,13 +371,17 @@ export class ProductConfidenceDetector {
   /**
    * Calculate score increase based on new evidence and diversity bonuses
    */
-  private calculateScoreIncrease(newEvidence: SignalEvidence, diversityBonuses: string[]): number {
+  private calculateScoreIncrease(newEvidence: SignalEvidence, diversityBonuses: string[], newCategoryDetected: boolean): number {
     let increase = 0;
     
     increase += newEvidence.keywords.size * 3;
     increase += newEvidence.useCases.size * 10;
     increase += newEvidence.features.size * 8;
     increase += newEvidence.painPoints.size * 7;
+    // Each new product intro pattern = strong evidence rep is pitching something real
+    increase += newEvidence.productIntros.size * 12;
+    // First time we can classify the product category = concrete evidence
+    if (newCategoryDetected) increase += 20;
     
     if (newEvidence.hasExplicitName) {
       increase += 30;
@@ -371,20 +411,26 @@ export class ProductConfidenceDetector {
   /**
    * Infer product category from context (runs every turn)
    */
-  private inferCategory(utterance: string): void {
+  private inferCategory(utterance: string): boolean {
     const lower = utterance.toLowerCase();
+    const prevCategory = this.detectedCategory;
     
     if (!this.detectedCategory || this.detectedCategory === "Unknown") {
       if (lower.match(/\b(saas|software as a service|cloud|platform)\b/)) {
         this.detectedCategory = "B2B SaaS";
+      } else if (lower.match(/\b(chemical|antifreeze|solvent|lubricant|coolant|industrial supply|lab supply|reagent)\b/)) {
+        this.detectedCategory = "Chemical/Industrial";
       } else if (lower.match(/\b(consulting|services|agency)\b/)) {
         this.detectedCategory = "Professional Services";
       } else if (lower.match(/\b(training|coaching|education)\b/)) {
         this.detectedCategory = "Training/Education";
-      } else if (lower.match(/\b(hardware|device|equipment)\b/)) {
+      } else if (lower.match(/\b(hardware|device|equipment|machinery|tool)\b/)) {
         this.detectedCategory = "Hardware";
+      } else if (lower.match(/\b(food|beverage|grocery|produce|ingredient|supply)\b/)) {
+        this.detectedCategory = "Food/Beverage";
       }
     }
+    return this.detectedCategory !== null && this.detectedCategory !== prevCategory;
   }
   
   /**
@@ -477,7 +523,8 @@ export class ProductConfidenceDetector {
       useCases: new Set(),
       features: new Set(),
       painPoints: new Set(),
-      hasExplicitName: false
+      hasExplicitName: false,
+      productIntros: new Set()
     };
     this.diversityMilestones = {
       keywords3: false,

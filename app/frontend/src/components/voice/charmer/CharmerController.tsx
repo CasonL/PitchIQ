@@ -1237,7 +1237,7 @@ const CharmerControllerContent = memo(({
           
           // Set active objection immediately for answer evaluation
           const objectionType = strategyLayerRef.current.setActiveObjection(aiResponse.content);
-          console.log(`🚩 [Objection] Marcus raised: ${aiResponse.objection.id} (severity: ${aiResponse.objection.severity})`);
+          console.log(`🚩 [Objection] Marcus raised: ${aiResponse.objection.objection_id} (severity: ${aiResponse.objection.severity})`);
           console.log(`   "${aiResponse.content.substring(0, 60)}..."`);
           console.log(`🎯 [Active Objection] Set to: ${objectionType}`);
           

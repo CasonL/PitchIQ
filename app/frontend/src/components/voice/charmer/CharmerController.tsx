@@ -460,8 +460,8 @@ const CharmerControllerContent = memo(({
           conversationTrackerRef.current.addMarcusMessage(aiResponse.content, 5);
         }
         
-        isProcessingRef.current = false;
-        setIsProcessing(false);
+        clearFirstSentenceStreaming();
+        finishProcessing();
         return;
       }
       

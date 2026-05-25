@@ -1564,7 +1564,7 @@ const CharmerControllerContent = memo(({
       
       return;
     }
-  }, [transcript, isFinalTranscript, isSpeaking, conversationHistory, selectedScenario, processUserInputWithQueue, detectContinuationCue]);
+  }, [transcript, isFinalTranscript, isSpeaking, selectedScenario, processUserInputWithQueue, detectContinuationCue]);
   
   /**
    * Handle silence - inject context for LLM to reason about

@@ -38,6 +38,9 @@ export interface ConversationContext {
   extractedCompany?: string;
   extractedFeatures?: string[];
   memorablePhrases?: string[];
+
+  // Per-call variation seed (0-100) - forces LLM behavioral variety, stable for the full call
+  callVariationSeed?: number;
 }
 
 export interface PhaseTransition {

@@ -1591,7 +1591,18 @@ const CharmerControllerContent = memo(({
       
       // Marcus's Phase 1 opening line - answer immediately (ringing already happened)
       setTimeout(async () => {
-        const greeting = "Hello, Marcus speaking?";
+        const greetingPool = [
+          "Hello, Marcus speaking?",
+          "Hello?",
+          "Marcus here.",
+          "Yeah, hello?",
+          "Yep, Marcus.",
+          "Yeah, who's this?",
+          "...Yeah, hello.",
+          "Hello, yeah.",
+        ];
+        const seed = phaseManagerRef.current.getContext().callVariationSeed ?? 50;
+        const greeting = greetingPool[Math.floor((seed / 100) * greetingPool.length)];
         console.log(`🎤 Marcus [neutral]: "${greeting}"`);
         
         // Set echo protection BEFORE speaking to prevent microphone feedback
@@ -1680,11 +1691,14 @@ const CharmerControllerContent = memo(({
     console.log('🌳 Buyer-state system reset for new call');
     
     // Reset phase manager with scenario context
+    const callVariationSeed = Math.floor(Math.random() * 100);
+    console.log(`🎲 Call variation seed: ${callVariationSeed}`);
     phaseManagerRef.current.reset();
     phaseManagerRef.current.updateContext({
       product: scenario.product,
       marcusRole: scenario.marcusRole,
-      marcusMood: scenario.marcusMood
+      marcusMood: scenario.marcusMood,
+      callVariationSeed
     });
     setCurrentPhase('prospect');
     setPhaseContext(phaseManagerRef.current.getContext());

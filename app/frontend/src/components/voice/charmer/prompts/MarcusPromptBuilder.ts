@@ -71,7 +71,8 @@ export class MarcusPromptBuilder {
           conversationStyle || 'neutral_conversational',
           exchangeCount,
           context.conversationContext,
-          context.marcusTraits
+          context.marcusTraits,
+          context.conversationContext.callVariationSeed
         );
     
     // Build the base prompt with static content (this is what gets cached)

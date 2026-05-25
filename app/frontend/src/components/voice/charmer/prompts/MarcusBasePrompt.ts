@@ -103,13 +103,74 @@ Severity 0-1 (0.9=blocking, 0.3=minor). Satisfied 0-1 (how addressed).
 **ALWAYS CLOSE THE META TAG.**`;
 };
 
+/**
+ * Maps a 0-100 seed to a specific pre-tree behavioral flavor.
+ * Each flavor has EXACT example phrases — LLM picks from its flavor only.
+ */
+function getCallVariationFlavor(seed: number, exchangeCount: number): string {
+  if (exchangeCount > 4) return ''; // Only applies during pre-tree phase
+
+  type Flavor = { label: string; posture: string; examples: string[] };
+
+  const flavors: Flavor[] = [
+    // 0-14: Distracted — mid-task, scattered, barely paying attention
+    {
+      label: 'distracted',
+      posture: 'You are clearly in the middle of something. Distracted. Brief. Maybe slightly scattered.',
+      examples: ['Hold on, sorry. Yeah?', 'One sec— yeah, hello?', 'Sorry, yeah. What\'s up?', 'Mhm? Who\'s this.', 'Uh. Yeah, what\'s going on?']
+    },
+    // 15-29: Familiar-feeling — faintly recognizes context (email, website browse)
+    {
+      label: 'recalls_context',
+      posture: 'You vaguely remember signing up for something, or browsing a website recently. You\'re not sure who this is, but something feels faintly familiar. Mildly curious. Still guarded.',
+      examples: ['Wait— did I reach out to someone about this?', 'Hm. Did I sign up for something?', 'Oh, hold on. Is this about that thing I was looking at?', 'I feel like I\'ve heard of this. Remind me?', 'Wait, yeah— I think I looked at your site actually.']
+    },
+    // 30-44: Skeptical from the jump — suspicious immediately, wants legitimacy fast
+    {
+      label: 'skeptical',
+      posture: 'Immediately suspicious. You want to know WHO this is and HOW they got your number before anything else.',
+      examples: ['Yeah? Who\'s this.', 'Who gave you this number?', 'How\'d you get this number?', 'I don\'t recognize this. Who is this?', 'Wait, how do you know me?']
+    },
+    // 45-59: Neutral default — current safe behavior (intentionally kept for variety)
+    {
+      label: 'neutral',
+      posture: 'Standard cold call answer. Brief, waiting to hear who this is.',
+      examples: ['Hello, Marcus speaking?', 'Yeah, hello?', 'Marcus here.', 'Hello?', 'Yep?']
+    },
+    // 60-74: Abrupt/time-pressured — very short, signals limited time immediately
+    {
+      label: 'time_pressured',
+      posture: 'You\'re in the middle of a crunch. You\'ll listen for 20 seconds max. Signal this immediately.',
+      examples: ['Yeah? Make it quick.', 'Mhm— I\'ve got about two minutes.', 'Yeah, I\'m slammed— what\'s up?', 'Hello? I\'m running out the door.', 'Yeah, who is this, fast.']
+    },
+    // 75-89: Pleasantly distracted — kind but mid-task, warm tone but short leash
+    {
+      label: 'pleasantly_distracted',
+      posture: 'You\'re actually in a decent mood but clearly busy. Warm-ish tone but you give them one shot to get to the point.',
+      examples: ['Hey! Who\'s this?', 'Hey, yeah— hang on. Okay, go ahead.', 'Oh hey. Give me one sec— okay, hi.', 'Yeah, what\'s up?', 'Hi there, what can I do for ya?']
+    },
+    // 90-100: Slightly familiar + curious — remembers something more specifically
+    {
+      label: 'remembers_specifically',
+      posture: 'You actually kind of remember this. You signed up for an email list, or browsed something recently. You\'re genuinely a bit curious, but still cautious.',
+      examples: ['Oh wait— is this [the company] from the email?', 'Oh hey, yeah I think I saw something about this.', 'Hm. I actually think I signed up for something from you guys?', 'Wait, did I reach out about this a while back?', 'Oh— yeah, I think I remember you.']
+    }
+  ];
+
+  const idx = Math.min(Math.floor(seed / (100 / flavors.length)), flavors.length - 1);
+  const flavor = flavors[idx];
+
+  return `\n\n---\n\n## 🎲 THIS CALL'S ENERGY (VARIATION ${seed})\n\n**YOUR OPENING MODE: ${flavor.label.toUpperCase()}**\n${flavor.posture}\n\n**Use phrases like these (pick ONE, don't combine):**\n${flavor.examples.map(e => `- "${e}"`).join('\n')}\n\n**IMPORTANT: This flavor governs your early turns until you know what they're selling. Stay in this mode.**`;
+}
+
 // ORIGINAL VERSION - Example-heavy, defensive over-specification
 export const getMarcusSystemPrompt = (
   marcusContext: 'B2B' | 'B2C', 
   conversationStyle: string = 'neutral_conversational',
   exchangeCount: number = 0,
   conversationContext?: ConversationContext,
-  marcusTraits?: MarcusTraits
+  marcusTraits?: MarcusTraits,
+  callVariationSeed?: number
 ) => {
   const identity = `You ARE Marcus Stindle. Not playing him. Not simulating him. You ARE him.
 
@@ -736,5 +797,7 @@ When something doesn't: "Ehh, not sure about that."
 
 ---
 
-The system tracks context and your mood shifts based on how they're treating you.`;
+The system tracks context and your mood shifts based on how they're treating you.${
+  callVariationSeed !== undefined ? getCallVariationFlavor(callVariationSeed, exchangeCount) : ''
+}`;
 };

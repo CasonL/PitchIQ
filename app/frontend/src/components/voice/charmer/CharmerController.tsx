@@ -332,32 +332,31 @@ const CharmerControllerContent = memo(({
       // Check transcript quality - detect garbled/poor STT
       const qualityCheck = TranscriptQualityDetector.assess(userText);
       
-      // FIX 4: Heuristic pre-judgment before sentence streaming
-      // AGGRESSIVE STREAMING: Only disable for technical failures, enable for first turns
-      const isAmbiguousTurn = 
-        qualityCheck.isLikelyGarbled ||
-        userText.length < 5;  // Only disable for very short/garbled input
+      // SAFE BACKCHANNELS: Only stream neutral acknowledgments before Judgment Gate
+      // Prevents Marcus from blurting substantive responses that should be suppressed/held
+      const SAFE_BACKCHANNELS = ['Mm.', 'Okay.', 'I hear you.', 'Right.', 'Yeah.', 'Uh-huh.', 'Got it.'];
       
-      const allowFirstSentenceStreaming = !isAmbiguousTurn;
-      
-      // Sentence streaming callback - speak first sentence immediately while LLM generates
-      const handleFirstSentence = allowFirstSentenceStreaming 
-        ? (firstSentence: string, emotion?: string) => {
-            console.log(`🚀 [Sentence Streaming] Speaking first sentence while generating...`);
-            firstSentenceSpokenRef.current = firstSentence;
-            const speed = currentPhase === 'coach' || currentPhase === 'exit' ? 0.85 : 0.75;
-            // Store the promise so we can await it before speaking the remainder
-            firstSentencePromiseRef.current = speakAsMarcus(firstSentence, {
-              voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
-              emotion: (emotion as any) || 'neutral',
-              speed: speed
-            });
-          }
-        : undefined;  // Disable streaming for ambiguous turns
-      
-      if (!allowFirstSentenceStreaming) {
-        console.log(`⏸️ First-sentence streaming disabled (ambiguous turn: garbled=${qualityCheck.isLikelyGarbled}, short=${userText.length < 10}, firstTurn=${processingUtteranceCount === 1})`);
-      }
+      // Sentence streaming callback - only streams SAFE backchannels before judgment
+      const handleFirstSentence = (firstSentence: string, emotion?: string) => {
+        // Only stream if it's a safe backchannel AND not garbled/ambiguous input
+        const isSafeBackchannel = SAFE_BACKCHANNELS.some(bc => 
+          firstSentence.trim().toLowerCase().startsWith(bc.toLowerCase().slice(0, -1))
+        );
+        const isAmbiguousTurn = qualityCheck.isLikelyGarbled || userText.length < 5;
+        
+        if (isSafeBackchannel && !isAmbiguousTurn) {
+          console.log(`🚀 [Safe Backchannel] Streaming: "${firstSentence}"`);
+          firstSentenceSpokenRef.current = firstSentence;
+          const speed = currentPhase === 'coach' || currentPhase === 'exit' ? 0.85 : 0.75;
+          firstSentencePromiseRef.current = speakAsMarcus(firstSentence, {
+            voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
+            emotion: (emotion as any) || 'neutral',
+            speed: speed
+          });
+        } else {
+          console.log(`⏸️ First-sentence streaming blocked (safe=${isSafeBackchannel}, ambiguous=${isAmbiguousTurn})`);
+        }
+      };
       
       if (qualityCheck.isLikelyGarbled) {
         console.log(`🔊 Poor transcript quality detected (${Math.round(qualityCheck.confidence * 100)}% confidence)`);

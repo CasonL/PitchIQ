@@ -17,103 +17,29 @@
 
 import { BuyerBeliefState } from './BuyerBeliefTracker';
 import { ProductConfidence } from './ProductConfidenceDetector';
-import { ProductConversationPhysics } from './prompts/ProductConversationFitService';
+import {
+  createClarificationNode,
+  createDistractedNode,
+  createTimingNode,
+  createEngagedNode,
+  createProofNode
+} from './BuyerStateProductNodes';
+import {
+  BuyerStateNodeLifecycle,
+  BuyerStateType,
+  BuyerStateNode,
+  BuyerStateTransition,
+  HardTriggerDetection,
+  CandidateScore,
+  TreeGenerationConfig
+} from './BuyerStateTypes';
+import {
+  scoreCurrentState,
+  scoreCandidate,
+  pickBestChildForHorizon
+} from './BuyerStateScoring';
 
-export type BuyerStateNodeLifecycle = 
-  | 'active'        // Available for selection
-  | 'selected'      // Currently the buyer's state
-  | 'expanded'      // Children generated
-  | 'deprioritized' // Still available but less likely
-  | 'dormant'       // Not currently relevant
-  | 'retired';      // Permanently removed from consideration
-
-export type BuyerStateType =
-  | 'initial_contact'
-  | 'clarification'
-  | 'distrust'
-  | 'fit_concern'
-  | 'timing_concern'
-  | 'price_concern'
-  | 'authority_concern'
-  | 'current_solution_comparison'
-  | 'risk_concern'
-  | 'buying_signal'
-  | 'exit_attempt';
-
-export interface BuyerStateNode {
-  nodeId: string;               // Permanent unique ID (e.g., "n_curious_001")
-  displayPath: string;          // Hierarchical notation (e.g., "1.2.1")
-  
-  stateType: BuyerStateType;    // Structured state category
-  stateSubtype: string | null;  // Specific variant within type
-  stateName: string;            // Human-readable label
-  stateDescription: string;     // What Marcus is thinking/feeling
-  expectedBehaviors: string[];  // How Marcus might act
-  
-  parentId: string | null;
-  childIds: string[];
-  depth: number;
-  
-  lifecycle: BuyerStateNodeLifecycle;
-  
-  // Confidence and scoring
-  baseConfidence: number;       // 0-100: How likely is this state generally?
-  currentConfidence: number;    // 0-100: Given current context, how likely?
-  
-  // Triggers
-  hardTriggers: string[];       // Actions that force this state
-  softTriggers: string[];       // Actions that boost confidence
-  
-  // Stickiness
-  turnsInState: number;         // How many turns Marcus has been in this state
-  minTurnsBeforeTransition: number; // Prevent too-quick transitions
-  
-  // Metadata
-  createdTurn: number;
-  lastSelectedTurn: number | null;
-  retiredTurn: number | null;
-}
-
-export interface BuyerStateTransition {
-  fromNodeId: string;
-  toNodeId: string;
-  confidence: number;
-  reason: string;
-  triggerType: 'hard' | 'soft' | 'natural';
-}
-
-export interface HardTriggerDetection {
-  triggerId: string;
-  detected: boolean;
-  reason?: string;
-}
-
-export interface CandidateScore {
-  nodeId: string;
-  stateType: BuyerStateType;
-  stateSubtype: string | null;
-  stateName: string;
-  baseConfidence: number;
-  beliefAlignment: number;
-  triggerBonus: number;
-  hardTriggerForced: boolean;
-  lifecyclePenalty: number;
-  depthPenalty: number;
-  productPhysicsScore: number;  // Product realism boost/penalty
-  finalScore: number;
-  selected: boolean;
-  reasonSelected?: string;
-  reasonRejected?: string;
-}
-
-export interface TreeGenerationConfig {
-  productName: string | null;
-  productCategory: string | null;
-  productPhysics: ProductConversationPhysics;  // CRITICAL: Product physics for realistic state selection
-  beliefState: BuyerBeliefState;
-  maxDepth: number;
-  maxChildrenPerNode: number;
-}
+export type { BuyerStateNodeLifecycle, BuyerStateType, BuyerStateNode, BuyerStateTransition, HardTriggerDetection, CandidateScore, TreeGenerationConfig };
 
 export class BuyerStateTree {
   private nodes: Map<string, BuyerStateNode>;
@@ -245,10 +171,8 @@ export class BuyerStateTree {
     
     // Recursively expand children (sparse - only expand most likely path)
     if (currentDepth < config.maxDepth && children.length > 0) {
-      // Expand only the highest-confidence child
-      const bestChild = children.reduce((best, child) => 
-        child.baseConfidence > best.baseConfidence ? child : best
-      );
+      // Expand the most product-realistic child, not just highest base confidence
+      const bestChild = pickBestChildForHorizon(children, config);
       await this.expandNode(bestChild.nodeId, config, currentDepth + 1);
     }
   }
@@ -260,11 +184,11 @@ export class BuyerStateTree {
     parent: BuyerStateNode,
     config: TreeGenerationConfig
   ): BuyerStateNode[] {
-    const { beliefState, productCategory } = config;
+    const { beliefState } = config;
     const children: BuyerStateNode[] = [];
     
     // Generate states based on parent and belief progression
-    const childDefinitions = this.getChildStateDefinitions(parent, beliefState, productCategory);
+    const childDefinitions = this.getChildStateDefinitions(parent, beliefState);
     
     childDefinitions.forEach((def, index) => {
       const childNode: BuyerStateNode = {
@@ -301,8 +225,7 @@ export class BuyerStateTree {
    */
   private getChildStateDefinitions(
     parent: BuyerStateNode,
-    beliefs: BuyerBeliefState,
-    category: string | null
+    beliefs: BuyerBeliefState
   ): Array<{
     stateType: BuyerStateType;
     stateSubtype: string | null;
@@ -314,92 +237,22 @@ export class BuyerStateTree {
     softTriggers: string[];
     minTurns?: number;
   }> {
-    // Phase 1: Simple state definitions
-    // In Phase 2+, this would be LLM-generated based on product/persona
+    // CRITICAL FIX: Use product physics to generate product-appropriate branches
+    const productPhysics = this.latestConfig?.productPhysics;
     
     if (parent.stateType === 'initial_contact') {
       return [
-        {
-          stateType: 'clarification',
-          stateSubtype: 'politely_curious',
-          stateName: 'Politely Curious',
-          stateDescription: 'Marcus is willing to hear more, but keeping it brief.',
-          expectedBehaviors: [
-            'Asks "What\'s this about?"',
-            'Brief, open-ended responses',
-            'Checking time/urgency'
-          ],
-          baseConfidence: 40,
-          hardTriggers: ['rep_provides_clear_value_statement'],
-          softTriggers: ['rep_asks_permission_to_continue', 'rep_personalizes_opening'],
-          minTurns: 2
-        },
-        {
-          stateType: 'distrust',
-          stateSubtype: 'guarded_skeptical',
-          stateName: 'Guarded Skeptical',
-          stateDescription: 'Marcus is defensive, assumes this is a sales pitch.',
-          expectedBehaviors: [
-            '"I\'m not interested"',
-            '"We\'re all set"',
-            'Short, dismissive responses'
-          ],
-          baseConfidence: 35,
-          hardTriggers: ['rep_launches_into_pitch_immediately'],
-          softTriggers: ['rep_sounds_scripted', 'rep_ignores_context'],
-          minTurns: 2
-        },
-        {
-          stateType: 'timing_concern',
-          stateSubtype: 'busy_professional',
-          stateName: 'Busy But Professional',
-          stateDescription: 'Marcus is genuinely busy but willing to be polite.',
-          expectedBehaviors: [
-            '"Can you make this quick?"',
-            '"What do you need?"',
-            'Checking calendar/time'
-          ],
-          baseConfidence: 25,
-          hardTriggers: ['rep_respects_time'],
-          softTriggers: ['rep_asks_about_timing', 'rep_offers_to_reschedule'],
-          minTurns: 1
-        }
+        createClarificationNode(productPhysics),
+        createDistractedNode(productPhysics),
+        createTimingNode(productPhysics)
       ];
     }
     
-    if (parent.stateType === 'clarification' && parent.stateSubtype === 'politely_curious') {
+    if (parent.stateType === 'clarification') {
       if (beliefs.understandsProduct >= 5 && beliefs.seesRelevance >= 5) {
         return [
-          {
-            stateType: 'buying_signal',
-            stateSubtype: 'engaged_asking',
-            stateName: 'Engaged & Asking',
-            stateDescription: 'Marcus sees potential relevance and wants to learn more.',
-            expectedBehaviors: [
-              'Asks specific questions',
-              'Shares context about his situation',
-              'Exploring fit'
-            ],
-            baseConfidence: 60,
-            hardTriggers: ['rep_asks_good_discovery_question'],
-            softTriggers: ['rep_demonstrates_product_understanding', 'rep_shares_relevant_example'],
-            minTurns: 3
-          },
-          {
-            stateType: 'risk_concern',
-            stateSubtype: 'interested_cautious',
-            stateName: 'Interested But Cautious',
-            stateDescription: 'Marcus likes what he hears but wants proof.',
-            expectedBehaviors: [
-              '"Tell me more about..."',
-              'Asking for case studies/proof',
-              'Probing for catches'
-            ],
-            baseConfidence: 30,
-            hardTriggers: ['rep_makes_bold_claim_without_proof'],
-            softTriggers: ['rep_provides_social_proof', 'rep_shares_metrics'],
-            minTurns: 2
-          }
+          createEngagedNode(productPhysics),
+          createProofNode(productPhysics)
         ];
       } else {
         return [
@@ -465,13 +318,47 @@ export class BuyerStateTree {
     // Default: no children (leaf node or unhandled state)
     return [];
   }
-  
+
   /**
    * Register hard triggers detected this turn (called by controller)
    */
   registerHardTriggers(triggers: string[]): void {
     this.currentHardTriggers.clear();
     triggers.forEach(t => this.currentHardTriggers.add(t));
+  }
+
+  /**
+   * Update product physics mid-call if classifier corrects archetype.
+   * Before depth 2: regenerate tree from scratch with new physics.
+   * After depth 2: update config so future expansions + scoring use new physics.
+   */
+  async updateProductPhysics(
+    newPhysics: TreeGenerationConfig['productPhysics'],
+    newConfidence: ProductConfidence
+  ): Promise<void> {
+    if (!this.latestConfig) return;
+
+    const oldArchetype = this.latestConfig.productPhysics?.archetype;
+    const newArchetype = newPhysics?.archetype;
+
+    if (oldArchetype === newArchetype) return;
+
+    console.log(`🌳 [BuyerStateTree] Product archetype changed: "${oldArchetype}" → "${newArchetype}"`);
+
+    this.latestConfig = {
+      ...this.latestConfig,
+      productPhysics: newPhysics,
+      productConfidence: newConfidence
+    };
+
+    const currentDepth = this.nodes.get(this.currentNodeId ?? '')?.depth ?? 0;
+
+    if (currentDepth <= 1) {
+      console.log(`🌳 [BuyerStateTree] Early-call archetype correction — regenerating tree`);
+      await this.generateTree(this.latestConfig, this.currentTurn);
+    } else {
+      console.log(`🌳 [BuyerStateTree] Mid-call archetype correction — preserving state, updating future expansions`);
+    }
   }
   
   /**
@@ -531,7 +418,7 @@ export class BuyerStateTree {
     
     // Score candidates with detailed breakdown - NOW WITH PRODUCT PHYSICS
     const scoredCandidates = candidates.map(candidate => 
-      this.scoreCandidate(candidate, currentNode, beliefs, userUtterance, this.latestConfig?.productPhysics)
+      scoreCandidate(candidate, currentNode, beliefs, userUtterance, this.currentTurn, this.currentHardTriggers, this.latestConfig?.productPhysics, productConfidence)
     );
     
     // Update currentConfidence on all candidate nodes
@@ -587,7 +474,7 @@ export class BuyerStateTree {
     const bestCandidate = scoredCandidates[0];
     
     // Score current state for comparison
-    const currentStateScore = this.scoreCurrentState(currentNode, beliefs);
+    const currentStateScore = scoreCurrentState(currentNode, beliefs);
     
     // Check stickiness: stay in current state unless transition confidence is high enough
     const stickyBonus = Math.min(this.MAX_STICKY_BONUS, this.STICKY_BONUS_PER_TURN * currentNode.turnsInState);
@@ -619,7 +506,10 @@ export class BuyerStateTree {
     }
     
     // Check margin: new state must beat current by meaningful amount
-    const requiredScore = currentStateScore + this.TRANSITION_MARGIN;
+    // CRITICAL: initial_contact is a launch pad, not a real buyer state - no margin check
+    const requiredScore = currentNode.stateType === 'initial_contact'
+      ? this.CONFIDENCE_THRESHOLD_TRANSITION
+      : currentStateScore + this.TRANSITION_MARGIN;
     if (bestCandidate.finalScore < requiredScore) {
       // Mark all as rejected
       scoredCandidates.forEach(c => {
@@ -694,345 +584,6 @@ export class BuyerStateTree {
     }
     
     return candidates;
-  }
-  
-  /**
-   * Score the current state (for comparison)
-   */
-  private scoreCurrentState(
-    currentNode: BuyerStateNode,
-    beliefs: BuyerBeliefState
-  ): number {
-    let score = currentNode.baseConfidence;
-    
-    // Current state gets belief alignment
-    const beliefAlignment = this.calculateBeliefAlignment(currentNode, beliefs);
-    score += beliefAlignment;
-    
-    // Current state gets inertia bonus (being here is comfortable)
-    const inertiaBonus = Math.min(20, currentNode.turnsInState * 5);
-    score += inertiaBonus;
-    
-    return Math.max(0, Math.min(100, score));
-  }
-  
-  /**
-   * Score a candidate state with detailed breakdown
-   * NOW INCLUDES: Product physics for realistic buyer behavior per product type
-   */
-  private scoreCandidate(
-    candidate: BuyerStateNode,
-    currentNode: BuyerStateNode,
-    beliefs: BuyerBeliefState,
-    userUtterance: string,
-    productPhysics?: ProductConversationPhysics
-  ): CandidateScore {
-    let score = candidate.baseConfidence;
-    
-    // Check for hard trigger
-    const hasHardTrigger = candidate.hardTriggers.some(t => this.currentHardTriggers.has(t));
-    
-    // Factor 1: Belief alignment
-    const beliefAlignment = this.calculateBeliefAlignment(candidate, beliefs);
-    score += beliefAlignment;
-    
-    // Factor 2: Trigger detection
-    const triggerBonus = this.detectTriggers(candidate, userUtterance);
-    score += triggerBonus;
-    
-    // Factor 3: PRODUCT PHYSICS - boost realistic states, penalize unrealistic ones
-    let productPhysicsScore = 0;
-    if (productPhysics) {
-      productPhysicsScore = this.calculateProductPhysicsScore(candidate, productPhysics);
-      score += productPhysicsScore;
-    }
-    
-    // Factor 4: Depth penalty (prefer staying shallow early)
-    let depthPenalty = 0;
-    if (candidate.depth > 2 && this.currentTurn < 10) {
-      depthPenalty = -10;
-      score += depthPenalty;
-    }
-    
-    // Factor 5: Lifecycle penalty
-    let lifecyclePenalty = 0;
-    if (candidate.lifecycle === 'deprioritized') {
-      lifecyclePenalty = -15;
-      score += lifecyclePenalty;
-    } else if (candidate.lifecycle === 'dormant') {
-      lifecyclePenalty = -30;
-      score += lifecyclePenalty;
-    }
-    
-    const finalScore = Math.max(0, Math.min(100, score));
-    
-    return {
-      nodeId: candidate.nodeId,
-      stateType: candidate.stateType,
-      stateSubtype: candidate.stateSubtype,
-      stateName: candidate.stateName,
-      baseConfidence: candidate.baseConfidence,
-      beliefAlignment,
-      triggerBonus,
-      hardTriggerForced: hasHardTrigger,
-      lifecyclePenalty,
-      depthPenalty,
-      finalScore,
-      selected: false,
-      // Add product physics score for debugging
-      productPhysicsScore: productPhysicsScore
-    };
-  }
-  
-  /**
-   * Calculate how well candidate aligns with belief state
-   */
-  private calculateBeliefAlignment(
-    candidate: BuyerStateNode,
-    beliefs: BuyerBeliefState
-  ): number {
-    let alignment = 0;
-    
-    // Use stateType instead of string matching
-    switch (candidate.stateType) {
-      case 'buying_signal':
-        // Requires high understanding + relevance
-        if (beliefs.understandsProduct >= 6 && beliefs.seesRelevance >= 6) {
-          alignment += 20;
-        } else {
-          alignment -= 20;
-        }
-        break;
-        
-      case 'clarification':
-        if (candidate.stateSubtype === 'warming_up') {
-          // Requires trust
-          if (beliefs.trustsRep >= 5) {
-            alignment += 15;
-          } else {
-            alignment -= 15;
-          }
-        } else if (candidate.stateSubtype === 'politely_curious') {
-          // Neutral state, slight bias based on product understanding
-          if (beliefs.understandsProduct >= 3) {
-            alignment += 5;
-          }
-        }
-        break;
-        
-      case 'fit_concern':
-        // Happens when relevance is low
-        if (beliefs.seesRelevance < 4) {
-          alignment += 20;
-        } else {
-          alignment -= 20;
-        }
-        break;
-        
-      case 'distrust':
-        // Happens when trust is low
-        if (beliefs.trustsRep < 4) {
-          alignment += 15;
-        } else {
-          alignment -= 15;
-        }
-        break;
-        
-      case 'exit_attempt':
-        // Happens when trust or relevance is very low
-        if (beliefs.trustsRep < 3 || beliefs.seesRelevance < 3) {
-          alignment += 20;
-        } else {
-          alignment -= 20;
-        }
-        break;
-        
-      case 'risk_concern':
-        // Happens when value clarity is low despite interest
-        if (beliefs.valueClarity < 5 && beliefs.seesRelevance >= 5) {
-          alignment += 15;
-        }
-        break;
-        
-      case 'timing_concern':
-        // Happens when urgency is low
-        if (beliefs.urgency < 3) {
-          alignment += 10;
-        }
-        break;
-    }
-    
-    return alignment;
-  }
-  
-  /**
-   * CRITICAL: Calculate product physics score - boosts realistic states, penalizes unrealistic ones
-   * This prevents SaaS-shaped responses for chemicals/equipment/etc.
-   */
-  private calculateProductPhysicsScore(
-    candidate: BuyerStateNode,
-    productPhysics: ProductConversationPhysics
-  ): number {
-    let score = 0;
-    
-    // Map state types to product archetypes for realism scoring
-    const stateRealism = this.getStateRealismForProduct(
-      candidate.stateType,
-      candidate.stateSubtype,
-      productPhysics.archetype
-    );
-    
-    if (stateRealism.realistic) {
-      score += stateRealism.boost;
-      console.log(`🏗️ [ProductPhysics] "${candidate.stateName}" +${stateRealism.boost} (realistic for ${productPhysics.archetype})`);
-    } else if (stateRealism.unrealistic) {
-      score += stateRealism.penalty; // penalty is negative
-      console.log(`⚠️ [ProductPhysics] "${candidate.stateName}" ${stateRealism.penalty} (unrealistic for ${productPhysics.archetype})`);
-    }
-    
-    return score;
-  }
-  
-  /**
-   * Determine if a buyer state is realistic for a product archetype
-   */
-  private getStateRealismForProduct(
-    stateType: BuyerStateType,
-    stateSubtype: string | null,
-    archetype: string
-  ): { realistic?: boolean; unrealistic?: boolean; boost: number; penalty: number } {
-    
-    // Chemical/Industrial Supply - realistic states
-    if (archetype === 'chemical_or_industrial_supply') {
-      switch (stateType) {
-        case 'clarification':
-          if (stateSubtype?.includes('spec') || stateSubtype?.includes('grade') || stateSubtype?.includes('SDS')) {
-            return { realistic: true, boost: 18, penalty: 0 };
-          }
-          if (stateSubtype?.includes('compliance') || stateSubtype?.includes('handling')) {
-            return { realistic: true, boost: 15, penalty: 0 };
-          }
-          break;
-        case 'current_solution_comparison':
-          return { realistic: true, boost: 12, penalty: 0 };
-        case 'price_concern':
-          if (stateSubtype?.includes('volume') || stateSubtype?.includes('bulk')) {
-            return { realistic: true, boost: 10, penalty: 0 };
-          }
-          break;
-        case 'fit_concern':
-          if (stateSubtype?.includes('application') || stateSubtype?.includes('process')) {
-            return { realistic: true, boost: 8, penalty: 0 };
-          }
-          break;
-      }
-      
-      // Penalize SaaS-ish states for chemicals
-      if (stateSubtype?.includes('platform') || stateSubtype?.includes('onboarding') || 
-          stateSubtype?.includes('dashboard') || stateSubtype?.includes('integration')) {
-        return { unrealistic: true, boost: 0, penalty: -15 };
-      }
-    }
-    
-    // SaaS - realistic states  
-    if (archetype === 'saas') {
-      switch (stateType) {
-        case 'clarification':
-          if (stateSubtype?.includes('platform') || stateSubtype?.includes('integration')) {
-            return { realistic: true, boost: 15, penalty: 0 };
-          }
-          if (stateSubtype?.includes('onboarding') || stateSubtype?.includes('workflow')) {
-            return { realistic: true, boost: 12, penalty: 0 };
-          }
-          break;
-        case 'risk_concern':
-          if (stateSubtype?.includes('data') || stateSubtype?.includes('security')) {
-            return { realistic: true, boost: 10, penalty: 0 };
-          }
-          break;
-      }
-      
-      // Penalize chemical-ish states for SaaS
-      if (stateSubtype?.includes('spec') || stateSubtype?.includes('SDS') || 
-          stateSubtype?.includes('grade') || stateSubtype?.includes('handling')) {
-        return { unrealistic: true, boost: 0, penalty: -12 };
-      }
-    }
-    
-    // Equipment/Hardware - realistic states
-    if (archetype === 'equipment_or_hardware') {
-      switch (stateType) {
-        case 'clarification':
-          if (stateSubtype?.includes('specs') || stateSubtype?.includes('installation')) {
-            return { realistic: true, boost: 15, penalty: 0 };
-          }
-          break;
-        case 'risk_concern':
-          if (stateSubtype?.includes('maintenance') || stateSubtype?.includes('reliability')) {
-            return { realistic: true, boost: 12, penalty: 0 };
-          }
-          break;
-      }
-    }
-    
-    // Default: neutral (no boost or penalty)
-    return { boost: 0, penalty: 0 };
-  }
-  
-  /**
-   * Detect soft triggers in user utterance
-   */
-  private detectTriggers(candidate: BuyerStateNode, utterance: string): number {
-    let bonus = 0;
-    const matchedTriggers: string[] = [];
-    
-    // DEBUG: Log available triggers for this candidate
-    if (candidate.softTriggers.length > 0 || candidate.hardTriggers.length > 0) {
-      console.log(`🔍 [Trigger Check] "${candidate.stateName}":`, {
-        softTriggers: candidate.softTriggers,
-        hardTriggers: candidate.hardTriggers,
-        registeredHardTriggers: Array.from(this.currentHardTriggers)
-      });
-    }
-    
-    // Check soft triggers only (hard triggers checked separately)
-    candidate.softTriggers.forEach(trigger => {
-      if (this.matchesTriggerPattern(trigger, utterance)) {
-        bonus += 10;
-        matchedTriggers.push(trigger);
-      }
-    });
-    
-    // Log matched triggers
-    if (matchedTriggers.length > 0) {
-      console.log(`✅ [Trigger Match] "${candidate.stateName}" matched: ${matchedTriggers.join(', ')} (+${bonus})`);
-    }
-    
-    return bonus;
-  }
-  
-  /**
-   * Simple trigger pattern matching
-   */
-  private matchesTriggerPattern(trigger: string, utterance: string): boolean {
-    // Phase 1: simple keyword matching
-    // Phase 2+: more sophisticated NLP
-    
-    const lower = utterance.toLowerCase();
-    
-    if (trigger === 'rep_asks_permission_to_continue') {
-      return /\b(is this a good time|do you have a (minute|moment)|can we|may i)\b/i.test(utterance);
-    }
-    
-    if (trigger === 'rep_personalizes_opening') {
-      return /\b(i noticed|i saw|i read about|specific to you)\b/i.test(utterance);
-    }
-    
-    if (trigger === 'rep_launches_into_pitch_immediately') {
-      return /\b(we offer|our product|i'm calling about our)\b/i.test(utterance) && utterance.split(' ').length > 20;
-    }
-    
-    return false;
   }
   
   /**
@@ -1185,7 +736,8 @@ export class BuyerStateTree {
       const hardMarker = c.hardTriggerForced ? ' [HARD]' : '';
       
       console.log(`  ${marker} ${c.stateName} (${c.stateType}${c.stateSubtype ? `:${c.stateSubtype}` : ''})${hardMarker}`);
-      console.log(`     Base: ${c.baseConfidence} | Belief: ${c.beliefAlignment >= 0 ? '+' : ''}${c.beliefAlignment} | Trigger: +${c.triggerBonus} | Lifecycle: ${c.lifecyclePenalty} | Depth: ${c.depthPenalty} → FINAL: ${c.finalScore.toFixed(1)}`);
+      const physicsStr = c.productPhysicsScore !== 0 ? ` | Physics: ${c.productPhysicsScore >= 0 ? '+' : ''}${c.productPhysicsScore.toFixed(1)}` : '';
+      console.log(`     Base: ${c.baseConfidence} | Belief: ${c.beliefAlignment >= 0 ? '+' : ''}${c.beliefAlignment} | Trigger: +${c.triggerBonus}${physicsStr} | Lifecycle: ${c.lifecyclePenalty} | Depth: ${c.depthPenalty} → FINAL: ${c.finalScore.toFixed(1)}`);
       
       if (c.selected && c.reasonSelected) {
         console.log(`     ✓ SELECTED: ${c.reasonSelected}`);
@@ -1253,10 +805,8 @@ export class BuyerStateTree {
         .filter(Boolean);
       
       if (children.length > 0) {
-        // Pick highest-confidence child
-        const bestChild = children.reduce((best, child) => 
-          child.baseConfidence > best.baseConfidence ? child : best
-        );
+        // Pick most product-realistic child, not just highest base confidence
+        const bestChild = pickBestChildForHorizon(children, config);
         
         await this.expandHorizon(bestChild, config, depthAhead - 1);
       }

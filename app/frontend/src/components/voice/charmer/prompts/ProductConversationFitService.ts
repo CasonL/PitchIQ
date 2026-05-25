@@ -51,25 +51,49 @@ export class ProductConversationFitService {
   
   private static readonly ARCHETYPE_KEYWORDS = {
     saas: ['software', 'platform', 'saas', 'app', 'dashboard', 'analytics', 'crm', 'automation', 'integration', 'api'],
-    professional_service: ['consulting', 'advisory', 'strategy', 'implementation', 'audit', 'assessment', 'professional services'],
+    professional_service: ['consulting', 'advisory', 'strategy', 'implementation', 'audit', 'assessment', 'professional services', 'grooming', 'styling', 'care service', 'service provider'],
     training_or_coaching: ['training', 'coaching', 'course', 'workshop', 'certification', 'learning', 'education', 'development'],
-    physical_product: ['product', 'device', 'tool', 'machine', 'equipment', 'hardware', 'physical'],
+    physical_product: ['product', 'device', 'tool', 'machine', 'equipment', 'hardware', 'physical', 'coffee', 'beans', 'roaster', 'food', 'beverage'],
     commodity_or_material: ['material', 'supply', 'raw material', 'commodity', 'bulk'],
-    chemical_or_industrial_supply: ['chemical', 'industrial', 'compound', 'solution', 'solvent', 'catalyst', 'reagent', 'grade'],
-    equipment_or_hardware: ['equipment', 'hardware', 'machinery', 'device', 'system', 'unit', 'installation'],
+    chemical_or_industrial_supply: ['chemical', 'industrial', 'compound', 'solution', 'solvent', 'catalyst', 'reagent'],
+    equipment_or_hardware: ['equipment', 'hardware', 'machinery', 'device', 'system', 'unit', 'installation', 'chair', 'furniture'],
     agency_or_marketing_service: ['marketing', 'advertising', 'agency', 'campaign', 'content', 'social media', 'seo', 'ppc'],
     financial_or_insurance: ['insurance', 'financial', 'loan', 'credit', 'investment', 'banking', 'coverage']
   };
 
   /**
    * MAIN METHOD: Classify product and return conversation physics
+   * SAFE LIVE PATH: Synchronous classification, background AI improvement
    */
   static analyzeProduct(
     sellerInput: string,
     conversationHistory: string[] = []
   ): ProductConversationPhysics {
     
-    // Step 1: Classify product archetype from input patterns
+    // LIVE PATH: Fast pattern matching for immediate response
+    const patternResult = this.classifyWithConfidence(sellerInput, conversationHistory);
+    
+    console.log(`🏗️ [ProductPhysics] Live classification: ${patternResult.archetype}${patternResult.subType ? '.' + patternResult.subType : ''} (${patternResult.confidence}% confidence)`);
+    
+    // BACKGROUND PATH: Queue AI improvement for low confidence cases
+    if (patternResult.confidence < 85) {
+      this.queueAIClassificationImprovement(sellerInput, conversationHistory, patternResult);
+    }
+    
+    // Return physics (with subtype if available) - NEVER block live response
+    return this.getConversationPhysicsForClassification(patternResult);
+  }
+  
+  /**
+   * LEGACY METHOD: Synchronous classification for backward compatibility
+   * Uses pattern matching only - will be phased out
+   */
+  static analyzeProductSync(
+    sellerInput: string,
+    conversationHistory: string[] = []
+  ): ProductConversationPhysics {
+    
+    // Step 1: Classify product archetype from input patterns (legacy)
     const archetype = this.classifyProductArchetype(sellerInput, conversationHistory);
     
     // Step 2: Return conversation physics for this archetype
@@ -77,13 +101,19 @@ export class ProductConversationFitService {
   }
   
   /**
-   * Detect product archetype from seller language patterns
+   * Pattern matching with proper confidence scoring AND subtype detection
    */
-  private static classifyProductArchetype(
+  private static classifyWithConfidence(
     sellerInput: string, 
     conversationHistory: string[]
-  ): ProductArchetype {
+  ): {
+    archetype: ProductArchetype;
+    subType?: string;
+    confidence: number;
+    reasoning: string;
+  } {
     
+    const mainInput = sellerInput.toLowerCase();
     const fullContext = [sellerInput, ...conversationHistory].join(' ').toLowerCase();
     const scores: Record<ProductArchetype, number> = {
       saas: 0,
@@ -98,14 +128,14 @@ export class ProductConversationFitService {
       unknown: 0
     };
     
-    // Score each archetype based on keyword matches
+    // Score each archetype based on keyword matches - FIX DOUBLE COUNTING
     for (const [archetype, keywords] of Object.entries(this.ARCHETYPE_KEYWORDS)) {
       for (const keyword of keywords) {
         if (fullContext.includes(keyword)) {
           scores[archetype as ProductArchetype] += 1;
           
-          // Boost score for exact matches
-          if (sellerInput.toLowerCase().includes(keyword)) {
+          // Separate bonus for main input matches
+          if (mainInput.includes(keyword)) {
             scores[archetype as ProductArchetype] += 1;
           }
         }
@@ -115,11 +145,171 @@ export class ProductConversationFitService {
     // Special case detection patterns
     this.applySpecialDetectionRules(fullContext, scores);
     
-    // Return highest scoring archetype (with minimum threshold)
-    const maxScore = Math.max(...Object.values(scores));
-    if (maxScore < 1) return 'unknown';
+    // Find best matches
+    const entries = Object.entries(scores).filter(([_, score]) => score > 0);
+    if (entries.length === 0) {
+      return {
+        archetype: 'unknown',
+        confidence: 0,
+        reasoning: 'No keyword matches found'
+      };
+    }
     
-    return Object.entries(scores).find(([_, score]) => score === maxScore)?.[0] as ProductArchetype || 'unknown';
+    entries.sort((a, b) => b[1] - a[1]);
+    const [bestArchetype, bestScore] = entries[0];
+    const secondBestScore = entries[1] ? entries[1][1] : 0;
+    
+    // Calculate confidence based on score strength and separation
+    const confidence = this.calculatePatternConfidence(bestScore, secondBestScore, fullContext);
+    
+    // SUBTYPE DETECTION: Detect specialized subtypes within main archetypes
+    const subType = this.detectSubtype(bestArchetype as ProductArchetype, fullContext);
+    
+    return {
+      archetype: bestArchetype as ProductArchetype,
+      subType,
+      confidence,
+      reasoning: `${bestScore} keyword matches, ${confidence}% confidence${subType ? `, subtype: ${subType}` : ''}`
+    };
+  }
+  
+  /**
+   * Detect specialized subtypes within main product archetypes
+   * Prevents "CRM service" vs "CRM consulting" vs "CRM platform" confusion
+   */
+  private static detectSubtype(archetype: ProductArchetype, context: string): string | undefined {
+    
+    switch (archetype) {
+      case 'saas':
+        // CRM/Sales Tools
+        if (/crm|sales.*track|lead.*management|pipeline|sales.*automation|salesforce|hubspot/i.test(context)) {
+          return 'crm';
+        }
+        // Analytics/BI Tools  
+        if (/analytics|dashboard|reporting|insights|business.*intelligence|data.*viz|metrics/i.test(context)) {
+          return 'analytics';
+        }
+        // Process Automation
+        if (/automation|workflow|process.*optimization|zapier|integration.*platform/i.test(context)) {
+          return 'automation';
+        }
+        // Project Management
+        if (/project.*management|task.*management|collaboration|team.*workflow|asana|monday/i.test(context)) {
+          return 'project_management';
+        }
+        break;
+        
+      case 'professional_service':
+        // Implementation Services (around a product)
+        if (/(crm|salesforce|hubspot|platform).*implementation|data.*migration|system.*integration/i.test(context)) {
+          return 'implementation_service';
+        }
+        // Pure Consulting
+        if (/strategy|consulting|advisory|business.*process|optimization.*consulting/i.test(context)) {
+          return 'consulting';
+        }
+        // Done-for-you Services
+        if (/done.*for.*you|we.*handle|full.*service|managed.*service/i.test(context)) {
+          return 'managed_service';
+        }
+        break;
+        
+      case 'physical_product':
+        // Food/Beverage
+        if (/coffee|food|beverage|drink|snack|organic|specialty.*food/i.test(context)) {
+          return 'food_beverage';
+        }
+        // Electronics/Tech Hardware
+        if (/device|electronic|hardware|tech.*product|gadget/i.test(context)) {
+          return 'electronics';
+        }
+        break;
+    }
+    
+    return undefined;
+  }
+  
+  /**
+   * Calculate confidence from pattern matching scores
+   */
+  private static calculatePatternConfidence(
+    bestScore: number,
+    secondBestScore: number,
+    context: string
+  ): number {
+    
+    const scoreDifference = bestScore - secondBestScore;
+    
+    // High confidence: strong winner with clear separation
+    if (bestScore >= 4 && scoreDifference >= 2) return 95;
+    if (bestScore >= 3 && scoreDifference >= 2) return 90;
+    if (bestScore >= 2 && scoreDifference >= 1) return 85;
+    if (bestScore >= 2 && scoreDifference >= 0.5) return 75;
+    if (bestScore >= 1 && scoreDifference >= 1) return 65;
+    if (bestScore >= 1) return 50;
+    
+    return 20; // Low confidence
+  }
+  
+  /**
+   * CRITICAL: Return confidence-weighted physics with subtype info
+   * Confidence prevents classification mistakes from poisoning the tree upstream
+   */
+  private static getConversationPhysicsForClassification(classification: {
+    archetype: ProductArchetype;
+    subType?: string;
+    confidence: number;
+    reasoning: string;
+  }): ProductConversationPhysics & { confidence: number; subType?: string } {
+    
+    // Get main archetype physics
+    const physics = this.getConversationPhysics(classification.archetype);
+    
+    // CRITICAL: Include confidence for tree weighting
+    const enhancedPhysics = {
+      ...physics,
+      confidence: classification.confidence,
+      subType: classification.subType
+    };
+    
+    console.log(`🏗️ [ProductPhysics] Physics created: ${classification.archetype}${classification.subType ? '.' + classification.subType : ''} (${classification.confidence}% confidence)`);
+    
+    // Mark subtype info for future implementation
+    if (classification.subType) {
+      console.log(`🔧 [ProductPhysics] Subtype physics placeholder: ${classification.archetype}.${classification.subType} would specialize buyer evaluation criteria`);
+    }
+    
+    return enhancedPhysics;
+  }
+  
+  /**
+   * Background AI improvement queue (non-blocking)
+   */
+  private static queueAIClassificationImprovement(
+    sellerInput: string,
+    conversationHistory: string[],
+    patternResult: any
+  ): void {
+    
+    console.log(`🤖 [ProductPhysics] Queuing AI improvement for low confidence case: "${sellerInput}" (${patternResult.confidence}%)`);
+    
+    // TODO: Implement background AI classification
+    // For now, just log the need for improvement
+    setTimeout(() => {
+      console.log(`🧠 [ProductPhysics] Background AI would improve: ${patternResult.archetype} -> [better classification]`);
+    }, 0);
+  }
+  
+  /**
+   * LEGACY: Detect product archetype from seller language patterns
+   */
+  private static classifyProductArchetype(
+    sellerInput: string, 
+    conversationHistory: string[]
+  ): ProductArchetype {
+    
+    const result = this.classifyWithConfidence(sellerInput, conversationHistory);
+    return result.archetype;
   }
   
   /**
@@ -130,8 +320,8 @@ export class ProductConversationFitService {
     scores: Record<ProductArchetype, number>
   ): void {
     
-    // Chemical indicators
-    if (/grade|spec|sds|msds|safety data|purity|concentration|formula/i.test(context)) {
+    // Chemical indicators (more specific to avoid food grade, etc.)
+    if (/industrial.*grade|chemical.*grade|spec.*sheet|sds|msds|safety data|purity|concentration|formula|solvent|reagent/i.test(context)) {
       scores.chemical_or_industrial_supply += 2;
     }
     

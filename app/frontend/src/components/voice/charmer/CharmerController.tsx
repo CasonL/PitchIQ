@@ -769,13 +769,19 @@ const CharmerControllerContent = memo(({
       // 🌳 BUYER-STATE MODELING: Update dynamic buyer state tree
       const turnNumber = Math.floor(conversationHistory.length / 2) + 1;
       
-      // Step 1: Update product confidence
-      // TODO FIX 3: ProductConfidenceDetector should suppress product name extraction when PROVIDED_PROOF signal is present
-      // This prevents customer names like "Gap" from being detected as product names during case studies
-      const productConfidence = productConfidenceRef.current.updateConfidence(
-        userText,
-        turnNumber
-      );
+      // Step 1: Update product confidence with scoped seller signals
+      // Pass signals to prevent customer names like "Gap" from being detected as product during case studies
+      const scopedSellerSignals = {
+        persistent: Array.from(sellerSignalsRef.current),
+        turnSpecific: Array.from(turnSpecificSignals)
+      };
+      
+      const productConfidence = productConfidenceRef.current.updateConfidence({
+        text: userText,
+        turnNumber,
+        sellerSignals: scopedSellerSignals,
+        knownProduct: context.product
+      });
       
       // Step 2: Update belief tracker
       const beliefs = beliefTrackerRef.current.updateBeliefs(
@@ -964,15 +970,9 @@ const CharmerControllerContent = memo(({
         patience: 10 - selectedScenario.traits.initialResistance // Inverse of resistance
       } : undefined;
       
-      // FIX 1: Do NOT blend persistent and turn-specific signals
-      // Keep them separated so PreTreeBuyerPolicy can distinguish:
+      // Pass separated signals to TreeDeltaManager so it can distinguish:
       // - Persistent: "Has bold claim ever been mentioned?" (call facts)
       // - Turn-specific: "Did seller dodge mechanics THIS turn?" (this turn's behavior)
-      const separatedSignals = {
-        persistent: Array.from(sellerSignalsRef.current),
-        turnSpecific: Array.from(turnSpecificSignals)
-      };
-      
       const buyerDelta = deltaManagerRef.current.generateBuyerDelta(
         currentNode,
         childNodes,
@@ -981,7 +981,7 @@ const CharmerControllerContent = memo(({
         turnNumber,
         productConfidence,
         treeActivated,
-        separatedSignals.persistent.concat(separatedSignals.turnSpecific),  // TODO: Update TreeDeltaManager to accept separated signals
+        scopedSellerSignals,  // Pass scoped signals object instead of flattening
         scenarioTraits
       );
       

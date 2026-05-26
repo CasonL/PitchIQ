@@ -329,6 +329,9 @@ const CharmerControllerContent = memo(({
     treeGenerationRequestIdRef.current += 1;
     activeCallIdRef.current = null;
     
+    // Clear call details from previous call
+    callDetailsRef.current = null;
+    
     hybridFeedbackRef.current.reset?.();
     
     console.log('🧹 Call runtime state reset complete');
@@ -357,6 +360,13 @@ const CharmerControllerContent = memo(({
    */
   const processUserInput = useCallback(async (userText: string, utteranceSnapshot: number) => {
     console.log(`🔧 [DEBUG] processUserInput called: utterance #${utteranceSnapshot}, isProcessing=${isProcessing}, text="${userText.substring(0, 60)}..."`);
+    
+    // Guard: ensure call is still active
+    const callIdAtStart = activeCallIdRef.current;
+    if (!callIdAtStart) {
+      console.log('⚠️ No active call - ignoring user input');
+      return;
+    }
     
     if (isProcessingRef.current) {
       // Accumulate fragments - user is continuing their thought while Marcus processes
@@ -764,6 +774,14 @@ const CharmerControllerContent = memo(({
       
       // ⚡ AWAIT STRATEGY: Now wait for strategy calculation to complete
       strategyOutput = await strategyPromise;
+      
+      // Guard: check if call is still active after async work
+      if (activeCallIdRef.current !== callIdAtStart) {
+        console.log('⚠️ Ignoring stale strategy result from old call');
+        finishProcessing();
+        return;
+      }
+      
       buyerState = strategyOutput.buyerState;
       
       // 🌳 BUYER-STATE MODELING: Update dynamic buyer state tree
@@ -1050,6 +1068,14 @@ const CharmerControllerContent = memo(({
             scenario: selectedScenario,
             questionCategory: classification.category
           }, undefined, undefined, undefined, callDetailsRef.current?.marcusPromptBlock, buyerDelta?.guidanceText, handleFirstSentence);
+          
+          // Guard: check if call is still active after async LLM generation
+          if (activeCallIdRef.current !== callIdAtStart) {
+            console.log('⚠️ Ignoring stale AI response from old call');
+            clearFirstSentenceStreaming();
+            finishProcessing();
+            return;
+          }
           
           // SAFETY: Check after generation completes
           if (utteranceCountRef.current !== processingUtteranceCount) {
@@ -1763,23 +1789,15 @@ const CharmerControllerContent = memo(({
    * Handle scenario selection - show Marcus screen and start ringing
    */
   const handleScenarioSelect = useCallback(async (scenario: MarcusScenario) => {
+    // Guard: prevent double-start
+    if (isConnecting || isRinging) return;
+    
     // Clear any saved feedback when starting a new scenario
     const clearResult = LocalStorageService.removeItem('feedbackData');
     if (clearResult.success) {
       console.log('🗑️ Cleared old feedback data for new scenario');
     } else {
       console.error('❌ Failed to clear old feedback data:', clearResult.error);
-    }
-    
-    // Save active call state to localStorage
-    const saveResult = LocalStorageService.setItem<StoredCallState>('activeCall', {
-      scenario,
-      timestamp: Date.now()
-    });
-    if (saveResult.success) {
-      console.log('💾 Saved active call state to localStorage');
-    } else {
-      console.error('❌ Failed to save active call state:', saveResult.error);
     }
     
     // Randomize Marcus's traits for this call (weighted by difficulty)
@@ -1800,8 +1818,13 @@ const CharmerControllerContent = memo(({
     setShowScenarioSelector(false);
     setIsRinging(true);
     
+    // Reset all runtime state BEFORE assigning new session
+    resetCallRuntimeState();
+    
+    // Generate new session ID and set as active call
     const sessionId = generateSessionId();
     sessionIdRef.current = sessionId;
+    activeCallIdRef.current = sessionId;
     console.log(`📞 Starting ring sequence with session: ${sessionId}`);
     
     // Initialize conversation tracker
@@ -1809,8 +1832,16 @@ const CharmerControllerContent = memo(({
     conversationTrackerRef.current = new ConversationTracker(callStartTimeRef.current);
     console.log('📋 Conversation tracker initialized');
     
-    // Reset all runtime state for new call
-    resetCallRuntimeState();
+    // Save active call state with traits to localStorage
+    const saveResult = LocalStorageService.setItem<StoredCallState>('activeCall', {
+      scenario: scenarioWithTraits,
+      timestamp: Date.now()
+    });
+    if (saveResult.success) {
+      console.log('💾 Saved active call state to localStorage');
+    } else {
+      console.error('❌ Failed to save active call state:', saveResult.error);
+    }
     
     // Reset phase manager with scenario context
     const callVariationSeed = Math.floor(Math.random() * 100);
@@ -1859,9 +1890,16 @@ const CharmerControllerContent = memo(({
     
     // Wait 10 seconds for phone to ring, THEN connect to Marcus
     const startTime = Date.now();
+    const ringSessionId = sessionId;
     console.log('📞 Phone ringing for 10 seconds...', new Date().toISOString());
     
     ringTimeoutRef.current = setTimeout(async () => {
+      // Guard: check if this ring timeout is still for the active call
+      if (activeCallIdRef.current !== ringSessionId) {
+        console.log('⚠️ Ignoring stale ring timeout from old call');
+        return;
+      }
+      
       const elapsed = Date.now() - startTime;
       console.log(`📞 ${elapsed}ms elapsed - now connecting`, new Date().toISOString());
       

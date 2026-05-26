@@ -77,7 +77,15 @@ export class ProductConfidenceDetector {
   /**
    * Update confidence based on user's latest utterance
    */
-  updateConfidence(userUtterance: string, turnNumber: number): ProductConfidence {
+  updateConfidence(
+    options: {
+      text: string;
+      turnNumber: number;
+      sellerSignals?: { persistent: string[]; turnSpecific: string[] };
+      knownProduct?: string;
+    }
+  ): ProductConfidence {
+    const { text: userUtterance, turnNumber, sellerSignals, knownProduct } = options;
     this.currentTurn = turnNumber;
     
     const perTurnSignals = this.extractSignals(userUtterance);

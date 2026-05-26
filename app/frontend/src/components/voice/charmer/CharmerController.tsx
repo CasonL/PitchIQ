@@ -458,6 +458,14 @@ const CharmerControllerContent = memo(({
           questionCategory: classification.category
         }, undefined, undefined, undefined);
         
+        // Guard: check if call is still active after async LLM generation
+        if (activeCallIdRef.current !== callIdAtStart) {
+          console.log('⚠️ Ignoring stale garbled AI response from old call');
+          clearFirstSentenceStreaming();
+          finishProcessing();
+          return;
+        }
+        
         console.log(`🎤 Marcus [confused]: "${aiResponse.content}"`);
         
         // Speak the adaptive clarification
@@ -466,6 +474,14 @@ const CharmerControllerContent = memo(({
           emotion: 'worried',
           speed: 0.75
         });
+        
+        // Guard: check if call is still active after async TTS
+        if (activeCallIdRef.current !== callIdAtStart) {
+          console.log('⚠️ Ignoring stale garbled TTS completion from old call');
+          clearFirstSentenceStreaming();
+          finishProcessing();
+          return;
+        }
         
         lastMarcusSpeakTimeRef.current = Date.now();
         
@@ -1116,6 +1132,14 @@ const CharmerControllerContent = memo(({
             primaryConcern: selectedScenario.traits.primaryConcern
           } : undefined
         }, undefined, undefined, undefined, callDetailsRef.current?.marcusPromptBlock, buyerDelta?.guidanceText, handleFirstSentence);
+        
+        // Guard: check if call is still active after async LLM generation
+        if (activeCallIdRef.current !== callIdAtStart) {
+          console.log('⚠️ Ignoring stale main LLM response from old call');
+          clearFirstSentenceStreaming();
+          finishProcessing();
+          return;
+        }
         
         // SAFETY: Check after generation completes
         if (utteranceCountRef.current !== processingUtteranceCount) {

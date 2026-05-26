@@ -864,20 +864,14 @@ const CharmerControllerContent = memo(({
       const hardTriggers: string[] = [];
       
       // Map specific rep behaviors to trigger IDs that match BuyerStateTree
-      if (repQualitySignals.askedOpenEnded) {
+      if (repQualitySignals.askedDiscovery) {
         hardTriggers.push(HARD_TRIGGERS.ASKS_GOOD_DISCOVERY_QUESTION);
       }
-      if (repQualitySignals.acknowledgedPain) {
-        hardTriggers.push(HARD_TRIGGERS.DEMONSTRATES_GENUINE_CURIOSITY);
-      }
-      if (repQualitySignals.providedProof) {
-        hardTriggers.push(HARD_TRIGGERS.PROVIDES_SOCIAL_PROOF);
-      }
-      if (repQualitySignals.askedPermission) {
-        hardTriggers.push(HARD_TRIGGERS.ASKS_PERMISSION_TO_CONTINUE);
-      }
-      if (repQualitySignals.builtRapport) {
+      if (repQualitySignals.buildingRapport) {
         hardTriggers.push(HARD_TRIGGERS.BUILDS_RAPPORT);
+      }
+      if (repQualitySignals.providingValue) {
+        hardTriggers.push(HARD_TRIGGERS.PROVIDES_SOCIAL_PROOF);
       }
       // Note: Additional trigger mappings can be added as rep quality signals expand
       
@@ -895,9 +889,9 @@ const CharmerControllerContent = memo(({
       // Step 6: Update state tree (may trigger transition)
       // Guard: only update if tree is ready (has current state)
       let stateTransition = null;
-      const treeReady = stateTreeRef.current.getCurrentState();
+      const hasTreeState = stateTreeRef.current.getCurrentState();
       
-      if (treeReady) {
+      if (hasTreeState) {
         stateTransition = await stateTreeRef.current.updateState(
           userText,
           beliefs,

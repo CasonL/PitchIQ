@@ -128,6 +128,10 @@ const CharmerControllerContent = memo(({
   
   // Tree generation in-flight tracker - prevent blocking voice path
   const treeGenerationInFlightRef = useRef(false);
+  const treeGenerationRequestIdRef = useRef(0);
+  
+  // Active call ID - prevent stale async work from contaminating new calls
+  const activeCallIdRef = useRef<string | null>(null);
   
   // Phone ringing audio with Web Audio API for volume boost
   const phoneRingAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -319,6 +323,11 @@ const CharmerControllerContent = memo(({
     firstSentenceSpokenRef.current = null;
     firstSentencePromiseRef.current = null;
     wasInterruptedRef.current = false;
+    
+    // Cancel any in-flight async work from previous call
+    treeGenerationInFlightRef.current = false;
+    treeGenerationRequestIdRef.current += 1;
+    activeCallIdRef.current = null;
     
     hybridFeedbackRef.current.reset?.();
     
@@ -788,6 +797,7 @@ const CharmerControllerContent = memo(({
         
         // Generate tree asynchronously to avoid blocking voice response path
         if (!treeGenerationInFlightRef.current) {
+          const requestId = ++treeGenerationRequestIdRef.current;
           treeGenerationInFlightRef.current = true;
           
           stateTreeRef.current.generateTree({
@@ -800,11 +810,16 @@ const CharmerControllerContent = memo(({
             callContext: callDetailsRef.current?.treeContext
           }, turnNumber)
             .then(() => {
+              // Ignore stale tree generation from previous call
+              if (requestId !== treeGenerationRequestIdRef.current) {
+                console.log('🌳 Ignoring stale tree generation result');
+                return;
+              }
+              
               productConfidenceRef.current.markTreeGenerated();
               
               // Auto-activate if confidence already high when generation completes
-              const latestConfidence = productConfidenceRef.current.getCurrentConfidence?.();
-              if (latestConfidence?.shouldActivateTree) {
+              if (productConfidence.shouldActivateTree) {
                 stateTreeRef.current.activateTree();
                 productConfidenceRef.current.markTreeActivated();
                 console.log('🌳 Tree auto-activated after async generation');
@@ -813,20 +828,26 @@ const CharmerControllerContent = memo(({
               console.log('🌳 Tree generation completed asynchronously');
             })
             .catch(err => {
-              console.error('❌ Tree generation failed:', err);
+              if (requestId === treeGenerationRequestIdRef.current) {
+                console.error('❌ Tree generation failed:', err);
+              }
             })
             .finally(() => {
-              treeGenerationInFlightRef.current = false;
+              if (requestId === treeGenerationRequestIdRef.current) {
+                treeGenerationInFlightRef.current = false;
+              }
             });
         }
       }
       
       // Step 4: Activate tree when product confidence reaches high
       // Guard: only activate if tree generation has completed
+      const treeReady = !!stateTreeRef.current.getCurrentState?.();
+      
       const canActivateTree =
         productConfidence.shouldActivateTree &&
         !treeGenerationInFlightRef.current &&
-        stateTreeRef.current.getCurrentState?.();
+        treeReady;
       
       if (canActivateTree) {
         stateTreeRef.current.activateTree();

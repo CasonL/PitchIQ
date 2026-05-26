@@ -801,6 +801,15 @@ const CharmerControllerContent = memo(({
           }, turnNumber)
             .then(() => {
               productConfidenceRef.current.markTreeGenerated();
+              
+              // Auto-activate if confidence already high when generation completes
+              const latestConfidence = productConfidenceRef.current.getCurrentConfidence?.();
+              if (latestConfidence?.shouldActivateTree) {
+                stateTreeRef.current.activateTree();
+                productConfidenceRef.current.markTreeActivated();
+                console.log('🌳 Tree auto-activated after async generation');
+              }
+              
               console.log('🌳 Tree generation completed asynchronously');
             })
             .catch(err => {
@@ -813,7 +822,13 @@ const CharmerControllerContent = memo(({
       }
       
       // Step 4: Activate tree when product confidence reaches high
-      if (productConfidence.shouldActivateTree) {
+      // Guard: only activate if tree generation has completed
+      const canActivateTree =
+        productConfidence.shouldActivateTree &&
+        !treeGenerationInFlightRef.current &&
+        stateTreeRef.current.getCurrentState?.();
+      
+      if (canActivateTree) {
         stateTreeRef.current.activateTree();
         productConfidenceRef.current.markTreeActivated();
       }
@@ -851,12 +866,20 @@ const CharmerControllerContent = memo(({
       });
       
       // Step 6: Update state tree (may trigger transition)
-      const stateTransition = await stateTreeRef.current.updateState(
-        userText,
-        beliefs,
-        productConfidence,
-        turnNumber
-      );
+      // Guard: only update if tree is ready (has current state)
+      let stateTransition = null;
+      const treeReady = stateTreeRef.current.getCurrentState();
+      
+      if (treeReady) {
+        stateTransition = await stateTreeRef.current.updateState(
+          userText,
+          beliefs,
+          productConfidence,
+          turnNumber
+        );
+      } else {
+        console.log('🌱 Tree not ready yet; skipping state transition this turn');
+      }
       
       // DEBUG: Log state tree updates
       if (stateTransition) {

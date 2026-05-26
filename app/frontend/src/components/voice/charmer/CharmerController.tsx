@@ -1670,6 +1670,10 @@ const CharmerControllerContent = memo(({
     if (newContent && newContent.length <= 3) {
       console.log(`⏭️ Very short final: "${newContent}" - waiting 1s for continuation`);
       
+      // Mark as processed immediately to prevent duplicate timeouts
+      processedUtterancesRef.current.add(transcript);
+      lastTranscriptRef.current = transcript;
+      
       const transcriptSnapshot = transcript;
       const utteranceSnapshot = utteranceCountRef.current;
       
@@ -1678,7 +1682,6 @@ const CharmerControllerContent = memo(({
           console.log(`⏰ Short final timeout - processing "${newContent}"`);
           utteranceCountRef.current++;
           processUserInputWithQueue(newContent, utteranceCountRef.current);
-          lastTranscriptRef.current = transcriptSnapshot;
         }
       }, 1000);
       

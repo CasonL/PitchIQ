@@ -1,9 +1,25 @@
 import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { getApiBaseUrl } from "@/config/apiEndpoints";
 
 export default function Hero() {
   const navigate = useNavigate();
+
+  const handleDemoClick = async () => {
+    // Wake up backend (Render cold start mitigation)
+    const apiBase = getApiBaseUrl();
+    if (apiBase) {
+      console.log('🔥 Waking up backend...');
+      // Fire-and-forget health check to spin up Render instance
+      fetch(`${apiBase}/api/health`, { method: 'GET' }).catch(() => {
+        // Silently fail - this is just a warm-up call
+      });
+    }
+    
+    // Navigate to demo
+    navigate("/demo");
+  };
 
   return (
     <section
@@ -59,7 +75,7 @@ export default function Hero() {
             className="flex flex-col sm:flex-row gap-3 sm:gap-4"
           >
             <button
-              onClick={() => navigate("/demo")}
+              onClick={handleDemoClick}
               className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-gradient-to-r from-brand-orange to-brand-amber text-white font-semibold shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 transition-all text-base"
             >
               Experience the Demo

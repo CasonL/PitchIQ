@@ -171,11 +171,15 @@ def create_app(config_name='dev'):
     
     # Import OpenAI proxy blueprint
     from app.routes.api.openai_routes import openai_bp
+    
+    # Import lightweight health check blueprint
+    from app.routes.api.health_routes import health_bp as api_health_bp
 
     # Register API blueprints
     flask_instance.register_blueprint(api_main_bp, url_prefix='/api')
     flask_instance.register_blueprint(auth_api_bp, url_prefix='/api/auth')
     flask_instance.register_blueprint(openai_bp, url_prefix='/api/openai')
+    flask_instance.register_blueprint(api_health_bp, url_prefix='/api')  # Lightweight health check
     flask_instance.register_blueprint(email_signup_bp, url_prefix='/api/email-signup')
     flask_instance.register_blueprint(contact_bp, url_prefix='/api/contact')
     flask_instance.register_blueprint(dashboard_api_bp, url_prefix='/api/dashboard')
@@ -278,6 +282,7 @@ def create_app(config_name='dev'):
     csrf.exempt(api_main_bp)
     csrf.exempt(auth_api_bp)
     csrf.exempt(openai_bp)
+    csrf.exempt(api_health_bp)  # Exempt health check from CSRF
     csrf.exempt(email_signup_bp)
     csrf.exempt(contact_bp)
     csrf.exempt(dashboard_api_bp)

@@ -105,9 +105,11 @@ export class CharmerContextExtractor {
       }
     }
     
-    // PRIORITY 2: Other patterns
+    // PRIORITY 2: Other patterns (with negative lookahead for common verbs)
     const patterns = [
-      /(?:my name is|my name's|i'm|i am)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+      /(?:my name is|my name's)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+      // "I'm [Name]" but NOT "I'm gonna/calling/trying/etc"
+      /(?:i'm|i am)\s+(?!gonna|wanna|gotta|calling|trying|reaching|following|checking|looking|here|just|actually)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
       /(?:this is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
       /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:here|calling|speaking)/i
     ];
@@ -144,11 +146,16 @@ export class CharmerContextExtractor {
       'been', 'getting', 'doing', 'having', 'being', 'working', 'making', 'taking', 'coming', 'keeping',
       'part', 'reason', 'thing', 'something', 'anything', 'nothing', 'everything', 'someone',
       'anyone', 'everyone', 'nobody', 'somebody', 'wondering', 'curious', 'looking',
-      'trying', 'calling', 'reaching', 'following', 'asking', 'telling', 'saying', 'thinking'
+      'trying', 'calling', 'reaching', 'following', 'asking', 'telling', 'saying', 'thinking',
+      // Contractions/informal verbs (common Deepgram false positives)
+      'gonna', 'wanna', 'gotta', 'kinda', 'sorta', 'hafta', 'oughta', 'lemme', 'gimme',
+      // Multi-word false positives
+      'gonna check', 'wanna talk', 'gotta run', 'check you', 'check in', 'follow up'
     ];
     
-    // Check denylist (case-insensitive)
-    if (denylist.includes(name.toLowerCase())) {
+    // Check denylist (case-insensitive, including partial matches for multi-word denials)
+    const nameLower = name.toLowerCase();
+    if (denylist.some(denied => nameLower === denied || nameLower.includes(denied))) {
       return false;
     }
     

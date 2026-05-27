@@ -44,7 +44,6 @@ def chat():
         temperature = data.get('temperature', 0.6)
         max_tokens = data.get('max_tokens', 150)
         stream = data.get('stream', False)  # Enable streaming for low latency
-        use_cache = data.get('use_cache', True)  # Enable prompt caching for faster responses
         
         if not messages:
             return jsonify({'error': 'No messages provided'}), 400
@@ -59,7 +58,7 @@ def chat():
             return jsonify({'error': 'OpenRouter not configured'}), 503
         
         # Call OpenRouter API
-        logger.info(f"Generating response with {model} via OpenRouter (temp={temperature}, max_tokens={max_tokens}, stream={stream}, cache={use_cache})")
+        logger.info(f"Generating response with {model} via OpenRouter (temp={temperature}, max_tokens={max_tokens}, stream={stream})")
         
         openrouter_start = time.time()
         
@@ -78,6 +77,9 @@ def chat():
         logger.info(f"Request headers: {headers}")
         
         # Build request payload
+        # NOTE: OpenAI models use AUTOMATIC prompt caching (no config needed)
+        # Minimum 1024 tokens required for cache to activate
+        # Cache reads cost 0.25x-0.50x of input pricing
         payload = {
             'model': model,
             'messages': messages,
@@ -86,15 +88,11 @@ def chat():
             'stream': stream
         }
         
-        # Add prompt caching for OpenAI models (gpt-4o, gpt-4o-mini)
-        # OpenRouter passes cache_control through to OpenAI API
-        if use_cache and 'gpt-4o' in model:
-            # Mark system message as cacheable (static base personality)
-            if messages and messages[0].get('role') == 'system':
-                logger.info(f"✅ Enabling prompt caching for system message ({len(messages[0].get('content', ''))} chars)")
-                # OpenAI prompt caching: mark static content with cache_control
-                # This is passed through OpenRouter to OpenAI
-                payload['cache_control'] = {'type': 'ephemeral'}
+        # Log system prompt size for cache eligibility check
+        if messages and messages[0].get('role') == 'system':
+            system_content = messages[0].get('content', '')
+            token_estimate = len(system_content) // 4  # Rough estimate: 1 token ≈ 4 chars
+            logger.info(f"📊 System prompt: {len(system_content)} chars (~{token_estimate} tokens) - {'✅ Cache eligible' if token_estimate >= 1024 else '❌ Too small for cache'}")
         
         response = requests.post(
             'https://openrouter.ai/api/v1/chat/completions',

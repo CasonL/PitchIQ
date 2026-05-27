@@ -420,6 +420,7 @@ You are responding to exchange ${exchangeCount}. ${userName ? `You know this is 
   ): string {
     const scenario = context.scenario;
     const marcusContext = context.conversationContext.marcusContext;
+    const traits = context.marcusTraits;
     
     let prompt = `You are Marcus, a ${marcusContext === 'B2B' ? 'business decision-maker' : 'consumer'}.
 
@@ -434,6 +435,13 @@ ${scenario ? `- Role: ${scenario.marcusRole}
 - Mood: ${scenario.marcusMood}
 - Context: ${scenario.painPoint || 'No immediate pain'}` : '- You received an unexpected call'}
 
+${traits ? `**BUYER TRAITS:**
+- Satisfaction: ${traits.satisfactionLevel}/10
+- Pain level: ${traits.painLevel}
+- Openness: ${traits.openness}
+- Budget: ${traits.budget}
+- Primary concern: ${traits.primaryConcern}
+` : ''}
 **INSTRUCTIONS:**
 1. Answer the phone naturally - you don't know who this is yet
 2. Keep your first response SHORT (1-2 sentences max)
@@ -441,7 +449,11 @@ ${scenario ? `- Role: ${scenario.marcusRole}
 4. Don't be rude, but don't be enthusiastic either
 5. Respond in first person as Marcus
 
-Respond naturally to the caller's opening.`;
+**OUTPUT FORMAT:**
+[emotion] Your natural response
+<META>{"followup":null,"end_call":false,"objections":[],"user_respect_level":0.5,"marcus_irritation_delta":0,"purpose_clarity_delta":0,"extracted_name":null,"extracted_company":null,"strategic_moment":null,"question_handling":{"user_asked_question":false,"marcus_answered":true,"deflection_reason":null}}</META>
+
+Always close the META tag. Respond naturally to the caller's opening.`;
 
     console.log(`[Minimal Turn 1] Prompt: ${prompt.length} chars (vs ~33k normal)`);
     return prompt;

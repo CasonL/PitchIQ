@@ -106,8 +106,9 @@ export class CharmerContextExtractor {
     
     // PRIORITY 1: "[Name] from [Company]" pattern (most reliable, Turn 1 only)
     // Only use this pattern on Turn 1 to avoid false positives like "team go from A to Z"
+    // Case-sensitive [A-Z] to ensure proper capitalization
     if (utteranceCount <= 1) {
-      const fromCompanyPattern = /(?:^|\s)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+from\s+[A-Z]/i;
+      const fromCompanyPattern = /(?:^|[.!?\s])([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)\s+from\s+[A-Z][\w&.-]+/;
       const fromMatch = transcript.match(fromCompanyPattern);
       if (fromMatch && fromMatch[1]) {
         const name = fromMatch[1].trim();
@@ -119,12 +120,13 @@ export class CharmerContextExtractor {
     }
     
     // PRIORITY 2: Other patterns (with negative lookahead for common verbs)
+    // Case-sensitive [A-Z] patterns for stricter matching
     const patterns = [
-      /(?:my name is|my name's)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+      /(?:my name is|my name's)\s+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)/,
       // "I'm [Name]" but NOT "I'm gonna/calling/trying/etc"
-      /(?:i'm|i am)\s+(?!gonna|wanna|gotta|calling|trying|reaching|following|checking|looking|here|just|actually)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
-      /(?:this is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
-      /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:here|calling|speaking)/i
+      /(?:I'm|I am)\s+(?!gonna|wanna|gotta|calling|trying|reaching|following|checking|looking|here|just|actually)([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)/,
+      /(?:this is)\s+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)/,
+      /^([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)\s+(?:here|calling|speaking)/
     ];
     
     for (const pattern of patterns) {
@@ -145,35 +147,43 @@ export class CharmerContextExtractor {
    * Validate extracted name against denylist
    */
   private static isValidName(name: string): boolean {
-    const denylist = [
-      // Common false positives from "it's [word]" pattern
+    const nameLower = name.toLowerCase().trim();
+    
+    // Exact match denylist (use Set for O(1) lookup)
+    const exactDenylist = new Set([
       'me', 'myself', 'i',
-      // Adverbs/qualifiers that sound like names
       'mainly', 'actually', 'basically', 'just', 'really', 'truly', 'honestly',
-      // Greetings/responses
-      'hello', 'hi', 'hey', 'yes', 'yeah', 'sure', 'okay', 'thanks', 'great', 'good', 'fine',
-      'interesting', 'sorry', 'please', 'welcome', 'excuse', 'pardon', 'maybe', 'perfect',
-      'exactly', 'absolutely', 'definitely',
-      // Common words
-      'that', 'this', 'pretty', 'very', 'quite', 'rather', 'fairly', 'somewhat', 'going', 'gone',
-      'been', 'getting', 'doing', 'having', 'being', 'working', 'making', 'taking', 'coming', 'keeping',
-      'part', 'reason', 'thing', 'something', 'anything', 'nothing', 'everything', 'someone',
-      'anyone', 'everyone', 'nobody', 'somebody', 'wondering', 'curious', 'looking',
-      'trying', 'calling', 'reaching', 'following', 'asking', 'telling', 'saying', 'thinking',
-      // Contractions/informal verbs (common Deepgram false positives)
-      'gonna', 'wanna', 'gotta', 'kinda', 'sorta', 'hafta', 'oughta', 'lemme', 'gimme',
-      // Multi-word false positives
-      'gonna check', 'wanna talk', 'gotta run', 'check you', 'check in', 'follow up'
+      'hello', 'hi', 'hey', 'yes', 'yeah', 'sure', 'okay', 'thanks', 'great',
+      'good', 'fine', 'interesting', 'sorry', 'please', 'welcome', 'excuse',
+      'pardon', 'maybe', 'perfect', 'exactly', 'absolutely', 'definitely',
+      'that', 'this', 'pretty', 'very', 'quite', 'rather', 'fairly', 'somewhat',
+      'going', 'gone', 'been', 'getting', 'doing', 'having', 'being', 'working',
+      'making', 'taking', 'coming', 'keeping', 'part', 'reason', 'thing',
+      'something', 'anything', 'nothing', 'everything', 'someone', 'anyone',
+      'everyone', 'nobody', 'somebody', 'wondering', 'curious', 'looking',
+      'trying', 'calling', 'reaching', 'following', 'asking', 'telling',
+      'saying', 'thinking', 'gonna', 'wanna', 'gotta', 'kinda', 'sorta',
+      'hafta', 'oughta', 'lemme', 'gimme',
+      'it', 'is', 'am', 'at', 'in', 'on', 'to', 'be', 'do', 'so', 'we', 'he', 'she'
+    ]);
+    
+    // Multi-word phrase denylist (only use .includes() for these)
+    const phraseDenylist = [
+      'gonna check',
+      'wanna talk',
+      'gotta run',
+      'check you',
+      'check in',
+      'follow up'
     ];
     
-    // Check denylist (case-insensitive, including partial matches for multi-word denials)
-    const nameLower = name.toLowerCase();
-    if (denylist.some(denied => nameLower === denied || nameLower.includes(denied))) {
+    // Exact match check
+    if (exactDenylist.has(nameLower)) {
       return false;
     }
     
-    // Check common short words
-    if (/^(it|is|am|at|in|on|to|be|do|so|we|he|she)$/i.test(name)) {
+    // Phrase check (only for multi-word garbage)
+    if (phraseDenylist.some(phrase => nameLower.includes(phrase))) {
       return false;
     }
     

@@ -14,22 +14,28 @@ import { BuyerStatePromptBuilder } from './BuyerStatePromptBuilder';
 import type { ConversationContext } from '../CharmerPhaseManager';
 import type { AIRequestContext } from '../CharmerAIService';
 
-// DISABLED: Dangerous cache was caching dynamic turn content (KnownFacts, BuyerState, questionCategory)
-// This caused Marcus to respond with stale state from previous turns - "Marcus just picked up" on turn 4
-// const personaPromptCache = new Map<string, string>();
-// const CACHE_MAX_SIZE = 50;
+// SMART CACHE: Separate static base personality (cacheable) from dynamic turn data (non-cacheable)
+// Static: Marcus personality, speech patterns, general instructions
+// Dynamic: KnownFacts, BuyerState, questionCategory, conversation history
+const staticBasePromptCache = new Map<string, string>();
+const CACHE_MAX_SIZE = 10; // One per scenario type
 
 // A/B TEST: Pattern-matching vs philosophical prompts
 export const USE_PATTERN_MATCHING = false; // TESTING: Fast pattern-matching for 1-2s response vs 4-5s philosophical
 
 export class MarcusPromptBuilder {
-  // REMOVED: generatePersonaCacheKey() - Cache was caching dynamic turn content!  
-  // The "static" cache was actually caching:
-  // - KnownFactsPrompt (changes as Marcus learns facts)
-  // - BuyerStatePrompt (changes as buyer trust/resistance evolves)  
-  // - questionCategory (changes based on user input)
-  // - exchangeCount (increments every turn)
-  // This caused "Turn 1 buyer state on Turn 4" bugs
+  /**
+   * Generate cache key for STATIC base personality only
+   * Only includes: marcusContext, conversationStyle, scenario type
+   * Excludes: exchangeCount, KnownFacts, BuyerState, questionCategory
+   */
+  private static generateStaticCacheKey(
+    marcusContext: 'B2B' | 'B2C',
+    conversationStyle: string,
+    scenarioId?: string
+  ): string {
+    return `${marcusContext}_${conversationStyle}_${scenarioId || 'default'}`;
+  }
 
   /**
    * Build complete system prompt with all context layers
@@ -53,38 +59,66 @@ export class MarcusPromptBuilder {
       );
     }
     
-    // CACHE DISABLED: Was caching dynamic content (KnownFacts, BuyerState, questionCategory) 
-    // causing Marcus to use stale buyer state from previous turns
     const exchangeCount = Math.floor(context.conversationHistory.length / 2) + 1;
-    console.log(`[No Cache] Building fresh philosophical prompt for turn ${exchangeCount}...`);
     
-    // A/B TEST: Use condensed or original prompt
-    const systemPrompt = USE_CONDENSED_PROMPT 
-      ? getMarcusSystemPromptCondensed(
-          context.conversationContext.marcusContext,
-          conversationStyle || 'neutral_conversational',
-          exchangeCount,
-          context.conversationContext,
-          context.marcusTraits
-        )
-      : getMarcusSystemPrompt(
-          context.conversationContext.marcusContext,
-          conversationStyle || 'neutral_conversational',
-          exchangeCount,
-          context.conversationContext,
-          context.marcusTraits,
-          context.conversationContext.callVariationSeed
-        );
+    // SMART CACHE: Check if we have static base cached
+    const cacheKey = this.generateStaticCacheKey(
+      context.conversationContext.marcusContext,
+      conversationStyle || 'neutral_conversational',
+      context.scenario?.id
+    );
     
-    // Build the base prompt with static content (this is what gets cached)
-    let basePrompt = systemPrompt;
+    let staticBasePrompt = staticBasePromptCache.get(cacheKey);
     
-    basePrompt += `\n\n---\n\n${context.phasePromptContext}`;
-    
-    // SCENARIO CONTEXT: Challenge mode with fixed pain points and objections
-    if (context.scenario) {
-      basePrompt += ScenarioPromptBuilder.buildScenarioPrompt(context.scenario);
+    if (!staticBasePrompt) {
+      console.log(`[Cache MISS] Building new static base prompt for ${cacheKey}...`);
+      
+      // A/B TEST: Use condensed or original prompt
+      const systemPrompt = USE_CONDENSED_PROMPT 
+        ? getMarcusSystemPromptCondensed(
+            context.conversationContext.marcusContext,
+            conversationStyle || 'neutral_conversational',
+            1, // Use turn 1 for static prompt (no turn-specific guidance)
+            context.conversationContext,
+            context.marcusTraits
+          )
+        : getMarcusSystemPrompt(
+            context.conversationContext.marcusContext,
+            conversationStyle || 'neutral_conversational',
+            1, // Use turn 1 for static prompt
+            context.conversationContext,
+            context.marcusTraits,
+            context.conversationContext.callVariationSeed
+          );
+      
+      // Build STATIC base prompt (personality + scenario only)
+      staticBasePrompt = systemPrompt;
+      staticBasePrompt += `\n\n---\n\n${context.phasePromptContext}`;
+      
+      // SCENARIO CONTEXT: Challenge mode with fixed pain points and objections
+      if (context.scenario) {
+        staticBasePrompt += ScenarioPromptBuilder.buildScenarioPrompt(context.scenario);
+      }
+      
+      staticBasePrompt += `\n\n---\n\n**Remember:** You are Marcus. Stay in your current identity. No role bleed.`;
+      
+      // Cache the static base
+      staticBasePromptCache.set(cacheKey, staticBasePrompt);
+      console.log(`[Cache STORED] Static base: ${staticBasePrompt.length} chars`);
+      
+      // Limit cache size
+      if (staticBasePromptCache.size > CACHE_MAX_SIZE) {
+        const firstKey = staticBasePromptCache.keys().next().value;
+        staticBasePromptCache.delete(firstKey);
+      }
+    } else {
+      console.log(`[Cache HIT] Using cached static base (${staticBasePrompt.length} chars)`);
     }
+    
+    // Build DYNAMIC prompt (changes every turn)
+    let basePrompt = staticBasePrompt;
+    
+    // DYNAMIC CONTENT (changes every turn - NOT cached)
     
     // KNOWN FACTS: Prevent Marcus from asking about info already provided
     basePrompt += KnownFactsPromptBuilder.buildKnownFactsPrompt(context.conversationContext);
@@ -99,13 +133,13 @@ export class MarcusPromptBuilder {
       basePrompt += this.buildQuestionCategoryGuidance(context.questionCategory);
     }
     
-    basePrompt += `\n\n---\n\n**Remember:** You are Marcus. Stay in your current identity. No role bleed.`;
+    // Add turn-specific timing guidance
+    if (exchangeCount <= 2) {
+      basePrompt += `\n\n**TIMING NOTE:** This is turn ${exchangeCount}. Keep responses brief and natural.`;
+    }
     
-    // Log prompt size for monitoring
-    console.log(`[Philosophical Prompt] Base prompt size: ${basePrompt.length} chars`);
-    
-    // CACHE DISABLED: Prevents stale buyer state, known facts, and question categories from being reused
-    console.log(`[No Cache] Fresh base prompt generated: ${basePrompt.length} chars`);
+    // Log prompt composition
+    console.log(`[Smart Cache] Turn ${exchangeCount}: Static base (cached) + ${basePrompt.length - staticBasePrompt.length} chars dynamic`);
     
     // Apply dynamic guidance (not cached)
     let fullPrompt = basePrompt;

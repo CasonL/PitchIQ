@@ -48,7 +48,8 @@ export class LLMStreamClient {
           ],
           temperature: 0.75,
           max_tokens: 350,
-          stream: true
+          stream: true,
+          use_cache: true  // Enable prompt caching for 3-5x faster responses
         }),
         signal: controller.signal
       });

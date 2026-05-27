@@ -36,7 +36,7 @@ export class CharmerAIService {
   constructor(apiKey?: string, model?: keyof typeof MARCUS_AI_MODELS) {
     this.apiKey = apiKey || '';
     this.baseUrl = API_ENDPOINTS.OPENAI_CHAT;
-    this.model = MARCUS_AI_MODELS[model || 'gpt-4o'];
+    this.model = MARCUS_AI_MODELS[model || 'gpt-4o-mini'];
     this.streamClient = new LLMStreamClient(this.model);
   }
   

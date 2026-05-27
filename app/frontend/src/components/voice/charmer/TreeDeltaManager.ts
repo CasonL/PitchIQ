@@ -52,7 +52,7 @@ export class TreeDeltaManager {
     turnNumber: number = 0,
     productConfidence: ProductConfidence,
     treeActivated: boolean = false,
-    recentSellerSignals: string[] = [],
+    recentSellerSignals: string[] | { persistent: string[]; turnSpecific: string[] } = [],
     scenarioTraits?: {
       urgency: number;
       openness: number;
@@ -61,6 +61,10 @@ export class TreeDeltaManager {
       patience: number;
     }
   ): BuyerDelta | null {
+    // Flatten scoped signals if passed as object
+    const flattenedSignals = Array.isArray(recentSellerSignals) 
+      ? recentSellerSignals 
+      : [...recentSellerSignals.persistent, ...recentSellerSignals.turnSpecific];
     // Determine availability state from scenario traits
     const availability = this.determineAvailability(
       turnNumber,
@@ -86,7 +90,7 @@ export class TreeDeltaManager {
         beliefState,
         turnNumber,
         productConfidence,
-        recentSellerSignals,
+        flattenedSignals,
         availability
       );
     }

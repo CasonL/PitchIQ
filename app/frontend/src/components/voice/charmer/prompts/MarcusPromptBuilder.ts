@@ -48,6 +48,15 @@ export class MarcusPromptBuilder {
     buyerDeltaGuidance?: string,
     callBackstoryBlock?: string
   ): string {
+    const exchangeCount = Math.floor(context.conversationHistory.length / 2) + 1;
+    
+    // CRITICAL: Use minimal prompt for Turn 1 to avoid 22s first-token latency
+    // Turn 1 only needs: basic personality + scenario context
+    // Full tree/buyer state/call details come in Turn 2+
+    if (exchangeCount === 1) {
+      return this.buildMinimalFirstTurnPrompt(context, conversationStyle);
+    }
+    
     // NEW: Pattern-matching architecture for faster responses
     if (USE_PATTERN_MATCHING) {
       return this.buildPatternMatchingPrompt(
@@ -58,8 +67,6 @@ export class MarcusPromptBuilder {
         buyerDeltaGuidance
       );
     }
-    
-    const exchangeCount = Math.floor(context.conversationHistory.length / 2) + 1;
     
     // SMART CACHE: Check if we have static base cached
     const cacheKey = this.generateStaticCacheKey(
@@ -399,5 +406,44 @@ You are responding to exchange ${exchangeCount}. ${userName ? `You know this is 
       default:
         return 'said something important';
     }
+  }
+
+  /**
+   * CRITICAL: Minimal first-turn prompt to avoid 22s latency
+   * Turn 1 only needs: basic Marcus personality + scenario traits
+   * NO tree, NO buyer state, NO call details, NO known facts
+   * Full system comes in Turn 2+ after tree generates in parallel
+   */
+  private static buildMinimalFirstTurnPrompt(
+    context: AIRequestContext,
+    conversationStyle?: string
+  ): string {
+    const scenario = context.scenario;
+    const marcusContext = context.conversationContext.marcusContext;
+    
+    let prompt = `You are Marcus, a ${marcusContext === 'B2B' ? 'business decision-maker' : 'consumer'}.
+
+**YOUR PERSONALITY:**
+- Skeptical and guarded when strangers call
+- You don't have time for sales pitches
+- You ask "what is this about?" when unclear
+- You're polite but direct
+
+**CURRENT SITUATION:**
+${scenario ? `- Role: ${scenario.marcusRole}
+- Mood: ${scenario.marcusMood}
+- Context: ${scenario.painPoint || 'No immediate pain'}` : '- You received an unexpected call'}
+
+**INSTRUCTIONS:**
+1. Answer the phone naturally - you don't know who this is yet
+2. Keep your first response SHORT (1-2 sentences max)
+3. Be guarded and ask what this is about if unclear
+4. Don't be rude, but don't be enthusiastic either
+5. Respond in first person as Marcus
+
+Respond naturally to the caller's opening.`;
+
+    console.log(`[Minimal Turn 1] Prompt: ${prompt.length} chars (vs ~33k normal)`);
+    return prompt;
   }
 }

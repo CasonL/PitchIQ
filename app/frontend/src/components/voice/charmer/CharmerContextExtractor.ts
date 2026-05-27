@@ -91,6 +91,19 @@ export class CharmerContextExtractor {
       return null;
     }
     
+    // CRITICAL: Check transcript quality on Turn 1 - don't trust garbled STT
+    const isGarbled = utteranceCount === 1 && (
+      transcript.length > 180 ||
+      /\b(your you know|website your|your your|um um|uh uh|you you|the the){1,}/i.test(transcript) ||
+      /\b(um|uh|like|you know){3,}/i.test(transcript)
+    );
+    
+    if (isGarbled && utteranceCount === 1) {
+      console.log(`⚠️ Turn 1 garbled transcript detected - deferring name extraction`);
+      console.log(`   Transcript: "${transcript.substring(0, 100)}..."`);
+      return null;
+    }
+    
     // PRIORITY 1: "[Name] from [Company]" pattern (most reliable, Turn 1 only)
     // Only use this pattern on Turn 1 to avoid false positives like "team go from A to Z"
     if (utteranceCount <= 1) {

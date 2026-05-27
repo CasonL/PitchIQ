@@ -817,6 +817,30 @@ const CharmerControllerContent = memo(({
         knownProduct: context.product
       });
       
+      // Generate call details for adaptive scenarios once product is detected
+      if (!callDetailsRef.current && 
+          productConfidence.confidence === 'high' && 
+          productConfidence.product) {
+        const currentScenario = selectedScenarioRef.current;
+        const isAdaptive = 
+          currentScenario?.product === 'Adaptive - user defines' || 
+          currentScenario?.product?.toLowerCase().includes('adaptive');
+        
+        if (isAdaptive) {
+          console.log(`🎭 Generating call details for detected product: ${productConfidence.product}`);
+          CallDetailsCreator.generate(
+            productConfidence.product,
+            currentScenario?.name || 'Sell Literally Anything',
+            phaseManagerRef.current.getContext().callVariationSeed || Math.floor(Math.random() * 100)
+          ).then(details => {
+            callDetailsRef.current = details;
+            console.log('🎭 Call details generated after product detection');
+          }).catch(err => {
+            console.warn('🎭 Call details generation failed, continuing without', err);
+          });
+        }
+      }
+      
       // Step 2: Update belief tracker
       const beliefs = beliefTrackerRef.current.updateBeliefs(
         userText,
@@ -1899,18 +1923,28 @@ const CharmerControllerContent = memo(({
       }
     }
     
-    // Generate call details during ring period (zero latency cost)
-    CallDetailsCreator.generate(
-      scenario.product,
-      scenario.name,
-      callVariationSeed
-    ).then(details => {
-      callDetailsRef.current = details;
-      console.log('🎭 Call details generated during ring period');
-    }).catch(err => {
-      console.warn('🎭 Call details generation failed, using fallback', err);
+    // Generate call details during ring period ONLY if product is predefined
+    // For adaptive scenarios, wait until product is detected
+    const isAdaptiveScenario = 
+      scenario.product === 'Adaptive - user defines' || 
+      scenario.product?.toLowerCase().includes('adaptive');
+    
+    if (!isAdaptiveScenario) {
+      CallDetailsCreator.generate(
+        scenario.product,
+        scenario.name,
+        callVariationSeed
+      ).then(details => {
+        callDetailsRef.current = details;
+        console.log('🎭 Call details generated during ring period');
+      }).catch(err => {
+        console.warn('🎭 Call details generation failed, using fallback', err);
+        callDetailsRef.current = null;
+      });
+    } else {
+      console.log('🎭 Adaptive scenario - deferring call details until product detected');
       callDetailsRef.current = null;
-    });
+    }
     
     // Wait 10 seconds for phone to ring, THEN connect to Marcus
     const startTime = Date.now();

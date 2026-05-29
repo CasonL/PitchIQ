@@ -821,7 +821,7 @@ const CharmerControllerContent = memo(({
       if (!callDetailsRef.current && 
           productConfidence.confidence === 'high' && 
           productConfidence.product) {
-        const currentScenario = selectedScenarioRef.current;
+        const currentScenario = selectedScenario;
         const isAdaptive = 
           currentScenario?.product === 'Adaptive - user defines' || 
           currentScenario?.product?.toLowerCase().includes('adaptive');

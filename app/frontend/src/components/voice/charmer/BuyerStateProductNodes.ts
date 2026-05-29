@@ -106,6 +106,40 @@ export function createClarificationNode(productPhysics?: any): ProductNodeDef {
         softTriggers: ['rep_asks_permission_to_continue', 'rep_personalizes_opening'],
         minTurns: 2
       };
+    case 'training_or_coaching':
+      // Use subtype for more specific nodes
+      if (productPhysics.subType === 'ai_sales_training' || productPhysics.subType === 'sales_training') {
+        return {
+          stateType: 'clarification', stateSubtype: 'ai_training_skepticism',
+          stateName: 'AI Training Skepticism',
+          stateDescription: 'Marcus is curious but skeptical about AI replacing human coaching.',
+          expectedBehaviors: [
+            '"So this is AI coaching? How does that work exactly?"',
+            '"Can AI really understand the nuances of sales?"',
+            '"What makes this better than our current training?"',
+            '"Do the reps actually use it?"'
+          ],
+          baseConfidence: 45,
+          hardTriggers: ['rep_explains_ai_benefits', 'rep_shares_success_metrics'],
+          softTriggers: ['rep_acknowledges_skepticism', 'rep_compares_to_human_coaching'],
+          minTurns: 2
+        };
+      }
+      // Default training node
+      return {
+        stateType: 'clarification', stateSubtype: 'training_effectiveness',
+        stateName: 'Training Effectiveness',
+        stateDescription: 'Marcus wants proof that training actually works.',
+        expectedBehaviors: [
+          '"What kind of training is this?"',
+          '"How do you measure results?"',
+          '"What\'s the time commitment?"'
+        ],
+        baseConfidence: 40,
+        hardTriggers: ['rep_provides_roi_data'],
+        softTriggers: ['rep_shares_case_study'],
+        minTurns: 2
+      };
     default:
       return createClarificationNode(null);
   }
@@ -194,6 +228,40 @@ export function createEngagedNode(productPhysics?: any): ProductNodeDef {
         baseConfidence: 60,
         hardTriggers: ['rep_asks_good_discovery_question'],
         softTriggers: ['rep_demonstrates_product_understanding', 'rep_shares_relevant_example'],
+        minTurns: 3
+      };
+    case 'training_or_coaching':
+      // Use subtype for AI-specific engagement
+      if (productPhysics.subType === 'ai_sales_training' || productPhysics.subType === 'sales_training') {
+        return {
+          stateType: 'buying_signal', stateSubtype: 'ai_training_exploration',
+          stateName: 'AI Training Exploration',
+          stateDescription: 'Marcus is intrigued by the AI approach and exploring fit.',
+          expectedBehaviors: [
+            '"How realistic are these AI conversations?"',
+            '"Can it handle our specific objections?"',
+            '"What metrics do you track?"',
+            '"How quickly do reps improve?"',
+            '"Do you integrate with our CRM?"'
+          ],
+          baseConfidence: 65,
+          hardTriggers: ['rep_demonstrates_ai_capabilities', 'rep_shares_roi_metrics'],
+          softTriggers: ['rep_addresses_ai_concerns', 'rep_shows_customization'],
+          minTurns: 3
+        };
+      }
+      return {
+        stateType: 'buying_signal', stateSubtype: 'training_roi_interest',
+        stateName: 'Training ROI Interest',
+        stateDescription: 'Marcus wants to understand training effectiveness.',
+        expectedBehaviors: [
+          '"How do you measure improvement?"',
+          '"What\'s the typical ROI?"',
+          '"How much time commitment?"'
+        ],
+        baseConfidence: 60,
+        hardTriggers: ['rep_shares_success_metrics'],
+        softTriggers: ['rep_relates_to_pain_points'],
         minTurns: 3
       };
     default:

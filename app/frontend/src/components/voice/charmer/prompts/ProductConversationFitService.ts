@@ -75,9 +75,16 @@ export class ProductConversationFitService {
     
     console.log(`🏗️ [ProductPhysics] Live classification: ${patternResult.archetype}${patternResult.subType ? '.' + patternResult.subType : ''} (${patternResult.confidence}% confidence)`);
     
-    // BACKGROUND PATH: Queue AI improvement for low confidence cases
-    if (patternResult.confidence < 85) {
-      this.queueAIClassificationImprovement(sellerInput, conversationHistory, patternResult);
+    // ALWAYS queue LLM classification for better accuracy
+    this.queueAIClassificationImprovement(sellerInput, conversationHistory, patternResult);
+    
+    // Check if we have a cached improved classification
+    const cacheKey = sellerInput.toLowerCase().slice(0, 50);
+    const cachedClassification = this.improvedClassifications?.get(cacheKey);
+    
+    if (cachedClassification) {
+      console.log(`🎯 [ProductPhysics] Using cached LLM classification: ${cachedClassification.archetype}.${cachedClassification.subType}`);
+      return this.getConversationPhysicsForClassification(cachedClassification);
     }
     
     // Return physics (with subtype if available) - NEVER block live response
@@ -293,13 +300,118 @@ export class ProductConversationFitService {
     
     console.log(`🤖 [ProductPhysics] Queuing AI improvement for low confidence case: "${sellerInput}" (${patternResult.confidence}%)`);
     
-    // TODO: Implement background AI classification
-    // For now, just log the need for improvement
-    setTimeout(() => {
-      console.log(`🧠 [ProductPhysics] Background AI would improve: ${patternResult.archetype} -> [better classification]`);
-    }, 0);
+    // Perform LLM classification asynchronously
+    this.performLLMClassification(sellerInput, conversationHistory).then(llmResult => {
+      if (llmResult && llmResult.archetype !== patternResult.archetype) {
+        console.log(`🧠 [ProductPhysics] LLM improved classification: ${patternResult.archetype} -> ${llmResult.archetype}${llmResult.subType ? '.' + llmResult.subType : ''}`);
+        console.log(`   Specific product: ${llmResult.specificProduct}`);
+        console.log(`   Key differentiators: ${llmResult.differentiators.join(', ')}`);
+        
+        // Store improved classification for future use
+        this.storeImprovedClassification(sellerInput, llmResult);
+      }
+    }).catch(err => {
+      console.error(`❌ [ProductPhysics] LLM classification failed:`, err);
+    });
   }
   
+  /**
+   * Perform LLM-based product classification for specific product detection
+   */
+  private static async performLLMClassification(
+    sellerInput: string,
+    conversationHistory: string[]
+  ): Promise<{
+    archetype: ProductArchetype;
+    subType: string;
+    specificProduct: string;
+    differentiators: string[];
+    confidence: number;
+  } | null> {
+    
+    try {
+      // Build context from conversation
+      const context = [...conversationHistory, sellerInput].join('\n');
+      
+      // Create classification prompt
+      const prompt = `Analyze this sales conversation and classify the specific product/service being sold.
+
+CONVERSATION:
+${context}
+
+Classify into:
+1. Main category: saas, professional_service, training_or_coaching, physical_product, commodity_or_material, chemical_or_industrial_supply, equipment_or_hardware, agency_or_marketing_service, financial_or_insurance
+2. Specific subtype (e.g., "ai_sales_training", "crm_platform", "marketing_automation")
+3. Exact product name/description
+4. Key differentiators mentioned
+
+Return JSON format:
+{
+  "archetype": "main_category",
+  "subType": "specific_subtype",
+  "specificProduct": "exact product description",
+  "differentiators": ["key feature 1", "key feature 2"],
+  "confidence": 95
+}`;
+
+      // Call LLM API (using existing infrastructure)
+      const response = await fetch('/api/openai/classify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          temperature: 0.3,
+          max_tokens: 200
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`LLM API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      // Parse LLM response
+      try {
+        const classification = JSON.parse(result.content);
+        return {
+          archetype: classification.archetype as ProductArchetype,
+          subType: classification.subType || '',
+          specificProduct: classification.specificProduct || '',
+          differentiators: classification.differentiators || [],
+          confidence: classification.confidence || 90
+        };
+      } catch (parseError) {
+        console.error('Failed to parse LLM classification:', parseError);
+        return null;
+      }
+      
+    } catch (error) {
+      console.error('LLM classification error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Store improved classification for pattern learning
+   */
+  private static storeImprovedClassification(
+    input: string,
+    classification: any
+  ): void {
+    // Store in memory for session (could be persisted later)
+    if (!this.improvedClassifications) {
+      this.improvedClassifications = new Map();
+    }
+    
+    const key = input.toLowerCase().slice(0, 50); // Use first 50 chars as key
+    this.improvedClassifications.set(key, classification);
+    
+    console.log(`💾 [ProductPhysics] Stored improved classification for future use`);
+  }
+
+  private static improvedClassifications?: Map<string, any>;
+
   /**
    * LEGACY: Detect product archetype from seller language patterns
    */

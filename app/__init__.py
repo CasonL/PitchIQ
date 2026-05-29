@@ -174,11 +174,13 @@ def create_app(config_name='dev'):
     
     # Import lightweight health check blueprint
     from app.routes.api.health_routes import health_bp as api_health_bp
+    from app.routes.api.product_classify_routes import product_classify_bp
 
     # Register API blueprints
     flask_instance.register_blueprint(api_main_bp, url_prefix='/api')
     flask_instance.register_blueprint(auth_api_bp, url_prefix='/api/auth')
     flask_instance.register_blueprint(openai_bp, url_prefix='/api/openai')
+    flask_instance.register_blueprint(product_classify_bp)
     flask_instance.register_blueprint(api_health_bp, url_prefix='/api')  # Lightweight health check
     flask_instance.register_blueprint(email_signup_bp, url_prefix='/api/email-signup')
     flask_instance.register_blueprint(contact_bp, url_prefix='/api/contact')

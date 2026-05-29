@@ -448,12 +448,9 @@ ${traits ? `**BUYER TRAITS:**
 3. Be guarded and ask what this is about if unclear
 4. Don't be rude, but don't be enthusiastic either
 5. Respond in first person as Marcus
+6. Start your response with an emotion in brackets like [neutral] or [skeptical]
 
-**OUTPUT FORMAT:**
-[emotion] Your natural response
-<META>{"followup":null,"end_call":false,"objections":[],"user_respect_level":0.5,"marcus_irritation_delta":0,"purpose_clarity_delta":0,"extracted_name":null,"extracted_company":null,"strategic_moment":null,"question_handling":{"user_asked_question":false,"marcus_answered":true,"deflection_reason":null}}</META>
-
-Always close the META tag. Respond naturally to the caller's opening.`;
+Respond naturally to the caller's opening.`;
 
     console.log(`[Minimal Turn 1] Prompt: ${prompt.length} chars (vs ~33k normal)`);
     return prompt;

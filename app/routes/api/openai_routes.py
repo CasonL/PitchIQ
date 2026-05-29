@@ -98,7 +98,8 @@ def chat():
             'https://openrouter.ai/api/v1/chat/completions',
             headers=headers,
             json=payload,
-            stream=stream
+            stream=stream,
+            timeout=30  # Add 30 second timeout to prevent hanging
         )
         
         openrouter_duration = (time.time() - openrouter_start) * 1000

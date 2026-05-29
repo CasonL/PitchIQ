@@ -106,8 +106,12 @@ class GPT4oService:
             return
             
         try:
-            # Instantiate the OpenAI client with the API key
-            self.client = openai.OpenAI(api_key=current_api_key)
+            # Instantiate the OpenAI client with the API key and timeout
+            self.client = openai.OpenAI(
+                api_key=current_api_key,
+                timeout=DEFAULT_TIMEOUT,  # Use 30 second timeout
+                max_retries=DEFAULT_RETRIES
+            )
             
             # Test the API key with a minimal API call
             logger.info("Testing API key with minimal request using new SDK client")

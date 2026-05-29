@@ -176,6 +176,19 @@
     </div>
     
     <script>
+      // Wake up backend immediately to prevent cold start delays
+      (function() {
+        const backendUrl = window.location.hostname === 'localhost' ? '' : 'https://pitchiq-8enf.onrender.com';
+        if (backendUrl) {
+          console.log('🌅 Waking up backend...');
+          fetch(backendUrl + '/api/health', {
+            method: 'GET',
+            mode: 'no-cors', // Don't wait for response
+            credentials: 'omit'
+          }).catch(() => {}); // Ignore errors - this is just a wake-up call
+        }
+      })();
+
       // Remove loading screen when React mounts
       window.addEventListener('DOMContentLoaded', () => {
         const root = document.getElementById('root');

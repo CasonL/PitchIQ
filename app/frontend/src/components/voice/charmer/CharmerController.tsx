@@ -2322,9 +2322,9 @@ const CharmerControllerContent = memo(({
     // End loading state
     setIsGeneratingFeedback(false);
     
-    // Navigate back to demo page
-    console.log('🎯 Navigating back to demo...');
-    navigate('/demo');
+    // Navigate to demo page results step
+    console.log('🎯 Navigating to demo results...');
+    navigate('/demo?step=results');
     
   }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking, navigate]);
   

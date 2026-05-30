@@ -4,10 +4,10 @@
  * Combines beautiful design with real voice AI, coaching, and scenarios
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Play } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { CharmerController } from "../components/voice/charmer/CharmerController";
 import { CharmerServicesProvider } from "../components/voice/charmer/context/CharmerServicesContext";
 import { MarcusScenario, ALL_SCENARIOS } from "../components/voice/charmer/MarcusScenarios";
@@ -31,8 +31,17 @@ const challenges: Challenge[] = ALL_SCENARIOS.map(scenario => ({
 
 function IntegratedMarcusDemoContent() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState<DemoStep>("welcome");
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+
+  // Check URL params on mount
+  useEffect(() => {
+    const stepParam = searchParams.get('step');
+    if (stepParam === 'results') {
+      setStep('results');
+    }
+  }, [searchParams]);
 
   const handleStartChallenge = () => {
     if (!selectedChallenge) return;

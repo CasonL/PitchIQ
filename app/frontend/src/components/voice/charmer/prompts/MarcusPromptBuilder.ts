@@ -11,6 +11,7 @@ import { type ProductConversationPhysics } from './ProductConversationFitService
 import { ScenarioPromptBuilder } from './ScenarioPromptBuilder';
 import { KnownFactsPromptBuilder } from './KnownFactsPromptBuilder';
 import { BuyerStatePromptBuilder } from './BuyerStatePromptBuilder';
+import { ResponseVariationSystem, VariationContext } from './ResponseVariationSystem';
 import type { ConversationContext } from '../CharmerPhaseManager';
 import type { AIRequestContext } from '../CharmerAIService';
 
@@ -455,11 +456,72 @@ ${traits ? `**BUYER TRAITS:**
 - Mix up your objections: budget, timing, authority, satisfaction with current solution
 - Vary your energy: sometimes distracted, sometimes skeptical, sometimes time-pressured
 - Don't be predictable - real humans have different moods and reactions
+
+${this.getVariationExamples(context)}
+
 6. Start your response with an emotion in brackets like [neutral] or [skeptical]
 
 Respond naturally to the caller's opening.`;
 
     console.log(`[Minimal Turn 1] Prompt: ${prompt.length} chars (vs ~33k normal)`);
     return prompt;
+  }
+
+  /**
+   * Get variation examples based on context
+   */
+  private static getVariationExamples(context: AIRequestContext): string {
+    const variationContext: VariationContext = {
+      turnNumber: 1,
+      product: context.conversationContext.product,
+      relationshipType: context.scenario?.relationshipHistory?.type,
+      marcusTraits: context.marcusTraits ? {
+        painLevel: context.marcusTraits.painLevel,
+        urgency: context.marcusTraits.urgency,
+        openness: context.marcusTraits.openness
+      } : undefined,
+      lastUserMessage: context.userInput,
+      callVariationSeed: context.conversationContext.callVariationSeed || 50
+    };
+
+    // Check if this is an email signup scenario
+    if (context.scenario?.relationshipHistory?.type === 'email_signup_curious') {
+      return `
+**EXAMPLE RESPONSES FOR EMAIL SIGNUP:**
+- "Oh right, I think I put my email in somewhere... what was that about again?"
+- "I don't remember signing up for anything..."
+- "Oh that. Yeah, we actually went with someone else already."
+- "I looked into it but didn't see how it would work for us."
+- "We were looking for something more focused on [specific need]. You guys don't really do that, right?"
+- "Oh, I was just browsing around. Not really looking for anything specific."
+
+Pick ONE that feels natural based on your mood and traits. Don't combine multiple responses.`;
+    }
+
+    // For cold calls, use seed-based variations
+    const seed = variationContext.callVariationSeed;
+    if (seed < 30) {
+      return `
+**YOUR OPENING ENERGY: ${seed < 15 ? 'DISTRACTED' : 'SKEPTICAL'}**
+Example responses:
+${seed < 15 ? 
+`- "Hold on, sorry. Yeah?"
+- "One sec— yeah, hello?"
+- "Sorry, yeah. What's up?"` :
+`- "Yeah? Who's this."
+- "Who gave you this number?"
+- "I don't recognize this. Who is this?"`}
+
+Use one of these or similar energy. Don't script it exactly.`;
+    }
+
+    return `
+**STANDARD OPENING:**
+Keep it brief and natural. Examples:
+- "Hello, Marcus speaking?"
+- "Yeah, hello?"
+- "Marcus here."
+
+Match the energy to your current mood.`;
   }
 }

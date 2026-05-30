@@ -2323,11 +2323,21 @@ const CharmerControllerContent = memo(({
     setIsGeneratingFeedback(false);
     
     // Save basic metrics for the analysis page
+    const talkRatio = metrics ? 
+      `${Math.round((metrics.userSpeakingTime / (metrics.userSpeakingTime + metrics.marcusSpeakingTime)) * 100)}% user` : 
+      "0% user";
+    const discovery = metrics ? 
+      `${metrics.openEndedCount} open-ended, ${metrics.followUpCount} follow-ups` : 
+      "0 questions asked";
+    const objections = metrics ? 
+      `${metrics.objectionsRaised} raised, ${metrics.objectionsAddressed} addressed` : 
+      "0 handled";
+    
     const callMetrics = {
       duration: Math.floor((Date.now() - (callStartTimeRef.current || Date.now())) / 1000),
-      talkRatio: metrics?.talkRatio || "0% user",
-      discovery: metrics?.discovery || "0 questions asked",
-      objections: metrics?.objections || "0 handled",
+      talkRatio,
+      discovery,
+      objections,
       criticalMoments: criticalMoments.length,
       successfulMoments: successfulMoments.length
     };
@@ -2337,7 +2347,7 @@ const CharmerControllerContent = memo(({
     console.log('🎯 Navigating to post-call analysis...');
     navigate('/post-call-analysis');
     
-  }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking, navigate, callStartTimeRef, metrics, criticalMoments, successfulMoments]);
+  }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking, navigate, callStartTimeRef, criticalMoments, successfulMoments]);
   
   /**
    * Auto-trigger ringing sequence when initialScenario provided

@@ -185,7 +185,7 @@ const PostCallAnalysisPage = () => {
               </div>
 
               {/* Actions */}
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-3 mb-4">
                 <button
                   onClick={() => navigate("/demo")}
                   className="flex-1 px-6 py-3.5 rounded-full bg-gradient-to-r from-brand-orange to-brand-amber text-white font-semibold shadow-glow hover:shadow-glow-lg transition-all text-sm"
@@ -197,6 +197,16 @@ const PostCallAnalysisPage = () => {
                   className="flex-1 px-6 py-3.5 rounded-full border border-gray-300 text-[#5A5A5A] font-semibold hover:bg-gray-50 transition-all text-sm"
                 >
                   Back to Home
+                </button>
+              </div>
+              
+              {/* Demo Feedback Button */}
+              <div className="text-center">
+                <button
+                  onClick={() => navigate("/post-call-review")}
+                  className="px-8 py-3.5 rounded-full bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all text-sm"
+                >
+                  Demo Feedback
                 </button>
               </div>
             </>

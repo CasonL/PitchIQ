@@ -2322,9 +2322,9 @@ const CharmerControllerContent = memo(({
     // End loading state
     setIsGeneratingFeedback(false);
     
-    // Navigate to post-call review page (renders static HTML in an iframe)
-    console.log('🎯 Navigating to post-call review...');
-    navigate('/post-call-review');
+    // Navigate back to demo page
+    console.log('🎯 Navigating back to demo...');
+    navigate('/demo');
     
   }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking, navigate]);
   

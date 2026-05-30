@@ -457,6 +457,10 @@ ${traits ? `**BUYER TRAITS:**
 - Vary your energy: sometimes distracted, sometimes skeptical, sometimes time-pressured
 - Don't be predictable - real humans have different moods and reactions
 
+**CRITICAL VARIATION REQUIREMENT:**
+You MUST randomly select ONE of the provided response types below. Do NOT default to "I don't remember" every time.
+Roll a mental dice and pick a DIFFERENT response type than you used last time.
+
 ${this.getVariationExamples(context)}
 
 6. Start your response with an emotion in brackets like [neutral] or [skeptical]
@@ -486,16 +490,45 @@ Respond naturally to the caller's opening.`;
 
     // Check if this is an email signup scenario
     if (context.scenario?.relationshipHistory?.type === 'email_signup_curious') {
-      return `
-**EXAMPLE RESPONSES FOR EMAIL SIGNUP:**
-- "Oh right, I think I put my email in somewhere... what was that about again?"
-- "I don't remember signing up for anything..."
+      const seed = variationContext.callVariationSeed;
+      
+      // Force different responses based on seed
+      if (seed < 17) {
+        return `
+**YOUR REQUIRED RESPONSE TYPE: "WENT ELSEWHERE"**
+You MUST indicate you already chose another solution. Examples:
 - "Oh that. Yeah, we actually went with someone else already."
+- "Right, we ended up going in a different direction on that."
+- "Yeah, we already found a solution for that. Thanks though."`;
+      } else if (seed < 34) {
+        return `
+**YOUR REQUIRED RESPONSE TYPE: "WRONG FIT"**
+You MUST indicate it wasn't what you were looking for. Examples:
 - "I looked into it but didn't see how it would work for us."
-- "We were looking for something more focused on [specific need]. You guys don't really do that, right?"
+- "Yeah, I checked it out. Didn't really see the fit to be honest."
+- "Oh right. Yeah, it didn't seem like what we were looking for."`;
+      } else if (seed < 51) {
+        return `
+**YOUR REQUIRED RESPONSE TYPE: "DON'T REMEMBER"**
+You MUST indicate you don't recall signing up. Examples:
+- "I don't remember signing up for anything..."
+- "My email? I don't recall that. You sure you have the right person?"
+- "Hmm, doesn't ring a bell. When was this?"`;
+      } else if (seed < 68) {
+        return `
+**YOUR REQUIRED RESPONSE TYPE: "JUST BROWSING"**
+You MUST indicate you were only casually looking. Examples:
 - "Oh, I was just browsing around. Not really looking for anything specific."
-
-Pick ONE that feels natural based on your mood and traits. Don't combine multiple responses.`;
+- "Yeah, I was just curious what was out there. No real need right now."
+- "I was just doing some research. We're not actively looking."`;
+      } else {
+        return `
+**YOUR REQUIRED RESPONSE TYPE: "VAGUE MEMORY"**
+You MUST indicate you vaguely remember. Examples:
+- "Oh right, I think I put my email in somewhere... what was that about again?"
+- "Yeah, I remember filling out something on your site. What was that for exactly?"
+- "Oh yeah, the form. I was looking at... remind me what you guys do?"`;
+      }
     }
 
     // For cold calls, use seed-based variations

@@ -2324,7 +2324,7 @@ const CharmerControllerContent = memo(({
     
     // Save basic metrics for the analysis page
     const callMetrics = {
-      duration: Math.floor((Date.now() - (startTime || Date.now())) / 1000),
+      duration: Math.floor((Date.now() - (callStartTimeRef.current || Date.now())) / 1000),
       talkRatio: metrics?.talkRatio || "0% user",
       discovery: metrics?.discovery || "0 questions asked",
       objections: metrics?.objections || "0 handled",
@@ -2337,7 +2337,7 @@ const CharmerControllerContent = memo(({
     console.log('🎯 Navigating to post-call analysis...');
     navigate('/post-call-analysis');
     
-  }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking, navigate]);
+  }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking, navigate, callStartTimeRef, metrics, criticalMoments, successfulMoments]);
   
   /**
    * Auto-trigger ringing sequence when initialScenario provided

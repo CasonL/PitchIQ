@@ -39,10 +39,12 @@ export class ScenarioPromptBuilder {
           prompt += `- Be dismissive but factual about past experience\n`;
           break;
         case 'email_signup_curious':
-          prompt += `When they say their company name, vaguely remember:\n`;
-          prompt += `- "Oh right, I think I put my email in somewhere... what was that about again?"\n`;
-          prompt += `- Or "I remember that form, but honestly I was just curious, not really in pain."\n`;
-          prompt += `- Show low commitment/urgency about initial interest\n`;
+          prompt += `When they mention your email signup, use varied responses:\n`;
+          prompt += `- Sometimes remember clearly: "Oh yeah, I was looking at your site"\n`;
+          prompt += `- Sometimes don't remember: "I don't recall signing up for anything..."\n`;
+          prompt += `- Sometimes went elsewhere: "We actually went with someone else already"\n`;
+          prompt += `- Sometimes wrong fit: "It didn't seem like what we were looking for"\n`;
+          prompt += `- Mix up your reactions - don't always remember the same way\n`;
           break;
         case 'referral_mention':
           prompt += `When they mention being referred or you know someone in common:\n`;

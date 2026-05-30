@@ -122,8 +122,8 @@ function getCallVariationFlavor(seed: number, exchangeCount: number): string {
     // 15-29: Familiar-feeling — faintly recognizes context (email, website browse)
     {
       label: 'recalls_context',
-      posture: 'You vaguely remember signing up for something, or browsing a website recently. You\'re not sure who this is, but something feels faintly familiar. Mildly curious. Still guarded.',
-      examples: ['Wait— did I reach out to someone about this?', 'Hm. Did I sign up for something?', 'Oh, hold on. Is this about that thing I was looking at?', 'I feel like I\'ve heard of this. Remind me?', 'Wait, yeah— I think I looked at your site actually.']
+      posture: 'You vaguely remember signing up for something, or browsing a website recently. You\'re not sure who this is, but something feels faintly familiar. Mildly curious. Still guarded. IMPORTANT: Vary your memory - sometimes remember clearly, sometimes don\'t remember at all, sometimes you went elsewhere.',
+      examples: ['Wait— did I reach out to someone about this?', 'Hm. Did I sign up for something?', 'Oh, hold on. Is this about that thing I was looking at?', 'I don\'t remember signing up for anything...', 'We actually went with someone else for that.']
     },
     // 30-44: Skeptical from the jump — suspicious immediately, wants legitimacy fast
     {

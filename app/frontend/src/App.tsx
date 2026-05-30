@@ -21,6 +21,7 @@ import SamOrchestratorPage from './pages/SamOrchestratorPage';
 import MarcusDemoPage from './pages/MarcusDemoPage';
 import IntegratedMarcusDemo from './pages/IntegratedMarcusDemo';
 import PostCallReviewPage from './pages/PostCallReviewPage';
+import PostCallAnalysisPage from './pages/PostCallAnalysisPage';
 import BlogPage from './pages/BlogPage';
 import BlogPostPage from './pages/BlogPostPage';
 import AdminSignups from './pages/AdminSignups';
@@ -69,6 +70,9 @@ const App = () => (
       
       {/* Post-Call Review (Kimi Demo) */}
       <Route path="/post-call-review" element={<PostCallReviewPage />} />
+      
+      {/* Post-Call Analysis */}
+      <Route path="/post-call-analysis" element={<PostCallAnalysisPage />} />
       
       {/* 404 */}
       <Route path="*" element={<NotFound />} />

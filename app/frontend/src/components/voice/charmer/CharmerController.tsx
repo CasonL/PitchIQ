@@ -2322,9 +2322,20 @@ const CharmerControllerContent = memo(({
     // End loading state
     setIsGeneratingFeedback(false);
     
-    // Navigate to demo page results step
-    console.log('🎯 Navigating to demo results...');
-    navigate('/demo?step=results');
+    // Save basic metrics for the analysis page
+    const callMetrics = {
+      duration: Math.floor((Date.now() - (startTime || Date.now())) / 1000),
+      talkRatio: metrics?.talkRatio || "0% user",
+      discovery: metrics?.discovery || "0 questions asked",
+      objections: metrics?.objections || "0 handled",
+      criticalMoments: criticalMoments.length,
+      successfulMoments: successfulMoments.length
+    };
+    localStorage.setItem('lastCallMetrics', JSON.stringify(callMetrics));
+    
+    // Navigate to post-call analysis page
+    console.log('🎯 Navigating to post-call analysis...');
+    navigate('/post-call-analysis');
     
   }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking, navigate]);
   

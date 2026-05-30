@@ -54,13 +54,23 @@ function IntegratedMarcusDemoContent() {
   }, []);
 
   const handleTryAgain = () => {
-    setStep("select");
-    setSelectedChallenge(null);
+    // If we came directly to results, start from welcome
+    if (!selectedChallenge) {
+      setStep("welcome");
+    } else {
+      setStep("select");
+      setSelectedChallenge(null);
+    }
   };
 
   const reset = () => {
-    setStep("welcome");
-    setSelectedChallenge(null);
+    // If we came directly to results (no challenge selected), go home
+    if (step === "results" && !selectedChallenge) {
+      navigate("/");
+    } else {
+      setStep("welcome");
+      setSelectedChallenge(null);
+    }
   };
 
   return (

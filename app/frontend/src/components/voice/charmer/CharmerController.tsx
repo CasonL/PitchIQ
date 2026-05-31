@@ -7,6 +7,7 @@
 import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, CircularProgress } from '@mui/material';
+import { motion } from 'framer-motion';
 import { Phone as CallIcon, PhoneOff as EndCallIcon, PhoneOff, X, Lightbulb } from 'lucide-react';
 import { MarcusVoiceProvider, useMarcusVoice } from './MarcusVoiceAdapter';
 import { CharmerPhaseManager, CharmerPhase } from './CharmerPhaseManager';

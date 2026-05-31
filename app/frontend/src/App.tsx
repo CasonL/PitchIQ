@@ -25,6 +25,9 @@ import PostCallAnalysisPage from './pages/PostCallAnalysisPage';
 import BlogPage from './pages/BlogPage';
 import BlogPostPage from './pages/BlogPostPage';
 import AdminSignups from './pages/AdminSignups';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
+import ContactPage from './pages/ContactPage';
 
 const App = () => (
   <HelmetProvider>
@@ -73,6 +76,11 @@ const App = () => (
       
       {/* Post-Call Analysis */}
       <Route path="/post-call-analysis" element={<PostCallAnalysisPage />} />
+      
+      {/* Legal */}
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/contact" element={<ContactPage />} />
       
       {/* 404 */}
       <Route path="*" element={<NotFound />} />

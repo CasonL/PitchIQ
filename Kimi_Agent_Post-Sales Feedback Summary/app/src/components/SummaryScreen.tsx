@@ -10,9 +10,11 @@ import {
   X,
 } from "lucide-react";
 import CircularGauge from "./CircularGauge";
+import { notifyParent } from "../utils/parentMessaging";
 
 interface SummaryScreenProps {
   onReview: () => void;
+  onTryAgain?: () => void;
 }
 
 const HIGHLIGHTS = [
@@ -56,7 +58,7 @@ const colorClasses = {
   neutral: "text-pitch-tertiary",
 };
 
-export default function SummaryScreen({ onReview }: SummaryScreenProps) {
+export default function SummaryScreen({ onReview, onTryAgain }: SummaryScreenProps) {
   const [graphAnimated, setGraphAnimated] = useState(false);
 
   const pathD = SENTIMENT_POINTS.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x},${p.y}`).join(" ");
@@ -228,7 +230,10 @@ export default function SummaryScreen({ onReview }: SummaryScreenProps) {
           Review Coaching Moments
           <ArrowRight className="w-4 h-4" />
         </button>
-        <button className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-pitch-tertiary hover:text-pitch-orange transition-smooth rounded-xl hover:bg-pitch-muted/50">
+        <button
+          onClick={onTryAgain || (() => notifyParent('try-again'))}
+          className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-pitch-tertiary hover:text-pitch-orange transition-smooth rounded-xl hover:bg-pitch-muted/50"
+        >
           <RotateCcw className="w-4 h-4" />
           Try Another Call
         </button>

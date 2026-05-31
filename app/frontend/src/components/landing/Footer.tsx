@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Linkedin, Twitter } from "lucide-react";
 
 export default function Footer() {
@@ -20,31 +21,41 @@ export default function Footer() {
         </div>
 
         {/* Links */}
-        <div className="flex items-center gap-6">
-          <a href="#" className="text-[#8A8A8A] hover:text-white text-sm transition-colors">
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          <a href="/#how-it-works" className="text-[#8A8A8A] hover:text-white text-sm transition-colors">
             Product
           </a>
-          <a href="#" className="text-[#8A8A8A] hover:text-white text-sm transition-colors">
+          <a href="mailto:sales@pitchiq.ca" className="text-[#8A8A8A] hover:text-white text-sm transition-colors">
             Pricing
           </a>
-          <a href="#" className="text-[#8A8A8A] hover:text-white text-sm transition-colors">
+          <Link to="/blog" className="text-[#8A8A8A] hover:text-white text-sm transition-colors">
             Blog
-          </a>
-          <a href="#" className="text-[#8A8A8A] hover:text-white text-sm transition-colors">
+          </Link>
+          <Link to="/contact" className="text-[#8A8A8A] hover:text-white text-sm transition-colors">
             Contact
-          </a>
+          </Link>
+          <Link to="/privacy" className="text-[#8A8A8A] hover:text-white text-sm transition-colors">
+            Privacy
+          </Link>
+          <Link to="/terms" className="text-[#8A8A8A] hover:text-white text-sm transition-colors">
+            Terms
+          </Link>
         </div>
 
         {/* Social */}
         <div className="flex items-center gap-4">
           <a
-            href="#"
+            href="https://linkedin.com/company/pitchiq"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-[#8A8A8A] hover:text-brand-orange transition-colors"
           >
             <Linkedin size={18} />
           </a>
           <a
-            href="#"
+            href="https://x.com/pitchiq"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-[#8A8A8A] hover:text-brand-orange transition-colors"
           >
             <Twitter size={18} />

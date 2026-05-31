@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, PhoneOff, Mic, Volume2, Play } from "lucide-react";
+import { ArrowLeft, PhoneOff, Mic, Volume2, Play, Target, Sparkles, Package, BarChart3, ArrowRight } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 
-type DemoStep = "welcome" | "select" | "call" | "results";
+type DemoStep = "welcome" | "briefing" | "select" | "call" | "results";
 
 interface Challenge {
   id: string;
@@ -124,6 +124,14 @@ export default function DemoPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<DemoStep>("welcome");
   const [selectedChallenge, setSelectedChallenge] = useState<string | null>(null);
+  const [briefingCardIndex, setBriefingCardIndex] = useState(0);
+
+  const briefingCards = [
+    { phase: "1", title: "Choose Your Product", desc: "Pick what you're selling to Marcus.", icon: Package },
+    { phase: "2", title: "Talk to Marcus", desc: "Marcus responds with live voice AI. The conversation shapes itself to your pitch.", icon: Mic },
+    { phase: "3", title: "Review Your Performance", desc: "Get targeted feedback on what worked and where you lost him.", icon: BarChart3 },
+  ];
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [options, setOptions] = useState<CallOption[]>([]);
   const [marcusSpeaking, setMarcusSpeaking] = useState(false);
@@ -176,6 +184,7 @@ export default function DemoPage() {
   const reset = () => {
     setStep("welcome");
     setSelectedChallenge(null);
+    setBriefingCardIndex(0);
     setMessages([]);
     setOptions([]);
     setMarcusSpeaking(false);
@@ -238,7 +247,7 @@ export default function DemoPage() {
                     Marcus Stindle
                   </h1>
                   <p className="text-brand-orange font-medium text-lg mb-1">CFO, VantageFlow</p>
-                  <p className="text-[#8A8A8A] text-sm">Ready to test your cold call skills?</p>
+                  <p className="text-[#8A8A8A] text-sm">Ready to practice?</p>
                 </motion.div>
               </div>
 
@@ -249,52 +258,156 @@ export default function DemoPage() {
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.4, duration: 0.5 }}
                 >
-                  <h2 className="font-display text-3xl font-bold text-[#1A1A1A] mb-3">
-                    The Marcus Challenge
-                  </h2>
-                  <p className="text-[#5A5A5A] text-lg leading-relaxed mb-8 max-w-[420px]">
-                    Master the cold call. Book the meeting. Prove your skills against a prospect who actually pushes back.
-                  </p>
-
-                  <div className="space-y-4 mb-10">
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center shrink-0">
-                        <span className="text-brand-orange font-bold text-sm">1</span>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-[#1A1A1A] text-sm">Pick a scenario</p>
-                        <p className="text-[#8A8A8A] text-sm">Choose what you're selling to Marcus.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center shrink-0">
-                        <span className="text-brand-orange font-bold text-sm">2</span>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-[#1A1A1A] text-sm">Talk it out</p>
-                        <p className="text-[#8A8A8A] text-sm">Make your pitch. Marcus responds in real time.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center shrink-0">
-                        <span className="text-brand-orange font-bold text-sm">3</span>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-[#1A1A1A] text-sm">Get coached</p>
-                        <p className="text-[#8A8A8A] text-sm">See what you did well and where you lost him.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setStep("select")}
-                    className="px-10 py-4 rounded-full bg-gradient-to-r from-brand-orange to-brand-amber text-white font-semibold shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 transition-all text-base flex items-center gap-2"
+                  {/* New Lead badge */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5, duration: 0.4 }}
+                    className="mb-4"
                   >
-                    <Play size={18} fill="white" />
-                    Start Challenge
-                  </button>
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-green-700 text-xs font-mono font-bold tracking-wider uppercase">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                      New Lead
+                    </span>
+                  </motion.div>
+
+                  <motion.h2
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6, duration: 0.4 }}
+                    className="font-display text-3xl font-bold text-[#1A1A1A] mb-4"
+                  >
+                    Marcus Stindle
+                  </motion.h2>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.75, duration: 0.4 }}
+                    className="space-y-3 mb-8"
+                  >
+                    <p className="text-[#5A5A5A] text-base leading-relaxed">
+                      Marcus left his phone number on your website 8 days ago. You are following up on his interest.
+                    </p>
+                    <p className="text-[#8A8A8A] text-sm italic">
+                      Disclaimer: Marcus is an AI buyer.
+                    </p>
+                  </motion.div>
+
+                  <motion.button
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.9, duration: 0.4 }}
+                    onClick={() => {
+                      setBriefingCardIndex(0);
+                      setStep("briefing");
+                    }}
+                    className="px-8 py-3.5 rounded-full bg-gradient-to-r from-brand-orange to-brand-amber text-white font-semibold shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 transition-all text-sm"
+                  >
+                    What to expect
+                  </motion.button>
                 </motion.div>
               </div>
+            </motion.div>
+          )}
+
+          {/* ========== BRIEFING SCREEN ========== */}
+          {step === "briefing" && (
+            <motion.div
+              key="briefing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="min-h-[calc(100vh-56px)] flex flex-col items-center justify-center px-6 py-12"
+            >
+              <motion.h2
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="font-display text-2xl font-bold text-[#1A1A1A] mb-2"
+              >
+                What to Expect
+              </motion.h2>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="text-[#8A8A8A] text-sm mb-10"
+              >
+                Swipe or tap to see what's next
+              </motion.p>
+
+              <div className="relative w-full max-w-sm h-80">
+                {/* Ghost cards behind */}
+                {briefingCardIndex < briefingCards.length - 1 && (
+                  <div className="absolute inset-0 bg-white rounded-2xl shadow-md border border-gray-100 opacity-40 scale-[0.96] translate-y-3 translate-x-1 rotate-1" />
+                )}
+                {briefingCardIndex < briefingCards.length - 2 && (
+                  <div className="absolute inset-0 bg-white rounded-2xl shadow-sm border border-gray-100 opacity-20 scale-[0.92] translate-y-6 translate-x-2 rotate-2" />
+                )}
+
+                {/* Active card */}
+                <AnimatePresence mode="wait">
+                  {briefingCardIndex < briefingCards.length && (
+                    <motion.div
+                      key={briefingCardIndex}
+                      initial={{ opacity: 0, scale: 0.85, y: 40 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, x: 250, rotateZ: 12, transition: { duration: 0.3, ease: "easeOut" } }}
+                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                      drag="x"
+                      dragConstraints={{ left: 0, right: 0 }}
+                      dragElastic={0.8}
+                      onDragEnd={(_, info) => {
+                        if (Math.abs(info.offset.x) > 80 || Math.abs(info.velocity.x) > 500) {
+                          setBriefingCardIndex((prev) => prev + 1);
+                        }
+                      }}
+                      onClick={() => setBriefingCardIndex((prev) => prev + 1)}
+                      className="absolute inset-0 bg-white rounded-2xl shadow-xl border border-gray-100 p-8 flex flex-col items-center justify-center text-center cursor-pointer z-10"
+                    >
+                      {(() => {
+                        const card = briefingCards[briefingCardIndex];
+                        const CardIcon = card.icon;
+                        return (
+                          <>
+                            <div className="w-14 h-14 rounded-2xl bg-brand-orange/10 flex items-center justify-center mb-4">
+                              <CardIcon size={28} className="text-brand-orange" />
+                            </div>
+                            <span className="text-xs font-mono font-bold text-brand-orange tracking-wider mb-2">
+                              PHASE {card.phase}
+                            </span>
+                            <h3 className="font-display text-xl font-bold text-[#1A1A1A] mb-2">
+                              {card.title}
+                            </h3>
+                            <p className="text-[#5A5A5A] text-sm leading-relaxed">
+                              {card.desc}
+                            </p>
+                            <div className="mt-6 text-[#8A8A8A] text-xs flex items-center gap-1">
+                              <span>Tap or swipe</span>
+                              <ArrowRight size={12} />
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {briefingCardIndex >= briefingCards.length && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2 }}
+                  onClick={() => setStep("select")}
+                  className="mt-10 px-10 py-4 rounded-full bg-gradient-to-r from-brand-orange to-brand-amber text-white font-semibold shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 transition-all text-base flex items-center gap-2"
+                >
+                  <Play size={18} fill="white" />
+                  Start Challenge
+                </motion.button>
+              )}
             </motion.div>
           )}
 
@@ -362,7 +475,10 @@ export default function DemoPage() {
 
               <div className="flex items-center justify-between">
                 <button
-                  onClick={() => setStep("welcome")}
+                  onClick={() => {
+                    setBriefingCardIndex(0);
+                    setStep("welcome");
+                  }}
                   className="text-[#8A8A8A] hover:text-[#5A5A5A] text-sm font-medium transition-colors"
                 >
                   Back

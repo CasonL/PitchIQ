@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import SummaryScreen from "../components/SummaryScreen";
 import TimelineScreen from "../components/TimelineScreen";
 import ReviewEndScreen from "../components/ReviewEndScreen";
+import { notifyParent } from "../utils/parentMessaging";
 
 export type Screen = "summary" | "timeline" | "completion";
 
@@ -191,11 +192,17 @@ export default function Home() {
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
           >
             {screen === "summary" ? (
-              <SummaryScreen onReview={() => setScreen("timeline")} />
+              <SummaryScreen
+                onReview={() => setScreen("timeline")}
+                onTryAgain={() => notifyParent('try-again')}
+              />
             ) : screen === "timeline" ? (
               <TimelineScreen onComplete={() => setScreen("completion")} />
             ) : (
-              <ReviewEndScreen onBack={() => setScreen("summary")} />
+              <ReviewEndScreen
+                onBack={() => setScreen("summary")}
+                onTryAgain={() => notifyParent('try-again')}
+              />
             )}
           </motion.div>
         </AnimatePresence>

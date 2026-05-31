@@ -2360,9 +2360,9 @@ const CharmerControllerContent = memo(({
     };
     localStorage.setItem('lastCallMetrics', JSON.stringify(callMetrics));
     
-    // Navigate to post-call analysis page
-    console.log('🎯 Navigating to post-call analysis...');
-    navigate('/post-call-analysis');
+    // Navigate directly to post-call review (skip basic analysis mid-step)
+    console.log('🎯 Navigating directly to post-call review...');
+    navigate('/post-call-review');
     
   }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking, navigate, callStartTimeRef]);
   

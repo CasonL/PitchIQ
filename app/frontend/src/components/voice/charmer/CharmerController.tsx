@@ -2067,6 +2067,13 @@ const CharmerControllerContent = memo(({
   const handleEndCall = useCallback(async () => {
     console.log('📵 Ending Marcus call - terminating WebSocket immediately');
     
+    // CRITICAL: Stop phone ring audio IMMEDIATELY if still ringing
+    if (phoneRingAudioRef.current) {
+      phoneRingAudioRef.current.pause();
+      phoneRingAudioRef.current.currentTime = 0;
+      console.log('🔇 Stopped phone ring audio');
+    }
+    
     // CRITICAL: Stop Marcus from speaking IMMEDIATELY
     if (typeof stopSpeaking === 'function') {
       await stopSpeaking();

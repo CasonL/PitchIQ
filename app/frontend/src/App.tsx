@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Routes, Route } from "react-router-dom";
 import { HelmetProvider } from 'react-helmet-async';
+import { useEffect } from 'react';
 import ScrollToTop from "./utils/ScrollToTop";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
@@ -29,7 +30,27 @@ import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import ContactPage from './pages/ContactPage';
 
-const App = () => (
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://pitchiq-8enf.onrender.com';
+
+const App = () => {
+  useEffect(() => {
+    const wakeUpBackend = async () => {
+      try {
+        console.log('🌅 Waking up backend on app load...');
+        await fetch(`${API_BASE_URL}/api/health`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(5000)
+        });
+        console.log('✅ Backend is awake');
+      } catch (error) {
+        console.log('⚠️ Backend wake-up call failed (may already be awake):', error);
+      }
+    };
+
+    wakeUpBackend();
+  }, []);
+
+  return (
   <HelmetProvider>
     <TooltipProvider>
       <ScrollToTop />
@@ -87,6 +108,7 @@ const App = () => (
     </Routes>
     </TooltipProvider>
   </HelmetProvider>
-);
+  );
+};
 
 export default App;

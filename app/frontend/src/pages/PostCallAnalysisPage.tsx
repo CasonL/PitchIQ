@@ -203,7 +203,7 @@ const PostCallAnalysisPage = () => {
               {/* Demo Feedback Button */}
               <div className="text-center">
                 <button
-                  onClick={() => navigate("/post-call-review")}
+                  onClick={() => navigate("/post-call-review/")}
                   className="px-8 py-3.5 rounded-full bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all text-sm"
                 >
                   Demo Feedback

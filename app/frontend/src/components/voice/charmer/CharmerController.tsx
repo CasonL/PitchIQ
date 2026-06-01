@@ -2390,7 +2390,7 @@ const CharmerControllerContent = memo(({
     
     // Navigate directly to post-call review (skip basic analysis mid-step)
     console.log('🎯 Navigating directly to post-call review...');
-    navigate('/post-call-review');
+    navigate('/post-call-review/');
     
   }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking, navigate, callStartTimeRef]);
   

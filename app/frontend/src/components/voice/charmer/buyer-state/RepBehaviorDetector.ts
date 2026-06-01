@@ -48,7 +48,16 @@ export type RepBehavior =
   
   // Warm-lead specific
   | 'validated_status_quo'          // Acknowledges current solution is working
-  | 'asked_too_large_commitment'    // Asks for demo/meeting too soon;
+  | 'asked_too_large_commitment'    // Asks for demo/meeting too soon
+  
+  // Warm-lead psychology (research-backed triggers)
+  | 'violates_autonomy'             // Pushes for commitment without earning it (reactance theory)
+  | 'creates_cognitive_overload'    // Too much info at once (cognitive load theory)
+  | 'triggers_status_quo_shield'    // Attacks current solution (status quo bias)
+  | 'demonstrates_relevance'        // Shows understanding of buyer's world (source credibility)
+  | 'reduces_perceived_risk'        // Makes next step feel safe (loss aversion)
+  | 'explores_ambivalence'          // Surfaces both sides of objection (motivational interviewing)
+  | 'enables_self_persuasion'       // Buyer articulates value themselves (commitment consistency);
 
 export interface RepBehaviorDetectorContext {
   userInput: string;
@@ -63,6 +72,11 @@ export interface RepBehaviorDetectorContext {
   marcusLastMessage?: string;
   turnNumber: number;
   isWarmLead?: boolean;
+  buyerState?: {
+    statusQuoShieldActive?: boolean;
+    autonomyDefense?: number;
+    cognitiveLoad?: number;
+  };
 }
 
 export class RepBehaviorDetector {

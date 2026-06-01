@@ -40,6 +40,13 @@ interface StateChange {
   // Conversation changes
   callFatigue?: number;
   clarity?: number;
+  
+  // Warm-lead psychology (research-backed)
+  autonomyDefense?: number;        // Reactance theory
+  statusQuoShieldActive?: boolean; // Status quo bias
+  cognitiveLoad?: number;          // Cognitive load theory
+  relevanceConfidence?: number;    // Source credibility
+  riskPerception?: number;         // Loss aversion
 }
 
 export class BuyerStateTransitionEngine {
@@ -279,6 +286,55 @@ export class BuyerStateTransitionEngine {
         defensiveness: 10,
         perceivedRisk: 8,
         patience: -5
+      },
+      
+      // Warm-lead psychology (research-backed)
+      violates_autonomy: {
+        autonomyDefense: 15,        // Reactance theory: pushes back when cornered
+        defensiveness: 12,
+        trust: -8,
+        openness: -10,
+        patience: -8
+      },
+      creates_cognitive_overload: {
+        cognitiveLoad: 20,          // Cognitive load theory: too much info = shutdown
+        clarity: -15,
+        callFatigue: 12,
+        patience: -10,
+        defensiveness: 8
+      },
+      triggers_status_quo_shield: {
+        statusQuoShieldActive: true, // Status quo bias: protects current solution
+        defensiveness: 15,
+        trust: -10,
+        openness: -12,
+        perceivedRisk: 10
+      },
+      demonstrates_relevance: {
+        relevanceConfidence: 15,     // Source credibility: rep understands my world
+        trust: 10,
+        defensiveness: -10,
+        curiosity: 10,
+        perceivedSolutionFit: 8
+      },
+      reduces_perceived_risk: {
+        riskPerception: -12,         // Loss aversion: makes change feel safer
+        defensiveness: -8,
+        openness: 8,
+        perceivedRisk: -10,
+        willingnessToStretchBudget: 5
+      },
+      explores_ambivalence: {
+        defensiveness: -10,          // Motivational interviewing: surfaces both sides
+        trust: 8,
+        openness: 10,
+        curiosity: 5
+      },
+      enables_self_persuasion: {
+        perceivedProblemSeverity: 12, // Commitment consistency: buyer owns the insight
+        perceivedUrgency: 8,
+        trust: 10,
+        confidenceInNeed: 10
       }
     };
 
@@ -348,6 +404,23 @@ export class BuyerStateTransitionEngine {
     }
     if (change.clarity !== undefined) {
       next.conversation.clarity += change.clarity;
+    }
+    
+    // Apply warm-lead psychology changes
+    if (change.autonomyDefense !== undefined) {
+      next.conversation.autonomyDefense += change.autonomyDefense;
+    }
+    if (change.statusQuoShieldActive !== undefined) {
+      next.conversation.statusQuoShieldActive = change.statusQuoShieldActive;
+    }
+    if (change.cognitiveLoad !== undefined) {
+      next.conversation.cognitiveLoad += change.cognitiveLoad;
+    }
+    if (change.relevanceConfidence !== undefined) {
+      next.conversation.relevanceConfidence += change.relevanceConfidence;
+    }
+    if (change.riskPerception !== undefined) {
+      next.conversation.riskPerception += change.riskPerception;
     }
 
     return next;
@@ -432,7 +505,11 @@ export class BuyerStateTransitionEngine {
       conversation: {
         ...state.conversation,
         callFatigue: clamp(state.conversation.callFatigue),
-        clarity: clamp(state.conversation.clarity)
+        clarity: clamp(state.conversation.clarity),
+        autonomyDefense: clamp(state.conversation.autonomyDefense),
+        cognitiveLoad: clamp(state.conversation.cognitiveLoad),
+        relevanceConfidence: clamp(state.conversation.relevanceConfidence),
+        riskPerception: clamp(state.conversation.riskPerception)
       },
       process: {
         decisionAuthority: clamp(state.process.decisionAuthority),

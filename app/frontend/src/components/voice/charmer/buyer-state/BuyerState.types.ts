@@ -86,6 +86,13 @@ export interface ConversationState {
   turnCount: number;             // Number of turns in the conversation
   dominantBlocker?: ExitDriver;  // What's holding Marcus back most
   responseMode?: BuyerResponseMode; // How Marcus should respond
+  
+  // Warm-lead psychology (research-backed buyer behavior)
+  autonomyDefense: number;       // 0-100: How much Marcus feels pushed/cornered (reactance theory)
+  statusQuoShieldActive: boolean; // Is Marcus protecting current solution? (status quo bias)
+  cognitiveLoad: number;         // 0-100: Information overload (cognitive load theory)
+  relevanceConfidence: number;   // 0-100: Does rep understand Marcus's world? (source credibility)
+  riskPerception: number;        // 0-100: How risky does change feel? (loss aversion)
 }
 
 // ============================================================================

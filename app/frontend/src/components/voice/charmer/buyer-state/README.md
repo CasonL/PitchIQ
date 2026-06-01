@@ -398,14 +398,68 @@ class StrategyLayer {
 
 ```
 buyer-state/
-├── BuyerState.types.ts           # Type definitions
-├── RepBehaviorDetector.ts        # Behavior detection
-├── BuyerStateTransitionEngine.ts # State updates
-├── BuyerDecisionPolicy.ts        # Exit & response logic
-├── BuyerPromptComposer.ts        # Prompt formatting
-├── index.ts                      # Module exports
-└── README.md                     # This file
+├── BuyerState.types.ts              # Type definitions
+├── RepBehaviorDetector.ts           # Behavior detection (hybrid: heuristics + LLM)
+├── LLMBehaviorClassifier.types.ts   # LLM classification types
+├── LLMBehaviorClassifier.ts         # LLM-assisted nuanced detection
+├── BuyerStateTransitionEngine.ts    # State updates
+├── BuyerDecisionPolicy.ts           # Exit & response logic
+├── BuyerPromptComposer.ts           # Prompt formatting
+├── index.ts                         # Module exports
+└── README.md                        # This file
 ```
+
+---
+
+## Phase 1: LLM Integration (Implemented)
+
+### **Hybrid Behavior Detection**
+
+**Philosophy:** LLMs judge meaning, code maintains state.
+
+**Targeted LLM Usage - Only 4 Behaviors:**
+
+1. **`connects_to_specific_problem`** - Did rep show understanding or just parrot?
+2. **`validates_concern`** - Genuine validation or lip service?
+3. **`made_unearned_roi_claim`** - Was ROI claim earned or premature?
+4. **`pitched_prematurely`** - Was pitch appropriately timed?
+
+**Usage:**
+
+```typescript
+// Synchronous (heuristics only)
+const behaviors = RepBehaviorDetector.detect(context);
+
+// Async (hybrid: heuristics + LLM for nuance)
+const behaviors = await RepBehaviorDetector.detectHybrid(context);
+```
+
+**How It Works:**
+
+1. **Fast heuristics** for obvious patterns (hyperbolic claims, generic questions)
+2. **Identify LLM tasks** based on context triggers
+3. **Call LLM** only when needed (targeted, not wasteful)
+4. **Return structured evidence** for feedback generation
+
+**Example:**
+
+```typescript
+// Turn 5: Marcus says "We don't have budget for this"
+// Rep says "That's fair, but let me show you the ROI..."
+
+// Heuristic detects: None (no obvious pattern)
+// LLM task triggered: validate_concern_quality
+// LLM detects: NOT validates_concern (lip service - said "fair" then dismissed)
+// Evidence: "That's fair, but let me show you..."
+// Reason: "Rep acknowledged then immediately pivoted to pitch"
+```
+
+**Cost Control:**
+
+- LLM only called when specific triggers detected
+- Average 1-2 LLM calls per turn (not 10+)
+- Each call is small, focused prompt
+- Mock mode available for development
 
 ---
 

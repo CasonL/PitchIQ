@@ -2,14 +2,18 @@
  * RepBehaviorDetector.ts
  * 
  * Detects what the rep did in their utterance.
- * Uses heuristics, patterns, and existing call signals.
+ * Uses hybrid approach: heuristics for obvious patterns, LLM for nuance.
  * 
  * Philosophy:
  * - Simple heuristics for obvious patterns
+ * - LLM for 4 nuanced behaviors that require semantic understanding
  * - Use existing repQualitySignals when available
  * - Don't expect regex alone to understand sales nuance
  * - Return multiple behaviors per turn (rep can do several things)
  */
+
+import { LLMBehaviorClassifier } from './LLMBehaviorClassifier';
+import { LLMClassificationTask } from './LLMBehaviorClassifier.types';
 
 export type RepBehavior =
   // Discovery behaviors
@@ -63,12 +67,107 @@ export interface RepBehaviorDetectorContext {
 
 export class RepBehaviorDetector {
   /**
-   * Detect all behaviors in the rep's utterance
+   * Detect all behaviors in the rep's utterance (synchronous - heuristics only)
    */
   static detect(context: RepBehaviorDetectorContext): RepBehavior[] {
     const behaviors: RepBehavior[] = [];
     const { userInput, repQualitySignals, marcusLastMessage, isWarmLead } = context;
     const lower = userInput.toLowerCase();
+
+    // Run heuristic detection
+    return this.detectWithHeuristics(context, behaviors, lower);
+  }
+
+  /**
+   * Detect all behaviors with hybrid approach (heuristics + LLM)
+   * Use this for production - it's async and uses LLM for nuanced detection
+   */
+  static async detectHybrid(context: RepBehaviorDetectorContext): Promise<RepBehavior[]> {
+    const behaviors: RepBehavior[] = [];
+    const lower = context.userInput.toLowerCase();
+
+    // 1. Fast heuristics for obvious patterns
+    const heuristicBehaviors = this.detectWithHeuristics(context, [], lower);
+    behaviors.push(...heuristicBehaviors);
+
+    // 2. Identify which LLM tasks are needed
+    const llmTasks = this.identifyLLMTasks(context, lower);
+
+    // 3. If LLM tasks needed, classify with LLM
+    if (llmTasks.length > 0) {
+      const llmResult = await LLMBehaviorClassifier.classify({
+        repUtterance: context.userInput,
+        buyerLastUtterance: context.marcusLastMessage,
+        recentHistory: context.conversationHistory?.slice(-6).map(msg => ({
+          role: msg.role === 'assistant' ? 'buyer' as const : 'rep' as const,
+          content: msg.content
+        })),
+        turnNumber: context.turnNumber,
+        tasks: llmTasks
+      });
+
+      // Add LLM-detected behaviors
+      const llmBehaviors = llmResult.behaviors.map(b => b.behavior);
+      behaviors.push(...llmBehaviors);
+
+      console.log(`🤖 [LLM] Detected ${llmBehaviors.length} nuanced behaviors in ${llmResult.processingTimeMs}ms`);
+    }
+
+    return behaviors;
+  }
+
+  /**
+   * Identify which LLM tasks are needed based on context
+   * Targeted usage - only call LLM when necessary
+   */
+  private static identifyLLMTasks(context: RepBehaviorDetectorContext, lower: string): LLMClassificationTask[] {
+    const tasks: LLMClassificationTask[] = [];
+
+    // Task 1: Validate concern quality (if buyer expressed concern)
+    if (context.marcusLastMessage && 
+        /concern|worry|issue|problem|budget|tight|expensive|cost|afford/i.test(context.marcusLastMessage)) {
+      tasks.push('validate_concern_quality');
+    }
+
+    // Task 2: Earned ROI claim (if rep mentions savings/value)
+    if (/save|reduce|increase|improve|\d+%|roi|return/i.test(lower)) {
+      tasks.push('earned_roi_claim');
+    }
+
+    // Task 3: Specific problem connection (if rep references buyer context)
+    if (context.marcusLastMessage && this.repReferencesBuyerContext(lower, context.marcusLastMessage)) {
+      tasks.push('specific_problem_connection');
+    }
+
+    // Task 4: Pitch timing (if rep mentions product/solution early)
+    if ((/we |our |this |platform|solution|help|offer/i.test(lower)) && context.turnNumber <= 5) {
+      tasks.push('pitch_timing');
+    }
+
+    return tasks;
+  }
+
+  /**
+   * Check if rep is referencing buyer's context
+   */
+  private static repReferencesBuyerContext(lower: string, marcusLastMessage: string): boolean {
+    // Look for reflection markers or shared keywords
+    const hasReflectionMarker = /so |sounds like|you mentioned|you said|you brought up/i.test(lower);
+    const marcusWords = marcusLastMessage.toLowerCase().match(/\b\w{5,}\b/g) || [];
+    const hasSharedWords = marcusWords.some(word => lower.includes(word));
+    
+    return hasReflectionMarker || hasSharedWords;
+  }
+
+  /**
+   * Heuristic-based detection for obvious patterns
+   */
+  private static detectWithHeuristics(
+    context: RepBehaviorDetectorContext,
+    behaviors: RepBehavior[],
+    lower: string
+  ): RepBehavior[] {
+    const { userInput, repQualitySignals, marcusLastMessage, isWarmLead } = context;
 
     // Discovery behaviors
     if (this.isOpenEndedQuestion(userInput)) {
@@ -155,7 +254,7 @@ export class RepBehaviorDetector {
   }
 
   // ============================================================================
-  // DISCOVERY DETECTION
+  // DISCOVERY DETECTION (HEURISTICS)
   // ============================================================================
 
   private static isOpenEndedQuestion(input: string): boolean {

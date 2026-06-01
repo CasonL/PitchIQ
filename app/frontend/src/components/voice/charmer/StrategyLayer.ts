@@ -226,6 +226,10 @@ export class StrategyLayer {
     trust: number;        // Does he trust them? (trustLevel)
     willingness: number;  // Is he willing to engage? (openness)
   }> = [];
+  
+  // Track repeated unanswered questions
+  private lastMarcusQuestion: string | null = null;
+  private sameQuestionCount: number = 0;
   private consecutiveInterestDrops: number = 0;
   // 🎯 CANONICAL EVENTS: Single source of truth
   private eventHistory: CanonicalTurnEvent[] = [];
@@ -246,6 +250,12 @@ export class StrategyLayer {
     if (hasQuestion) {
       this.questionsAsked++;
     }
+    
+    // Track if Marcus is asking the same question repeatedly
+    const marcusLastUtterance = conversationHistory.length > 0 
+      ? conversationHistory[conversationHistory.length - 1].content 
+      : '';
+    this.trackRepeatedQuestion(marcusLastUtterance, userInput);
 
     // Use trait-based resistance if available, otherwise fallback to default
     const baseResistance = marcusTraits 
@@ -958,6 +968,122 @@ export class StrategyLayer {
   }
 
   /**
+   * Track if Marcus is asking the same question repeatedly without getting an answer
+   */
+  private trackRepeatedQuestion(marcusLastUtterance: string, userInput: string): void {
+    // Extract question from Marcus's last utterance
+    const marcusAskedQuestion = marcusLastUtterance.includes('?');
+    if (!marcusAskedQuestion) {
+      // No question asked, reset counter
+      this.lastMarcusQuestion = null;
+      this.sameQuestionCount = 0;
+      return;
+    }
+    
+    // Extract the core question theme from Marcus's utterance
+    const questionTheme = this.extractQuestionTheme(marcusLastUtterance);
+    
+    // Check if this is the same question as last time
+    if (this.lastMarcusQuestion === questionTheme) {
+      // Check if user actually answered the question
+      const userAnswered = this.didUserAnswerQuestion(questionTheme, userInput);
+      
+      if (!userAnswered) {
+        this.sameQuestionCount++;
+        console.log(`❓ [Strategy] Marcus asked "${questionTheme}" again (${this.sameQuestionCount} times) - user hasn't answered clearly`);
+      } else {
+        // User answered, reset counter
+        this.sameQuestionCount = 0;
+        console.log(`✅ [Strategy] User answered "${questionTheme}" - resetting question counter`);
+      }
+    } else {
+      // Different question, track it
+      this.lastMarcusQuestion = questionTheme;
+      this.sameQuestionCount = 1;
+    }
+  }
+  
+  /**
+   * Extract the core theme of Marcus's question
+   */
+  private extractQuestionTheme(utterance: string): string {
+    const lower = utterance.toLowerCase();
+    
+    // Differentiation questions
+    if (/what (makes|sets) (this|you|your|pitchiq) (different|apart|unique)|how('s| is) (this|yours) (different|better)|what('s| is) the difference/i.test(lower)) {
+      return 'differentiation';
+    }
+    
+    // Value/benefit questions
+    if (/what('s| is) (the value|in it for|the benefit)|why should (i|we)|what do (i|we) get/i.test(lower)) {
+      return 'value';
+    }
+    
+    // Results/proof questions
+    if (/what (results|outcomes|success)|show me|prove|evidence|case stud/i.test(lower)) {
+      return 'proof';
+    }
+    
+    // How it works questions
+    if (/how (does|do) (this|it|you)|what exactly (is|does)|explain how/i.test(lower)) {
+      return 'how_it_works';
+    }
+    
+    // Fit/relevance questions
+    if (/how (does|would) (this|it) (fit|apply|work for)|is this (relevant|applicable|right for)/i.test(lower)) {
+      return 'fit';
+    }
+    
+    // Generic - return first question word
+    const questionMatch = lower.match(/\b(what|why|how|when|who|where)\b/);
+    return questionMatch ? questionMatch[1] : 'unknown';
+  }
+  
+  /**
+   * Check if user's response actually answered Marcus's question
+   */
+  private didUserAnswerQuestion(questionTheme: string, userInput: string): boolean {
+    const lower = userInput.toLowerCase();
+    
+    // If user is asking questions back instead of answering, that's a dodge
+    if (/\?|let me ask|can i ask|what about you|tell me about|curious about/i.test(userInput)) {
+      return false;
+    }
+    
+    // If user is giving very short non-answers
+    if (userInput.split(/\s+/).length < 10) {
+      return false;
+    }
+    
+    // Check for theme-specific answer patterns
+    switch (questionTheme) {
+      case 'differentiation':
+        // Should mention competitors or comparison
+        return /unlike|different from|compared to|other|competitor|versus|instead of/i.test(lower);
+      
+      case 'value':
+        // Should mention specific benefits or outcomes
+        return /help|improve|increase|reduce|save|achieve|benefit|result/i.test(lower);
+      
+      case 'proof':
+        // Should mention specific results or examples
+        return /\d+%|\d+ (companies|clients|customers)|case|example|result|outcome/i.test(lower);
+      
+      case 'how_it_works':
+        // Should explain process or mechanism
+        return /first|then|step|process|system|works by|through/i.test(lower);
+      
+      case 'fit':
+        // Should explain relevance to their situation
+        return /your|you|team|business|situation|case|specific/i.test(lower);
+      
+      default:
+        // Generic check - if they're talking substantively, assume answered
+        return userInput.split(/\s+/).length >= 15;
+    }
+  }
+
+  /**
    * Detect if an objection has been repeated 3+ times and should escalate
    */
   private detectObjectionEscalation(context: StrategyContext): {
@@ -1067,6 +1193,16 @@ export class StrategyLayer {
     // CRITICAL: Don't exit if Marcus doesn't understand the product yet (clarity < 5)
     // He needs to know what you're selling before deciding it's not a fit
     const understandsProduct = this.buyerState.clarity >= 5;
+    
+    // NEW: Exit if Marcus asked the same question 3+ times without getting an answer
+    // This is especially important for time-sensitive prospects
+    if (this.sameQuestionCount >= 3) {
+      console.log(`🚪 [Strategy] Exit triggered: Same question asked ${this.sameQuestionCount} times without clear answer - patience exhausted`);
+      return {
+        should: true,
+        reason: 'Asked same question multiple times without getting a straight answer'
+      };
+    }
     
     // Exit if: high turns + high resistance + low trust + understands product
     if (understandsProduct && turnContext.totalTurns > 15 && resistance > 7 && this.buyerState.trustLevel < 4) {

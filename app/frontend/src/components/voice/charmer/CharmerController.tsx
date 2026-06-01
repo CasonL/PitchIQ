@@ -474,7 +474,7 @@ const CharmerControllerContent = memo(({
           phasePromptContext: phaseManagerRef.current.getPhasePromptContext(),
           conversationHistory: conversationHistory,
           questionCategory: classification.category
-        }, undefined, undefined, undefined);
+        });
         
         // Guard: check if call is still active after async LLM generation
         if (activeCallIdRef.current !== callIdAtStart) {
@@ -1125,7 +1125,7 @@ const CharmerControllerContent = memo(({
             conversationHistory: conversationHistory,
             scenario: selectedScenario,
             questionCategory: classification.category
-          }, undefined, undefined, undefined, callDetailsRef.current?.marcusPromptBlock, buyerDelta?.guidanceText, handleFirstSentence);
+          }, undefined, callDetailsRef.current?.marcusPromptBlock, buyerDelta?.guidanceText, handleFirstSentence);
           
           // Guard: check if call is still active after async LLM generation
           if (activeCallIdRef.current !== callIdAtStart) {
@@ -1173,7 +1173,7 @@ const CharmerControllerContent = memo(({
             decisionTimeframe: selectedScenario.traits.decisionTimeframe,
             primaryConcern: selectedScenario.traits.primaryConcern
           } : undefined
-        }, undefined, undefined, undefined, callDetailsRef.current?.marcusPromptBlock, buyerDelta?.guidanceText, handleFirstSentence);
+        }, undefined, callDetailsRef.current?.marcusPromptBlock, buyerDelta?.guidanceText, handleFirstSentence);
         
         // Guard: check if call is still active after async LLM generation
         if (activeCallIdRef.current !== callIdAtStart) {
@@ -1616,7 +1616,7 @@ const CharmerControllerContent = memo(({
           conversationHistory: conversationHistory,
           scenario: selectedScenario,
           questionCategory: speculativeClassification.category
-        }, undefined, undefined, undefined, undefined).catch(err => {
+        }).catch(err => {
           console.log('⚠️ Speculative generation error:', err);
           speculativeResponseRef.current = null;
           throw err;
@@ -1968,6 +1968,33 @@ const CharmerControllerContent = memo(({
     const startTime = Date.now();
     const ringSessionId = sessionId;
     console.log('📞 Phone ringing for 10 seconds...', new Date().toISOString());
+    
+    // PRE-WARM OPENAI CACHE: Send dummy request during phone ring to cache system prompt
+    // This eliminates the 5-10s delay on Turn 2 by pre-caching the static prompt
+    if (aiServiceRef.current && scenarioWithTraits) {
+      const phaseManager = phaseManagerRef.current;
+      aiServiceRef.current.prewarmCache({
+        phase: phaseManager.getCurrentPhase(),
+        conversationContext: phaseManager.getContext(),
+        userInput: '',
+        phasePromptContext: phaseManager.getPhasePromptContext(),
+        conversationHistory: [],
+        scenario: scenarioWithTraits,
+        marcusTraits: scenarioWithTraits.traits ? {
+          painLevel: scenarioWithTraits.traits.painLevel,
+          urgency: scenarioWithTraits.traits.urgency,
+          budget: scenarioWithTraits.traits.budget,
+          openness: scenarioWithTraits.traits.openness,
+          painPoints: scenarioWithTraits.traits.painPoints,
+          currentSolution: scenarioWithTraits.traits.currentSolution,
+          satisfactionLevel: scenarioWithTraits.traits.satisfactionLevel,
+          decisionTimeframe: scenarioWithTraits.traits.decisionTimeframe,
+          primaryConcern: scenarioWithTraits.traits.primaryConcern
+        } : undefined
+      }).catch(err => {
+        console.log('⚠️ Cache pre-warm failed (non-critical):', err);
+      });
+    }
     
     ringTimeoutRef.current = setTimeout(async () => {
       // Guard: check if this ring timeout is still for the active call

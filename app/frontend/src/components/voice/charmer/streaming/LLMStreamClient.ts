@@ -24,7 +24,8 @@ export class LLMStreamClient {
     systemPrompt: string,
     conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
     userPrompt: string,
-    onFirstSentence?: SentenceStreamCallback
+    onFirstSentence?: SentenceStreamCallback,
+    maxTokens: number = 350
   ): Promise<string> {
     const startTime = performance.now();
     
@@ -47,7 +48,7 @@ export class LLMStreamClient {
             { role: 'user', content: userPrompt }
           ],
           temperature: 0.75,
-          max_tokens: 350,
+          max_tokens: maxTokens,
           stream: true
           // NOTE: OpenAI models use automatic prompt caching (1024+ tokens)
         }),

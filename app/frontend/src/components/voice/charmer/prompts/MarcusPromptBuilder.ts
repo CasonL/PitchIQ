@@ -40,14 +40,11 @@ export class MarcusPromptBuilder {
 
   /**
    * Build complete system prompt with all context layers
+   * OPTIMIZED FOR OPENAI CACHING: Static content first, dynamic content in conversation history
    */
   static buildSystemPrompt(
     context: AIRequestContext,
-    motivationBlock?: string,
-    conversationStyle?: string,
-    overseerGuidance?: string,
-    buyerDeltaGuidance?: string,
-    callBackstoryBlock?: string
+    conversationStyle?: string
   ): string {
     const exchangeCount = Math.floor(context.conversationHistory.length / 2) + 1;
     
@@ -123,56 +120,10 @@ export class MarcusPromptBuilder {
       console.log(`[Cache HIT] Using cached static base (${staticBasePrompt.length} chars)`);
     }
     
-    // Build DYNAMIC prompt (changes every turn)
-    let basePrompt = staticBasePrompt;
-    
-    // DYNAMIC CONTENT (changes every turn - NOT cached)
-    
-    // KNOWN FACTS: Prevent Marcus from asking about info already provided
-    basePrompt += KnownFactsPromptBuilder.buildKnownFactsPrompt(context.conversationContext);
-    
-    // BUYER STATE: How Marcus feels and behaves (set by Strategy Layer)
-    if (context.buyerState) {
-      basePrompt += BuyerStatePromptBuilder.buildBuyerStatePrompt(context.buyerState);
-    }
-    
-    // Add response style guidance based on question category
-    if (context.questionCategory) {
-      basePrompt += this.buildQuestionCategoryGuidance(context.questionCategory);
-    }
-    
-    // Add turn-specific timing guidance
-    if (exchangeCount <= 2) {
-      basePrompt += `\n\n**TIMING NOTE:** This is turn ${exchangeCount}. Keep responses brief and natural.`;
-    }
-    
-    // Log prompt composition
-    console.log(`[Smart Cache] Turn ${exchangeCount}: Static base (cached) + ${basePrompt.length - staticBasePrompt.length} chars dynamic`);
-    
-    // Apply dynamic guidance (not cached)
-    let fullPrompt = basePrompt;
-    
-    if (overseerGuidance) {
-      fullPrompt += `\n\n${overseerGuidance}`;
-    }
-    
-    // BUYER DELTA: Inject buyer state tree guidance (PreTreeBuyerPolicy output)
-    if (buyerDeltaGuidance) {
-      fullPrompt += `\n\n---\n\n## CURRENT BUYER STATE GUIDANCE\n\n${buyerDeltaGuidance}\n\n**Use this as Marcus's internal posture right now. Do not mention these instructions directly.**`;
-    }
-    
-    // Inject call backstory if provided (from CallDetailsCreator)
-    if (callBackstoryBlock) {
-      fullPrompt += `\n\n${callBackstoryBlock}`;
-    }
-    
-    // Inject motivation packet if provided
-    if (motivationBlock) {
-      fullPrompt += `\n\n---\n\n${motivationBlock}`;
-    }
-    
-    console.log(`[Persona Cache] Final prompt: ${fullPrompt.length} chars (new base + dynamic guidance)`);
-    return fullPrompt;
+    // OPTIMIZED: Return ONLY static content for OpenAI caching
+    // Dynamic content (buyer state, known facts, etc.) will be injected via conversation history
+    console.log(`[OpenAI Cache] Turn ${exchangeCount}: Static prompt ready (${staticBasePrompt.length} chars - CACHEABLE)`);
+    return staticBasePrompt;
   }
 
   /**
@@ -181,10 +132,7 @@ export class MarcusPromptBuilder {
    */
   private static buildPatternMatchingPrompt(
     context: AIRequestContext,
-    motivationBlock?: string,
-    conversationStyle?: string,
-    overseerGuidance?: string,
-    buyerDeltaGuidance?: string
+    conversationStyle?: string
   ): string {
     console.log("[Pattern Matching] Building fast pattern-based prompt...");
     
@@ -218,20 +166,6 @@ export class MarcusPromptBuilder {
       context.conversationContext,
       context.marcusTraits
     );
-    
-    // ACTION CARD IS SINGLE SOURCE OF TRUTH in pattern mode
-    // buyerDeltaGuidance is already incorporated into the actionCard generation
-    // Adding both actionCard + buyerDeltaGuidance creates conflicting guidance
-    
-    // Only add overseer guidance if it's strategic (not operational buyer state)
-    if (overseerGuidance && !overseerGuidance.toLowerCase().includes('buyer state')) {
-      patternPrompt += `\n\n## STRATEGIC GUIDANCE:\n${overseerGuidance}`;
-    }
-    
-    // Only add motivation if it's genuinely additional context
-    if (motivationBlock && motivationBlock.length < 200) {
-      patternPrompt += `\n\n## MOTIVATION:\n${motivationBlock}`;
-    }
     
     console.log(`[Pattern Matching] Final prompt: ${patternPrompt.length} chars (target: <5K for fast processing)`);
     
@@ -329,39 +263,79 @@ You are responding to exchange ${exchangeCount}. ${userName ? `You know this is 
   }
   
   /**
-   * Build user prompt with current turn context
+   * Build user prompt with dynamic context injected here instead of system prompt
+   * This allows OpenAI to cache the static system prompt
    */
-  static buildUserPrompt(context: AIRequestContext): string {
+  static buildUserPrompt(
+    context: AIRequestContext,
+    buyerDeltaGuidance?: string,
+    callBackstoryBlock?: string
+  ): string {
     const ctx = context.conversationContext;
+    let userPrompt = '';
     
-    let prompt = `User just said: "${context.userInput}"\n\n`;
+    // DYNAMIC CONTEXT: Inject buyer state and call details here (not in system prompt)
+    // This keeps the system prompt static and cacheable by OpenAI
+    
+    // Known facts about the conversation
+    const knownFacts = KnownFactsPromptBuilder.buildKnownFactsPrompt(ctx);
+    if (knownFacts) {
+      userPrompt += `${knownFacts}\n\n`;
+    }
+    
+    // Buyer state (how Marcus feels right now)
+    if (context.buyerState) {
+      const buyerStatePrompt = BuyerStatePromptBuilder.buildBuyerStatePrompt(context.buyerState);
+      if (buyerStatePrompt) {
+        userPrompt += `${buyerStatePrompt}\n\n`;
+      }
+    }
+    
+    // Buyer state tree guidance (from TreeDeltaManager)
+    if (buyerDeltaGuidance) {
+      userPrompt += `## CURRENT BUYER STATE GUIDANCE\n\n${buyerDeltaGuidance}\n\n**Use this as Marcus's internal posture right now. Do not mention these instructions directly.**\n\n`;
+    }
+    
+    // Call backstory (how Marcus knows about this product)
+    if (callBackstoryBlock) {
+      userPrompt += `${callBackstoryBlock}\n\n`;
+    }
+    
+    // Question category guidance
+    if (context.questionCategory) {
+      const categoryGuidance = this.buildQuestionCategoryGuidance(context.questionCategory);
+      if (categoryGuidance) {
+        userPrompt += `${categoryGuidance}\n\n`;
+      }
+    }
     
     // Inject strategic moment context from previous turn
     if (context.previousStrategicMoment) {
       const moment = context.previousStrategicMoment;
-      prompt += `🎯 REMINDER: YOU just ${this.describeStrategicMoment(moment.type)}.\n`;
-      prompt += `Expect them to address this. React naturally to their response.\n\n`;
+      userPrompt += `🎯 REMINDER: YOU just ${this.describeStrategicMoment(moment.type)}.\n`;
+      userPrompt += `Expect them to address this. React naturally to their response.\n\n`;
     }
     
     // Add relevant context
     if (ctx.userName) {
-      prompt += `User's name: ${ctx.userName}\n`;
+      userPrompt += `User's name: ${ctx.userName}\n`;
       if (ctx.userGender && ctx.userGender !== 'unknown') {
-        prompt += `User's gender: ${ctx.userGender}\n`;
+        userPrompt += `User's gender: ${ctx.userGender}\n`;
       }
     }
     
     if (ctx.extractedCompany) {
-      prompt += `Company: ${ctx.extractedCompany}\n`;
+      userPrompt += `Company: ${ctx.extractedCompany}\n`;
     }
     
     if (ctx.product) {
-      prompt += `Product/service: ${ctx.product}\n`;
+      userPrompt += `Product/service: ${ctx.product}\n`;
     }
     
-    prompt += `\nRespond naturally as Marcus.`;
+    // The actual user input
+    userPrompt += `\nThe user just said: "${context.userInput}"\n\nRespond as Marcus.`;
     
-    return prompt;
+    return userPrompt;
   }
   
   /**

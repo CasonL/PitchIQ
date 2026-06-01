@@ -41,13 +41,51 @@ export class CharmerAIService {
   }
   
   /**
+   * Pre-warm OpenAI's cache by sending a dummy request with the system prompt
+   * Call this during phone ringing to eliminate Turn 2 delay
+   */
+  async prewarmCache(
+    context: AIRequestContext,
+    conversationStyle?: string
+  ): Promise<void> {
+    console.log('🔥 Pre-warming OpenAI cache during phone ring...');
+    
+    try {
+      // Build the SAME system prompt that will be used in the actual call
+      const systemPrompt = MarcusPromptBuilder.buildSystemPrompt(
+        context,
+        conversationStyle
+      );
+      
+      // Send a minimal dummy request to cache the system prompt
+      // OpenAI will cache the system prompt for ~5-10 minutes
+      const dummyHistory = [];
+      const dummyUserPrompt = 'Cache warm-up request';
+      
+      // Fire and forget - we don't care about the response
+      this.streamClient.stream(
+        systemPrompt,
+        dummyHistory,
+        dummyUserPrompt,
+        undefined,
+        1 // max_tokens: 1 to minimize cost and time
+      ).catch(err => {
+        console.log('⚠️ Cache warm-up failed (non-critical):', err);
+      });
+      
+      console.log(`✅ Cache warm-up request sent (system prompt: ${systemPrompt.length} chars)`);
+    } catch (error) {
+      console.log('⚠️ Cache warm-up error (non-critical):', error);
+    }
+  }
+  
+  /**
    * Generate Marcus's response using selected AI model
+   * OPTIMIZED: Dynamic content now goes in user prompt for OpenAI caching
    */
   async generateResponse(
     context: AIRequestContext,
-    motivationBlock?: string,
     conversationStyle?: string,
-    overseerGuidance?: string,
     callBackstoryBlock?: string,
     buyerDeltaGuidance?: string,
     onFirstSentence?: SentenceStreamCallback
@@ -56,15 +94,17 @@ export class CharmerAIService {
     
     try {
       // Build prompts using extracted modules
+      // OPTIMIZED: System prompt is now static and cacheable by OpenAI
       const systemPrompt = MarcusPromptBuilder.buildSystemPrompt(
         context,
-        motivationBlock,
-        conversationStyle,
-        overseerGuidance,
+        conversationStyle
+      );
+      // Dynamic content goes in user prompt to enable caching
+      const userPrompt = MarcusPromptBuilder.buildUserPrompt(
+        context,
         buyerDeltaGuidance,
         callBackstoryBlock
       );
-      const userPrompt = MarcusPromptBuilder.buildUserPrompt(context);
       
       console.log(`⏱️ System prompt: ${systemPrompt.length} chars, History: ${context.conversationHistory.length} msgs`);
       
@@ -73,7 +113,8 @@ export class CharmerAIService {
         systemPrompt,
         context.conversationHistory,
         userPrompt,
-        onFirstSentence
+        onFirstSentence,
+        150 // max_tokens for actual responses
       );
       
       // Parse response using extracted parser

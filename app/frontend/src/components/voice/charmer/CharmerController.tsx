@@ -2389,8 +2389,11 @@ const CharmerControllerContent = memo(({
     localStorage.setItem('lastCallMetrics', JSON.stringify(callMetrics));
     
     // Navigate directly to post-call review (skip basic analysis mid-step)
+    // Small delay to ensure WebSocket cleanup completes before navigation
     console.log('🎯 Navigating directly to post-call review...');
-    navigate('/post-call-review/');
+    setTimeout(() => {
+      navigate('/post-call-review/');
+    }, 100);
     
   }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking, navigate, callStartTimeRef]);
   

@@ -268,6 +268,10 @@ def create_app(config_name='dev'):
     from app.routes.api.api_key_routes import api_keys_bp
     flask_instance.register_blueprint(api_keys_bp)
     
+    # Warm-lead feedback generation
+    from app.routes.api.feedback_routes import feedback_bp
+    flask_instance.register_blueprint(feedback_bp)
+    
     # Register demo blueprint
     from app.demo import demo
     flask_instance.register_blueprint(demo, url_prefix='/demo')
@@ -303,6 +307,7 @@ def create_app(config_name='dev'):
     csrf.exempt(websocket_logging_bp)
     csrf.exempt(company_bp)
     csrf.exempt(conversation_patterns_bp)
+    csrf.exempt(feedback_bp)
     
     # --- Custom Error Handler for CSRF ---
     from flask_wtf.csrf import CSRFError

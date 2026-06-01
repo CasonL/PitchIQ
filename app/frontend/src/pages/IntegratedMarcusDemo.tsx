@@ -147,7 +147,7 @@ function IntegratedMarcusDemoContent() {
                     className="space-y-3 mb-8"
                   >
                     <p className="text-[#5A5A5A] text-base leading-relaxed">
-                      Marcus left his phone number on your website 8 days ago. You are following up on his interest.
+                      Marcus browsed your website a few days ago. You are following up on his interest.
                     </p>
                     <p className="text-[#8A8A8A] text-sm italic">
                       Disclaimer: Marcus is an AI buyer.

@@ -49,7 +49,10 @@ export class BuyerStateTransitionEngine {
   static applyBehaviors(state: BuyerState, behaviors: RepBehavior[]): BuyerState {
     let next = structuredClone(state);
 
-    for (const behavior of behaviors) {
+    // Prevent behavior stacking - use priority selection
+    const selectedBehaviors = this.selectPriorityBehaviors(behaviors);
+
+    for (const behavior of selectedBehaviors) {
       const change = this.getStateChangeForBehavior(behavior);
       next = this.applyStateChange(next, change);
     }
@@ -58,6 +61,79 @@ export class BuyerStateTransitionEngine {
     next = this.applyDynamicInteractions(next);
 
     return this.clampState(next);
+  }
+
+  /**
+   * Select priority behaviors to prevent stacking.
+   * Only count the highest-value behavior in each category.
+   */
+  private static selectPriorityBehaviors(behaviors: RepBehavior[]): RepBehavior[] {
+    const discoveryBehaviors: RepBehavior[] = [
+      'asked_about_problem_cost',
+      'asked_about_current_spend',
+      'asked_concrete_discovery',
+      'asked_trigger_question',
+      'asked_follow_up',
+      'asked_generic_question'
+    ];
+
+    const positioningBehaviors: RepBehavior[] = [
+      'provides_specific_proof',
+      'connects_to_specific_problem',
+      'made_hyperbolic_claim',
+      'made_unearned_roi_claim',
+      'pitched_prematurely'
+    ];
+
+    const rapportBehaviors: RepBehavior[] = [
+      'shows_specific_understanding',
+      'summarizes_understanding',
+      'validates_concern',
+      'asks_permission'
+    ];
+
+    const negativeBehaviors: RepBehavior[] = [
+      'contradicts_self',
+      'criticizes_current_solution',
+      'pushes_after_rejection',
+      'overtalks',
+      'ignores_warm_context',
+      'dodges_legitimacy_question'
+    ];
+
+    const selected: RepBehavior[] = [];
+
+    // Select highest priority from each category
+    const discoveryMatch = this.selectHighestPriority(behaviors, discoveryBehaviors);
+    if (discoveryMatch) selected.push(discoveryMatch);
+
+    const positioningMatch = this.selectHighestPriority(behaviors, positioningBehaviors);
+    if (positioningMatch) selected.push(positioningMatch);
+
+    const rapportMatch = this.selectHighestPriority(behaviors, rapportBehaviors);
+    if (rapportMatch) selected.push(rapportMatch);
+
+    const negativeMatch = this.selectHighestPriority(behaviors, negativeBehaviors);
+    if (negativeMatch) selected.push(negativeMatch);
+
+    // Add any behaviors not in categories
+    const categorized = [...discoveryBehaviors, ...positioningBehaviors, ...rapportBehaviors, ...negativeBehaviors];
+    const uncategorized = behaviors.filter(b => !categorized.includes(b));
+    selected.push(...uncategorized);
+
+    return selected;
+  }
+
+  /**
+   * Select highest priority behavior from a list
+   */
+  private static selectHighestPriority(detected: RepBehavior[], priority: RepBehavior[]): RepBehavior | null {
+    for (const behavior of priority) {
+      if (detected.includes(behavior)) {
+        return behavior;
+      }
+    }
+    return null;
   }
 
   /**
@@ -285,11 +361,14 @@ export class BuyerStateTransitionEngine {
     const next = structuredClone(state);
 
     // 1. Trust affects value perception
-    // If Marcus doesn't trust the rep, claimed value is discounted
-    if (next.economic.perceivedPotentialSavingsMonthly) {
-      const trustMultiplier = next.emotional.trust / 100;
+    // Derive perceived savings from claimed savings (never mutate the base value)
+    if (next.economic.claimedPotentialSavingsMonthly !== undefined) {
+      const trustMultiplier = next.belief.trustInClaims / 100;
       const relevanceMultiplier = next.belief.perceivedSolutionFit / 100;
-      next.economic.perceivedPotentialSavingsMonthly *= trustMultiplier * relevanceMultiplier;
+      const clarityMultiplier = next.economic.valueClarity / 100;
+      
+      next.economic.perceivedPotentialSavingsMonthly =
+        next.economic.claimedPotentialSavingsMonthly * trustMultiplier * relevanceMultiplier * clarityMultiplier;
     }
 
     // 2. Relevance affects budget flexibility
@@ -354,6 +433,12 @@ export class BuyerStateTransitionEngine {
         ...state.conversation,
         callFatigue: clamp(state.conversation.callFatigue),
         clarity: clamp(state.conversation.clarity)
+      },
+      process: {
+        decisionAuthority: clamp(state.process.decisionAuthority),
+        influenceLevel: clamp(state.process.influenceLevel),
+        knowsDecisionProcess: clamp(state.process.knowsDecisionProcess),
+        accessToEconomicBuyer: clamp(state.process.accessToEconomicBuyer)
       }
     };
   }

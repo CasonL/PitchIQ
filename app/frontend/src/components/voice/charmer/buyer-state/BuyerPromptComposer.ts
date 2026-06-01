@@ -15,9 +15,35 @@ import { BuyerDecision } from './BuyerDecisionPolicy';
 
 export class BuyerPromptComposer {
   /**
-   * Compose buyer state into prompt context
+   * Compose buyer state for LLM (behavioral, less numeric).
+   * Use this for live Marcus prompts.
    */
-  static compose(state: BuyerState, decision: BuyerDecision): string {
+  static composeForLLM(state: BuyerState, decision: BuyerDecision): string {
+    const { emotional, belief, economic, conversation } = state;
+
+    return `
+YOUR CURRENT MENTAL STATE (hidden from rep):
+
+Marcus currently has ${this.getTrustLabel(emotional.trust)}.
+He is ${this.getDefensivenessLabel(emotional.defensiveness)}.
+The product feels ${this.getSolutionFitLabel(belief.perceivedSolutionFit)}.
+The value is ${this.getValueClarityLabel(economic.valueClarity)}.
+Budget is ${this.getBudgetPressureLabel(economic.budgetPressure)}.
+
+Main blocker: ${decision.dominantBlocker || 'none'}.
+Response mode: ${decision.responseMode}.
+
+${this.composeResponseGuidance(decision.responseMode, decision.dominantBlocker)}
+
+CRITICAL: Respond naturally as Marcus. Don't reference these exact numbers.
+`;
+  }
+
+  /**
+   * Compose buyer state for debugging (includes exact numbers).
+   * Use this for logs and development.
+   */
+  static composeForDebug(state: BuyerState, decision: BuyerDecision): string {
     const { emotional, belief, economic, conversation } = state;
 
     return `

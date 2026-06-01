@@ -65,6 +65,7 @@ export class BuyerDecisionPolicy {
 
   /**
    * Calculate buying momentum from current state.
+   * Uses weighted factors and dynamic adjustments.
    * This guides the LLM, doesn't handcuff it.
    */
   private static calculateBuyingMomentum(state: BuyerState): BuyingMomentum {
@@ -83,9 +84,28 @@ export class BuyerDecisionPolicy {
     const budgetPressure = economic.budgetPressure;
     const callFatigue = conversation.callFatigue;
 
-    // Calculate net momentum
-    const positiveSum = problemSeverity + relevanceFit + trust + urgency + valueClarity;
-    const negativeSum = perceivedRisk + switchingFriction + budgetPressure + callFatigue;
+    // Dynamic weights based on context
+    // Budget matters less when solution clearly solves a serious problem
+    const budgetPressureWeight = 
+      (relevanceFit > 75 && problemSeverity > 70) ? 0.5 : 1.2;
+    
+    // Fatigue matters more late in the call
+    const fatigueWeight = conversation.turnCount > 8 ? 1.4 : 0.8;
+
+    // Calculate weighted momentum (not all variables weigh the same)
+    const positiveSum = 
+      relevanceFit * 1.4 +
+      problemSeverity * 1.2 +
+      trust * 1.1 +
+      valueClarity * 1.0 +
+      urgency * 0.8;
+    
+    const negativeSum = 
+      perceivedRisk * 1.2 +
+      switchingFriction * 1.0 +
+      budgetPressure * budgetPressureWeight +
+      callFatigue * fatigueWeight;
+    
     const netMomentum = positiveSum - negativeSum;
 
     // Find dominant driver and blocker
@@ -124,18 +144,20 @@ export class BuyerDecisionPolicy {
 
   /**
    * Determine if Marcus should exit the call.
-   * Uses 6 macro exit drivers.
+   * Uses 6 macro exit drivers with turn gates to prevent premature exits.
    */
   private static shouldExit(state: BuyerState, momentum: BuyingMomentum): {
     shouldExit: boolean;
     driver?: ExitDriver;
     message?: string;
   } {
-    const { emotional, belief, economic, conversation } = state;
+    const { emotional, belief, economic, conversation, process } = state;
 
-    // 1. LEGITIMACY FAILURE
+    // 1. LEGITIMACY FAILURE (can happen early)
     // Marcus doesn't believe rep has valid reason to call
-    if (emotional.trust < 25 && emotional.defensiveness > 75) {
+    if (conversation.turnCount >= 1 &&
+        emotional.trust < 25 && 
+        emotional.defensiveness > 75) {
       return {
         shouldExit: true,
         driver: 'legitimacy_failure',
@@ -143,9 +165,11 @@ export class BuyerDecisionPolicy {
       };
     }
 
-    // 2. RELEVANCE FAILURE
+    // 2. RELEVANCE FAILURE (needs time to establish)
     // Product doesn't apply to Marcus's situation
-    if (belief.perceivedSolutionFit < 30 && emotional.curiosity < 25) {
+    if (conversation.turnCount >= 4 &&
+        belief.perceivedSolutionFit < 30 && 
+        emotional.curiosity < 25) {
       return {
         shouldExit: true,
         driver: 'relevance_failure',
@@ -153,9 +177,10 @@ export class BuyerDecisionPolicy {
       };
     }
 
-    // 3. ECONOMIC FAILURE
+    // 3. ECONOMIC FAILURE (needs value discussion first)
     // Price/value equation doesn't work
-    if (economic.budgetPressure > 80 && 
+    if (conversation.turnCount >= 5 &&
+        economic.budgetPressure > 80 && 
         belief.perceivedProblemSeverity < 60 &&
         belief.trustInClaims < 60) {
       return {
@@ -165,9 +190,10 @@ export class BuyerDecisionPolicy {
       };
     }
 
-    // 4. TIMING FAILURE
+    // 4. TIMING FAILURE (needs context to assess urgency)
     // Problem may be real, but not now
-    if (belief.perceivedUrgency < 35 && conversation.turnCount > 8) {
+    if (conversation.turnCount >= 7 &&
+        belief.perceivedUrgency < 35) {
       return {
         shouldExit: true,
         driver: 'timing_failure',
@@ -175,14 +201,22 @@ export class BuyerDecisionPolicy {
       };
     }
 
-    // 5. AUTHORITY FAILURE
+    // 5. AUTHORITY FAILURE (needs process discussion)
     // Marcus can't move the deal forward
-    // (This would need authority tracking added to state)
-    // Placeholder for now
+    if (conversation.turnCount >= 5 &&
+        process.decisionAuthority < 30 &&
+        process.accessToEconomicBuyer < 30) {
+      return {
+        shouldExit: true,
+        driver: 'authority_failure',
+        message: "I'm not the person who handles that. You'd need to talk to [other person]."
+      };
+    }
 
-    // 6. CONVERSATION FATIGUE
+    // 6. CONVERSATION FATIGUE (can happen anytime)
     // Rep has exhausted the buyer
-    if (emotional.patience < 20 || conversation.callFatigue > 85) {
+    if (conversation.turnCount >= 3 &&
+        (emotional.patience < 20 || conversation.callFatigue > 85)) {
       return {
         shouldExit: true,
         driver: 'conversation_fatigue',

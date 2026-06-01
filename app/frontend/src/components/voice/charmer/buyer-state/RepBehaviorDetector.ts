@@ -248,9 +248,28 @@ export class RepBehaviorDetector {
   private static connectsToSpecificProblem(lower: string, marcusLastMessage?: string): boolean {
     if (!marcusLastMessage) return false;
     
-    // Check if rep references something Marcus just said
-    const marcusKeywords = marcusLastMessage.toLowerCase().match(/\b\w{5,}\b/g) || [];
-    return marcusKeywords.some(keyword => lower.includes(keyword));
+    // Stoplist of weak category words that don't indicate real connection
+    const weakWords = new Set([
+      'current', 'happy', 'sales', 'training', 'methods', 'team', 'teams',
+      'solution', 'platform', 'company', 'business', 'process', 'system',
+      'using', 'working', 'doing', 'handle', 'manage', 'think', 'about'
+    ]);
+    
+    // Look for reflection/paraphrase markers
+    const hasReflectionFrame = (
+      /so |sounds like|if i('m| am) hearing|what you('re| are) saying|the issue is|the challenge is/i.test(lower) ||
+      /you mentioned|you said|you brought up/i.test(lower)
+    );
+    
+    // Extract meaningful keywords from Marcus's message
+    const marcusKeywords = marcusLastMessage.toLowerCase()
+      .match(/\b\w{5,}\b/g) || [];
+    const meaningfulKeywords = marcusKeywords.filter(k => !weakWords.has(k));
+    
+    // Check for meaningful overlap
+    const meaningfulOverlap = meaningfulKeywords.some(k => lower.includes(k));
+    
+    return hasReflectionFrame && meaningfulOverlap;
   }
 
   // ============================================================================
@@ -338,8 +357,7 @@ export class RepBehaviorDetector {
   // ============================================================================
 
   private static ignoresWarmContext(lower: string, context: RepBehaviorDetectorContext): boolean {
-    // If this is turn 1-2 and rep doesn't acknowledge the warm signal
-    if (context.turnNumber > 2) return false;
+    if (!context.isWarmLead) return false;
     
     const acknowledgesWarmSignal = (
       /saw (you|your) (visited|browsed|checked out)/i.test(lower) ||
@@ -347,7 +365,17 @@ export class RepBehaviorDetector {
       /following up on your (visit|interest)/i.test(lower)
     );
     
-    return !acknowledgesWarmSignal;
+    if (acknowledgesWarmSignal) return false;
+    
+    // Only penalize if:
+    // 1. Rep is pitching without mentioning warm signal, OR
+    // 2. Marcus asked "what is this about?" and rep still doesn't anchor, OR
+    // 3. Turn 3+ and still no warm context mentioned
+    const isPitching = this.isPrematurePitch(lower, context);
+    const marcusAskedWhy = /what is this|what('s| is) this about|why are you calling|how did you get/i
+      .test(context.marcusLastMessage?.toLowerCase() || '');
+    
+    return isPitching || marcusAskedWhy || context.turnNumber >= 3;
   }
 
   private static validatesStatusQuo(lower: string): boolean {

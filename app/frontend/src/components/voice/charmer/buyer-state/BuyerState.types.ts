@@ -62,13 +62,14 @@ export interface EconomicState {
   actualProblemCostMonthly?: number; // True cost of the problem (Marcus may not know this)
   
   // Economic perception (dynamic)
-  perceivedCurrentWasteMonthly?: number;      // What Marcus thinks he's losing now
-  perceivedPotentialSavingsMonthly?: number;  // What Marcus thinks this could save
-  perceivedCostMonthly?: number;              // What Marcus thinks this will cost
-  budgetPressure: number;                     // 0-100: How tight is budget right now
-  willingnessToStretchBudget: number;         // 0-100: How flexible can Marcus be
-  valueClarity: number;                       // 0-100: Does Marcus understand what he's getting
-  paybackToleranceMonths?: number;            // How long Marcus will wait for ROI
+  perceivedCurrentWasteMonthly?: number;       // What Marcus thinks he's losing now
+  claimedPotentialSavingsMonthly?: number;     // What rep claimed (base value, never mutated)
+  perceivedPotentialSavingsMonthly?: number;   // What Marcus believes (derived from claimed * trust * relevance)
+  perceivedCostMonthly?: number;               // What Marcus thinks this will cost
+  budgetPressure: number;                      // 0-100: How tight is budget right now
+  willingnessToStretchBudget: number;          // 0-100: How flexible can Marcus be
+  valueClarity: number;                        // 0-100: Does Marcus understand what he's getting
+  paybackToleranceMonths?: number;             // How long Marcus will wait for ROI
 }
 
 // ============================================================================
@@ -88,6 +89,21 @@ export interface ConversationState {
 }
 
 // ============================================================================
+// DECISION PROCESS STATE
+// ============================================================================
+
+/**
+ * Authority and buying process state.
+ * B2B buying without this is like building a car without steering.
+ */
+export interface DecisionProcessState {
+  decisionAuthority: number;       // 0-100: Can Marcus make this decision alone
+  influenceLevel: number;          // 0-100: How much influence does Marcus have
+  knowsDecisionProcess: number;    // 0-100: Does Marcus understand his own buying process
+  accessToEconomicBuyer: number;   // 0-100: Can Marcus reach the person with budget authority
+}
+
+// ============================================================================
 // BUYER STATE (SINGLE SOURCE OF TRUTH)
 // ============================================================================
 
@@ -100,6 +116,7 @@ export interface BuyerState {
   belief: BeliefState;
   economic: EconomicState;
   conversation: ConversationState;
+  process: DecisionProcessState;
   
   // Legacy fields (keep for backward compatibility during migration)
   // TODO: Remove these once all code uses nested structure
@@ -180,9 +197,15 @@ export interface BuyerStateSnapshot {
 export interface BuyerStateTrace {
   turnId: string;
   repUtterance: string;
+  buyerUtterance?: string;
   detectedBehaviors: string[]; // RepBehavior types
   stateBefore: BuyerStateSnapshot;
   stateAfter: BuyerStateSnapshot;
   dominantChange: string;
   explanation: string;
+  evidence: {
+    repQuote: string;
+    buyerQuote?: string;
+    confidence: 'low' | 'medium' | 'high';
+  };
 }

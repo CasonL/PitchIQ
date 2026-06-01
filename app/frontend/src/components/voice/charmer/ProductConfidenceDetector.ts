@@ -149,6 +149,10 @@ export class ProductConfidenceDetector {
       /\bcompetitive\s+(?:price|pricing|rates?)\b/i,
       /\bwe\s+offer\b/i,
       /\bstill\s+interested\b/i,
+      // Benefit-first selling patterns (modern sales technique)
+      /\bwe\s+(?:help|work with|partner with|enable)\s+\w+\s+(?:to|by)\b/i,
+      /\bdesigned\s+(?:for|to help)\s+\w+\b/i,
+      /\bspecifically\s+for\s+\w+\s+(?:teams?|companies?|businesses?)\b/i,
     ];
 
     productIntroPatterns.forEach(pattern => {
@@ -188,7 +192,11 @@ export class ProductConfidenceDetector {
       /conversion.{1,20}\d+%/i,
       // Product category patterns
       /(sales|revenue|go-to-market)\s+(training|coaching|enablement|development)/i,
-      /(training|coaching|learning)\s+(platform|solution|system|tool)/i
+      /(training|coaching|learning)\s+(platform|solution|system|tool)/i,
+      // Benefit-focused patterns (warm-lead style)
+      /(?:reduce|cut|save|lower)\s+(?:costs?|spending|waste|time)/i,
+      /(?:improve|increase|boost)\s+(?:performance|results|outcomes|efficiency)/i,
+      /(?:eliminate|remove|avoid)\s+(?:waste|friction|inefficiency|problems?)/i,
     ];
     
     const featurePatterns = [
@@ -368,7 +376,8 @@ export class ProductConfidenceDetector {
       this.cumulativeEvidence.painPoints.size > 0
     ].filter(Boolean).length;
     
-    if (!this.diversityMilestones.multiCategory && categoryCount >= 3) {
+    // Lower threshold from 3 to 2 - benefit-first selling often skips pain points
+    if (!this.diversityMilestones.multiCategory && categoryCount >= 2) {
       this.diversityMilestones.multiCategory = true;
       newMilestones.push('multiCategory');
     }
@@ -382,25 +391,25 @@ export class ProductConfidenceDetector {
   private calculateScoreIncrease(newEvidence: SignalEvidence, diversityBonuses: string[], newCategoryDetected: boolean): number {
     let increase = 0;
     
-    increase += newEvidence.keywords.size * 3;
-    increase += newEvidence.useCases.size * 10;
-    increase += newEvidence.features.size * 8;
-    increase += newEvidence.painPoints.size * 7;
+    increase += newEvidence.keywords.size * 4;  // Increased from 3
+    increase += newEvidence.useCases.size * 12; // Increased from 10
+    increase += newEvidence.features.size * 10; // Increased from 8
+    increase += newEvidence.painPoints.size * 8; // Increased from 7
     // Each new product intro pattern = strong evidence rep is pitching something real
-    increase += newEvidence.productIntros.size * 12;
+    increase += newEvidence.productIntros.size * 15; // Increased from 12
     // First time we can classify the product category = concrete evidence
-    if (newCategoryDetected) increase += 20;
+    if (newCategoryDetected) increase += 25; // Increased from 20
     
     if (newEvidence.hasExplicitName) {
       increase += 30;
     }
     
     diversityBonuses.forEach(milestone => {
-      if (milestone === 'keywords3') increase += 5;
-      if (milestone === 'useCases2') increase += 8;
-      if (milestone === 'features2') increase += 5;
-      if (milestone === 'painPoints2') increase += 7;
-      if (milestone === 'multiCategory') increase += 10;
+      if (milestone === 'keywords3') increase += 8;  // Increased from 5
+      if (milestone === 'useCases2') increase += 12; // Increased from 8
+      if (milestone === 'features2') increase += 8;  // Increased from 5
+      if (milestone === 'painPoints2') increase += 10; // Increased from 7
+      if (milestone === 'multiCategory') increase += 15; // Increased from 10
     });
     
     return increase;

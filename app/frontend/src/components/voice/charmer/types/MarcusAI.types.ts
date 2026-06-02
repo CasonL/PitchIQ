@@ -97,8 +97,10 @@ export interface AIResponse {
 
 // Available models via OpenRouter (easy to swap)
 export const MARCUS_AI_MODELS = {
-  'gpt-4o-mini': 'openai/gpt-4o-mini',           // DEFAULT: Fast, cheap, less polite
-  'claude-sonnet': 'anthropic/claude-3-5-sonnet', // Current baseline
+  'gemini-flash': 'google/gemini-flash-1.5',     // DEFAULT: Fastest, sub-1s responses
+  'gpt-4o-mini': 'openai/gpt-4o-mini',           // Fast, cheap, less polite
+  'claude-haiku': 'anthropic/claude-3-haiku',    // Fast Anthropic model
+  'claude-sonnet': 'anthropic/claude-3-5-sonnet', // Slower, more thoughtful
   'gpt-4o': 'openai/gpt-4o',                     // Slower, smarter
   'llama-70b': 'meta-llama/llama-3.1-70b-instruct', // Open source, direct
   'mistral': 'mistralai/mistral-large'            // European, less customer-service-y

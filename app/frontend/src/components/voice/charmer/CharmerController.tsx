@@ -16,6 +16,7 @@ import { CharmerAIService } from './CharmerAIService';
 import { QuestionClassifier, QuestionClassification } from './QuestionClassifier';
 import { JudgmentGate, JudgmentContext } from './JudgmentGate';
 import { StrategyLayer, StrategyContext, StrategyOutput, BuyerState, TurnContext } from './StrategyLayer';
+import { SmartFirstSentenceFilter, type StreamingContext } from './streaming/SmartFirstSentenceFilter';
 import { ProductConversationFitService } from './prompts/ProductConversationFitService';
 import { CognitiveCompletenessAnalyzer } from './CognitiveCompleteness';
 import { MarcusPostCallMoments } from './MarcusPostCallMoments';
@@ -433,32 +434,38 @@ const CharmerControllerContent = memo(({
       // Check transcript quality - detect garbled/poor STT
       const qualityCheck = TranscriptQualityDetector.assess(userText);
       
-      // SAFE BACKCHANNELS: Only stream neutral acknowledgments before Judgment Gate
-      // Prevents Marcus from blurting substantive responses that should be suppressed/held
-      const normalizeBackchannel = (text: string) =>
-        text
-          .trim()
-          .toLowerCase()
-          .replace(/[.!?,…]+$/g, '');
-      
-      const SAFE_BACKCHANNELS = new Set([
-        'mm',
-        'okay',
-        'i hear you',
-        'right',
-        'yeah',
-        'uh-huh',
-        'got it'
-      ]);
-      
-      // Sentence streaming callback - only streams SAFE backchannels before judgment
+      // SMART FIRST-SENTENCE STREAMING: Context-aware regex patterns
+      // Uses call state (phase, turn, buyer state, user input) to determine if first sentence is safe to stream
+      // Removes hard-coded restrictions while preventing Marcus from saying wrong things
       const handleFirstSentence = (firstSentence: string, emotion?: string) => {
-        // Only stream if it's an EXACT safe backchannel match AND not garbled/ambiguous input
-        const isSafeBackchannel = SAFE_BACKCHANNELS.has(normalizeBackchannel(firstSentence));
+        // Don't stream if input is garbled/ambiguous
         const isAmbiguousTurn = qualityCheck.isLikelyGarbled || userText.length < 5;
+        if (isAmbiguousTurn) {
+          console.log(`⏸️ First-sentence streaming blocked (ambiguous input)`);
+          return;
+        }
         
-        if (isSafeBackchannel && !isAmbiguousTurn) {
-          console.log(`🚀 [Safe Backchannel] Streaming: "${firstSentence}"`);
+        // Build streaming context for smart filter
+        const streamingContext: StreamingContext = {
+          phase: currentPhase,
+          turnNumber: processingUtteranceCount,
+          userInput: userText,
+          lastMarcusMessage: conversationHistory[conversationHistory.length - 1]?.content,
+          conversationHistory,
+          hasUserName: !!phaseManagerRef.current.getContext().userName,
+          buyerState: strategyLayerRef.current ? {
+            resistanceLevel: strategyLayerRef.current.getCurrentBuyerState().resistanceLevel,
+            patience: strategyLayerRef.current.getCurrentBuyerState().patience,
+            openness: strategyLayerRef.current.getCurrentBuyerState().openness
+          } : undefined,
+          questionCategory: classification.category
+        };
+        
+        // Use smart filter to determine if safe to stream
+        const isSafeToStream = SmartFirstSentenceFilter.isSafeToStream(firstSentence, streamingContext);
+        
+        if (isSafeToStream) {
+          console.log(`🚀 [Smart Stream] Streaming: "${firstSentence}"`);
           firstSentenceSpokenRef.current = firstSentence;
           const speed = currentPhase === 'coach' || currentPhase === 'exit' ? 0.85 : 0.75;
           firstSentencePromiseRef.current = speakAsMarcus(firstSentence, {
@@ -466,8 +473,6 @@ const CharmerControllerContent = memo(({
             emotion: (emotion as any) || 'neutral',
             speed: speed
           });
-        } else {
-          console.log(`⏸️ First-sentence streaming blocked (safe=${isSafeBackchannel}, ambiguous=${isAmbiguousTurn})`);
         }
       };
       

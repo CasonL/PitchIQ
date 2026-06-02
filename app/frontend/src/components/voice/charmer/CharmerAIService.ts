@@ -114,7 +114,7 @@ export class CharmerAIService {
         context.conversationHistory,
         userPrompt,
         onFirstSentence,
-        150 // max_tokens for actual responses
+        400 // max_tokens for actual responses (needs room for emotion + dialogue + complete META block)
       );
       
       // Parse response using extracted parser

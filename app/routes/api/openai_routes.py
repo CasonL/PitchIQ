@@ -178,6 +178,68 @@ def chat():
         return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
 
+@openai_bp.route('/classify', methods=['POST'])
+def classify():
+    """
+    Classify product/service using LLM for ProductConversationFitService
+    Returns structured classification with archetype, subtype, and confidence
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+        
+        prompt = data.get('prompt', '')
+        temperature = data.get('temperature', 0.3)
+        max_tokens = data.get('max_tokens', 200)
+        
+        if not prompt:
+            return jsonify({'error': 'No prompt provided'}), 400
+        
+        import os
+        import requests
+        
+        openrouter_key = os.environ.get('OPENROUTER_API_KEY')
+        if not openrouter_key:
+            logger.error("OPENROUTER_API_KEY not set")
+            return jsonify({'error': 'OpenRouter not configured'}), 503
+        
+        # Call OpenRouter API
+        logger.info(f"Classifying product with LLM (temp={temperature}, max_tokens={max_tokens})")
+        response = requests.post(
+            'https://openrouter.ai/api/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {openrouter_key}',
+                'HTTP-Referer': 'https://pitchiq.com',
+                'X-Title': 'PitchIQ Product Classification',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': 'openai/gpt-4o-mini',
+                'messages': [
+                    {'role': 'user', 'content': prompt}
+                ],
+                'temperature': temperature,
+                'max_tokens': max_tokens
+            },
+            timeout=15
+        )
+        
+        if not response.ok:
+            logger.error(f"OpenRouter error: {response.status_code} - {response.text}")
+            return jsonify({'error': f'OpenRouter API error: {response.status_code}'}), 500
+        
+        result = response.json()
+        content = result['choices'][0]['message']['content']
+        
+        logger.info(f"Product classification complete")
+        return jsonify({'content': content}), 200
+        
+    except Exception as e:
+        logger.error(f"Error in product classification: {e}", exc_info=True)
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+
+
 @openai_bp.route('/message-feedback', methods=['POST'])
 def message_feedback():
     """

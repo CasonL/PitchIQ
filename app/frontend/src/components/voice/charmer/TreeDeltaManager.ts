@@ -19,6 +19,7 @@ import { BuyerBeliefState } from './BuyerBeliefTracker';
 import { PreTreeBuyerPolicy, PreTreeContext, PreTreeGuidance } from './PreTreeBuyerPolicy';
 import { ProductConfidence } from './ProductConfidenceDetector';
 import { AvailabilityPolicy, type AvailabilityState, type AvailabilityContext } from './AvailabilityPolicy';
+import { getLayerGuidance } from './DiscoveryLayerManager';
 
 export interface BuyerDelta {
   currentState: {
@@ -122,6 +123,9 @@ export class TreeDeltaManager {
     // Generate do-not-reveal list (what Marcus should hold back)
     const doNotReveal = this.generateDoNotReveal(currentNode, beliefState);
     
+    // Add discovery layer guidance if available
+    const layerGuidance = getLayerGuidance(currentNode);
+    
     // Generate natural language guidance text
     const guidanceText = this.generateBuyerGuidanceText(
       currentState,
@@ -129,7 +133,8 @@ export class TreeDeltaManager {
       behaviorGuidance,
       reactionGuidance,
       doNotReveal,
-      lastTransition
+      lastTransition,
+      layerGuidance
     );
     
     return {
@@ -475,7 +480,8 @@ export class TreeDeltaManager {
     behaviorGuidance: string[],
     reactions: BuyerDelta['reactionGuidance'],
     doNotReveal: string[],
-    lastTransition: BuyerStateTransition | null
+    lastTransition: BuyerStateTransition | null,
+    layerGuidance?: string
   ): string {
     const parts: string[] = [];
     
@@ -505,7 +511,12 @@ export class TreeDeltaManager {
     // Compress do-not-reveal into single line
     if (doNotReveal.length > 0) {
       const compressed = doNotReveal.slice(0, 3).join(', ');
-      parts.push(`\nWithhold: ${compressed} unless earned.`);
+      parts.push(`\nWithhold: ${compressed}.`);
+    }
+    
+    // Add discovery layer guidance if present
+    if (layerGuidance) {
+      parts.push(`\n${layerGuidance}`);
     }
     
     // SECTION 2: Voice examples (tone reference only)

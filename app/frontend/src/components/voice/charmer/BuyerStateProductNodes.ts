@@ -5,7 +5,8 @@
  * Subtypes here MUST match what BuyerStateScoring.getStateRealismForProduct() looks for.
  */
 
-import { BuyerStateType } from './BuyerStateTypes';
+import { BuyerStateType, DiscoveryLayerDef } from './BuyerStateTypes';
+import { getDiscoveryLayersForProduct } from './DiscoveryLayerDefinitions';
 
 export type ProductNodeDef = {
   stateType: BuyerStateType;
@@ -17,6 +18,7 @@ export type ProductNodeDef = {
   hardTriggers: string[];
   softTriggers: string[];
   minTurns?: number;
+  discoveryLayers?: DiscoveryLayerDef[];
 };
 
 export function buildProofBehaviors(productPhysics: any): string[] {
@@ -125,7 +127,7 @@ export function createClarificationNode(productPhysics?: any): ProductNodeDef {
           minTurns: 2
         };
       }
-      // Default training node
+      // Default training node with layered discovery
       return {
         stateType: 'clarification', stateSubtype: 'training_effectiveness',
         stateName: 'Training Effectiveness',
@@ -138,7 +140,8 @@ export function createClarificationNode(productPhysics?: any): ProductNodeDef {
         baseConfidence: 40,
         hardTriggers: ['rep_provides_roi_data'],
         softTriggers: ['rep_shares_case_study'],
-        minTurns: 2
+        minTurns: 2,
+        discoveryLayers: getDiscoveryLayersForProduct('training_or_coaching', 'sales_training')
       };
     default:
       return createClarificationNode(null);

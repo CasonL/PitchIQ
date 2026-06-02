@@ -28,6 +28,23 @@ export type BuyerStateType =
   | 'buying_signal'
   | 'exit_attempt';
 
+export type DiscoveryLayer = 
+  | 'surface'
+  | 'shallow'
+  | 'problem_surface'
+  | 'root_cause'
+  | 'confirmation'
+  | 'impact';
+
+export interface DiscoveryLayerDef {
+  layer: DiscoveryLayer;
+  trigger: string;
+  response: string;
+  hint: string;
+  requiresOpenEnded?: boolean;
+  breakthrough?: boolean;
+}
+
 export interface BuyerStateNode {
   nodeId: string;
   displayPath: string;
@@ -49,6 +66,9 @@ export interface BuyerStateNode {
   createdTurn: number;
   lastSelectedTurn: number | null;
   retiredTurn: number | null;
+  
+  discoveryLayers?: DiscoveryLayerDef[];
+  currentDiscoveryLayer?: DiscoveryLayer;
 }
 
 export interface BuyerStateTransition {

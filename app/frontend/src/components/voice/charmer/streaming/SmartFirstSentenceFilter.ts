@@ -52,8 +52,7 @@ export class SmartFirstSentenceFilter {
         console.log('✅ [Stream] Response to user question');
         return true;
       }
-      console.log('⏸️ [Block] Unexpected response to question');
-      return false;
+      // Don't block yet - check other patterns below
     }
     
     // USER MADE A PITCH: Marcus should react naturally
@@ -65,8 +64,7 @@ export class SmartFirstSentenceFilter {
         console.log('✅ [Stream] Natural reaction to pitch');
         return true;
       }
-      console.log('⏸️ [Block] Unexpected response to pitch');
-      return false;
+      // Don't block yet - check other patterns below
     }
     
     // USER INTRODUCED THEMSELVES: Marcus should acknowledge
@@ -75,8 +73,7 @@ export class SmartFirstSentenceFilter {
         console.log('✅ [Stream] Name acknowledgment');
         return true;
       }
-      console.log('⏸️ [Block] Unexpected response to introduction');
-      return false;
+      // Don't block yet - check other patterns below
     }
     
     // USER GAVE PROOF/CASE STUDY: Marcus should react
@@ -85,8 +82,7 @@ export class SmartFirstSentenceFilter {
         console.log('✅ [Stream] Reaction to proof');
         return true;
       }
-      console.log('⏸️ [Block] Unexpected response to proof');
-      return false;
+      // Don't block yet - check other patterns below
     }
     
     // HIGH RESISTANCE: Marcus should be skeptical/brief
@@ -151,7 +147,8 @@ export class SmartFirstSentenceFilter {
       /^(we'?re using|we have|we use|we do|we don't)/,
       /^(it'?s|that'?s|this is)/,
       /^(i mean|honestly|to be honest|look)/,
-      /^(uh|um|well|so)/  // Thinking/filler before answer
+      /^(uh|um|well|so)/,  // Thinking/filler before answer
+      /^(i'?m|i don't|i do)/  // First-person answers
     ];
     return patterns.some(p => p.test(text));
   }
@@ -253,7 +250,8 @@ export class SmartFirstSentenceFilter {
       /^(look|listen|okay)/,
       /^(i (really )?need to|i (really )?have to|i should)/,
       /^(can you just|just send|just email)/,
-      /^(i don't have time|i'?m busy)/
+      /^(i don't have time|i'?m busy)/,
+      /^i'?m (busy|swamped|tied up|in the middle)/  // Busy variations
     ];
     return patterns.some(p => p.test(text));
   }
@@ -274,7 +272,9 @@ export class SmartFirstSentenceFilter {
       /^(i mean|i think|i feel like)/,
       /^(yeah|yes|no|not really),/,  // Followed by elaboration
       /^(that'?s|this is|it'?s) (a|the|not)/,
-      /^(okay|alright|sure),/  // Followed by elaboration
+      /^(okay|alright|sure),/,  // Followed by elaboration
+      /^(i'?m|i don't|i do|i have|i haven't)/,  // First-person statements
+      /^(thanks|thank you|appreciate)/  // Gratitude
     ];
     return patterns.some(p => p.test(text));
   }

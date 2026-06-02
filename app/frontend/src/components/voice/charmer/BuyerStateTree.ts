@@ -17,6 +17,7 @@
 
 import { BuyerBeliefState } from './BuyerBeliefTracker';
 import { ProductConfidence } from './ProductConfidenceDetector';
+import { updateDiscoveryLayer } from './BuyerStateTreeUpdater';
 import {
   createClarificationNode,
   createDistractedNode,
@@ -62,9 +63,9 @@ export class BuyerStateTree {
   
   // Stickiness configuration
   private readonly MIN_TURNS_IN_STATE = 2;
-  private readonly CONFIDENCE_THRESHOLD_TRANSITION = 50; // Reduced from 65 to allow faster transitions
-  private readonly STICKY_BONUS_PER_TURN = 3; // Reduced from 5 to lower stickiness
-  private readonly MAX_STICKY_BONUS = 12; // Reduced from 15
+  private readonly CONFIDENCE_THRESHOLD_TRANSITION = 40; // Lowered from 50 to allow easier transitions
+  private readonly STICKY_BONUS_PER_TURN = 2; // Reduced from 3 to lower stickiness
+  private readonly MAX_STICKY_BONUS = 8; // Reduced from 12 to prevent getting stuck
   private readonly TRANSITION_MARGIN = 10;
   
   constructor() {
@@ -211,7 +212,9 @@ export class BuyerStateTree {
         minTurnsBeforeTransition: def.minTurns || this.MIN_TURNS_IN_STATE,
         createdTurn: this.currentTurn,
         lastSelectedTurn: null,
-        retiredTurn: null
+        retiredTurn: null,
+        discoveryLayers: (def as any).discoveryLayers,
+        currentDiscoveryLayer: (def as any).discoveryLayers ? 'surface' : undefined
       };
       
       children.push(childNode);
@@ -406,6 +409,9 @@ export class BuyerStateTree {
     
     // Increment turns in current state
     currentNode.turnsInState++;
+    
+    // Update discovery layer based on user question
+    updateDiscoveryLayer(currentNode, userUtterance);
     
     // Check if we should transition
     const candidates = this.getCandidateStates(currentNode, userUtterance, beliefs);

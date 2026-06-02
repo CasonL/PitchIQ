@@ -231,7 +231,7 @@ export const SWAG_SCENARIO: MarcusScenario = {
  */
 export const ADAPTIVE_SCENARIO: MarcusScenario = {
   id: 'adaptive-anything',
-  difficulty: 'hard',
+  difficulty: 'medium',
   name: 'Sell Literally Anything',
   description: 'Marcus adapts to whatever you\'re selling. Discovery required.',
   product: 'Adaptive - user defines',

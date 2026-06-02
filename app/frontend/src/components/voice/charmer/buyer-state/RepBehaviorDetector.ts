@@ -42,6 +42,7 @@ export type RepBehavior =
   | 'contradicts_self'              // Says X, then says Y
   | 'criticizes_current_solution'   // Insults what Marcus uses now
   | 'pushes_after_rejection'        // Won't take no for an answer
+  | 'ignores_exit_signal'           // Continues after "not interested", "gotta run", "not a fit"
   | 'ignores_warm_context'          // Treats warm lead like cold call
   | 'dodges_legitimacy_question'    // Doesn't answer "How did you get my info?"
   | 'handles_legitimacy_directly'   // Answers legitimacy question well
@@ -254,6 +255,10 @@ export class RepBehaviorDetector {
     if (this.pushesAfterRejection(lower, marcusLastMessage)) {
       behaviors.push('pushes_after_rejection');
     }
+    
+    if (this.ignoresExitSignal(lower, marcusLastMessage)) {
+      behaviors.push('ignores_exit_signal');
+    }
 
     // Warm-lead specific
     if (isWarmLead && this.ignoresWarmContext(lower, context)) {
@@ -463,6 +468,32 @@ export class RepBehaviorDetector {
     );
     
     return marcusRejected && repPushes;
+  }
+  
+  private static ignoresExitSignal(lower: string, marcusLastMessage?: string): boolean {
+    if (!marcusLastMessage) return false;
+    
+    const marcusLower = marcusLastMessage.toLowerCase();
+    
+    // Clear exit signals from Marcus
+    const marcusGaveExitSignal = (
+      /not (a fit|interested|sure|the right)/i.test(marcusLower) ||
+      /(gotta|have to|need to) (run|go|wrap)/i.test(marcusLower) ||
+      /let('s| us) (leave it|keep it simple|wrap)/i.test(marcusLower) ||
+      /(i'm|i am) (not interested|swamped|busy)/i.test(marcusLower) ||
+      /don't think this is/i.test(marcusLower) ||
+      /not convinced/i.test(marcusLower) ||
+      /i really need to focus/i.test(marcusLower)
+    );
+    
+    // Rep continues with questions or pitching instead of respecting exit
+    const repContinues = (
+      lower.includes('?') ||  // Asking another question
+      /can i|let me|what if|but|however|one more/i.test(lower) ||
+      /send (you|over)|reach out|follow up/i.test(lower) && lower.length > 50  // Long follow-up pitch
+    );
+    
+    return marcusGaveExitSignal && repContinues;
   }
 
   // ============================================================================

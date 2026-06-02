@@ -260,6 +260,13 @@ export class BuyerStateTransitionEngine {
         patience: -15,
         callFatigue: 15
       },
+      ignores_exit_signal: {
+        patience: -25,              // Marcus explicitly said he's not interested/has to go
+        trust: -12,                 // Rep doesn't respect boundaries
+        defensiveness: 15,
+        callFatigue: 20,            // Exhausting to be ignored
+        autonomyDefense: 12         // Triggers reactance - "I said no!"
+      },
       ignores_warm_context: {
         trust: -8,
         defensiveness: 10,

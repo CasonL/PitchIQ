@@ -214,9 +214,9 @@ export class BuyerDecisionPolicy {
     }
 
     // 6. CONVERSATION FATIGUE (can happen anytime)
-    // Rep has exhausted the buyer
-    if (conversation.turnCount >= 3 &&
-        (emotional.patience < 20 || conversation.callFatigue > 85)) {
+    // Rep has exhausted the buyer - MORE SENSITIVE after ignores_exit_signal
+    if (conversation.turnCount >= 2 &&
+        (emotional.patience < 30 || conversation.callFatigue > 75)) {
       return {
         shouldExit: true,
         driver: 'conversation_fatigue',
@@ -234,8 +234,8 @@ export class BuyerDecisionPolicy {
   private static determineResponseMode(state: BuyerState, momentum: BuyingMomentum): BuyerResponseMode {
     const { emotional, belief } = state;
 
-    // Exit mode
-    if (emotional.patience < 20 || momentum.netMomentum < -200) {
+    // Exit mode - MORE SENSITIVE to match exit threshold
+    if (emotional.patience < 30 || momentum.netMomentum < -200) {
       return 'ending_call';
     }
 

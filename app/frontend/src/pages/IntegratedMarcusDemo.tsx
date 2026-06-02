@@ -20,7 +20,6 @@ function IntegratedMarcusDemoContent() {
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState<DemoStep>("welcome");
   const [briefingCardIndex, setBriefingCardIndex] = useState(0);
-  const [useRandomOpener, setUseRandomOpener] = useState(true);
 
   const briefingCards = [
     { phase: "1", title: "Choose Your Product", desc: "Pick what you're selling to Marcus.", icon: Package },
@@ -263,15 +262,6 @@ function IntegratedMarcusDemoContent() {
                   transition={{ delay: 0.2 }}
                   className="flex flex-col items-center mt-10"
                 >
-                  <label className="flex items-center gap-2 mb-4 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={useRandomOpener}
-                      onChange={(e) => setUseRandomOpener(e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-300 text-brand-orange focus:ring-brand-orange"
-                    />
-                    <span className="text-sm text-[#5A5A5A]">Give me a random script opener</span>
-                  </label>
                   <button
                     onClick={() => setStep("call")}
                     className="px-10 py-4 rounded-full bg-gradient-to-r from-brand-orange to-brand-amber text-white font-semibold shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 transition-all text-base flex items-center gap-2"
@@ -297,7 +287,7 @@ function IntegratedMarcusDemoContent() {
               <CharmerServicesProvider>
                 <CharmerController
                   initialScenario={ADAPTIVE_SCENARIO}
-                  showOpener={useRandomOpener}
+                  showOpener={false}
                   onCallComplete={handleCallEnd}
                 />
               </CharmerServicesProvider>

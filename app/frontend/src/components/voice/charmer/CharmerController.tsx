@@ -144,6 +144,36 @@ const CharmerControllerContent = memo(({
   // Processed utterances tracker - prevent re-processing same transcript
   const processedUtterancesRef = useRef<Set<string>>(new Set());
   
+  // Dropped response tracking - debug buffer for lost user input
+  const droppedResponsesRef = useRef<Array<{
+    timestamp: number;
+    transcript: string;
+    reason: 'duplicate' | 'echo_live' | 'echo_recent' | 'overwritten';
+    context?: string;
+  }>>([]);
+  
+  // Expose dropped responses to console for debugging
+  useEffect(() => {
+    (window as any).getDroppedResponses = () => {
+      console.log(`📊 Total dropped responses: ${droppedResponsesRef.current.length}`);
+      droppedResponsesRef.current.forEach((drop, i) => {
+        const time = new Date(drop.timestamp).toLocaleTimeString();
+        console.log(`\n${i + 1}. [${time}] ${drop.reason.toUpperCase()}`);
+        console.log(`   Transcript: "${drop.transcript}"`);
+        if (drop.context) console.log(`   Context: ${drop.context}`);
+      });
+      return droppedResponsesRef.current;
+    };
+    
+    (window as any).clearDroppedResponses = () => {
+      const count = droppedResponsesRef.current.length;
+      droppedResponsesRef.current = [];
+      console.log(`🗑️ Cleared ${count} dropped responses`);
+    };
+    
+    console.log('🔍 Debug commands available: window.getDroppedResponses(), window.clearDroppedResponses()');
+  }, []);
+  
   // Tree generation in-flight tracker - prevent blocking voice path
   const treeGenerationInFlightRef = useRef(false);
   const treeGenerationRequestIdRef = useRef(0);
@@ -1529,7 +1559,15 @@ const CharmerControllerContent = memo(({
     
     // CRITICAL: Prevent re-processing same utterance (Deepgram buffer flushes)
     if (isFinalTranscript && processedUtterancesRef.current.has(transcript)) {
-      console.log(`🔁 Skipping already-processed utterance: "${transcript.substring(0, 60)}..."`);
+      droppedResponsesRef.current.push({
+        timestamp: Date.now(),
+        transcript,
+        reason: 'duplicate',
+        context: 'Deepgram buffer flush - same transcript sent twice'
+      });
+      console.warn(`🔁 [DROPPED] Already-processed utterance: "${transcript.substring(0, 60)}..."
+      ⚠️ If this was a real user response, this is a bug. Full transcript: "${transcript}"
+      📊 Total dropped responses: ${droppedResponsesRef.current.length}`);
       return;
     }
     
@@ -1680,13 +1718,23 @@ const CharmerControllerContent = memo(({
       
       for (const marcusSpeech of activeMarcusSpeeches) {
         // Marcus is speaking this right now - check if transcript matches
-        const isSimilar = userText === marcusSpeech || 
-                         marcusSpeech.includes(userText) || 
-                         userText.includes(marcusSpeech) ||
-                         (userText.length > 10 && marcusSpeech.startsWith(userText.slice(0, 10)));
+        // STRICTER FILTERING: Only filter if it's a very close match (not just contains)
+        const marcusLower = marcusSpeech.toLowerCase().trim();
+        const isExactMatch = userText === marcusLower;
+        const isVeryCloseMatch = userText.length > 15 && 
+                                 (marcusLower.startsWith(userText) || userText.startsWith(marcusLower));
         
-        if (isSimilar) {
-          console.log(`🔇 Filtered Marcus echo (LIVE): "${newContent}" (matches active speech: "${marcusSpeech.substring(0, 50)}...")`);
+        if (isExactMatch || isVeryCloseMatch) {
+          droppedResponsesRef.current.push({
+            timestamp: Date.now(),
+            transcript: newContent,
+            reason: 'echo_live',
+            context: `Matched active Marcus speech: "${marcusSpeech.substring(0, 100)}"`
+          });
+          console.warn(`🔇 [DROPPED] Filtered Marcus echo (LIVE): "${newContent}"
+          ⚠️ Matched active speech: "${marcusSpeech.substring(0, 100)}"
+          ⚠️ If this was a real user response, adjust echo filtering logic.
+          📊 Total dropped responses: ${droppedResponsesRef.current.length}`);
           lastTranscriptRef.current = transcript;
           return;
         }
@@ -1696,13 +1744,23 @@ const CharmerControllerContent = memo(({
       const recentMarcusSpeech = getRecentMarcusSpeech();
       
       for (const marcusText of recentMarcusSpeech) {
-        const isSimilar = userText === marcusText || 
-                         marcusText.includes(userText) || 
-                         userText.includes(marcusText) ||
-                         (userText.length > 10 && marcusText.startsWith(userText.slice(0, 10)));
+        // STRICTER FILTERING: Only filter if it's a very close match
+        const marcusLower = marcusText.toLowerCase().trim();
+        const isExactMatch = userText === marcusLower;
+        const isVeryCloseMatch = userText.length > 15 && 
+                                 (marcusLower.startsWith(userText) || userText.startsWith(marcusLower));
         
-        if (isSimilar) {
-          console.log(`🔇 Filtered Marcus echo (RECENT): "${newContent}" (matches recent speech: "${marcusText.substring(0, 50)}...")`);
+        if (isExactMatch || isVeryCloseMatch) {
+          droppedResponsesRef.current.push({
+            timestamp: Date.now(),
+            transcript: newContent,
+            reason: 'echo_recent',
+            context: `Matched recent Marcus speech: "${marcusText.substring(0, 100)}"`
+          });
+          console.warn(`🔇 [DROPPED] Filtered Marcus echo (RECENT): "${newContent}"
+          ⚠️ Matched recent speech: "${marcusText.substring(0, 100)}"
+          ⚠️ If this was a real user response, adjust echo filtering logic.
+          📊 Total dropped responses: ${droppedResponsesRef.current.length}`);
           lastTranscriptRef.current = transcript;
           return;
         }
@@ -1774,6 +1832,15 @@ const CharmerControllerContent = memo(({
           console.log(`⏰ Short final timeout - processing "${newContent}"`);
           utteranceCountRef.current++;
           processUserInputWithQueue(newContent, utteranceCountRef.current);
+        } else {
+          droppedResponsesRef.current.push({
+            timestamp: Date.now(),
+            transcript: newContent,
+            reason: 'overwritten',
+            context: `Short utterance overwritten before 1s timeout (utterance ${utteranceSnapshot} → ${utteranceCountRef.current})`
+          });
+          console.warn(`⚠️ [DROPPED] Short utterance "${newContent}" was overwritten by new input before timeout completed.
+          📊 Total dropped responses: ${droppedResponsesRef.current.length}`);
         }
       }, 1000);
       

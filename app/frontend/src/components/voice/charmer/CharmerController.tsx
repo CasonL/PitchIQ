@@ -55,18 +55,6 @@ interface CharmerControllerProps {
   showOpener?: boolean;
 }
 
-const OPENERS = [
-  "Hey Marcus, I noticed VantageFlow's website hasn't been updated in a couple years. I help companies turn outdated sites into lead generators — wanted to see if that's on your radar.",
-  "Marcus, this is [Name] from [Company]. We work with CFOs to cut their software stack costs by 20-30%. Do you have 30 seconds for why I called?",
-  "Hey Marcus, quick question — when your team shows up at a client meeting, do they look like one company or a bunch of individuals?",
-  "Marcus, I saw VantageFlow just raised your Series B. Congrats. Most companies at your stage hit a wall with scaling their sales process. Are you seeing that yet?",
-  "Hey Marcus, I help finance teams automate their month-end close. I know it's probably not broken, but curious — how many hours does your team spend on it right now?",
-  "Marcus, this is [Name]. I won't waste your time. We help companies like VantageFlow reduce customer churn by 15%. Worth a 30-second pitch?",
-  "Hey Marcus, I noticed you're hiring for sales roles. Most companies we work with are scaling fast and struggling with rep readiness. Is that showing up for you?",
-  "Marcus, I saw VantageFlow's case study on process automation. Impressive. We help teams like yours get those results faster. Curious how you're handling rep training right now?",
-  "Hey Marcus, I'll be direct — I help CFOs sleep better by fixing their forecasting accuracy. Do you have 30 seconds?",
-  "Marcus, this is [Name] from [Company]. We work with companies around VantageFlow's size to close more deals without hiring more reps. Do you have a quick minute?"
-];
 
 /**
  * CharmerControllerContent - Inner component using MarcusVoice context
@@ -121,8 +109,6 @@ const CharmerControllerContent = memo(({
     }
     return null;
   });
-  const [openerVisible, setOpenerVisible] = useState(showOpener);
-  const [currentOpener] = useState(() => OPENERS[Math.floor(Math.random() * OPENERS.length)]);
   const [showScenarioSelector, setShowScenarioSelector] = useState(() => {
     // Hide scenario selector if initialScenario is provided
     if (initialScenario) return false;
@@ -2617,30 +2603,6 @@ const CharmerControllerContent = memo(({
           {/* Left: Call Stage */}
           <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
             <div className="w-full max-w-[400px]">
-              {/* Suggested Opener Card */}
-              {showOpener && openerVisible && (
-                <motion.div
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="mb-6"
-                >
-                  <div className="bg-white border border-brand-orange/20 rounded-2xl p-5 shadow-sm relative">
-                    <button
-                      onClick={() => setOpenerVisible(false)}
-                      className="absolute top-3 right-3 text-[#8A8A8A] hover:text-[#1A1A1A] transition-colors"
-                    >
-                      <X size={16} />
-                    </button>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Lightbulb size={14} className="text-brand-orange" />
-                      <span className="text-xs font-mono font-bold text-brand-orange tracking-wider uppercase">Suggested Opener</span>
-                    </div>
-                    <p className="text-[#1A1A1A] text-sm leading-relaxed italic pr-4">"{currentOpener}"</p>
-                  </div>
-                </motion.div>
-              )}
-
               {/* Avatar */}
               <div className="mb-6 flex justify-center">
                 <img

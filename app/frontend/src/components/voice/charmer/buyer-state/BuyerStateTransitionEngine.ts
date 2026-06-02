@@ -225,6 +225,12 @@ export class BuyerStateTransitionEngine {
         trust: 8,
         openness: 5
       },
+      answers_question_directly: {
+        clarity: 10,              // Marcus's question was answered
+        trust: 5,                 // Rep is being responsive
+        defensiveness: -5,
+        curiosity: -3             // Question satisfied (slightly)
+      },
       asks_permission: {
         defensiveness: -5,
         trust: 5,

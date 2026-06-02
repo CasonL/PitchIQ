@@ -34,6 +34,7 @@ export type RepBehavior =
   // Rapport behaviors
   | 'shows_specific_understanding'  // References Marcus's actual situation
   | 'validates_concern'             // Acknowledges Marcus's objection
+  | 'answers_question_directly'     // Provides substantive answer to Marcus's question
   | 'asks_permission'               // Respects Marcus's time
   | 'summarizes_understanding'      // Shows he's listening
   
@@ -235,6 +236,10 @@ export class RepBehaviorDetector {
       behaviors.push('validates_concern');
     }
     
+    if (this.answersQuestionDirectly(lower, marcusLastMessage, context)) {
+      behaviors.push('answers_question_directly');
+    }
+    
     if (this.asksPermission(lower)) {
       behaviors.push('asks_permission');
     }
@@ -413,6 +418,34 @@ export class RepBehaviorDetector {
     ];
     
     return validationPatterns.some(pattern => pattern.test(lower));
+  }
+  
+  private static answersQuestionDirectly(lower: string, marcusLastMessage?: string, context?: RepBehaviorDetectorContext): boolean {
+    if (!marcusLastMessage) return false;
+    
+    const marcusLower = marcusLastMessage.toLowerCase();
+    
+    // Check if Marcus asked a question
+    const marcusAskedQuestion = marcusLower.includes('?') || 
+      /^(how|what|why|when|where|who|can you|could you|do you|are you|is this)/i.test(marcusLower);
+    
+    if (!marcusAskedQuestion) return false;
+    
+    // Check if rep's response is substantive (not just a question back or deflection)
+    const isSubstantiveAnswer = (
+      lower.split(/\s+/).length >= 15 &&  // At least 15 words
+      !lower.startsWith('can i') &&        // Not deflecting with a question
+      !lower.startsWith('could you') &&
+      !/^(sorry|well|um|uh)/i.test(lower)  // Not just filler
+    );
+    
+    // Check if rep is actually addressing the topic Marcus asked about
+    // Extract key question words from Marcus's question
+    const questionWords = marcusLower.match(/\b(different|proof|value|cost|price|work|help|benefit|feature|compare|versus)\b/gi) || [];
+    const addressesTopic = questionWords.length === 0 || 
+      questionWords.some(word => lower.includes(word.toLowerCase()));
+    
+    return isSubstantiveAnswer && addressesTopic;
   }
 
   private static asksPermission(lower: string): boolean {

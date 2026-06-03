@@ -52,6 +52,16 @@ def chat():
         import os
         import requests
         
+        # Check if this is a Google Gemini model - use direct Google AI API if available
+        is_gemini = 'google/' in model or 'gemini' in model.lower()
+        google_ai_key = os.environ.get('GOOGLE_AI_API_KEY')
+        
+        if is_gemini and google_ai_key:
+            # Use direct Google AI API for Gemini models (free, better rate limits)
+            logger.info(f"Using direct Google AI API for {model}")
+            return _call_google_ai(model, messages, temperature, max_tokens, stream, google_ai_key, request_start)
+        
+        # Fall back to OpenRouter for other models
         openrouter_key = os.environ.get('OPENROUTER_API_KEY')
         if not openrouter_key:
             logger.error("OPENROUTER_API_KEY not set")
@@ -176,6 +186,142 @@ def chat():
     except Exception as e:
         logger.error(f"Error in OpenAI chat proxy: {e}", exc_info=True)
         return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+
+
+def _call_google_ai(model, messages, temperature, max_tokens, stream, api_key, request_start):
+    """
+    Call Google AI API directly for Gemini models
+    Bypasses OpenRouter for better reliability and free access
+    """
+    import time
+    import requests
+    import json
+    
+    # Extract model name (remove 'google/' prefix if present)
+    model_name = model.replace('google/', '')
+    # Map OpenRouter model names to Google AI model names
+    model_mapping = {
+        'gemini-2.0-flash-exp:free': 'gemini-2.0-flash-exp',
+        'gemini-2.0-flash-001': 'gemini-2.0-flash-exp',
+        'gemini-flash-1.5': 'gemini-1.5-flash',
+        'gemini-1.5-flash': 'gemini-1.5-flash',
+        'gemini-1.5-pro': 'gemini-1.5-pro',
+    }
+    google_model = model_mapping.get(model_name, model_name)
+    
+    logger.info(f"Calling Google AI with model: {google_model} (temp={temperature}, max_tokens={max_tokens})")
+    
+    # Convert OpenAI-style messages to Google AI format
+    contents = []
+    for msg in messages:
+        role = 'user' if msg['role'] in ['user', 'system'] else 'model'
+        contents.append({
+            'role': role,
+            'parts': [{'text': msg['content']}]
+        })
+    
+    # Build Google AI request
+    google_payload = {
+        'contents': contents,
+        'generationConfig': {
+            'temperature': temperature,
+            'maxOutputTokens': max_tokens,
+        }
+    }
+    
+    api_start = time.time()
+    
+    if stream:
+        # Streaming mode
+        url = f'https://generativelanguage.googleapis.com/v1beta/models/{google_model}:streamGenerateContent?key={api_key}&alt=sse'
+        response = requests.post(
+            url,
+            headers={'Content-Type': 'application/json'},
+            json=google_payload,
+            stream=True,
+            timeout=30
+        )
+        
+        if not response.ok:
+            logger.error(f"Google AI error: {response.status_code} - {response.text}")
+            return jsonify({'error': f'Google AI API error: {response.status_code}'}), 500
+        
+        def generate():
+            try:
+                logger.info("Starting Google AI SSE stream...")
+                line_count = 0
+                for line in response.iter_lines():
+                    if line:
+                        line_count += 1
+                        line_text = line.decode('utf-8')
+                        
+                        if line_text.startswith('data: '):
+                            chunk_data = line_text[6:]
+                            try:
+                                google_chunk = json.loads(chunk_data)
+                                # Convert Google AI format to OpenAI format
+                                if 'candidates' in google_chunk and google_chunk['candidates']:
+                                    text = google_chunk['candidates'][0].get('content', {}).get('parts', [{}])[0].get('text', '')
+                                    if text:
+                                        openai_chunk = {
+                                            'choices': [{
+                                                'delta': {'content': text},
+                                                'index': 0
+                                            }]
+                                        }
+                                        yield f"data: {json.dumps(openai_chunk)}\n\n"
+                            except json.JSONDecodeError:
+                                pass
+                
+                yield f"data: [DONE]\n\n"
+                logger.info(f"Google AI stream complete - {line_count} lines")
+            except Exception as e:
+                logger.error(f"Error in Google AI streaming: {e}", exc_info=True)
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        
+        return Response(stream_with_context(generate()), mimetype='text/event-stream', headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        })
+    else:
+        # Non-streaming mode
+        url = f'https://generativelanguage.googleapis.com/v1beta/models/{google_model}:generateContent?key={api_key}'
+        response = requests.post(
+            url,
+            headers={'Content-Type': 'application/json'},
+            json=google_payload,
+            timeout=30
+        )
+        
+        api_duration = (time.time() - api_start) * 1000
+        logger.info(f"⏱️ Google AI API call time: {api_duration:.0f}ms")
+        
+        if not response.ok:
+            logger.error(f"Google AI error: {response.status_code} - {response.text}")
+            return jsonify({'error': f'Google AI API error: {response.status_code}'}), 500
+        
+        google_result = response.json()
+        
+        # Convert Google AI response to OpenAI format
+        text = google_result.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
+        openai_result = {
+            'choices': [{
+                'message': {
+                    'role': 'assistant',
+                    'content': text
+                },
+                'index': 0,
+                'finish_reason': 'stop'
+            }],
+            'usage': {
+                'prompt_tokens': 0,
+                'completion_tokens': len(text) // 4,
+                'total_tokens': len(text) // 4
+            }
+        }
+        
+        logger.info(f"⏱️ TOTAL REQUEST TIME: {(time.time() - request_start)*1000:.0f}ms")
+        return jsonify(openai_result), 200
 
 
 @openai_bp.route('/classify', methods=['POST'])

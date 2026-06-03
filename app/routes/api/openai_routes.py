@@ -212,13 +212,23 @@ def _call_google_ai(model, messages, temperature, max_tokens, stream, api_key, r
     logger.info(f"Calling Google AI with model: {google_model} (temp={temperature}, max_tokens={max_tokens})")
     
     # Convert OpenAI-style messages to Google AI format
+    # Google AI doesn't support system messages in the same way - merge system into first user message
     contents = []
-    for msg in messages:
-        role = 'user' if msg['role'] in ['user', 'system'] else 'model'
-        contents.append({
-            'role': role,
-            'parts': [{'text': msg['content']}]
-        })
+    system_instruction = None
+    
+    for i, msg in enumerate(messages):
+        if msg['role'] == 'system':
+            # Store system message for systemInstruction field
+            system_instruction = msg['content']
+        elif msg['role'] == 'user':
+            contents.append({
+                'parts': [{'text': msg['content']}]
+            })
+        elif msg['role'] == 'assistant':
+            contents.append({
+                'role': 'model',
+                'parts': [{'text': msg['content']}]
+            })
     
     # Build Google AI request
     google_payload = {
@@ -229,14 +239,23 @@ def _call_google_ai(model, messages, temperature, max_tokens, stream, api_key, r
         }
     }
     
+    # Add system instruction if present
+    if system_instruction:
+        google_payload['systemInstruction'] = {
+            'parts': [{'text': system_instruction}]
+        }
+    
     api_start = time.time()
     
     if stream:
         # Streaming mode
-        url = f'https://generativelanguage.googleapis.com/v1beta/models/{google_model}:streamGenerateContent?key={api_key}&alt=sse'
+        url = f'https://generativelanguage.googleapis.com/v1beta/models/{google_model}:streamGenerateContent?alt=sse'
         response = requests.post(
             url,
-            headers={'Content-Type': 'application/json'},
+            headers={
+                'Content-Type': 'application/json',
+                'x-goog-api-key': api_key
+            },
             json=google_payload,
             stream=True,
             timeout=30
@@ -285,10 +304,13 @@ def _call_google_ai(model, messages, temperature, max_tokens, stream, api_key, r
         })
     else:
         # Non-streaming mode
-        url = f'https://generativelanguage.googleapis.com/v1beta/models/{google_model}:generateContent?key={api_key}'
+        url = f'https://generativelanguage.googleapis.com/v1beta/models/{google_model}:generateContent'
         response = requests.post(
             url,
-            headers={'Content-Type': 'application/json'},
+            headers={
+                'Content-Type': 'application/json',
+                'x-goog-api-key': api_key
+            },
             json=google_payload,
             timeout=30
         )

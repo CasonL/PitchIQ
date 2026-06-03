@@ -200,12 +200,16 @@ def _call_google_ai(model, messages, temperature, max_tokens, stream, api_key, r
     # Extract model name (remove 'google/' prefix if present)
     model_name = model.replace('google/', '')
     # Map OpenRouter model names to Google AI model names
+    # Note: Gemini 2.0 models are shut down, using Gemini 2.5 Flash instead
     model_mapping = {
-        'gemini-2.0-flash-exp:free': 'gemini-2.0-flash-exp',
-        'gemini-2.0-flash-001': 'gemini-2.0-flash-exp',
+        'gemini-2.0-flash-exp:free': 'gemini-2.5-flash',
+        'gemini-2.0-flash-001': 'gemini-2.5-flash', 
+        'gemini-2.0-flash-exp': 'gemini-2.5-flash',
         'gemini-flash-1.5': 'gemini-1.5-flash',
         'gemini-1.5-flash': 'gemini-1.5-flash',
         'gemini-1.5-pro': 'gemini-1.5-pro',
+        'gemini-2.5-flash': 'gemini-2.5-flash',
+        'gemini-3.5-flash': 'gemini-3.5-flash',
     }
     google_model = model_mapping.get(model_name, model_name)
     

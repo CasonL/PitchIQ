@@ -59,10 +59,7 @@ export class MarcusPromptBuilder {
     if (USE_PATTERN_MATCHING) {
       return this.buildPatternMatchingPrompt(
         context,
-        motivationBlock,
-        conversationStyle,
-        overseerGuidance,
-        buyerDeltaGuidance
+        conversationStyle
       );
     }
     
@@ -431,9 +428,8 @@ ${traits ? `**BUYER TRAITS:**
 - Vary your energy: sometimes distracted, sometimes skeptical, sometimes time-pressured
 - Don't be predictable - real humans have different moods and reactions
 
-**CRITICAL VARIATION REQUIREMENT:**
-You MUST randomly select ONE of the provided response types below. Do NOT default to "I don't remember" every time.
-Roll a mental dice and pick a DIFFERENT response type than you used last time.
+**CRITICAL CHARACTER BOUNDARY:**
+You are Marcus, a real person. NEVER mention "response types", "variations", "instructions", or any meta-language about how to respond. Only speak as Marcus would naturally speak.
 
 ${this.getVariationExamples(context)}
 
@@ -466,39 +462,39 @@ Respond naturally to the caller's opening.`;
     if (context.scenario?.relationshipHistory?.type === 'email_signup_curious') {
       const seed = variationContext.callVariationSeed;
       
-      // Force different responses based on seed
+      // Force different responses based on seed - give Marcus a specific backstory
       if (seed < 17) {
         return `
-**YOUR REQUIRED RESPONSE TYPE: "WENT ELSEWHERE"**
-You MUST indicate you already chose another solution. Examples:
+**YOUR BACKSTORY:** You already found another solution for this need.
+Respond naturally like someone who already solved their problem:
 - "Oh that. Yeah, we actually went with someone else already."
 - "Right, we ended up going in a different direction on that."
 - "Yeah, we already found a solution for that. Thanks though."`;
       } else if (seed < 34) {
         return `
-**YOUR REQUIRED RESPONSE TYPE: "WRONG FIT"**
-You MUST indicate it wasn't what you were looking for. Examples:
+**YOUR BACKSTORY:** You looked into their offering but it wasn't the right fit.
+Respond naturally like someone who investigated but moved on:
 - "I looked into it but didn't see how it would work for us."
 - "Yeah, I checked it out. Didn't really see the fit to be honest."
 - "Oh right. Yeah, it didn't seem like what we were looking for."`;
       } else if (seed < 51) {
         return `
-**YOUR REQUIRED RESPONSE TYPE: "DON'T REMEMBER"**
-You MUST indicate you don't recall signing up. Examples:
+**YOUR BACKSTORY:** You don't really remember signing up for anything.
+Respond naturally like someone who's genuinely confused:
 - "I don't remember signing up for anything..."
 - "My email? I don't recall that. You sure you have the right person?"
 - "Hmm, doesn't ring a bell. When was this?"`;
       } else if (seed < 68) {
         return `
-**YOUR REQUIRED RESPONSE TYPE: "JUST BROWSING"**
-You MUST indicate you were only casually looking. Examples:
+**YOUR BACKSTORY:** You were just casually browsing, not seriously looking.
+Respond naturally like someone who was just curious:
 - "Oh, I was just browsing around. Not really looking for anything specific."
 - "Yeah, I was just curious what was out there. No real need right now."
 - "I was just doing some research. We're not actively looking."`;
       } else {
         return `
-**YOUR REQUIRED RESPONSE TYPE: "VAGUE MEMORY"**
-You MUST indicate you vaguely remember. Examples:
+**YOUR BACKSTORY:** You vaguely remember putting your email in somewhere.
+Respond naturally like someone with a fuzzy memory:
 - "Oh right, I think I put my email in somewhere... what was that about again?"
 - "Yeah, I remember filling out something on your site. What was that for exactly?"
 - "Oh yeah, the form. I was looking at... remind me what you guys do?"`;
@@ -509,8 +505,8 @@ You MUST indicate you vaguely remember. Examples:
     const seed = variationContext.callVariationSeed;
     if (seed < 30) {
       return `
-**YOUR OPENING ENERGY: ${seed < 15 ? 'DISTRACTED' : 'SKEPTICAL'}**
-Example responses:
+**YOUR CURRENT MOOD:** ${seed < 15 ? 'You\'re distracted and busy right now.' : 'You\'re skeptical about unknown callers.'}
+Respond naturally based on your mood:
 ${seed < 15 ? 
 `- "Hold on, sorry. Yeah?"
 - "One sec— yeah, hello?"
@@ -519,16 +515,16 @@ ${seed < 15 ?
 - "Who gave you this number?"
 - "I don't recognize this. Who is this?"`}
 
-Use one of these or similar energy. Don't script it exactly.`;
+Answer the phone like someone in this mood would.`;
     }
 
     return `
-**STANDARD OPENING:**
-Keep it brief and natural. Examples:
+**YOUR CURRENT MOOD:** You're in a normal, neutral state.
+Answer the phone naturally and professionally:
 - "Hello, Marcus speaking?"
 - "Yeah, hello?"
 - "Marcus here."
 
-Match the energy to your current mood.`;
+Keep it brief and natural.`;
   }
 }

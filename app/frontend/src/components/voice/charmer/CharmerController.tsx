@@ -47,6 +47,7 @@ import { BuyerBeliefTracker } from './BuyerBeliefTracker';
 import { BuyerStateTree } from './BuyerStateTree';
 import { TreeDeltaManager } from './TreeDeltaManager';
 import { HARD_TRIGGERS, SELLER_SIGNALS, type SellerSignalId } from './BuyerTriggerConstants';
+import { ConversationTurnManagerImpl, type ConversationTurnState } from './types/CallState';
 
 interface CharmerControllerProps {
   onCallEnd?: () => void;
@@ -270,6 +271,48 @@ const CharmerControllerContent = memo(({
   const hybridFeedbackRef = useRef(new MomentFeedbackIntegration());
   const objectionGeneratorRef = useRef(new ObjectionGenerator()); // Generate product-specific objections
   
+  // Conversation Turn Manager - prevents premature turn finalization
+  const [conversationTurnState, setConversationTurnState] = useState<ConversationTurnState>('listening');
+  const conversationTurnManagerRef = useRef<ConversationTurnManagerImpl | null>(null);
+  const activeRequestIdRef = useRef<string | null>(null);
+  
+  // Legacy queuing system - still needed for existing code paths
+  const queuedUtterancesRef = useRef<Array<{ text: string; count: number }>>([]);
+  const pendingUtteranceRef = useRef<string | null>(null);
+  const utteranceGraceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Initialize conversation turn manager
+  useEffect(() => {
+    conversationTurnManagerRef.current = new ConversationTurnManagerImpl(
+      (newState: ConversationTurnState) => {
+        setConversationTurnState(newState);
+        console.log(`🎯 [TurnState] State changed: ${newState}`);
+      },
+      (userTurnText: string) => {
+        // This is where we commit the user turn and start Marcus generation
+        const utteranceCount = utteranceCountRef.current + 1;
+        utteranceCountRef.current = utteranceCount;
+        console.log(`✅ [TurnState] User turn committed: "${userTurnText.substring(0, 60)}..." (utterance #${utteranceCount})`);
+        
+        // Process the complete user turn
+        processUserInputWithQueue(userTurnText, utteranceCount);
+      }
+    );
+    
+    return () => {
+      conversationTurnManagerRef.current?.cleanup();
+    };
+  }, []);
+  
+  // Integrate with call connection state
+  useEffect(() => {
+    // Monitor connection state changes and sync with conversation turn manager
+    if (conversationTurnManagerRef.current) {
+      conversationTurnManagerRef.current.setConnectionState(isConnected);
+      console.log(`🔗 [Integration] Connection state synced: ${isConnected ? 'connected' : 'disconnected'}`);
+    }
+  }, [isConnected]);
+  
   // Buyer-state modeling system (Phase 1)
   const productConfidenceRef = useRef(new ProductConfidenceDetector());
   const beliefTrackerRef = useRef(new BuyerBeliefTracker());
@@ -278,9 +321,6 @@ const CharmerControllerContent = memo(({
   const lastObjectionRef = useRef<string | undefined>(undefined); // Track last objection for escalation
   const utteranceCountRef = useRef(0); // Track number of complete utterances
   const processingTranscriptRef = useRef<string>(''); // Track which transcript we're processing
-  const utteranceGraceTimerRef = useRef<NodeJS.Timeout | null>(null); // Grace period after UtteranceEnd
-  const pendingUtteranceRef = useRef<{text: string; count: number} | null>(null); // Pending utterance during grace
-  const queuedUtterancesRef = useRef<Array<{text: string; count: number}>>([]); // Queue multiple utterances if processing
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null); // Track silence after Marcus speaks
   const silenceStartRef = useRef(0); // When silence started
   const lastMarcusMessageRef = useRef(''); // Last thing Marcus said
@@ -415,10 +455,17 @@ const CharmerControllerContent = memo(({
     const wasInterrupted = wasInterruptedRef.current;
     wasInterruptedRef.current = false;
     
+    // Generate unique request ID for invalidation
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    activeRequestIdRef.current = requestId;
+    
+    // Notify conversation turn manager that Marcus is generating
+    conversationTurnManagerRef.current?.startAssistantGeneration(requestId);
+    
     isProcessingRef.current = true;
     setIsProcessing(true);
     const processingUtteranceCount = utteranceSnapshot;
-    console.log(`📝 Processing user input: "${userText.substring(0, 50)}..." (utterance #${processingUtteranceCount})`);
+    console.log(`📝 Processing user input: "${userText.substring(0, 50)}..." (utterance #${processingUtteranceCount}) [${requestId}]`);
     
     let aiResponse: any;
     let phaseManager: any;
@@ -1156,6 +1203,15 @@ const CharmerControllerContent = memo(({
             return;
           }
           
+          // CRITICAL: Check if this request was invalidated during generation
+          if (!conversationTurnManagerRef.current?.isResponseValid(requestId)) {
+            console.log(`🚫 [Request Invalidated] Ignoring response from canceled request: ${requestId}`);
+            console.log('   User continued speaking - this response is for an incomplete thought');
+            clearFirstSentenceStreaming();
+            finishProcessing();
+            return;
+          }
+          
           // SAFETY: Check after generation completes
           if (utteranceCountRef.current !== processingUtteranceCount) {
             console.log('🚫 User started new utterance during fallback generation - scrapping response');
@@ -1199,6 +1255,15 @@ const CharmerControllerContent = memo(({
         // Guard: check if call is still active after async LLM generation
         if (activeCallIdRef.current !== callIdAtStart) {
           console.log('⚠️ Ignoring stale main LLM response from old call');
+          clearFirstSentenceStreaming();
+          finishProcessing();
+          return;
+        }
+        
+        // CRITICAL: Check if this request was invalidated during generation
+        if (!conversationTurnManagerRef.current?.isResponseValid(requestId)) {
+          console.log(`🚫 [Request Invalidated] Ignoring response from canceled request: ${requestId}`);
+          console.log('   User continued speaking - this response is for an incomplete thought');
           clearFirstSentenceStreaming();
           finishProcessing();
           return;
@@ -1337,6 +1402,9 @@ const CharmerControllerContent = memo(({
       // WAIT and SPEAK actions proceed immediately - no delays
       const speed = currentPhase === 'coach' || currentPhase === 'exit' ? 0.85 : 0.75;
       
+      // Notify conversation turn manager that Marcus is about to speak
+      conversationTurnManagerRef.current?.startAssistantSpeaking();
+      
       // Speak Marcus's response using Cartesia TTS with dynamic emotion
       // If first sentence was already streamed, only speak the remainder
       if (firstSentenceSpokenRef.current) {
@@ -1404,6 +1472,9 @@ const CharmerControllerContent = memo(({
       lastMarcusSpeakTimeRef.current = Date.now();
       lastMarcusMessageRef.current = aiResponse.content;
       console.log('✅ Marcus finished speaking');
+      
+      // Notify conversation turn manager that Marcus finished speaking
+      conversationTurnManagerRef.current?.finishAssistantSpeaking();
       
       // DISABLED: Silence detection was interrupting natural pauses
       // Only re-enable if user explicitly needs it, with much longer timer (15s+)
@@ -1663,9 +1734,14 @@ const CharmerControllerContent = memo(({
       }
     }
     
-    // This prevents fragmentation where "Hey, Marcus. It's Kayson from WebSite Co." 
-    // gets split into multiple partial utterances
+    // Handle partial transcripts (user still speaking)
     if (!isFinalTranscript) {
+      // Notify conversation turn manager that user is speaking (but don't append interim content)
+      if (newContent && conversationTurnManagerRef.current) {
+        conversationTurnManagerRef.current.startUserSpeaking();
+        // Don't append interim transcripts - only append final transcripts to prevent duplication
+      }
+      
       // REAL-TIME INTERRUPTION: Check interim results for immediate interruption
       if (newContent && newContent.length > 5 && isSpeaking) {
         const activeMarcusSpeeches = getCurrentMarcusSpeech();
@@ -1684,8 +1760,10 @@ const CharmerControllerContent = memo(({
         }
         
         if (!isEcho) {
-          console.log(`🛑 REAL-TIME interrupt - stopping Marcus on interim: "${newContent.substring(0, 40)}..."`);
+          console.log(`🛑 REAL-TIME interrupt - stopping Marcus on interim: "${newContent.substring(0, 40)}..."`); 
           stopSpeaking();
+          // Let conversation turn manager handle the interruption
+          conversationTurnManagerRef.current?.handleInterruption();
         }
       }
       
@@ -1697,9 +1775,13 @@ const CharmerControllerContent = memo(({
     }
     
     // If we get here, we have a FINAL transcript (UtteranceEnd confirmed by Deepgram)
-    console.log(`✅ UtteranceEnd received - processing complete message`);
+    console.log(`✅ UtteranceEnd received - user finished speaking`);
     
     if (newContent && newContent.length > 3) {
+      // Append final content to user turn
+      if (conversationTurnManagerRef.current) {
+        conversationTurnManagerRef.current.appendToUserTurn(newContent);
+      }
       // Track user speech timing for Judgment Gate
       lastUserSpeechTimeRef.current = Date.now();
       
@@ -1761,47 +1843,21 @@ const CharmerControllerContent = memo(({
       if (isSpeaking) {
         console.log(`🛑 User interrupted Marcus - stopping immediately`);
         stopSpeaking();
-        
-        // FIX 6: Clear queued utterances - user is changing direction
-        if (queuedUtterancesRef.current.length > 0) {
-          console.log(`🗑️ Clearing ${queuedUtterancesRef.current.length} queued utterances (user interrupted)`);
-          queuedUtterancesRef.current = [];
-        }
+        conversationTurnManagerRef.current?.handleInterruption();
       }
       
-      // IMMEDIATE PROCESSING: Process utterance as soon as user stops speaking
-      // No buffering delay for faster responses
-      
-      // Cancel any existing grace timer
-      if (utteranceGraceTimerRef.current) {
-        clearTimeout(utteranceGraceTimerRef.current);
-        utteranceGraceTimerRef.current = null;
+      // Schedule user turn commit with grace period
+      // This allows for continued speech to be merged instead of creating separate turns
+      if (conversationTurnManagerRef.current) {
+        conversationTurnManagerRef.current.scheduleUserTurnCommit();
       }
       
-      // Merge with pending utterance if exists
-      const mergedContent = pendingUtteranceRef.current 
-        ? `${pendingUtteranceRef.current.text} ${newContent}`.trim()
-        : newContent;
-      
-      if (pendingUtteranceRef.current) {
-        console.log(`🔗 Merging continuation: "${newContent}" → "${mergedContent}"`);
-      }
-      
-      // Process immediately
-      const words = mergedContent.split(/\s+/);
-      const wordCount = words.length;
-      utteranceCountRef.current++;
-      const currentUtterance = utteranceCountRef.current;
-      
-      console.log(`⚡ Processing utterance #${currentUtterance} immediately (${wordCount} words)`);
-      console.log(`🎙️ User speech: "${mergedContent}"`);
-      console.log(`🔧 [DEBUG] Calling processUserInput for utterance #${currentUtterance}, isProcessing=${isProcessing}`);
+      // The state manager will handle turn commit timing
+      // No immediate processing here - wait for proper turn commit
+      console.log(`🎙️ User speech received: "${newContent.substring(0, 60)}..."`);
       
       // Mark this transcript as processed to prevent re-processing
       processedUtterancesRef.current.add(transcript);
-      
-      processUserInputWithQueue(mergedContent, currentUtterance);
-      pendingUtteranceRef.current = null;
       
       lastTranscriptRef.current = transcript;
       return;

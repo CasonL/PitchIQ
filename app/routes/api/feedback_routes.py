@@ -4,8 +4,8 @@ API routes for warm-lead feedback generation
 Provides LLM-powered feedback and quiz generation for sales call analysis.
 """
 
-from flask import Blueprint, request, jsonify
-from app.services.openai_service import get_openai_service
+from flask import Blueprint, request, jsonify, g
+from app.services.api_manager import api_manager
 import json
 
 feedback_bp = Blueprint('feedback', __name__)
@@ -45,14 +45,14 @@ def generate_feedback():
         if not prompt:
             return jsonify({'error': 'Prompt is required'}), 400
         
-        # Get OpenAI service
-        openai_service = get_openai_service()
+        # Get service manager from Flask context (proper pattern like dashboard.py)
+        service_manager = getattr(g, 'api_manager', api_manager)
         
-        if not openai_service.initialized or not openai_service.client:
-            return jsonify({'error': 'OpenAI service not initialized'}), 500
+        if not service_manager or not hasattr(service_manager, 'openai_service'):
+            return jsonify({'error': 'AI service configuration error'}), 500
         
         # Generate feedback using GPT-4
-        response = openai_service.client.chat.completions.create(
+        response = service_manager.openai_service.client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {
@@ -129,14 +129,14 @@ def generate_quiz():
         if not prompt:
             return jsonify({'error': 'Prompt is required'}), 400
         
-        # Get OpenAI service
-        openai_service = get_openai_service()
+        # Get service manager from Flask context (proper pattern like dashboard.py)
+        service_manager = getattr(g, 'api_manager', api_manager)
         
-        if not openai_service.initialized or not openai_service.client:
-            return jsonify({'error': 'OpenAI service not initialized'}), 500
+        if not service_manager or not hasattr(service_manager, 'openai_service'):
+            return jsonify({'error': 'AI service configuration error'}), 500
         
         # Generate quiz using GPT-4
-        response = openai_service.client.chat.completions.create(
+        response = service_manager.openai_service.client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {
@@ -227,11 +227,11 @@ def analyze_transcript():
         if len(transcript) < 50:
             return jsonify({'error': 'Transcript too short. Please provide at least 50 characters.'}), 400
         
-        # Get OpenAI service
-        openai_service = get_openai_service()
+        # Get service manager from Flask context (proper pattern like dashboard.py)
+        service_manager = getattr(g, 'api_manager', api_manager)
         
-        if not openai_service.initialized or not openai_service.client:
-            return jsonify({'error': 'OpenAI service not initialized'}), 500
+        if not service_manager or not hasattr(service_manager, 'openai_service'):
+            return jsonify({'error': 'AI service configuration error'}), 500
         
         # Build analysis prompt for IN-DEPTH coaching data
         system_prompt = """You are an elite sales coach analyzing call transcripts. Generate DETAILED coaching moments with specific psychological insights.
@@ -332,7 +332,7 @@ Generate moments that feel like a master coach sat with the rep and explained no
         user_prompt = f"Analyze this sales call transcript:\n\n{transcript}\n\nReturn only the JSON object with the analysis."
 
         # Generate analysis using GPT-4o-mini for speed/cost
-        response = openai_service.client.chat.completions.create(
+        response = service_manager.openai_service.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},

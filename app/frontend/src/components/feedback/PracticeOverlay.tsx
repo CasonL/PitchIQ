@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion"; // v1.2 - null-safe sharpenBold
 import { Mic, CircleStop, RotateCcw, Check, Star } from "lucide-react";
 import Waveform from "./Waveform";
 import { type MomentData } from "./momentsData";
@@ -121,7 +121,7 @@ export default function PracticeOverlay({
           {showFeedback && (
             <motion.div id="practice-feedback" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-pitch-green-light border border-pitch-green/20 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2"><Star className="w-4 h-4 text-pitch-green" /><span className="text-sm font-bold text-pitch-green">Nice work!</span></div>
-              <p className="text-sm text-pitch-secondary">You used {moment.sharpenBold.toLowerCase()} effectively. Score improved from {moment.beforeScore} to {moment.afterScore}.</p>
+              <p className="text-sm text-pitch-secondary">You used {(moment.sharpenBold || 'the technique').toLowerCase()} effectively. Score improved from {moment.beforeScore} to {moment.afterScore}.</p>
               <div className="mt-3 p-3 bg-white border border-pitch-border rounded-lg">
                 <p className="text-[10px] font-bold text-pitch-orange uppercase tracking-wider mb-1">Your response</p>
                 <p className="text-sm text-pitch-text font-medium">"{moment.quoteText}"</p>

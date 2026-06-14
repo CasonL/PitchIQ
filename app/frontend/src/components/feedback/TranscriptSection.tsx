@@ -108,7 +108,7 @@ export default function TranscriptSection({ moment, currentMoment, onShowCoachin
                 {currentMoment === 0 && (
                   <div className="border-l-[3px] border-l-pitch-tertiary pl-3 py-1">
                     <p className="text-[10px] font-bold text-pitch-tertiary uppercase tracking-wider mb-1">Context</p>
-                    <p className="text-sm text-pitch-text leading-relaxed">You cold-called Marcus at NexaCorp. He answered the phone.</p>
+                    <p className="text-sm text-pitch-text leading-relaxed">{moment.beforeContext || moment.youSaid || "Call context not available"}</p>
                   </div>
                 )}
                 {currentMoment === 1 && (

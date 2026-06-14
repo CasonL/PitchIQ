@@ -488,7 +488,7 @@ Return ONLY this JSON structure:
     "prospectSaid": "exact prospect quote", 
     "talkRatio": "XX% you, XX% prospect",
     "prospectTone": "brief tone description",
-    "beforeContext": "brief context",
+    "beforeContext": "2-3 sentence scenario describing the actual call context. Be SPECIFIC: Was this cold outreach or warm follow-up? What triggered the call? Example: 'You followed up with Sarah after she downloaded your pricing guide. She mentioned struggling with rep onboarding time.'"
     "beforeScore": 4.5,
     "sharpenThis": "2-3 sentence coaching insight with **bold key point** embedded naturally",
     "quoteTag": "Try this instead",

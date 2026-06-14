@@ -124,8 +124,11 @@ export default function TimelineScreen({ onComplete, moments }: TimelineScreenPr
   };
 
   const getScenarioText = () => {
-    if (currentMoment === 0) return "You cold-called Marcus at NexaCorp. He answered the phone.";
-    return activeMoments[currentMoment - 1].prospectSaid;
+    // Use actual moment context if available, fallback to generic only if no data
+    if (currentMoment === 0) {
+      return activeMoments[0]?.beforeContext || activeMoments[0]?.youSaid || "Call context not available";
+    }
+    return activeMoments[currentMoment - 1]?.prospectSaid || "";
   };
 
   const handlePracticeDone = () => {

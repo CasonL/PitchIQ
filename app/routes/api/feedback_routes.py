@@ -233,39 +233,101 @@ def analyze_transcript():
         if not openai_service.initialized or not openai_service.client:
             return jsonify({'error': 'OpenAI service not initialized'}), 500
         
-        # Build analysis prompt
-        system_prompt = """You are an expert sales coach analyzing call transcripts. 
-Analyze the sales call and return a JSON object with these exact fields:
+        # Build analysis prompt for IN-DEPTH coaching data
+        system_prompt = """You are an elite sales coach analyzing call transcripts. Generate DETAILED coaching moments with specific psychological insights.
+
+Analyze the transcript and return this exact JSON structure:
 
 {
-    "readinessScore": number (0-100, overall sales readiness based on technique),
-    "painPointsFound": number (count of unique pain points uncovered),
-    "objectionsHandled": number (count of objections successfully addressed),
-    "objectionsTotal": number (total objections raised),
-    "demoScheduled": boolean (true if meeting/demo booked),
-    "callDuration": number (estimated seconds based on transcript length),
-    "highlights": [
-        {"text": "brief highlight", "type": "win|miss|tip"}
-    ],
-    "sentimentAnalysis": "2-3 sentence summary of buyer sentiment journey",
-    "coachingMoments": [
+    "readinessScore": number (0-100),
+    "painPointsFound": number,
+    "objectionsHandled": number,
+    "objectionsTotal": number,
+    "demoScheduled": boolean,
+    "callDuration": number (estimated from word count at 150 words/min),
+    "highlights": [{"text": "...", "type": "win|miss|tip"}],
+    "sentimentAnalysis": "2-3 sentence buyer journey summary",
+    "detailedMoments": [
         {
-            "timestamp": number (0-100 percentage through call),
-            "title": "What happened",
-            "insight": "Coaching insight",
-            "sentimentBefore": number (0-100),
-            "sentimentAfter": number (0-100)
+            "id": 1,
+            "time": "0:31" (estimated timestamp),
+            "label": "Objection|Discovery|Turn|Close|Win|Mistake",
+            "type": "mistake|turning|win",
+            "turnLabel": "Turn 1",
+            "turnNumber": "1 / 3",
+            "youSaid": "exact rep quote from transcript",
+            "prospectSaid": "exact prospect quote from transcript",
+            "youAnswer": "rep's follow-up (if applicable)",
+            "prospectFinal": "prospect's final response (if applicable)",
+            "talkRatio": "e.g., 60% you, 40% Marcus",
+            "prospectTone": "e.g., skeptical, opening up, dismissive, curious",
+            "sentiment": {
+                "trust": {"value": 0-100, "label": "Low|Moderate|High|Rising", "color": "#D9382E|#D97706|#22A559|#2563EB"},
+                "curiosity": {"value": 0-100, "label": "...", "color": "..."},
+                "urgency": {"value": 0-100, "label": "...", "color": "..."}
+            },
+            "beforeSentiment": {
+                "trust": {"value": 0-100, "label": "..."},
+                "curiosity": {"value": 0-100, "label": "..."},
+                "urgency": {"value": 0-100, "label": "..."}
+            },
+            "whatWorked": "Psychological analysis of what the rep did right - explain WHY it worked at a cognitive/behavioral level",
+            "sharpenThis": "Setup sentence ending with...",
+            "sharpenBold": "the key mistake or missed opportunity in bold terms",
+            "quoteTag": "Try this instead|Even sharper|Do this",
+            "quoteText": "Specific script they should have used",
+            "beforeScore": 0-10 (how they performed),
+            "beforeContext": "brief label of their technique",
+            "afterScore": 0-10 (potential with fix),
+            "afterContext": "brief label of improved technique",
+            "quiz": {
+                "question": "Psychology question about WHY something worked/failed",
+                "options": [
+                    {"text": "distractor - common wrong answer", "correct": false},
+                    {"text": "CORRECT - deep psychological insight", "correct": true},
+                    {"text": "distractor - surface-level answer", "correct": false}
+                ],
+                "explanation": "Detailed explanation of the psychology - why the correct answer is right and why wrong answers miss the point",
+                "howResponse": "Actionable script: exactly what to say next time in this scenario"
+            }
         }
     ]
 }
 
-Scoring guidelines:
-- readinessScore: 0-40 poor, 41-60 fair, 61-75 good, 76-90 very good, 91-100 excellent
-- Count pain points mentioned by buyer that rep explored
-- Count objections buyer raised and which were handled well
-- Estimate duration based on typical speaking pace (150 words/minute)
-- Create 2-4 highlights based on key moments
-- Generate 2-3 coaching moments for pivotal interactions"""
+GUIDELINES FOR IN-DEPTH ANALYSIS:
+
+1. IDENTIFY 2-4 CRITICAL MOMENTS:
+   - Where did the prospect's sentiment shift?
+   - What objections were raised and how handled?
+   - Where did the rep miss buying signals?
+   - What psychological triggers were activated?
+
+2. SENTIMENT SCORING:
+   - Trust: 0-30 = Low (red), 31-50 = Moderate (orange), 51-70 = Rising (blue), 71-100 = High (green)
+   - Track how trust/curiosity/urgency change moment to moment
+
+3. WHAT WORKED ANALYSIS:
+   - Don't just say "good job" - explain the PSYCHOLOGY
+   - Example: "You asked about consequences instead of arguing. This worked because consequences bypass the logical defense system and activate emotional processing centers."
+
+4. SHARPEN THIS:
+   - Identify the specific behavioral mistake
+   - Bold the key insight about what they should have done
+   - Explain the micro-skill they're missing
+
+5. QUIZ DESIGN:
+   - Question must test DEEP understanding, not surface facts
+   - Wrong answers should be PLAUSIBLE but psychologically incomplete
+   - Explanation must teach something they can apply to other calls
+   - howResponse must be an exact script they can practice
+
+6. COACHING DEPTH LEVELS:
+   - Level 1: What happened (observation)
+   - Level 2: Why it mattered (tactical)  
+   - Level 3: The psychology behind it (strategic)
+   - Level 4: How to recognize it in other calls (transferable skill)
+
+Generate moments that feel like a master coach sat with the rep and explained not just WHAT to fix, but WHY humans behave this way and HOW to operationalize it."""
 
         user_prompt = f"Analyze this sales call transcript:\n\n{transcript}\n\nReturn only the JSON object with the analysis."
 

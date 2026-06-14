@@ -28,9 +28,10 @@ function smoothScrollTo(targetY: number, duration = 600) {
 
 interface TimelineScreenProps {
   onComplete?: () => void;
+  moments?: MomentData[]; // AI-generated moments from transcript analysis
 }
 
-export default function TimelineScreen({ onComplete }: TimelineScreenProps) {
+export default function TimelineScreen({ onComplete, moments }: TimelineScreenProps) {
   const [currentMoment, setCurrentMoment] = useState(0);
   const [phase, setPhase] = useState<"splash" | "main">("splash");
   const [coachingPhase, setCoachingPhase] = useState<"none" | "sentiment" | "coaching">("none");
@@ -42,8 +43,10 @@ export default function TimelineScreen({ onComplete }: TimelineScreenProps) {
   const [practiceFeedback, setPracticeFeedback] = useState(false);
   const [practiceCompleted, setPracticeCompleted] = useState(false);
 
-  const moment = MOMENTS[currentMoment];
-  const totalMoments = MOMENTS.length;
+  // Use AI-generated moments if provided, otherwise fall back to hardcoded demo data
+  const activeMoments = moments || MOMENTS;
+  const moment = activeMoments[currentMoment];
+  const totalMoments = activeMoments.length;
 
   // Phase transitions
   useEffect(() => {
@@ -122,7 +125,7 @@ export default function TimelineScreen({ onComplete }: TimelineScreenProps) {
 
   const getScenarioText = () => {
     if (currentMoment === 0) return "You cold-called Marcus at NexaCorp. He answered the phone.";
-    return MOMENTS[currentMoment - 1].prospectSaid;
+    return activeMoments[currentMoment - 1].prospectSaid;
   };
 
   const handlePracticeDone = () => {

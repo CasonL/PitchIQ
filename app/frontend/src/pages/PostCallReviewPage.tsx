@@ -4,6 +4,7 @@ import { ArrowLeft, FileText, Sparkles, Loader2 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import SummaryScreen from "../components/feedback/SummaryScreen";
 import TimelineScreen from "../components/feedback/TimelineScreen";
+import { type MomentData } from "../components/feedback/momentsData";
 
 type Screen = "summary" | "timeline" | "completion";
 type InputMode = "loading" | "transcript" | "demo" | "real";
@@ -16,6 +17,7 @@ interface CallMetrics {
   demoScheduled?: boolean;
   readinessScore?: number;
   transcript?: string;
+  detailedMoments?: MomentData[];
 }
 
 interface AIFeedbackResponse {
@@ -27,13 +29,7 @@ interface AIFeedbackResponse {
   callDuration: number;
   highlights: { text: string; type: "win" | "miss" | "tip" }[];
   sentimentAnalysis: string;
-  coachingMoments: Array<{
-    timestamp: number;
-    title: string;
-    insight: string;
-    sentimentBefore: number;
-    sentimentAfter: number;
-  }>;
+  detailedMoments: MomentData[];
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://pitchiq-8enf.onrender.com';
@@ -107,7 +103,7 @@ const PostCallReviewPage = () => {
       
       const data: AIFeedbackResponse = await response.json();
       
-      // Store AI-generated metrics
+      // Store AI-generated metrics + detailed moments
       setCallMetrics({
         callDuration: data.callDuration,
         painPointsFound: data.painPointsFound,
@@ -115,7 +111,8 @@ const PostCallReviewPage = () => {
         objectionsTotal: data.objectionsTotal,
         demoScheduled: data.demoScheduled,
         readinessScore: data.readinessScore,
-        transcript: transcript.trim()
+        transcript: transcript.trim(),
+        detailedMoments: data.detailedMoments
       });
       
       // Also store in localStorage for persistence
@@ -266,7 +263,10 @@ Marcus: Well, honestly, our reps freeze on objections. It's costing us deals..."
                 aiGenerated={inputMode === "real" && !!callMetrics?.transcript}
               />
             ) : screen === "timeline" ? (
-              <TimelineScreen onComplete={() => setScreen("completion")} />
+              <TimelineScreen 
+                moments={callMetrics?.detailedMoments} 
+                onComplete={() => setScreen("completion")} 
+              />
             ) : (
               <div className="flex flex-col items-center justify-center min-h-[60vh] px-6">
                 <motion.div

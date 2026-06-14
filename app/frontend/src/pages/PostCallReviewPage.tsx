@@ -63,7 +63,8 @@ const PostCallReviewPage = () => {
           objectionsHandled: parsed.objectionsHandled || 0,
           objectionsTotal: parsed.objectionsTotal || 2,
           demoScheduled: parsed.demoScheduled || parsed.meetingBooked || false,
-          readinessScore: parsed.readinessScore || parsed.overallScore || null
+          readinessScore: parsed.readinessScore || parsed.overallScore || null,
+          detailedMoments: parsed.detailedMoments
         });
       } else {
         // No call data found - offer transcript input
@@ -123,6 +124,7 @@ const PostCallReviewPage = () => {
         objectionsTotal: data.objectionsTotal,
         demoScheduled: data.demoScheduled,
         readinessScore: data.readinessScore,
+        detailedMoments: data.detailedMoments,
         source: 'ai_analyzed'
       }));
       

@@ -352,13 +352,16 @@ CRITICAL RULES - DO NOT VIOLATE:
 Generate coaching that feels like a VP of Sales who has actually closed deals, not an AI reading from a sales training manual."""
 
         # Determine number of moments based on transcript length
+        # Cap at 2-3 for very long transcripts to prevent timeouts
         word_count = len(transcript.split())
         if word_count < 200:
             target_moments = "1-2"
         elif word_count < 500:
             target_moments = "2-3"
+        elif word_count < 1000:
+            target_moments = "2-3"
         else:
-            target_moments = "3-4"
+            target_moments = "2"  # Very long transcripts - focus on just 2 key moments
 
         user_prompt = f"""Analyze this sales call transcript:
 
@@ -380,8 +383,9 @@ Return only the JSON object with the analysis."""
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0.7,
-            max_tokens=2500,
-            response_format={"type": "json_object"}
+            max_tokens=2000,
+            response_format={"type": "json_object"},
+            timeout=25  # 25 second timeout to stay under gunicorn's 30s limit
         )
         
         # Parse the response
@@ -418,6 +422,14 @@ Return only the JSON object with the analysis."""
             'details': str(e)
         }), 500
     except Exception as e:
+        error_str = str(e).lower()
+        if 'timeout' in error_str or 'timed out' in error_str:
+            logger.error(f"OpenAI request timed out for transcript of {word_count} words")
+            return jsonify({
+                'error': 'Analysis timed out',
+                'details': 'The transcript is too long for quick analysis. Try a shorter transcript or break it into sections.',
+                'transcriptWordCount': word_count
+            }), 504
         logger.exception(f"Error in analyze_transcript: {str(e)}")
         return jsonify({
             'error': 'Failed to analyze transcript',

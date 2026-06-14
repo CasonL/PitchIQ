@@ -18,6 +18,10 @@ interface CallMetrics {
   readinessScore?: number;
   transcript?: string;
   detailedMoments?: MomentData[];
+  highlights?: { text: string; type: "win" | "miss" | "tip" }[];
+  sentimentAnalysis?: { trust: { value: number; label: string }; curiosity: { value: number; label: string }; urgency: { value: number; label: string } };
+  isLoading?: boolean;
+  totalExpectedMoments?: number;
 }
 
 interface AIFeedbackResponse {
@@ -99,7 +103,7 @@ const PostCallReviewPage = () => {
     return response.json();
   };
 
-  // Analyze transcript with progressive moment loading
+  // Analyze transcript with progressive moment loading + summary stats
   const analyzeTranscript = async () => {
     if (!transcript.trim()) return;
     
@@ -107,21 +111,42 @@ const PostCallReviewPage = () => {
     setAiError(null);
     
     try {
-      // Load first moment immediately (fast feedback)
-      const firstMomentData = await loadMoment(0, []);
-      const firstMoment = firstMomentData.moment;
+      // Load summary and first moment in parallel for fast initial feedback
+      const [summaryData, firstMomentData] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/feedback/analyze-summary`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: transcript.trim() })
+        }).then(r => r.ok ? r.json() : null).catch(() => null),
+        loadMoment(0, [])
+      ]);
       
-      // Show first moment immediately
-      const estimatedDuration = Math.max(60, transcript.trim().split(/\s+/).length / 2);
-      setCallMetrics({
-        callDuration: estimatedDuration,
+      const firstMoment = firstMomentData.moment;
+      const summary = summaryData || {
+        callDuration: Math.max(60, transcript.trim().split(/\s+/).length / 2),
         painPointsFound: 0,
         objectionsHandled: 0,
         objectionsTotal: 1,
         demoScheduled: false,
         readinessScore: 65,
+        highlights: [],
+        sentimentAnalysis: { trust: { value: 50, label: 'neutral' }, curiosity: { value: 50, label: 'neutral' }, urgency: { value: 50, label: 'neutral' } }
+      };
+      
+      // Show data immediately with real stats
+      setCallMetrics({
+        callDuration: summary.callDuration,
+        painPointsFound: summary.painPointsFound,
+        objectionsHandled: summary.objectionsHandled,
+        objectionsTotal: summary.objectionsTotal,
+        demoScheduled: summary.demoScheduled,
+        readinessScore: summary.readinessScore,
+        highlights: summary.highlights,
+        sentimentAnalysis: summary.sentimentAnalysis,
         transcript: transcript.trim(),
-        detailedMoments: [firstMoment]
+        detailedMoments: [firstMoment],
+        isLoading: false,
+        totalExpectedMoments: transcript.trim().split(/\s+/).length < 200 ? 1 : 2
       });
       
       setInputMode("real");
@@ -141,26 +166,21 @@ const PostCallReviewPage = () => {
           loadedMoments.push(momentData.moment);
           
           // Update callMetrics with newly loaded moments
-          const updatedMetrics = {
-            callDuration: estimatedDuration,
-            painPointsFound: 0,
-            objectionsHandled: 0,
-            objectionsTotal: 1,
-            demoScheduled: false,
-            readinessScore: 65,
-            transcript: transcript.trim(),
-            detailedMoments: [...loadedMoments]
-          };
-          setCallMetrics(updatedMetrics);
+          setCallMetrics(prev => ({
+            ...prev,
+            detailedMoments: [...loadedMoments],
+            totalExpectedMoments: totalMoments
+          }));
           
           // Update localStorage
           localStorage.setItem('lastCallMetrics', JSON.stringify({
-            ...updatedMetrics,
+            ...summary,
+            detailedMoments: loadedMoments,
             source: 'ai_analyzed'
           }));
         } catch (e) {
           console.error(`Failed to load moment ${i}:`, e);
-          break; // Stop loading more moments on error
+          break;
         }
       }
       

@@ -47,6 +47,9 @@ export default function TimelineScreen({ onComplete, moments }: TimelineScreenPr
   const activeMoments = moments || MOMENTS;
   const moment = activeMoments[currentMoment];
   const totalMoments = activeMoments.length;
+  
+  // Loading guard - show loading if trying to access a moment that hasn't loaded yet
+  const isMomentLoading = !moment && currentMoment >= activeMoments.length;
 
   // Phase transitions
   useEffect(() => {
@@ -142,6 +145,30 @@ export default function TimelineScreen({ onComplete, moments }: TimelineScreenPr
     setRecording(false);
     setPracticeFeedback(false);
   };
+
+  // Loading state when moment hasn't loaded yet
+  if (isMomentLoading) {
+    return (
+      <div className="max-w-2xl mx-auto px-5 sm:px-6 pb-16">
+        <TimelineHeader
+          currentMoment={currentMoment}
+          onChangeMoment={setCurrentMoment}
+          onResetState={resetState}
+        />
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+          <div className="w-12 h-12 border-4 border-pitch-accent/20 border-t-pitch-accent rounded-full animate-spin mb-4" />
+          <p className="text-lg font-semibold text-pitch-text">Analyzing moment...</p>
+          <p className="text-sm text-pitch-secondary mt-2">AI is reviewing this part of your call</p>
+          <button 
+            onClick={() => setCurrentMoment(activeMoments.length - 1)}
+            className="mt-6 px-4 py-2 bg-pitch-cream border border-pitch-border rounded-lg text-sm text-pitch-secondary hover:bg-pitch-muted transition-smooth"
+          >
+            ← Back to available moments
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-5 sm:px-6 pb-16">

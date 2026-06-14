@@ -553,6 +553,98 @@ Return only the JSON object for this single moment."""
         }), 500
 
 
+@feedback_bp.route('/api/feedback/analyze-summary', methods=['POST'])
+def analyze_summary():
+    """
+    Lightweight summary analysis - extracts key metrics from transcript.
+    Fast endpoint (~2-3s) to get stats while moments load in background.
+    """
+    try:
+        data = request.json
+        transcript = data.get('transcript', '').strip()
+        
+        if not transcript:
+            return jsonify({'error': 'Transcript is required'}), 400
+        
+        service_manager = getattr(g, 'api_manager', api_manager)
+        if not service_manager or not hasattr(service_manager, 'openai_service'):
+            return jsonify({'error': 'OpenAI service not available'}), 500
+        
+        word_count = len(transcript.split())
+        
+        summary_prompt = f"""Analyze this sales call transcript and extract key metrics.
+
+Return ONLY this JSON structure:
+{{
+    "painPointsFound": 0,
+    "objectionsHandled": 0,
+    "objectionsTotal": 0,
+    "demoScheduled": false,
+    "readinessScore": 65,
+    "highlights": [
+        {{
+            "turn": "Turn 1",
+            "label": "Brief description",
+            "type": "strength|mistake"
+        }}
+    ],
+    "sentimentAnalysis": {{
+        "trust": {{"value": 65, "label": "building"}},
+        "curiosity": {{"value": 45, "label": "moderate"}},
+        "urgency": {{"value": 30, "label": "low"}}
+    }}
+}}
+
+Guidelines:
+- painPointsFound: Count explicit problems/pains mentioned (budget issues, workflow problems, etc.)
+- objectionsHandled: Count objections the rep successfully addressed
+- objectionsTotal: Count total objections raised (handled + unhandled)
+- demoScheduled: true if meeting/demo explicitly scheduled, false otherwise
+- readinessScore: 0-100 based on call quality (60-70 average, 80+ excellent)
+- highlights: 2-3 key moments with brief labels
+- sentimentAnalysis: track trust, curiosity, urgency across the call (0-100)
+
+Be concise. No filler."""
+
+        user_prompt = f"Extract summary metrics from this call transcript ({word_count} words):\n\n{transcript}\n\nReturn only the JSON."
+        
+        logger.info(f"Analyzing summary for transcript of {word_count} words")
+        
+        response = service_manager.openai_service.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": summary_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.5,
+            max_tokens=600,
+            response_format={"type": "json_object"},
+            timeout=15
+        )
+        
+        summary_text = response.choices[0].message.content
+        logger.info(f"Summary received, length: {len(summary_text)} chars")
+        
+        try:
+            summary = json.loads(summary_text)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parse error for summary: {summary_text[:500]}...")
+            raise
+        
+        # Add calculated duration
+        summary['callDuration'] = max(60, word_count / 2)
+        summary['transcriptWordCount'] = word_count
+        
+        return jsonify(summary)
+        
+    except Exception as e:
+        logger.exception(f"Error analyzing summary: {str(e)}")
+        return jsonify({
+            'error': 'Failed to analyze summary',
+            'details': str(e)
+        }), 500
+
+
 @feedback_bp.route('/api/feedback/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""

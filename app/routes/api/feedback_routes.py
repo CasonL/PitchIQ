@@ -438,7 +438,7 @@ Return only the JSON object with the analysis."""
 
 
 @feedback_bp.route('/api/feedback/analyze-moment', methods=['POST'])
-def analyze_single_moment():
+def analyze_single_moment():  # v1.0 progressive loading
     """
     Progressive moment generation - analyze a single coaching moment
     

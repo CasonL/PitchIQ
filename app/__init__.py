@@ -269,8 +269,14 @@ def create_app(config_name='dev'):
     flask_instance.register_blueprint(api_keys_bp)
     
     # Warm-lead feedback generation
-    from app.routes.api.feedback_routes import feedback_bp
-    flask_instance.register_blueprint(feedback_bp)
+    try:
+        from app.routes.api.feedback_routes import feedback_bp
+        flask_instance.register_blueprint(feedback_bp)
+        print(f"[OK] Feedback blueprint registered: {feedback_bp.name}")
+    except Exception as e:
+        print(f"[ERROR] Failed to register feedback blueprint: {e}")
+        import traceback
+        traceback.print_exc()
     
     # Register demo blueprint
     from app.demo import demo

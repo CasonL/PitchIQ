@@ -296,38 +296,47 @@ Analyze the transcript and return this exact JSON structure:
 
 CRITICAL RULES - DO NOT VIOLATE:
 
-1. IDENTIFY CALL CONTEXT CORRECTLY:
-   - If transcript mentions "downloaded our guide", "saw you visited our site", "filled out a form" → This is a WARM LEAD FOLLOW-UP, not a cold call
-   - Set context accordingly: "You followed up with Marcus after he downloaded a sales training guide"
+1. CONTEXT DETECTION IS MANDATORY - BE EXACT:
+   - SCAN the transcript for ANY mention of: downloaded guide, filled out form, visited site, saw you on LinkedIn, email signup
+   - If ANY of these appear → This is WARM LEAD FOLLOW-UP, NOT cold call
+   - Set context: "You followed up with Marcus after he downloaded PitchIQ's sales training guide"
+   - NEVER say "cold-called" if warm signals exist in transcript
 
-2. SPOT THE REAL COACHING MOMENT:
-   - Common mistake: Rep uncovers pain → immediately pivots to product/demo
-   - Better coaching: Did they quantify impact? Ask about frequency? Find out what was already tried?
-   - Look for: premature pitching, missed follow-up questions, skipping the "so what?" layer
+2. sharpenThis MUST BE CONCISE (max 2-3 sentences):
+   - ONE clear explanation of the mistake
+   - NO repetition or filler
+   - Bolded insight embedded naturally, not tacked on at end
+   - NO double periods or punctuation errors
+   - Example: "After Marcus revealed reps struggle with price objections, you moved to the demo too quickly. Before offering the solution, find out how often this happens and what it costs them."
 
-3. sharpenThis MUST BE A COMPLETE, GRAMMATICAL SENTENCE:
-   - NEVER use placeholder text like "Setup sentence ending with..."
-   - NEVER use sentence fragments
-   - Write actual coaching that a human would say
+3. quoteText MUST BE CONVERSATIONAL, NOT INTERROGATIVE:
+   - DO NOT assume negative outcomes ("what deals have you lost")
+   - Ask what HAPPENS, not what they LOST
+   - Better: "How often are your reps running into price objections, and what usually happens when they do?"
+   - Then follow: "Do they discount, stall out, or lose the deal completely?"
+   - Let THEM reveal the pain, don't force it
 
-4. quoteText MUST BE NATURAL:
-   - No stiff corporate language
-   - No "What specific outcomes are you hoping to achieve..." (too formal)
-   - Use conversational questions a real salesperson would ask
-   - Better: "When price comes up, what usually happens?" or "How often are you losing deals because of this?"
+4. QUIZ ANSWERS MUST BE PLAUSIBLE DISTRACTORS:
+   - WRONG answers should be things a real salesperson might actually think
+   - NO cartoonishly bad answers like "to fill time" or "to make the call longer"
+   - Example wrong answers: "To prove your product has every feature they need" or "To avoid discussing price until the end"
+   - Each option should teach something if examined closely
 
-5. EXPLANATIONS MUST SOUND HUMAN:
-   - Avoid: "engages emotional processing centers", "activates cognitive pathways"
-   - Use: "gets them talking about a real problem", "makes them feel heard", "uncovers what they actually care about"
+5. EXPLANATIONS FOCUS ON BUSINESS IMPACT, NOT EMOTIONS:
+   - Avoid: "emotional connection to issues"
+   - Use: "lost deals, discounting, slower rep ramp-up, revenue impact"
+   - Connect to concrete business consequences
+   - Example: "Exploring impact helps Marcus connect the problem to real business consequences. Once the cost is clear, PitchIQ becomes a direct answer to his problem instead of a generic product pitch."
 
-6. COACHING QUALITY CHECKLIST:
-   - [ ] Identifies the actual behavioral mistake (not just generic advice)
-   - [ ] Explains why it matters in dollars/urgency terms
-   - [ ] Gives a natural, usable alternative script
-   - [ ] Uses plain English, not jargon
-   - [ ] Context is accurate (warm vs cold, etc.)
+6. FINAL QUALITY CHECKLIST:
+   - [ ] Context accurately reflects warm vs cold (check transcript signals)
+   - [ ] sharpenThis is 2-3 tight sentences with embedded bold insight
+   - [ ] quoteText asks what happens, not assumes negative outcomes
+   - [ ] Quiz distractors are plausible misconceptions, not jokes
+   - [ ] Explanation ties to business impact (deals, revenue, time)
+   - [ ] No punctuation errors, no repetition, no filler
 
-Generate coaching that feels like a top-performing sales manager giving real feedback, not an AI regurgitating sales training manuals."""
+Generate coaching that feels like a VP of Sales who has actually closed deals, not an AI reading from a sales training manual."""
 
         user_prompt = f"Analyze this sales call transcript:\n\n{transcript}\n\nReturn only the JSON object with the analysis."
 

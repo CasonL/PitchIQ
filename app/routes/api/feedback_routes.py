@@ -272,10 +272,10 @@ Analyze the transcript and return this exact JSON structure:
                 "urgency": {"value": 0-100, "label": "..."}
             },
             "whatWorked": "2-3 sentence explanation of what the rep did well, in plain English. Explain WHY it worked. Be specific about the technique. Example: 'You did well by asking about their biggest challenge instead of pitching features. This worked because when prospects brush you off with we don't need anything, a curiosity-based question can restart the conversation without feeling pushy.'",
-            "sharpenThis": "2-3 sentence explanation of the key mistake. Identify exactly where the rep missed an opportunity or moved too fast. Use plain, conversational language. NO placeholder text like 'Setup sentence ending with...' - write actual coaching. Example: 'After Marcus revealed reps freeze on price objections, you moved straight to offering a demo. The missed opportunity was not exploring the pain first. You should find out how often this happens, what it costs them, and what they've already tried.'",
-            "sharpenBold": "The single sharpest insight in 10 words or less, bolded naturally within the sharpenThis. Example: '**You pitched before quantifying the pain**'",
+            "sharpenThis": "2-3 sentence explanation of the key mistake. Identify exactly where the rep missed an opportunity or moved too fast. The bold insight should be embedded naturally within the text, NOT tacked on at the end. NO placeholder text. Example: 'After Marcus revealed reps struggle with price objections, you moved to the demo too quickly. **You pitched before exploring the pain.** Before offering the solution, find out how often this happens and what it costs them.'",
+            "sharpenBold": "[DEPRECATED - embed bold naturally in sharpenThis]",
             "quoteTag": "Try this instead",
-            "quoteText": "Specific script they should have used - 1-2 sentences max. Natural, conversational. Example: 'When price comes up, what usually happens? Do they discount, stall out, or lose the deal completely?'",
+            "quoteText": "Specific script they should have used - 1-2 sentences max. Follow behavior-first sequence: what happens → how often → what does it lead to. Example: 'When reps struggle with price objections, what usually happens? Do they discount, stall out, or lose the deal?' THEN 'How often does that happen?'", 
             "beforeScore": 0-10 (how they performed),
             "beforeContext": "brief label like 'Moved to pitch' or 'Good discovery'",
             "afterScore": 0-10 (potential with fix),
@@ -287,8 +287,8 @@ Analyze the transcript and return this exact JSON structure:
                     {"text": "correct answer - the real reason this technique works", "correct": true},
                     {"text": "plausible distractor - common misconception", "correct": false}
                 ],
-                "explanation": "Clear explanation in plain English of why the right answer works. Avoid academic jargon like 'emotional processing' or 'cognitive centers'. Instead use real sales language. Example: 'Asking what happens when price comes up works because it gets the prospect talking about a real problem in their own words. Once they describe the pain, you can connect your solution to something they already care about.'",
-                "howResponse": "Exact script for next time: 1-2 natural sentences"
+                "explanation": "Clear explanation in plain English. Focus on business consequences, not vague emotions. Example: 'Exploring what happens when price comes up helps Marcus connect the problem to real consequences like stalled deals or forced discounts. Once he explains the cost, your solution becomes tied to a clear business pain instead of feeling like a generic demo.'",
+                "howResponse": "Exact script for next time: 1-2 natural sentences following behavior-first sequence"
             }
         }
     ]
@@ -328,13 +328,19 @@ CRITICAL RULES - DO NOT VIOLATE:
    - Connect to concrete business consequences
    - Example: "Exploring impact helps Marcus connect the problem to real business consequences. Once the cost is clear, PitchIQ becomes a direct answer to his problem instead of a generic product pitch."
 
-6. FINAL QUALITY CHECKLIST:
-   - [ ] Context accurately reflects warm vs cold (check transcript signals)
-   - [ ] sharpenThis is 2-3 tight sentences with embedded bold insight
-   - [ ] quoteText asks what happens, not assumes negative outcomes
-   - [ ] Quiz distractors are plausible misconceptions, not jokes
-   - [ ] Explanation ties to business impact (deals, revenue, time)
-   - [ ] No punctuation errors, no repetition, no filler
+6. MOMENT SEQUENCING - BEHAVIOR FIRST, IMPACT SECOND:
+   - When coaching discovery moments, suggest exploring WHAT HAPPENS before quantifying cost
+   - Sequence: (1) What usually happens? (2) How often? (3) What does it lead to? (4) What has that cost?
+   - Don't jump straight to "financial impact" - that's the destination, not the starting point
+   - Example: "When reps freeze on price objections, does it usually lead to discounting, stalls, or lost deals?" THEN "How often does that happen?"
+
+7. FINAL QUALITY CHECKLIST:
+   - [ ] Context is EXACT: scanned transcript for "downloaded guide/visited site/filled form" and set correctly
+   - [ ] sharpenThis is 2-3 tight sentences, NO duplicate bold text, insight embedded once naturally
+   - [ ] quoteText follows behavior-first sequence: what happens → how often → what does it lead to
+   - [ ] Quiz distractors are things a real salesperson might actually think (not "to fill time")
+   - [ ] Explanation ties to business impact but doesn't jump there prematurely
+   - [ ] NO double periods, NO repeated sentences, NO filler
 
 Generate coaching that feels like a VP of Sales who has actually closed deals, not an AI reading from a sales training manual."""
 

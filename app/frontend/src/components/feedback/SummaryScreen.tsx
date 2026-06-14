@@ -8,6 +8,7 @@ import {
   Volume2,
   Lightbulb,
   X,
+  Sparkles,
 } from "lucide-react";
 import CircularGauge from "./CircularGauge";
 
@@ -21,6 +22,8 @@ interface SummaryScreenProps {
   demoScheduled?: boolean;
   readinessScore?: number;
   hasSufficientData?: boolean;
+  // True when feedback was AI-generated from transcript
+  aiGenerated?: boolean;
 }
 
 const HIGHLIGHTS = [
@@ -65,7 +68,8 @@ export default function SummaryScreen({
   objectionsHandled,
   demoScheduled,
   readinessScore,
-  hasSufficientData 
+  hasSufficientData,
+  aiGenerated
 }: SummaryScreenProps) {
   // Determine if we should use demo data (no real data or insufficient data)
   const useDemoData = hasSufficientData === false || callDuration === undefined || callDuration < 10;
@@ -126,8 +130,14 @@ export default function SummaryScreen({
               +12 from last call
             </p>
           </div>
-          {useDemoData && (
+          {useDemoData && !aiGenerated && (
             <p className="text-[10px] text-pitch-tertiary mt-2 italic">(Demo data — practice to see your real score)</p>
+          )}
+          {aiGenerated && (
+            <p className="text-[10px] text-pitch-orange mt-2 flex items-center gap-1 justify-center">
+              <Sparkles className="w-3 h-3" />
+              AI-generated from your transcript
+            </p>
           )}
         </motion.div>
 

@@ -7,6 +7,9 @@ Provides LLM-powered feedback and quiz generation for sales call analysis.
 from flask import Blueprint, request, jsonify, g
 from app.services.api_manager import api_manager
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 feedback_bp = Blueprint('feedback', __name__)
 
@@ -230,8 +233,11 @@ def analyze_transcript():
         # Get service manager from Flask context (proper pattern like dashboard.py)
         service_manager = getattr(g, 'api_manager', api_manager)
         
-        if not service_manager or not hasattr(service_manager, 'openai_service'):
-            return jsonify({'error': 'AI service configuration error'}), 500
+        if not service_manager:
+            return jsonify({'error': 'API service manager not available'}), 500
+            
+        if not hasattr(service_manager, 'openai_service'):
+            return jsonify({'error': 'OpenAI service not available in API manager'}), 500
         
         # Build analysis prompt for IN-DEPTH coaching data
         system_prompt = """You are an elite sales coach analyzing call transcripts. Generate DETAILED coaching moments with specific psychological insights.
@@ -398,11 +404,13 @@ Return only the JSON object with the analysis."""
         return jsonify(result)
         
     except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error in analyze_transcript: {str(e)}")
         return jsonify({
             'error': 'Failed to parse AI response as JSON',
             'details': str(e)
         }), 500
     except Exception as e:
+        logger.exception(f"Error in analyze_transcript: {str(e)}")
         return jsonify({
             'error': 'Failed to analyze transcript',
             'details': str(e)

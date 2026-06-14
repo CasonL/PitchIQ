@@ -32,7 +32,7 @@ interface AIFeedbackResponse {
   demoScheduled: boolean;
   callDuration: number;
   highlights: { text: string; type: "win" | "miss" | "tip" }[];
-  sentimentAnalysis: string;
+  sentimentAnalysis: { trust: { value: number; label: string }; curiosity: { value: number; label: string }; urgency: { value: number; label: string } };
   detailedMoments: MomentData[];
 }
 
@@ -141,8 +141,8 @@ const PostCallReviewPage = () => {
         objectionsTotal: summary.objectionsTotal,
         demoScheduled: summary.demoScheduled,
         readinessScore: summary.readinessScore,
-        highlights: summary.highlights,
-        sentimentAnalysis: summary.sentimentAnalysis,
+        highlights: summary.highlights || [],
+        sentimentAnalysis: summary.sentimentAnalysis || { trust: { value: 50, label: 'neutral' }, curiosity: { value: 50, label: 'neutral' }, urgency: { value: 50, label: 'neutral' } },
         transcript: transcript.trim(),
         detailedMoments: [firstMoment],
         isLoading: false,

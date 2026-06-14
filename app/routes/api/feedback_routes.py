@@ -277,11 +277,12 @@ Analyze the transcript and return this exact JSON structure:
                 "curiosity": {"value": 0-100, "label": "..."},
                 "urgency": {"value": 0-100, "label": "..."}
             },
-            "whatWorked": "2-3 sentence explanation of what the rep did well, in plain English. Explain WHY it worked. Be specific about the technique. Example: 'You did well by asking about their biggest challenge instead of pitching features. This worked because when prospects brush you off with we don't need anything, a curiosity-based question can restart the conversation without feeling pushy.'",
-            "sharpenThis": "2-3 sentence explanation of the key mistake. Identify exactly where the rep missed an opportunity or moved too fast. The bold insight should be embedded naturally within the text, NOT tacked on at the end. NO placeholder text. Example: 'After Marcus revealed reps struggle with price objections, you moved to the demo too quickly. **You pitched before exploring the pain.** Before offering the solution, find out how often this happens and what it costs them.'",
+            "whatWorked": "2-3 sentence explanation of what the rep did well. Example: You did well by asking about their biggest challenge instead of pitching features. This worked because when prospects brush you off, a curiosity-based question can restart the conversation.",
+            "sharpenThis": "2-3 sentence explanation of the key mistake. The bold insight embedded naturally, not tacked on at end. Example: After Marcus revealed reps struggle with price objections, you moved to the demo too quickly. **You pitched before exploring the pain.** Before offering the solution, find out how often this happens and what it costs them.",
             "sharpenBold": "[DEPRECATED - embed bold naturally in sharpenThis]",
             "quoteTag": "Try this instead",
-            "quoteText": "Specific script they should have used - 1-2 sentences max. Follow behavior-first sequence: what happens → how often → what does it lead to. Example: 'When reps struggle with price objections, what usually happens? Do they discount, stall out, or lose the deal?' THEN 'How often does that happen?'", 
+            "quoteText": "Specific script - 1-2 sentences max. Follow behavior-first sequence: what happens then how often then what does it lead to. Example: When reps struggle with price objections, what usually happens? Do they discount, stall out, or lose the deal? Then follow up with: How often does that happen?",
+            "IMPORTANT": "When returning JSON, escape any quotes inside strings with backslash. Example: You did well by asking about \\"we don't need anything\\" situations.", 
             "beforeScore": 0-10 (how they performed),
             "beforeContext": "brief label like 'Moved to pitch' or 'Good discovery'",
             "afterScore": 0-10 (potential with fix),
@@ -371,6 +372,7 @@ NUMBER OF MOMENTS TO ANALYZE: {target_moments}
 Return only the JSON object with the analysis."""
 
         # Generate analysis using GPT-4o-mini for speed/cost
+        logger.info(f"Starting transcript analysis - word count: {word_count}, target moments: {target_moments}")
         response = service_manager.openai_service.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -378,13 +380,19 @@ Return only the JSON object with the analysis."""
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0.7,
-            max_tokens=1500,
+            max_tokens=2500,
             response_format={"type": "json_object"}
         )
         
         # Parse the response
         analysis_text = response.choices[0].message.content
-        analysis = json.loads(analysis_text)
+        logger.info(f"AI response received, length: {len(analysis_text)} chars")
+        
+        try:
+            analysis = json.loads(analysis_text)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parse error. AI response snippet: {analysis_text[:500]}...")
+            raise
         
         # Ensure all required fields exist with defaults
         result = {

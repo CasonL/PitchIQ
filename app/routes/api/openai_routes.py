@@ -57,7 +57,7 @@ def chat():
         google_ai_key = os.environ.get('GOOGLE_AI_API_KEY')
         
         if is_gemini and google_ai_key:
-            # Use direct Google AI API for Gemini models (free, better rate limits)
+            # Use direct Google AI API for Gemini models (paid tier for higher quotas)
             logger.info(f"Using direct Google AI API for {model}")
             return _call_google_ai(model, messages, temperature, max_tokens, stream, google_ai_key, request_start)
         
@@ -209,7 +209,6 @@ def _call_google_ai(model, messages, temperature, max_tokens, stream, api_key, r
         'gemini-1.5-flash': 'gemini-1.5-flash',
         'gemini-1.5-pro': 'gemini-1.5-pro',
         'gemini-2.5-flash': 'gemini-2.5-flash',
-        'gemini-3.5-flash': 'gemini-3.5-flash',
     }
     google_model = model_mapping.get(model_name, model_name)
     

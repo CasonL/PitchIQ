@@ -76,7 +76,8 @@ export class EmotionResolver {
     return {
       content: fallbacks[phase].content,
       emotion: fallbacks[phase].emotion,
-      shouldTransitionPhase: false
+      shouldTransitionPhase: false,
+      generation_failed_fallback: true // Mark as fallback to prevent analytics pollution
     };
   }
 }

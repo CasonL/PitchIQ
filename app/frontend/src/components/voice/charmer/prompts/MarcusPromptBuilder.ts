@@ -48,7 +48,7 @@ export class MarcusPromptBuilder {
   ): string {
     const exchangeCount = Math.floor(context.conversationHistory.length / 2) + 1;
     
-    // CRITICAL: Use minimal prompt for Turn 1 to avoid 22s first-token latency
+    // CRITICAL: Use minimal prompt for Turn 1 to avoid 20s first-token latency
     // Turn 1 only needs: basic personality + scenario context
     // Full tree/buyer state/call details come in Turn 2+
     if (exchangeCount === 1) {

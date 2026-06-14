@@ -87,6 +87,7 @@ export interface AIResponse {
   objection?: ObjectionTag; // Marcus raising or evaluating an objection
   stateFeedback?: MarcusStateFeedback;
   strategicMoment?: StrategicMoment;
+  generation_failed_fallback?: boolean; // Mark fallback responses to prevent analytics pollution
   extractedInfo?: {
     name?: string;
     product?: string;

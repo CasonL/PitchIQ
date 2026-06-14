@@ -49,8 +49,12 @@ export default function DemoTeaser() {
                 <div className="bg-[#2A2A2A] px-5 py-4 flex items-center justify-between border-b border-white/5">
                   <div className="flex items-center gap-3">
                     <img
-                      src="/marcus-avatar.png"
+                      src="/marcus-avatar.webp"
                       alt="Marcus"
+                      width="40"
+                      height="40"
+                      loading="lazy"
+                      decoding="async"
                       className="w-10 h-10 rounded-xl object-cover"
                     />
                     <div>
@@ -67,8 +71,12 @@ export default function DemoTeaser() {
                 {/* Call body */}
                 <div className="px-6 pt-8 pb-6 flex flex-col items-center">
                   <img
-                    src="/marcus-avatar.png"
+                    src="/marcus-avatar.webp"
                     alt="Marcus"
+                    width="112"
+                    height="112"
+                    loading="lazy"
+                    decoding="async"
                     className="w-28 h-28 rounded-2xl object-cover shadow-lg mb-5"
                   />
                   <p className="text-[#8A8A8A] text-xs font-mono tracking-wider uppercase mb-4">

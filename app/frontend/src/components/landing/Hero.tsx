@@ -98,9 +98,13 @@ export default function Hero() {
         >
           <div className="animate-float relative">
             <img
-              src="/hero-phone.png"
+              src="/hero-phone.jpg"
               alt="PitchIQ sales training platform interface showing live AI buyer conversation on mobile device"
-              className="w-[280px] md:w-[320px] rounded-[32px] shadow-2xl shadow-brand-orange/10"
+              width="320"
+              height="640"
+              loading="eager"
+              decoding="async"
+              className="w-[280px] md:w-[320px] h-auto rounded-[32px] shadow-2xl shadow-brand-orange/10"
             />
             {/* Decorative glow ring */}
             <div className="absolute -inset-4 rounded-[40px] border border-brand-orange/10 pointer-events-none" />

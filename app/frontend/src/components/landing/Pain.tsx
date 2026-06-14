@@ -101,6 +101,10 @@ export default function Pain() {
                   <img
                     src={point.icon}
                     alt={`${point.title} - ${point.title === 'The Hesitation Tax' ? 'Sales rep frozen during objection handling' : point.title === 'The Script Trap' ? 'Generic script failing against real buyer conversation' : 'Awkward unrealistic role-play between colleagues'}`}
+                    width="56"
+                    height="56"
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-contain group-hover:scale-105 transition-transform"
                   />
                 </div>

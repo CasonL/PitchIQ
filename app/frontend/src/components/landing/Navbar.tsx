@@ -48,6 +48,10 @@ export default function Navbar() {
             <img
               src="/fox-mascot.webp"
               alt="PitchIQ"
+              width="32"
+              height="32"
+              loading="eager"
+              decoding="async"
               className="w-8 h-8 object-contain group-hover:scale-110 transition-transform"
             />
             <span className="font-display text-xl font-bold text-[#1A1A1A]">

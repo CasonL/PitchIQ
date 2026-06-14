@@ -8,8 +8,12 @@ export default function Footer() {
         {/* Logo */}
         <div className="flex items-center gap-2.5">
           <img
-            src="/fox-mascot.png"
+            src="/fox-mascot.webp"
             alt="PitchIQ fox mascot logo"
+            width="24"
+            height="24"
+            loading="lazy"
+            decoding="async"
             className="w-6 h-6 object-contain opacity-80"
           />
           <span className="font-display text-lg font-bold text-white/80">

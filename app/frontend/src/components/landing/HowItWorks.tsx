@@ -83,6 +83,10 @@ function StepCard({
           <img
             src={step.image}
             alt={`Step ${step.number}: ${step.body}`}
+            width="400"
+            height="200"
+            loading="lazy"
+            decoding="async"
             className="w-full h-40 md:h-48 object-contain mb-6"
           />
         </div>

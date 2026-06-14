@@ -78,7 +78,28 @@ const PostCallReviewPage = () => {
     }
   }, []);
 
-  // Analyze transcript with AI
+  // Progressive moment loading - load moments one at a time
+  const loadMoment = async (momentIndex: number, excludeIndices: number[] = []) => {
+    const response = await fetch(`${API_BASE_URL}/api/feedback/analyze-moment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        transcript: transcript.trim(),
+        momentIndex,
+        excludeIndices
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Moment ${momentIndex} failed: ${response.status}`);
+    }
+    
+    return response.json();
+  };
+
+  // Analyze transcript with progressive moment loading
   const analyzeTranscript = async () => {
     if (!transcript.trim()) return;
     
@@ -86,55 +107,66 @@ const PostCallReviewPage = () => {
     setAiError(null);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/feedback/analyze-transcript`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        // No credentials needed for this endpoint - backend CORS uses wildcard without credentials
-        body: JSON.stringify({
-          transcript: transcript.trim(),
-          context: 'sales_call'
-        })
-      });
+      // Load first moment immediately (fast feedback)
+      const firstMomentData = await loadMoment(0, []);
+      const firstMoment = firstMomentData.moment;
       
-      if (!response.ok) {
-        throw new Error(`Analysis failed: ${response.status}`);
-      }
-      
-      const data: AIFeedbackResponse = await response.json();
-      
-      // Store AI-generated metrics + detailed moments
+      // Show first moment immediately
+      const estimatedDuration = Math.max(60, transcript.trim().split(/\s+/).length / 2);
       setCallMetrics({
-        callDuration: data.callDuration,
-        painPointsFound: data.painPointsFound,
-        objectionsHandled: data.objectionsHandled,
-        objectionsTotal: data.objectionsTotal,
-        demoScheduled: data.demoScheduled,
-        readinessScore: data.readinessScore,
+        callDuration: estimatedDuration,
+        painPointsFound: 0,
+        objectionsHandled: 0,
+        objectionsTotal: 1,
+        demoScheduled: false,
+        readinessScore: 65,
         transcript: transcript.trim(),
-        detailedMoments: data.detailedMoments
+        detailedMoments: [firstMoment]
       });
-      
-      // Also store in localStorage for persistence
-      localStorage.setItem('lastCallMetrics', JSON.stringify({
-        callDuration: data.callDuration,
-        painPointsFound: data.painPointsFound,
-        objectionsHandled: data.objectionsHandled,
-        objectionsTotal: data.objectionsTotal,
-        demoScheduled: data.demoScheduled,
-        readinessScore: data.readinessScore,
-        detailedMoments: data.detailedMoments,
-        source: 'ai_analyzed'
-      }));
       
       setInputMode("real");
       setHasSufficientData(true);
+      setIsAnalyzing(false);
+      
+      // Determine total moments based on word count
+      const wordCount = transcript.trim().split(/\s+/).length;
+      const totalMoments = wordCount < 200 ? 1 : wordCount < 500 ? 2 : wordCount < 1000 ? 2 : 2;
+      
+      // Load remaining moments in background
+      const loadedMoments = [firstMoment];
+      
+      for (let i = 1; i < totalMoments; i++) {
+        try {
+          const momentData = await loadMoment(i, loadedMoments.map((_, idx) => idx));
+          loadedMoments.push(momentData.moment);
+          
+          // Update callMetrics with newly loaded moments
+          const updatedMetrics = {
+            callDuration: estimatedDuration,
+            painPointsFound: 0,
+            objectionsHandled: 0,
+            objectionsTotal: 1,
+            demoScheduled: false,
+            readinessScore: 65,
+            transcript: transcript.trim(),
+            detailedMoments: [...loadedMoments]
+          };
+          setCallMetrics(updatedMetrics);
+          
+          // Update localStorage
+          localStorage.setItem('lastCallMetrics', JSON.stringify({
+            ...updatedMetrics,
+            source: 'ai_analyzed'
+          }));
+        } catch (e) {
+          console.error(`Failed to load moment ${i}:`, e);
+          break; // Stop loading more moments on error
+        }
+      }
       
     } catch (error) {
       console.error('Failed to analyze transcript:', error);
       setAiError('Failed to analyze transcript. Please try again or use demo data.');
-    } finally {
       setIsAnalyzing(false);
     }
   };

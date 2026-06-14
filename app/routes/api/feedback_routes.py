@@ -437,6 +437,122 @@ Return only the JSON object with the analysis."""
         }), 500
 
 
+@feedback_bp.route('/api/feedback/analyze-moment', methods=['POST'])
+def analyze_single_moment():
+    """
+    Progressive moment generation - analyze a single coaching moment
+    
+    Expected input:
+    {
+        "transcript": "full call transcript",
+        "momentIndex": 0,  // which moment to generate (0, 1, 2...)
+        "excludeIndices": [0]  // indices of moments already generated (optional)
+    }
+    
+    Returns a single detailedMoment object for progressive loading
+    """
+    try:
+        data = request.json
+        transcript = data.get('transcript', '').strip()
+        moment_index = data.get('momentIndex', 0)
+        exclude_indices = data.get('excludeIndices', [])
+        
+        if not transcript:
+            return jsonify({'error': 'Transcript is required'}), 400
+        
+        # Get service manager from Flask context
+        service_manager = getattr(g, 'api_manager', api_manager)
+        
+        if not service_manager:
+            return jsonify({'error': 'API service manager not available'}), 500
+            
+        if not hasattr(service_manager, 'openai_service'):
+            return jsonify({'error': 'OpenAI service not available in API manager'}), 500
+        
+        # Build exclusion context
+        exclusion_text = ""
+        if exclude_indices:
+            exclusion_text = f"\nPreviously analyzed moments: {exclude_indices}\nFocus on a DIFFERENT critical decision point than those already covered."
+        
+        # Simplified system prompt for single moment
+        single_moment_prompt = f"""You are an expert sales coach analyzing ONE specific moment from a sales call.
+
+Analyze this transcript and identify the single most important coaching moment at index {moment_index}.
+
+Return ONLY this JSON structure:
+{{
+    "turnLabel": "Turn X",
+    "turnNumber": "X / Y",
+    "type": "mistake|strength|turning",
+    "youSaid": "exact rep quote",
+    "prospectSaid": "exact prospect quote", 
+    "talkRatio": "XX% you, XX% prospect",
+    "prospectTone": "brief tone description",
+    "beforeContext": "brief context",
+    "beforeScore": 4.5,
+    "sharpenThis": "2-3 sentence coaching insight with **bold key point** embedded naturally",
+    "quoteTag": "Try this instead",
+    "quoteText": "1-2 sentence improved script",
+    "afterScore": 7.5,
+    "psychologyPrinciple": "brief principle name",
+    "psychologyExplanation": "1-2 sentence business impact explanation",
+    "quiz": {{
+        "question": "What should you have done differently?",
+        "options": [
+            {{"text": "Correct answer", "correct": true}},
+            {{"text": "Plausible distractor 1", "correct": false}},
+            {{"text": "Plausible distractor 2", "correct": false}}
+        ],
+        "explanation": "Why the correct answer works - focus on business impact",
+        "howResponse": "Exact script for next time"
+    }}
+}}
+
+Be concise. No filler. Focus on actionable coaching.{exclusion_text}"""
+
+        user_prompt = f"""Analyze this sales call transcript and generate moment {moment_index}:
+
+{transcript}
+
+Return only the JSON object for this single moment."""
+
+        logger.info(f"Generating single moment {moment_index} for transcript of {len(transcript.split())} words")
+        
+        response = service_manager.openai_service.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": single_moment_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7,
+            max_tokens=1200,
+            response_format={"type": "json_object"},
+            timeout=20
+        )
+        
+        moment_text = response.choices[0].message.content
+        logger.info(f"Moment {moment_index} received, length: {len(moment_text)} chars")
+        
+        try:
+            moment = json.loads(moment_text)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parse error for moment {moment_index}: {moment_text[:500]}...")
+            raise
+        
+        return jsonify({
+            'moment': moment,
+            'momentIndex': moment_index,
+            'totalWordCount': len(transcript.split())
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error generating moment {moment_index}: {str(e)}")
+        return jsonify({
+            'error': f'Failed to generate moment {moment_index}',
+            'details': str(e)
+        }), 500
+
+
 @feedback_bp.route('/api/feedback/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""

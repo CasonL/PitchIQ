@@ -338,7 +338,25 @@ CRITICAL RULES - DO NOT VIOLATE:
 
 Generate coaching that feels like a VP of Sales who has actually closed deals, not an AI reading from a sales training manual."""
 
-        user_prompt = f"Analyze this sales call transcript:\n\n{transcript}\n\nReturn only the JSON object with the analysis."
+        # Determine number of moments based on transcript length
+        word_count = len(transcript.split())
+        if word_count < 200:
+            target_moments = "1-2"
+        elif word_count < 500:
+            target_moments = "2-3"
+        else:
+            target_moments = "3-4"
+
+        user_prompt = f"""Analyze this sales call transcript:
+
+{transcript}
+
+NUMBER OF MOMENTS TO ANALYZE: {target_moments}
+- Based on word count ({word_count} words)
+- Identify the most critical decision points
+- Focus on: objections raised, discovery opportunities, premature pitching, strong turns
+
+Return only the JSON object with the analysis."""
 
         # Generate analysis using GPT-4o-mini for speed/cost
         response = service_manager.openai_service.client.chat.completions.create(

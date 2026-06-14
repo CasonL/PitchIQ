@@ -359,7 +359,7 @@ Generate moments that feel like a master coach sat with the rep and explained no
                 {"text": "Analyzed transcript", "type": "win"}
             ]),
             'sentimentAnalysis': analysis.get('sentimentAnalysis', 'Analysis completed.'),
-            'coachingMoments': analysis.get('coachingMoments', [])
+            'detailedMoments': analysis.get('detailedMoments', [])
         }
         
         return jsonify(result)

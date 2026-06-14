@@ -90,7 +90,7 @@ const PostCallReviewPage = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
+        // No credentials needed for this endpoint - backend CORS uses wildcard without credentials
         body: JSON.stringify({
           transcript: transcript.trim(),
           context: 'sales_call'

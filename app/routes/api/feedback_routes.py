@@ -271,63 +271,63 @@ Analyze the transcript and return this exact JSON structure:
                 "curiosity": {"value": 0-100, "label": "..."},
                 "urgency": {"value": 0-100, "label": "..."}
             },
-            "whatWorked": "Psychological analysis of what the rep did right - explain WHY it worked at a cognitive/behavioral level",
-            "sharpenThis": "Setup sentence ending with...",
-            "sharpenBold": "the key mistake or missed opportunity in bold terms",
-            "quoteTag": "Try this instead|Even sharper|Do this",
-            "quoteText": "Specific script they should have used",
+            "whatWorked": "2-3 sentence explanation of what the rep did well, in plain English. Explain WHY it worked. Be specific about the technique. Example: 'You did well by asking about their biggest challenge instead of pitching features. This worked because when prospects brush you off with we don't need anything, a curiosity-based question can restart the conversation without feeling pushy.'",
+            "sharpenThis": "2-3 sentence explanation of the key mistake. Identify exactly where the rep missed an opportunity or moved too fast. Use plain, conversational language. NO placeholder text like 'Setup sentence ending with...' - write actual coaching. Example: 'After Marcus revealed reps freeze on price objections, you moved straight to offering a demo. The missed opportunity was not exploring the pain first. You should find out how often this happens, what it costs them, and what they've already tried.'",
+            "sharpenBold": "The single sharpest insight in 10 words or less, bolded naturally within the sharpenThis. Example: '**You pitched before quantifying the pain**'",
+            "quoteTag": "Try this instead",
+            "quoteText": "Specific script they should have used - 1-2 sentences max. Natural, conversational. Example: 'When price comes up, what usually happens? Do they discount, stall out, or lose the deal completely?'",
             "beforeScore": 0-10 (how they performed),
-            "beforeContext": "brief label of their technique",
+            "beforeContext": "brief label like 'Moved to pitch' or 'Good discovery'",
             "afterScore": 0-10 (potential with fix),
-            "afterContext": "brief label of improved technique",
+            "afterContext": "brief label like 'Quantified impact' or 'Probed deeper'",
             "quiz": {
-                "question": "Psychology question about WHY something worked/failed",
+                "question": "Question about WHY a technique works/fails, not WHAT happened",
                 "options": [
-                    {"text": "distractor - common wrong answer", "correct": false},
-                    {"text": "CORRECT - deep psychological insight", "correct": true},
-                    {"text": "distractor - surface-level answer", "correct": false}
+                    {"text": "plausible distractor - surface-level reason", "correct": false},
+                    {"text": "correct answer - the real reason this technique works", "correct": true},
+                    {"text": "plausible distractor - common misconception", "correct": false}
                 ],
-                "explanation": "Detailed explanation of the psychology - why the correct answer is right and why wrong answers miss the point",
-                "howResponse": "Actionable script: exactly what to say next time in this scenario"
+                "explanation": "Clear explanation in plain English of why the right answer works. Avoid academic jargon like 'emotional processing' or 'cognitive centers'. Instead use real sales language. Example: 'Asking what happens when price comes up works because it gets the prospect talking about a real problem in their own words. Once they describe the pain, you can connect your solution to something they already care about.'",
+                "howResponse": "Exact script for next time: 1-2 natural sentences"
             }
         }
     ]
 }
 
-GUIDELINES FOR IN-DEPTH ANALYSIS:
+CRITICAL RULES - DO NOT VIOLATE:
 
-1. IDENTIFY 2-4 CRITICAL MOMENTS:
-   - Where did the prospect's sentiment shift?
-   - What objections were raised and how handled?
-   - Where did the rep miss buying signals?
-   - What psychological triggers were activated?
+1. IDENTIFY CALL CONTEXT CORRECTLY:
+   - If transcript mentions "downloaded our guide", "saw you visited our site", "filled out a form" → This is a WARM LEAD FOLLOW-UP, not a cold call
+   - Set context accordingly: "You followed up with Marcus after he downloaded a sales training guide"
 
-2. SENTIMENT SCORING:
-   - Trust: 0-30 = Low (red), 31-50 = Moderate (orange), 51-70 = Rising (blue), 71-100 = High (green)
-   - Track how trust/curiosity/urgency change moment to moment
+2. SPOT THE REAL COACHING MOMENT:
+   - Common mistake: Rep uncovers pain → immediately pivots to product/demo
+   - Better coaching: Did they quantify impact? Ask about frequency? Find out what was already tried?
+   - Look for: premature pitching, missed follow-up questions, skipping the "so what?" layer
 
-3. WHAT WORKED ANALYSIS:
-   - Don't just say "good job" - explain the PSYCHOLOGY
-   - Example: "You asked about consequences instead of arguing. This worked because consequences bypass the logical defense system and activate emotional processing centers."
+3. sharpenThis MUST BE A COMPLETE, GRAMMATICAL SENTENCE:
+   - NEVER use placeholder text like "Setup sentence ending with..."
+   - NEVER use sentence fragments
+   - Write actual coaching that a human would say
 
-4. SHARPEN THIS:
-   - Identify the specific behavioral mistake
-   - Bold the key insight about what they should have done
-   - Explain the micro-skill they're missing
+4. quoteText MUST BE NATURAL:
+   - No stiff corporate language
+   - No "What specific outcomes are you hoping to achieve..." (too formal)
+   - Use conversational questions a real salesperson would ask
+   - Better: "When price comes up, what usually happens?" or "How often are you losing deals because of this?"
 
-5. QUIZ DESIGN:
-   - Question must test DEEP understanding, not surface facts
-   - Wrong answers should be PLAUSIBLE but psychologically incomplete
-   - Explanation must teach something they can apply to other calls
-   - howResponse must be an exact script they can practice
+5. EXPLANATIONS MUST SOUND HUMAN:
+   - Avoid: "engages emotional processing centers", "activates cognitive pathways"
+   - Use: "gets them talking about a real problem", "makes them feel heard", "uncovers what they actually care about"
 
-6. COACHING DEPTH LEVELS:
-   - Level 1: What happened (observation)
-   - Level 2: Why it mattered (tactical)  
-   - Level 3: The psychology behind it (strategic)
-   - Level 4: How to recognize it in other calls (transferable skill)
+6. COACHING QUALITY CHECKLIST:
+   - [ ] Identifies the actual behavioral mistake (not just generic advice)
+   - [ ] Explains why it matters in dollars/urgency terms
+   - [ ] Gives a natural, usable alternative script
+   - [ ] Uses plain English, not jargon
+   - [ ] Context is accurate (warm vs cold, etc.)
 
-Generate moments that feel like a master coach sat with the rep and explained not just WHAT to fix, but WHY humans behave this way and HOW to operationalize it."""
+Generate coaching that feels like a top-performing sales manager giving real feedback, not an AI regurgitating sales training manuals."""
 
         user_prompt = f"Analyze this sales call transcript:\n\n{transcript}\n\nReturn only the JSON object with the analysis."
 

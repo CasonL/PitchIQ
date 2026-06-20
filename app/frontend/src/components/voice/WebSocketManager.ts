@@ -88,6 +88,12 @@ export class WebSocketManager {
   private _currentTurnText: string = '';
   private _lastTurnAt: number = 0;
   
+  // Call recording state
+  private mediaRecorder: MediaRecorder | null = null;
+  private recordedChunks: Blob[] = [];
+  private recordedAudioBlob: Blob | null = null;
+  private callStartTime: number = 0;
+  
   // Statistics for logging
   private audioPacketCount: number = 0;
   private micChunkCount: number = 0;
@@ -385,6 +391,9 @@ export class WebSocketManager {
       
       // Request microphone access
       await this.setupMicrophone();
+      
+      // Start recording user audio for post-call analysis
+      this.startRecording();
       
       // Configure and start the agent
       const settings = await this.buildSettings();
@@ -774,6 +783,68 @@ THE GOAL: They experience masterful selling. They think "I wanna sell like THAT!
     return settings;
   }
 
+  // Start recording microphone audio for post-call analysis
+  private startRecording(): void {
+    if (!this.micStream) return;
+    
+    try {
+      this.recordedChunks = [];
+      this.recordedAudioBlob = null;
+      this.callStartTime = Date.now();
+      
+      this.mediaRecorder = new MediaRecorder(this.micStream, { mimeType: 'audio/webm' });
+      
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.recordedChunks.push(event.data);
+        }
+      };
+      
+      this.mediaRecorder.onstop = () => {
+        this.recordedAudioBlob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+        this.smartLog('important', `🎙️ Recording saved: ${(this.recordedAudioBlob.size / 1024).toFixed(1)}KB`);
+      };
+      
+      this.mediaRecorder.onerror = (event) => {
+        this.config.log(`❌ MediaRecorder error: ${event}`, 'error');
+      };
+      
+      // Request data every 1 second to avoid losing data on abrupt stop
+      this.mediaRecorder.start(1000);
+      this.smartLog('important', '🎙️ Started recording user audio');
+    } catch (error) {
+      this.config.log(`⚠️ Failed to start recording: ${error}`, 'warn');
+    }
+  }
+  
+  // Stop recording and return the audio blob
+  public async stopRecording(): Promise<Blob | null> {
+    return new Promise((resolve) => {
+      if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
+        resolve(this.recordedAudioBlob);
+        return;
+      }
+      
+      this.mediaRecorder.onstop = () => {
+        this.recordedAudioBlob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+        this.smartLog('important', `🎙️ Recording saved: ${(this.recordedAudioBlob.size / 1024).toFixed(1)}KB`);
+        
+        const durationSeconds = this.callStartTime ? (Date.now() - this.callStartTime) / 1000 : 0;
+        if (this.config.onRecordingReady && this.recordedAudioBlob) {
+          this.config.onRecordingReady(this.recordedAudioBlob, durationSeconds);
+        }
+        
+        resolve(this.recordedAudioBlob);
+      };
+      
+      this.mediaRecorder.stop();
+    });
+  }
+  
+  public getRecordedAudioBlob(): Blob | null {
+    return this.recordedAudioBlob;
+  }
+  
   // Set up microphone
   private async setupMicrophone(): Promise<void> {
     try {
@@ -1252,6 +1323,11 @@ THE GOAL: They experience masterful selling. They think "I wanna sell like THAT!
   // Properly clean up resources
   cleanup(): void {
     this.config.log(`🧹 Cleaning up resources for session ${this._stableSessionId}`);
+    
+    // Stop recording user audio
+    this.stopRecording().catch(err => {
+      this.config.log(`⚠️ Error stopping recording: ${err}`, 'warn');
+    });
     
     this.stopKeepalive();
     this.setMicStreamingAllowed(false, 'cleanup'); // Stop mic streaming immediately

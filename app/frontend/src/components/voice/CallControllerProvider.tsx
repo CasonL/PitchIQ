@@ -368,6 +368,36 @@ export function CallControllerProvider({
   // Keep cleanupRef in sync with latest cleanup function
   cleanupRef.current = cleanup;
 
+  // Upload call recording to backend
+  const uploadCallRecording = useCallback(async (sessionId: string, blob: Blob, durationSeconds: number) => {
+    try {
+      const formData = new FormData();
+      formData.append('audio', blob, 'recording.webm');
+      formData.append('session_id', sessionId);
+      formData.append('duration_seconds', durationSeconds.toString());
+      
+      log(`🎙️ Uploading recording for session ${sessionId} (${(blob.size / 1024).toFixed(1)}KB)`);
+      
+      const response = await fetch('/api/calls/recording', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      log(`✅ Recording uploaded: ${data.recording?.id}`, 'info');
+      
+      return data.recording;
+    } catch (error) {
+      log(`❌ Failed to upload recording: ${error}`, 'error');
+      return null;
+    }
+  }, [log]);
+
   // Handle WebSocket messages and update transcript
   const handleWebSocketMessage = useCallback((message: any) => {
     if (message.type === 'transcript') {
@@ -588,6 +618,10 @@ export function CallControllerProvider({
         personaData: adaptedPersona,
         userName: 'Sales Representative', // Default user name
         disableAutoGreeting: isCustomDialoguePersona, // Let CharmerController handle Marcus dialogue
+        onRecordingReady: (blob: Blob, durationSeconds: number) => {
+          // Use closure session ID to ensure consistency
+          uploadCallRecording(stableSessionId, blob, durationSeconds).catch(() => {});
+        },
         onOpen: () => {
           // Use the closure variable to ensure consistent session ID
           log(`🔌 WebSocket opened for session ${stableSessionId}`, 'info');

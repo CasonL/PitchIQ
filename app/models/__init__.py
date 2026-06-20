@@ -16,6 +16,7 @@ from .training import TrainingSession, PerformanceMetrics, SessionMetrics
 from .feedback import Feedback, FeedbackAnalysis, SessionFeedback
 from .utility import FeatureVote, SalesStage, NameUsageTracker, EmailSignup
 from .business import BusinessProfile, BusinessDocument
+from .call_recording import CallRecording
 
 # --- Define Relationships that cross modules ---
 
@@ -33,7 +34,8 @@ BuyerPersona.training_sessions = db.relationship('TrainingSession', back_populat
 # Make models available at package level
 __all__ = [
     'User',
-    'UserProfile', 
+    'UserProfile',
     'BusinessProfile',
-    'BusinessDocument'
+    'BusinessDocument',
+    'CallRecording'
 ] 

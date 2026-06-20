@@ -52,14 +52,9 @@ def chat():
         import os
         import requests
         
-        # Check if this is a Google Gemini model - use direct Google AI API if available
+        # Route ALL models through OpenRouter for consistent latency
+        # (Direct Google AI was mapping gemini-2.0-flash → gemini-2.5-flash which is 5-8x slower)
         is_gemini = 'google/' in model or 'gemini' in model.lower()
-        google_ai_key = os.environ.get('GOOGLE_AI_API_KEY')
-        
-        if is_gemini and google_ai_key:
-            # Use direct Google AI API for Gemini models (paid tier for higher quotas)
-            logger.info(f"Using direct Google AI API for {model}")
-            return _call_google_ai(model, messages, temperature, max_tokens, stream, google_ai_key, request_start)
         
         # Fall back to OpenRouter for other models
         openrouter_key = os.environ.get('OPENROUTER_API_KEY')

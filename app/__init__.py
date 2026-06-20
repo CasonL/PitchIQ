@@ -278,6 +278,16 @@ def create_app(config_name='dev'):
         import traceback
         traceback.print_exc()
     
+    # Call recordings and audio analysis
+    try:
+        from app.routes.api.call_routes import call_bp
+        flask_instance.register_blueprint(call_bp)
+        print(f"[OK] Call recording blueprint registered: {call_bp.name}")
+    except Exception as e:
+        print(f"[ERROR] Failed to register call blueprint: {e}")
+        import traceback
+        traceback.print_exc()
+    
     # Register demo blueprint
     from app.demo import demo
     flask_instance.register_blueprint(demo, url_prefix='/demo')

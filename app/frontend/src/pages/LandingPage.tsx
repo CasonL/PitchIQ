@@ -1,6 +1,7 @@
 import Navbar from "@/components/landing/Navbar";
 import Hero from "@/components/landing/Hero";
 import Pain from "@/components/landing/Pain";
+import PitchIQInPractice from "@/components/landing/PitchIQInPractice";
 import Demo from "@/components/landing/Demo";
 import HowItWorks from "@/components/landing/HowItWorks";
 import Results from "@/components/landing/Results";
@@ -13,6 +14,7 @@ const LandingPage = () => {
       <Navbar />
       <Hero />
       <Pain />
+      <PitchIQInPractice />
       <Demo />
       <HowItWorks />
       <Results />

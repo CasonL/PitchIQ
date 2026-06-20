@@ -7,6 +7,7 @@ import { createClient, AgentEvents } from "@deepgram/sdk";
 import { Buffer } from "buffer";
 import { AudioManager } from "./AudioManager";
 import { VoiceSelector } from "./VoiceSelector";
+import { TurnAudioRecorder, TurnEvent } from "./TurnAudioRecorder";
 import { PsychologicalTraitSelector } from '../../utils/PsychologicalTraitSelector';
 import { sanitizeForDeepgramText, hardenSettings } from '../../utils/deepgramSanitizer';
 import { debounce } from '../../utils/debounce.ts';
@@ -88,11 +89,9 @@ export class WebSocketManager {
   private _currentTurnText: string = '';
   private _lastTurnAt: number = 0;
   
-  // Call recording state
-  private mediaRecorder: MediaRecorder | null = null;
-  private recordedChunks: Blob[] = [];
-  private recordedAudioBlob: Blob | null = null;
-  private callStartTime: number = 0;
+  // Turn-based call recording
+  private turnRecorder: TurnAudioRecorder | null = null;
+  private turnTimelineReady: boolean = false;
   
   // Statistics for logging
   private audioPacketCount: number = 0;
@@ -392,8 +391,8 @@ export class WebSocketManager {
       // Request microphone access
       await this.setupMicrophone();
       
-      // Start recording user audio for post-call analysis
-      this.startRecording();
+      // Initialize turn-based call recorder
+      this.initTurnRecorder();
       
       // Configure and start the agent
       const settings = await this.buildSettings();
@@ -524,12 +523,14 @@ export class WebSocketManager {
       if (content) {
         this._currentTurnText += (this._currentTurnText ? ' ' : '') + content;
       }
-      // Only forward to transcript if it's USER speech (not injected AI messages)
-      // For custom dialogue control (Marcus), AI messages are injected and shouldn't be processed as user input
+      // Also append to turn recorder transcript
       if (this._currentSpeaker === 'user') {
+        this.turnRecorder?.appendUserTranscript(content);
         this.config.onTranscript?.(content, true);
+      } else if (this._currentSpeaker === 'ai') {
+        this.turnRecorder?.appendAiTranscript(content);
       } else {
-        this.smartLog('important', `⏭️ Skipping transcript update - AI is speaking`);
+        this.smartLog('important', `⏭️ Skipping transcript update - unknown speaker`);
       }
     });
     
@@ -537,6 +538,12 @@ export class WebSocketManager {
       // Forward audio to AudioManager
       if (this.config.onAudio) {
         this.config.onAudio(payload);
+      }
+      // Capture AI audio for turn recorder
+      if (payload && typeof payload === 'object' && payload.byteLength) {
+        this.turnRecorder?.appendAiAudio(payload);
+      } else if (payload instanceof ArrayBuffer) {
+        this.turnRecorder?.appendAiAudio(payload);
       }
       // First audio packet confirms speak is functioning
       if (!this._spokenOnce) {
@@ -783,66 +790,46 @@ THE GOAL: They experience masterful selling. They think "I wanna sell like THAT!
     return settings;
   }
 
-  // Start recording microphone audio for post-call analysis
-  private startRecording(): void {
+  // Initialize turn-based call recorder
+  private initTurnRecorder(): void {
     if (!this.micStream) return;
     
     try {
-      this.recordedChunks = [];
-      this.recordedAudioBlob = null;
-      this.callStartTime = Date.now();
-      
-      this.mediaRecorder = new MediaRecorder(this.micStream, { mimeType: 'audio/webm' });
-      
-      this.mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          this.recordedChunks.push(event.data);
+      this.turnRecorder = new TurnAudioRecorder({
+        micStream: this.micStream,
+        log: (message, level) => {
+          this.config.log(message, level);
+        },
+        onTurnReady: (turn) => {
+          // Optional: upload individual turns as they finalize
+          // For now, we batch upload at the end of the call
         }
-      };
-      
-      this.mediaRecorder.onstop = () => {
-        this.recordedAudioBlob = new Blob(this.recordedChunks, { type: 'audio/webm' });
-        this.smartLog('important', `🎙️ Recording saved: ${(this.recordedAudioBlob.size / 1024).toFixed(1)}KB`);
-      };
-      
-      this.mediaRecorder.onerror = (event) => {
-        this.config.log(`❌ MediaRecorder error: ${event}`, 'error');
-      };
-      
-      // Request data every 1 second to avoid losing data on abrupt stop
-      this.mediaRecorder.start(1000);
-      this.smartLog('important', '🎙️ Started recording user audio');
+      });
+      this.turnRecorder.startCall();
+      this.smartLog('important', '🎙️ Turn-based call recorder initialized');
     } catch (error) {
-      this.config.log(`⚠️ Failed to start recording: ${error}`, 'warn');
+      this.config.log(`⚠️ Failed to init turn recorder: ${error}`, 'warn');
     }
   }
   
-  // Stop recording and return the audio blob
-  public async stopRecording(): Promise<Blob | null> {
-    return new Promise((resolve) => {
-      if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
-        resolve(this.recordedAudioBlob);
-        return;
-      }
-      
-      this.mediaRecorder.onstop = () => {
-        this.recordedAudioBlob = new Blob(this.recordedChunks, { type: 'audio/webm' });
-        this.smartLog('important', `🎙️ Recording saved: ${(this.recordedAudioBlob.size / 1024).toFixed(1)}KB`);
-        
-        const durationSeconds = this.callStartTime ? (Date.now() - this.callStartTime) / 1000 : 0;
-        if (this.config.onRecordingReady && this.recordedAudioBlob) {
-          this.config.onRecordingReady(this.recordedAudioBlob, durationSeconds);
-        }
-        
-        resolve(this.recordedAudioBlob);
-      };
-      
-      this.mediaRecorder.stop();
-    });
+  // Stop the turn recorder and return the full timeline
+  public stopTurnRecorder(): TurnEvent[] {
+    if (!this.turnRecorder) return [];
+    
+    this.turnRecorder.endCall();
+    const timeline = this.turnRecorder.getTimeline();
+    this.turnTimelineReady = true;
+    
+    this.smartLog('important', `🎙️ Call timeline complete: ${timeline.length} turns`);
+    return timeline;
   }
   
-  public getRecordedAudioBlob(): Blob | null {
-    return this.recordedAudioBlob;
+  public getTimeline(): TurnEvent[] {
+    return this.turnRecorder ? this.turnRecorder.getTimeline() : [];
+  }
+  
+  public isTimelineReady(): boolean {
+    return this.turnTimelineReady;
   }
   
   // Set up microphone
@@ -1324,10 +1311,13 @@ THE GOAL: They experience masterful selling. They think "I wanna sell like THAT!
   cleanup(): void {
     this.config.log(`🧹 Cleaning up resources for session ${this._stableSessionId}`);
     
-    // Stop recording user audio
-    this.stopRecording().catch(err => {
-      this.config.log(`⚠️ Error stopping recording: ${err}`, 'warn');
-    });
+    // Stop turn-based recording and finalize timeline
+    if (!this.turnTimelineReady) {
+      const timeline = this.stopTurnRecorder();
+      if (timeline.length > 0 && this.config.onTimelineReady) {
+        this.config.onTimelineReady(timeline);
+      }
+    }
     
     this.stopKeepalive();
     this.setMicStreamingAllowed(false, 'cleanup'); // Stop mic streaming immediately

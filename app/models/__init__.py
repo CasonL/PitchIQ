@@ -16,7 +16,7 @@ from .training import TrainingSession, PerformanceMetrics, SessionMetrics
 from .feedback import Feedback, FeedbackAnalysis, SessionFeedback
 from .utility import FeatureVote, SalesStage, NameUsageTracker, EmailSignup
 from .business import BusinessProfile, BusinessDocument
-from .call_recording import CallRecording
+from .call_recording import CallRecording, CallTurn
 
 # --- Define Relationships that cross modules ---
 

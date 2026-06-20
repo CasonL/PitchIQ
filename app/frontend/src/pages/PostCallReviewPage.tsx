@@ -22,6 +22,27 @@ interface CallMetrics {
   sentimentAnalysis?: { trust: { value: number; label: string }; curiosity: { value: number; label: string }; urgency: { value: number; label: string } };
   isLoading?: boolean;
   totalExpectedMoments?: number;
+  recordingUrl?: string;
+  emotionAnalysis?: any;
+  timeline?: any;
+}
+
+interface CallRecording {
+  sessionId: string;
+  audioUrl?: string;
+  durationSeconds?: number;
+  emotionAnalysis?: any;
+  turns?: Turn[];
+}
+
+interface Turn {
+  id: string;
+  speaker: 'user' | 'ai';
+  text: string;
+  audioUrl?: string;
+  startMs: number;
+  endMs: number;
+  metrics?: any;
 }
 
 interface AIFeedbackResponse {
@@ -47,6 +68,7 @@ const PostCallReviewPage = () => {
   const [transcript, setTranscript] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [recording, setRecording] = useState<CallRecording | null>(null);
 
   // Load real call data from localStorage on mount
   useEffect(() => {
@@ -61,13 +83,13 @@ const PostCallReviewPage = () => {
         setHasSufficientData(sufficient);
         setInputMode(sufficient ? "real" : "transcript");
         
-        // Load call recording if available
-        const recordingStored = localStorage.getItem('lastCallRecording');
-        if (recordingStored) {
+        // Load call timeline if available
+        const timelineStored = localStorage.getItem('lastCallTimeline');
+        if (timelineStored) {
           try {
-            setRecording(JSON.parse(recordingStored));
+            setRecording(JSON.parse(timelineStored));
           } catch (e) {
-            console.error('Failed to parse recording:', e);
+            console.error('Failed to parse timeline:', e);
           }
         }
         
@@ -316,25 +338,31 @@ Marcus: Well, honestly, our reps freeze on objections. It's costing us deals..."
           >
             {screen === "summary" && inputMode !== "transcript" ? (
               <div className="space-y-6">
-                {recording && (
+                {recording && recording.turns && recording.turns.length > 0 && (
                   <div className="bg-white rounded-2xl p-5 border border-pitch-border shadow-sm">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-red-500">●</span>
                       <h3 className="font-semibold text-pitch-text">Call Recording</h3>
+                      <span className="text-sm text-pitch-secondary">({recording.turns.length} turns)</span>
                     </div>
-                    <audio 
-                      src={`${API_BASE_URL}${recording.audioUrl}`} 
-                      controls 
-                      className="w-full"
-                    />
-                    {recording.emotionAnalysis && Object.keys(recording.emotionAnalysis).length > 0 && (
-                      <div className="mt-4 p-3 bg-pitch-cream rounded-xl">
-                        <p className="text-sm font-medium text-pitch-text mb-2">Voice Analysis</p>
-                        <p className="text-sm text-pitch-secondary">
-                          Emotion analysis complete. Emotion data available in coaching insights.
-                        </p>
-                      </div>
-                    )}
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                      {recording.turns.map((turn) => (
+                        <div key={turn.id} className="p-3 bg-pitch-cream rounded-xl">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`text-sm font-medium ${turn.speaker === 'user' ? 'text-blue-600' : 'text-pitch-red'}`}>
+                              {turn.speaker === 'user' ? 'You' : 'Marcus'}
+                            </span>
+                            {turn.metrics?.wordsPerMinute && (
+                              <span className="text-xs text-pitch-secondary">{turn.metrics.wordsPerMinute} WPM</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-pitch-text mb-2">{turn.text}</p>
+                          {turn.audioUrl && (
+                            <audio src={`${API_BASE_URL}${turn.audioUrl}`} controls className="w-full h-8" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <SummaryScreen

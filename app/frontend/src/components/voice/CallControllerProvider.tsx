@@ -368,41 +368,48 @@ export function CallControllerProvider({
   // Keep cleanupRef in sync with latest cleanup function
   cleanupRef.current = cleanup;
 
-  // Analyze recording with Hume AI for emotion detection
-  const analyzeRecordingEmotion = useCallback(async (sessionId: string) => {
-    try {
-      log(`🧠 Starting Hume emotion analysis for ${sessionId}`);
-      
-      const response = await fetch(`/api/calls/recordings/${sessionId}/analyze-emotion`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Hume analysis failed: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      log(`✅ Hume analysis complete: ${data.recording?.status}`, 'info');
-      
-      return data.recording;
-    } catch (error) {
-      log(`❌ Failed to analyze emotion: ${error}`, 'error');
-      return null;
-    }
-  }, [log]);
-
-  // Upload call recording to backend
-  const uploadCallRecording = useCallback(async (sessionId: string, blob: Blob, durationSeconds: number) => {
+  // Upload complete call timeline to backend
+  const uploadCallTimeline = useCallback(async (sessionId: string, timeline: any[]) => {
     try {
       const formData = new FormData();
-      formData.append('audio', blob, 'recording.webm');
-      formData.append('session_id', sessionId);
-      formData.append('duration_seconds', durationSeconds.toString());
       
-      log(`🎙️ Uploading recording for session ${sessionId} (${(blob.size / 1024).toFixed(1)}KB)`);
+      const durationSeconds = timeline.length > 0
+        ? Math.round((timeline[timeline.length - 1].endMs - timeline[0].startMs) / 1000)
+        : 0;
       
-      const response = await fetch('/api/calls/recording', {
+      const transcript = timeline
+        .map(t => `${t.speaker === 'user' ? 'Rep' : 'Marcus'}: ${t.text}`)
+        .join('\n');
+      
+      const metadata = {
+        session_id: sessionId,
+        duration_seconds: durationSeconds,
+        transcript
+      };
+      
+      const turns = timeline.map(t => ({
+        turn_id: t.id,
+        speaker: t.speaker,
+        text: t.text,
+        start_ms: t.startMs,
+        end_ms: t.endMs,
+        metrics: t.metrics || {},
+        word_timestamps: []
+      }));
+      
+      formData.append('metadata', JSON.stringify(metadata));
+      formData.append('turns', JSON.stringify(turns));
+      
+      // Attach audio blobs for each turn
+      for (const turn of timeline) {
+        if (turn.audioBlob && turn.audioBlob.size > 0) {
+          formData.append(`audio_${turn.id}`, turn.audioBlob, `${turn.id}.webm`);
+        }
+      }
+      
+      log(`🎙️ Uploading timeline for session ${sessionId} (${timeline.length} turns)`);
+      
+      const response = await fetch('/api/calls/timeline', {
         method: 'POST',
         body: formData,
         credentials: 'include'
@@ -413,34 +420,25 @@ export function CallControllerProvider({
       }
       
       const data = await response.json();
-      log(`✅ Recording uploaded: ${data.recording?.id}`, 'info');
+      log(`✅ Timeline uploaded: ${data.recording?.id}`, 'info');
       
-      // Store recording info for post-call review
-      localStorage.setItem('lastCallRecording', JSON.stringify({
+      // Store timeline info for post-call review
+      const storedTimeline = {
         sessionId: data.recording?.session_id,
-        audioUrl: `/api/calls/recordings/${data.recording?.session_id}/audio`,
-        durationSeconds,
-        emotionAnalysis: data.recording?.emotion_analysis
-      }));
-      
-      // Trigger Hume emotion analysis in background
-      analyzeRecordingEmotion(sessionId).then(updatedRecording => {
-        if (updatedRecording) {
-          localStorage.setItem('lastCallRecording', JSON.stringify({
-            sessionId: updatedRecording.session_id,
-            audioUrl: `/api/calls/recordings/${updatedRecording.session_id}/audio`,
-            durationSeconds,
-            emotionAnalysis: updatedRecording.emotion_analysis
-          }));
-        }
-      }).catch(() => {});
+        durationSeconds: data.recording?.duration_seconds,
+        turns: data.recording?.turns?.map((t: any) => ({
+          ...t,
+          audioUrl: t.audio_path ? `/api/calls/turns/${t.id}/audio` : null
+        })) || []
+      };
+      localStorage.setItem('lastCallTimeline', JSON.stringify(storedTimeline));
       
       return data.recording;
     } catch (error) {
-      log(`❌ Failed to upload recording: ${error}`, 'error');
+      log(`❌ Failed to upload timeline: ${error}`, 'error');
       return null;
     }
-  }, [log, analyzeRecordingEmotion]);
+  }, [log]);
 
   // Handle WebSocket messages and update transcript
   const handleWebSocketMessage = useCallback((message: any) => {
@@ -662,9 +660,9 @@ export function CallControllerProvider({
         personaData: adaptedPersona,
         userName: 'Sales Representative', // Default user name
         disableAutoGreeting: isCustomDialoguePersona, // Let CharmerController handle Marcus dialogue
-        onRecordingReady: (blob: Blob, durationSeconds: number) => {
+        onTimelineReady: (timeline: any[]) => {
           // Use closure session ID to ensure consistency
-          uploadCallRecording(stableSessionId, blob, durationSeconds).catch(() => {});
+          uploadCallTimeline(stableSessionId, timeline).catch(() => {});
         },
         onOpen: () => {
           // Use the closure variable to ensure consistent session ID

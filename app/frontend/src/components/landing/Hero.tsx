@@ -32,7 +32,7 @@ export default function Hero() {
 
       <div className="max-w-[1200px] mx-auto px-6 w-full grid md:grid-cols-2 gap-12 items-center pt-20">
         {/* Left: Text */}
-        <div className="order-2 md:order-1">
+        <div className="md:order-1">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -94,7 +94,7 @@ export default function Hero() {
           initial={{ opacity: 0, x: 60 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 1, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="order-1 md:order-2 flex justify-center"
+          className="md:order-2 flex justify-center"
         >
           <div className="animate-float relative">
             <img

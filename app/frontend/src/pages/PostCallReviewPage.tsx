@@ -61,6 +61,16 @@ const PostCallReviewPage = () => {
         setHasSufficientData(sufficient);
         setInputMode(sufficient ? "real" : "transcript");
         
+        // Load call recording if available
+        const recordingStored = localStorage.getItem('lastCallRecording');
+        if (recordingStored) {
+          try {
+            setRecording(JSON.parse(recordingStored));
+          } catch (e) {
+            console.error('Failed to parse recording:', e);
+          }
+        }
+        
         setCallMetrics({
           callDuration: duration,
           painPointsFound: parsed.painPointsFound || parsed.painPoints || 0,
@@ -305,17 +315,40 @@ Marcus: Well, honestly, our reps freeze on objections. It's costing us deals..."
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
           >
             {screen === "summary" && inputMode !== "transcript" ? (
-              <SummaryScreen
-                onReview={() => setScreen("timeline")}
-                onTryAgain={() => navigate("/")}
-                callDuration={callMetrics?.callDuration}
-                painPointsFound={callMetrics?.painPointsFound}
-                objectionsHandled={callMetrics?.objectionsHandled}
-                demoScheduled={callMetrics?.demoScheduled}
-                readinessScore={callMetrics?.readinessScore}
-                hasSufficientData={hasSufficientData}
-                aiGenerated={inputMode === "real" && !!callMetrics?.transcript}
-              />
+              <div className="space-y-6">
+                {recording && (
+                  <div className="bg-white rounded-2xl p-5 border border-pitch-border shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-red-500">●</span>
+                      <h3 className="font-semibold text-pitch-text">Call Recording</h3>
+                    </div>
+                    <audio 
+                      src={`${API_BASE_URL}${recording.audioUrl}`} 
+                      controls 
+                      className="w-full"
+                    />
+                    {recording.emotionAnalysis && Object.keys(recording.emotionAnalysis).length > 0 && (
+                      <div className="mt-4 p-3 bg-pitch-cream rounded-xl">
+                        <p className="text-sm font-medium text-pitch-text mb-2">Voice Analysis</p>
+                        <p className="text-sm text-pitch-secondary">
+                          Emotion analysis complete. Emotion data available in coaching insights.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <SummaryScreen
+                  onReview={() => setScreen("timeline")}
+                  onTryAgain={() => navigate("/")}
+                  callDuration={callMetrics?.callDuration}
+                  painPointsFound={callMetrics?.painPointsFound}
+                  objectionsHandled={callMetrics?.objectionsHandled}
+                  demoScheduled={callMetrics?.demoScheduled}
+                  readinessScore={callMetrics?.readinessScore}
+                  hasSufficientData={hasSufficientData}
+                  aiGenerated={inputMode === "real" && !!callMetrics?.transcript}
+                />
+              </div>
             ) : screen === "timeline" ? (
               <TimelineScreen 
                 moments={callMetrics?.detailedMoments} 

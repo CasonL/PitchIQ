@@ -98,8 +98,8 @@ export default function Hero() {
         >
           <div className="animate-float relative">
             <img
-              src="/hero-phone.jpg"
-              alt="PitchIQ sales training platform interface showing live AI buyer conversation on mobile device"
+              src="/hero-phone.png"
+              alt="PitchIQ live AI buyer call with Marcus on a mobile device"
               width="320"
               height="640"
               loading="eager"

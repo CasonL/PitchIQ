@@ -44,8 +44,8 @@ export default function DemoTeaser() {
           >
             <div className="relative w-full max-w-[380px]">
               <img
-                src="/demo-analysis.png"
-                alt="PitchIQ post-call analysis showing a readiness score, coaching insights, and suggested next steps"
+                src="/demo-photo.png"
+                alt="PitchIQ live AI buyer call with Marcus, showing a live call interface and waveform"
                 width="320"
                 height="640"
                 loading="lazy"

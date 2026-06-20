@@ -368,6 +368,30 @@ export function CallControllerProvider({
   // Keep cleanupRef in sync with latest cleanup function
   cleanupRef.current = cleanup;
 
+  // Analyze recording with Hume AI for emotion detection
+  const analyzeRecordingEmotion = useCallback(async (sessionId: string) => {
+    try {
+      log(`🧠 Starting Hume emotion analysis for ${sessionId}`);
+      
+      const response = await fetch(`/api/calls/recordings/${sessionId}/analyze-emotion`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Hume analysis failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      log(`✅ Hume analysis complete: ${data.recording?.status}`, 'info');
+      
+      return data.recording;
+    } catch (error) {
+      log(`❌ Failed to analyze emotion: ${error}`, 'error');
+      return null;
+    }
+  }, [log]);
+
   // Upload call recording to backend
   const uploadCallRecording = useCallback(async (sessionId: string, blob: Blob, durationSeconds: number) => {
     try {
@@ -391,12 +415,32 @@ export function CallControllerProvider({
       const data = await response.json();
       log(`✅ Recording uploaded: ${data.recording?.id}`, 'info');
       
+      // Store recording info for post-call review
+      localStorage.setItem('lastCallRecording', JSON.stringify({
+        sessionId: data.recording?.session_id,
+        audioUrl: `/api/calls/recordings/${data.recording?.session_id}/audio`,
+        durationSeconds,
+        emotionAnalysis: data.recording?.emotion_analysis
+      }));
+      
+      // Trigger Hume emotion analysis in background
+      analyzeRecordingEmotion(sessionId).then(updatedRecording => {
+        if (updatedRecording) {
+          localStorage.setItem('lastCallRecording', JSON.stringify({
+            sessionId: updatedRecording.session_id,
+            audioUrl: `/api/calls/recordings/${updatedRecording.session_id}/audio`,
+            durationSeconds,
+            emotionAnalysis: updatedRecording.emotion_analysis
+          }));
+        }
+      }).catch(() => {});
+      
       return data.recording;
     } catch (error) {
       log(`❌ Failed to upload recording: ${error}`, 'error');
       return null;
     }
-  }, [log]);
+  }, [log, analyzeRecordingEmotion]);
 
   // Handle WebSocket messages and update transcript
   const handleWebSocketMessage = useCallback((message: any) => {

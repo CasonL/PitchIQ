@@ -152,6 +152,7 @@ export default function TimelineScreen({ onComplete, moments }: TimelineScreenPr
       <div className="max-w-2xl mx-auto px-5 sm:px-6 pb-16">
         <TimelineHeader
           currentMoment={currentMoment}
+          moments={activeMoments}
           onChangeMoment={setCurrentMoment}
           onResetState={resetState}
         />
@@ -174,6 +175,7 @@ export default function TimelineScreen({ onComplete, moments }: TimelineScreenPr
     <div className="max-w-2xl mx-auto px-5 sm:px-6 pb-16">
       <TimelineHeader
         currentMoment={currentMoment}
+        moments={activeMoments}
         onChangeMoment={setCurrentMoment}
         onResetState={resetState}
       />

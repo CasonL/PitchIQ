@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp, Play, Volume2 } from "lucide-react";
 import Waveform from "./Waveform";
-import { MOMENTS, type MomentData } from "./momentsData";
+import { type MomentData } from "./momentsData";
 
 interface TranscriptSectionProps {
   moment: MomentData;
@@ -27,6 +27,7 @@ export default function TranscriptSection({ moment, currentMoment, onShowCoachin
   };
 
   const getHeaderText = () => {
+    if (moment.label) return moment.label;
     if (currentMoment === 0) return "First major moment";
     if (currentMoment === 1) return "Turning point";
     return "Closing moment";
@@ -47,7 +48,7 @@ export default function TranscriptSection({ moment, currentMoment, onShowCoachin
         <p className="text-lg sm:text-xl font-semibold text-pitch-text mt-1">
           {getHeaderText()}
         </p>
-        <p className="text-xs text-pitch-tertiary mt-1 font-mono">{moment.label} · {moment.time}</p>
+        <p className="text-xs text-pitch-tertiary mt-1 font-mono">{moment.type} · {moment.time}</p>
       </motion.div>
 
       {/* Play button */}
@@ -114,7 +115,7 @@ export default function TranscriptSection({ moment, currentMoment, onShowCoachin
                 {currentMoment === 1 && (
                   <div className="border-l-[3px] border-l-pitch-orange pl-3 py-1">
                     <p className="text-[10px] font-bold text-pitch-orange uppercase tracking-wider mb-1">Marcus</p>
-                    <p className="text-sm text-pitch-text leading-relaxed">{MOMENTS[0].prospectSaid}</p>
+                    <p className="text-sm text-pitch-text leading-relaxed">{moment.beforeContext || ""}</p>
                   </div>
                 )}
 

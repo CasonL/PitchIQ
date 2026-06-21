@@ -101,6 +101,8 @@ export type DetectedPattern =
   | 'provided_proof'             // Objection handling: gave evidence
   | 'built_rapport'              // Opening: showed empathy/connection
   | 'missed_pain_signal'         // Discovery: ignored Marcus revealing pain
+  | 'missed_deeper_follow_up'    // Discovery: Marcus gave surface answer, rep didn't dig deeper
+  | 'dug_deeper'                 // Discovery: rep asked why/tell-me-more after surface answer
   | 'vague_positioning'          // Positioning: unclear value prop
   | 'assumptive_close'           // Positioning: assumed next steps without buy-in
   | 'handled_objection_well'     // Objection handling: addressed root cause
@@ -579,6 +581,21 @@ export class StrategyLayer {
       }
       if (marcusPainSignals && userAcknowledged && hasOpenEnded) {
         patterns.push('discovered_pain');
+      }
+
+      // Missed deeper follow-up: Marcus gave a short/vague answer with clear follow-up potential
+      // and rep moved on instead of asking why/tell-me-more
+      const marcusWasVague = lastMarcus.content.split(/\s+/).length < 25 &&
+        /\b(a bit|kind of|sort of|i guess|maybe|probably|not sure|somewhat|fairly|okay i guess)\b/i.test(lastMarcus.content);
+      const marcusRevealedSurface = /\b(yeah|fine|okay|alright|i mean|you know|it's (fine|okay|alright)|works (okay|fine))\b/i.test(lastMarcus.content) &&
+        marcusPainSignals;
+      const repDugDeeper = /\b(why (is that|does|did|not)|tell me more|what do you mean|help me understand|how (long|often|much)|what happens when|what (caused|led|drives)|say more)\b/i.test(userLower);
+
+      if ((marcusWasVague || marcusRevealedSurface) && !repDugDeeper && !hasOpenEnded) {
+        patterns.push('missed_deeper_follow_up');
+      }
+      if ((marcusWasVague || marcusRevealedSurface) && repDugDeeper) {
+        patterns.push('dug_deeper');
       }
     }
     

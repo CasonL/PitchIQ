@@ -111,10 +111,12 @@ export class BuyerStatePromptBuilder {
         // Unconscious roots - hidden concerns that only surface if they dig deep
         const unconsciousRoots = objectionData.roots.filter(r => !r.conscious);
         if (unconsciousRoots.length > 0) {
-          prompt += `\n**Hidden concerns (only reveal if they ask the RIGHT questions):**\n`;
+          prompt += `\n**Hidden concerns (reveal ONLY if they ask a direct follow-up "why" within the next 1-2 turns after you gave a surface answer):**\n`;
           unconsciousRoots.forEach(root => {
             prompt += `- ${root.description}\n`;
           });
+          prompt += `\nTo unlock these: rep must ask "why is that?", "tell me more about that", "what do you mean by X", "help me understand", "how long has that been the case?", or "what happens when that doesn't work?"\n`;
+          prompt += `If they just move on or pitch, keep this hidden. Surface concerns should feel like they came up naturally — not volunteered.\n`;
         }
         
         if (satisfaction < 0.3) {

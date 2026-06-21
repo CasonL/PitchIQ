@@ -2546,8 +2546,34 @@ const CharmerControllerContent = memo(({
       };
     });
 
-    // Readiness score: base 50, +10 per success, -5 per critical
-    const readinessScore = Math.min(95, Math.max(20, 50 + (successfulMoments.length * 10) - (criticalMoments.length * 5)));
+    // Readiness score — multi-factor, reflects actual call performance
+    const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+    const finalTrust = buyerState?.trustLevel ?? 3;
+    const totalSpeakTime = (metrics?.userSpeakingTime ?? 0) + (metrics?.marcusSpeakingTime ?? 1);
+    const userTalkPct = (metrics?.userSpeakingTime ?? 0) / totalSpeakTime;
+
+    // 1. Discovery quality (0–20): open-ended + follow-up questions
+    const discoveryScore = clamp((openEndedCount * 3) + (followUpCount * 2), 0, 20);
+
+    // 2. Buyer state at end (0–25): did trust build and resistance drop?
+    const trustScore = finalTrust >= 7 ? 15 : finalTrust >= 5 ? 10 : finalTrust >= 3 ? 5 : 0;
+    const resistScore = finalResistance <= 3 ? 10 : finalResistance <= 5 ? 7 : finalResistance <= 7 ? 3 : 0;
+
+    // 3. Objection handling (0–15): proportion resolved out of raised
+    const totalRaised = Math.max(totalObjectionsFromStrategy, objectionsRaised);
+    const objectionScore = totalRaised > 0 ? Math.round((objectionsResolved / totalRaised) * 15) : 5; // 5 default if no objections
+
+    // 4. Talk ratio penalty: reps who talk > 65% of the call lose points
+    const talkPenalty = userTalkPct > 0.70 ? -10 : userTalkPct > 0.60 ? -5 : 0;
+
+    // 5. Moment bonus/penalty
+    const momentBonus = clamp(successfulMoments.length * 5, 0, 10) - (criticalMoments.length * 5);
+
+    // 6. Call length bonus: very short calls can't score well
+    const lengthBonus = duration < 60 ? -10 : duration >= 120 ? 5 : 0;
+
+    const readinessScore = clamp(40 + discoveryScore + trustScore + resistScore + objectionScore + talkPenalty + momentBonus + lengthBonus, 15, 95);
+    console.log(`📈 Readiness score: ${readinessScore} (discovery:${discoveryScore} trust:${trustScore} resist:${resistScore} obj:${objectionScore} talk:${talkPenalty} moments:${momentBonus} length:${lengthBonus})`);
 
     // Build plain transcript from conversation history for post-call analysis
     const callTranscriptText = conversationHistory

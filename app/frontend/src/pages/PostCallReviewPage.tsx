@@ -19,6 +19,7 @@ interface CallMetrics {
   transcript?: string;
   detailedMoments?: MomentData[];
   highlights?: { text: string; type: "win" | "miss" | "tip" }[];
+  sentimentPoints?: { x: number; y: number; label?: string; type?: "high" | "low" }[];
   sentimentAnalysis?: { trust: { value: number; label: string }; curiosity: { value: number; label: string }; urgency: { value: number; label: string } };
   isLoading?: boolean;
   totalExpectedMoments?: number;
@@ -107,6 +108,8 @@ const PostCallReviewPage = () => {
           readinessScore: parsed.readinessScore || parsed.overallScore || null,
           detailedMoments: parsed.detailedMoments || [],
           transcript: parsed.transcript,
+          sentimentPoints: parsed.sentimentPoints || [],
+          highlights: parsed.highlights || [],
         });
       } else {
         // No call data found - offer transcript input
@@ -393,6 +396,8 @@ Marcus: Well, honestly, our reps freeze on objections. It's costing us deals..."
                   readinessScore={callMetrics?.readinessScore}
                   hasSufficientData={hasSufficientData}
                   aiGenerated={inputMode === "real"}
+                  sentimentPoints={callMetrics?.sentimentPoints}
+                  highlights={callMetrics?.highlights}
                 />
               </div>
             ) : screen === "timeline" ? (

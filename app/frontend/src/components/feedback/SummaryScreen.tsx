@@ -12,6 +12,13 @@ import {
 } from "lucide-react";
 import CircularGauge from "./CircularGauge";
 
+interface SentimentPoint {
+  x: number;
+  y: number;
+  label?: string;
+  type?: 'high' | 'low';
+}
+
 interface SummaryScreenProps {
   onReview: () => void;
   onTryAgain?: () => void;
@@ -24,6 +31,8 @@ interface SummaryScreenProps {
   hasSufficientData?: boolean;
   // True when feedback was AI-generated from transcript
   aiGenerated?: boolean;
+  sentimentPoints?: SentimentPoint[];
+  highlights?: { text: string; type: 'win' | 'miss' | 'tip' }[];
 }
 
 const HIGHLIGHTS = [
@@ -76,7 +85,9 @@ export default function SummaryScreen({
   demoScheduled,
   readinessScore,
   hasSufficientData,
-  aiGenerated
+  aiGenerated,
+  sentimentPoints: realSentimentPoints,
+  highlights: realHighlights,
 }: SummaryScreenProps) {
   // Determine if we should use demo data (no real data or insufficient data)
   const useDemoData = hasSufficientData === false || callDuration === undefined || callDuration < 10;
@@ -87,11 +98,13 @@ export default function SummaryScreen({
   const displayObjHandled = useDemoData ? DEMO_OBJECTIONS.handled : (objectionsHandled || 0);
   const displayObjTotal = useDemoData ? DEMO_OBJECTIONS.total : 2;
   const displayDemoScheduled = useDemoData ? DEMO_DEMO_SCHEDULED : demoScheduled;
+  const displaySentimentPoints = (!useDemoData && realSentimentPoints && realSentimentPoints.length > 1) ? realSentimentPoints : SENTIMENT_POINTS;
+  const displayHighlights = (!useDemoData && realHighlights && realHighlights.length > 0) ? realHighlights : HIGHLIGHTS;
   const displayScore = useDemoData ? DEMO_READINESS_SCORE : (readinessScore || 65);
 
   const [graphAnimated, setGraphAnimated] = useState(false);
 
-  const pathD = SENTIMENT_POINTS.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x},${p.y}`).join(" ");
+  const pathD = displaySentimentPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x},${p.y}`).join(" ");
   const areaD = pathD + " L 500,90 L 0,90 Z";
 
   const chipMap = {
@@ -202,8 +215,8 @@ export default function SummaryScreen({
         </motion.div>
       </div>
 
-      {/* Story Block 2: "What happened?" — demo only */}
-      {useDemoData && (
+      {/* Story Block 2: Sentiment graph — show for real or demo when data available */}
+      {(useDemoData || displaySentimentPoints.length > 1) && (
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -248,7 +261,7 @@ export default function SummaryScreen({
               transition={{ duration: 1.8, ease: "easeOut" }}
             />
 
-            {SENTIMENT_POINTS.filter((p) => "type" in p).map((p) => (
+            {displaySentimentPoints.filter((p) => "type" in p).map((p) => (
               <g key={p.x}>
                 <motion.circle
                   cx={p.x} cy={p.y} r={p.type === "high" ? 5 : 4}
@@ -269,15 +282,15 @@ export default function SummaryScreen({
       </motion.div>
       )}
 
-      {/* Story Block 3: "What matters?" — demo only */}
-      {useDemoData && (
+      {/* Story Block 3: Highlights pills — show for real or demo */}
+      {(useDemoData || displayHighlights.length > 0) && (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.9, duration: 0.4 }}
         className="flex flex-wrap gap-2 mb-6 sm:mb-8 justify-center"
       >
-        {HIGHLIGHTS.map((hl) => (
+        {displayHighlights.map((hl) => (
           <span
             key={hl.text}
             className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold border ${chipMap[hl.type]}`}

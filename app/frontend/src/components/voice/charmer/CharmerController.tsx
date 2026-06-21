@@ -2575,6 +2575,44 @@ const CharmerControllerContent = memo(({
     const readinessScore = clamp(40 + discoveryScore + trustScore + resistScore + objectionScore + talkPenalty + momentBonus + lengthBonus, 15, 95);
     console.log(`📈 Readiness score: ${readinessScore} (discovery:${discoveryScore} trust:${trustScore} resist:${resistScore} obj:${objectionScore} talk:${talkPenalty} moments:${momentBonus} length:${lengthBonus})`);
 
+    // Build sentiment graph from Marcus's resistance level at each turn
+    // SVG y-axis: low y = top = good (low resistance). Range 10–80.
+    const marcusExchanges = conversationExchanges.filter(ex => ex.speaker === 'marcus');
+    const sentimentPoints = marcusExchanges.map((ex, i) => {
+      const x = Math.round((i / Math.max(marcusExchanges.length - 1, 1)) * 500);
+      const resistance = ex.resistanceLevel ?? 5;
+      const y = Math.round((resistance / 10) * 65) + 12; // 12 (resistance 0) to 77 (resistance 10)
+      // Check if a key moment happened near this exchange
+      const critMoment = criticalMoments?.find(m => Math.abs((m.timestamp || 0) - (ex.timestamp || 0)) < 8);
+      const succMoment = successfulMoments?.find(m => Math.abs((m.timestamp || 0) - (ex.timestamp || 0)) < 8);
+      return {
+        x,
+        y,
+        ...(critMoment ? { label: critMoment.title || 'Critical moment', type: 'low' as const } : {}),
+        ...(succMoment && !critMoment ? { label: succMoment.title || 'Key moment', type: 'high' as const } : {}),
+      };
+    });
+
+    // Detect demo/meeting scheduled from final Marcus exchanges
+    const lastMarcusText = marcusExchanges.slice(-4).map(ex => ex.text || '').join(' ').toLowerCase();
+    const demoScheduled = /\b(schedule|set.?up|demo|meeting|follow.?up|next (week|tuesday|monday|wednesday|thursday|friday|month)|sounds good|happy to|interested|worth|let's talk|i'd like)\b/.test(lastMarcusText) && finalResistance <= 5;
+
+    // Build highlight pills from derived metrics
+    const highlights: Array<{ text: string; type: 'win' | 'miss' | 'tip' }> = [];
+    if (followUpCount > 1 || openEndedCount > 2) highlights.push({ text: 'Uncovered pain', type: 'win' });
+    if (objectionsResolved > 0) highlights.push({ text: 'Handled objection', type: 'win' });
+    if (demoScheduled) highlights.push({ text: 'Demo scheduled', type: 'win' });
+    if (followUpCount > 2) highlights.push({ text: 'Dug deeper', type: 'win' });
+    if (duration < 120) {
+      highlights.push({ text: 'Too brief', type: 'miss' });
+      highlights.push({ text: 'Aim for 2–5 min', type: 'tip' });
+    }
+    if (userTalkPct > 0.65) highlights.push({ text: 'Talked too much', type: 'miss' });
+    if (openEndedCount === 0) {
+      highlights.push({ text: 'No discovery', type: 'miss' });
+      highlights.push({ text: 'Ask open questions', type: 'tip' });
+    }
+
     // Build plain transcript from conversation history for post-call analysis
     const callTranscriptText = conversationHistory
       .map(h => `${h.role === 'user' ? 'Rep' : 'Marcus'}: ${h.content}`)
@@ -2592,6 +2630,9 @@ const CharmerControllerContent = memo(({
       objectionsTotal: Math.max(objectionsRaised, totalObjectionsFromStrategy, 1),
       painPointsFound: followUpCount,
       readinessScore,
+      demoScheduled,
+      sentimentPoints,
+      highlights,
       detailedMoments,
       transcript: callTranscriptText,
     };

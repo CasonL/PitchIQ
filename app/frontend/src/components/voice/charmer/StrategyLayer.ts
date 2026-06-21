@@ -473,6 +473,13 @@ export class StrategyLayer {
       turnContext.currentPairIndex + 1 // +1 for 1-indexed turn number
     );
 
+    // Auto-clear activeObjection when satisfaction >= 0.7 — concern is resolved, Marcus should move on
+    const resolvedObjection = this.buyerState.activeObjection &&
+      updatedSatisfaction[this.buyerState.activeObjection] >= 0.7;
+    if (resolvedObjection) {
+      console.log(`✅ [Strategy] Objection "${this.buyerState.activeObjection}" resolved (satisfaction: ${updatedSatisfaction[this.buyerState.activeObjection!].toFixed(2)}) — clearing activeObjection`);
+    }
+
     // Update buyer state
     this.buyerState = {
       emotionalPosture,
@@ -484,7 +491,7 @@ export class StrategyLayer {
       urgency,
       trustLevel,
       disclosureGates,
-      activeObjection: this.buyerState.activeObjection,
+      activeObjection: resolvedObjection ? undefined : this.buyerState.activeObjection,
       objectionSatisfaction: updatedSatisfaction,
       lastAcknowledgment,
       shouldEscalateObjection: escalation.should,

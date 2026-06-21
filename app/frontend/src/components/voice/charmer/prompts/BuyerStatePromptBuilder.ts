@@ -122,7 +122,9 @@ export class BuyerStatePromptBuilder {
         } else if (satisfaction < 0.7) {
           prompt += `\n⚠️ They've partially addressed this, but you're not fully convinced\n`;
         } else {
-          prompt += `\n✓ This concern is mostly resolved\n`;
+          prompt += `\n🚫 THIS CONCERN IS CLOSED. Do NOT reopen, reword, or revisit it in any form.\n`;
+          prompt += `Move forward: ask about setup time, pricing, next steps, or who else needs to be involved.\n`;
+          prompt += `A real buyer who got a satisfactory answer moves on — they don't re-interrogate the same point.\n`;
         }
       }
     }

@@ -48,11 +48,11 @@ export class BuyerStatePromptBuilder {
     // CRITICAL: Acknowledge when they address your concerns
     if (state.lastAcknowledgment) {
       prompt += `\n**🎯 ACKNOWLEDGE THEIR ANSWER:**\n`;
-      prompt += `- They just addressed your concern somewhat well\n`;
-      prompt += `- Start your response with: "${state.lastAcknowledgment}"\n`;
-      prompt += `- Then pivot to your next concern or remaining skepticism\n`;
-      prompt += `- DO NOT repeat the same objection if it was partially satisfied\n`;
-      prompt += `- You can still be skeptical on OTHER concerns\n\n`;
+      prompt += `- Start with ONLY: "${state.lastAcknowledgment}" — nothing else before your next concern\n`;
+      prompt += `- Do NOT paraphrase what they just said. Do NOT summarize their answer back to them.\n`;
+      prompt += `- Do NOT say "So you're saying..." or "Okay so basically..." or "Got it, so what you mean is..."\n`;
+      prompt += `- Just: short acknowledgment → your next concern. Nothing in between.\n`;
+      prompt += `- Example: "Alright. What does pricing look like?" NOT "Okay so you're saying the AI analyzes patterns — I get that. But what about..."\n\n`;
     }
     
     // CRITICAL 1: Force exit - highest priority

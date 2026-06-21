@@ -80,6 +80,11 @@ const PostCallReviewPage = () => {
         const duration = parsed.callDuration || parsed.duration || 0;
         const hasRealMoments = Array.isArray(parsed.detailedMoments) && parsed.detailedMoments.length > 0;
         
+        console.log(`📱 [PostCallReview] Loaded: duration=${duration}s, moments=${parsed.detailedMoments?.length ?? 'none'}, hasRealMoments=${hasRealMoments}`);
+        if (hasRealMoments) {
+          console.log(`📱 [PostCallReview] First moment:`, JSON.stringify(parsed.detailedMoments[0]).substring(0, 200));
+        }
+        
         // Use real mode if call was long enough OR if we have moment data
         const sufficient = duration >= 30 || hasRealMoments;
         setHasSufficientData(sufficient);

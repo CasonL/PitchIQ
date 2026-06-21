@@ -189,7 +189,7 @@ export default function SummaryScreen({
               Pain found
             </p>
             <p className="text-[9px] sm:text-[10px] text-pitch-tertiary mt-0.5">
-              {displayPain === 0 ? "Go deeper" : <>&nbsp;</>}
+              {displayPain === 0 ? "Go deeper" : '\u00A0'}
             </p>
           </div>
           {/* Objections */}
@@ -200,7 +200,7 @@ export default function SummaryScreen({
             <p className="text-[9px] sm:text-[10px] font-bold text-pitch-text uppercase tracking-wider mt-0.5">
               Objections handled
             </p>
-            <p className="text-[9px] sm:text-[10px] text-pitch-tertiary mt-0.5">&nbsp;</p>
+            <p className="text-[9px] sm:text-[10px] text-pitch-tertiary mt-0.5">{' '}</p>
           </div>
           {/* Demo Scheduled */}
           <div className="text-center py-2 sm:py-0">
@@ -210,7 +210,7 @@ export default function SummaryScreen({
             <p className="text-[9px] sm:text-[10px] font-bold text-pitch-text uppercase tracking-wider mt-0.5">
               Demo scheduled
             </p>
-            <p className="text-[9px] sm:text-[10px] text-pitch-tertiary mt-0.5">&nbsp;</p>
+            <p className="text-[9px] sm:text-[10px] text-pitch-tertiary mt-0.5">{' '}</p>
           </div>
         </motion.div>
       </div>

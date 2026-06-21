@@ -2401,10 +2401,12 @@ const CharmerControllerContent = memo(({
       activeObjection: undefined
     };
     
-    // Calculate addressed/resolved counts from satisfaction data
+    // Calculate addressed/resolved counts — only for objections actually raised (satisfaction dropped from default 1.0)
     const satisfactionEntries = Object.entries(objectionData.objectionSatisfaction);
-    const objectionsAddressed = satisfactionEntries.filter(([_, satisfaction]) => satisfaction >= 0.5).length;
-    const objectionsResolved = satisfactionEntries.filter(([_, satisfaction]) => satisfaction >= 0.8).length;
+    const raisedObjectionEntries = satisfactionEntries.filter(([_, satisfaction]) => satisfaction < 0.9);
+    const objectionsAddressed = raisedObjectionEntries.filter(([_, satisfaction]) => satisfaction >= 0.5).length;
+    const objectionsResolved = raisedObjectionEntries.filter(([_, satisfaction]) => satisfaction >= 0.7).length;
+    const totalObjectionsFromStrategy = raisedObjectionEntries.length;
     
     // Build complete metrics
     const metrics: CallMetrics = {
@@ -2561,8 +2563,8 @@ const CharmerControllerContent = memo(({
       criticalMoments: criticalMoments.length,
       successfulMoments: successfulMoments.length,
       objectionsHandled: objectionsAddressed,
-      objectionsTotal: Math.max(objectionsRaised, 1),
-      painPointsFound: successfulMoments.length,
+      objectionsTotal: Math.max(objectionsRaised, totalObjectionsFromStrategy, 1),
+      painPointsFound: followUpCount,
       readinessScore,
       detailedMoments,
       transcript: callTranscriptText,

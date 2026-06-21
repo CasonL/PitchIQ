@@ -53,6 +53,13 @@ const colorClasses = {
   neutral: "text-pitch-tertiary",
 };
 
+const formatDuration = (seconds: number): string => {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+};
+
 // Demo data constants
 const DEMO_DURATION = 48;
 const DEMO_PAIN_FOUND = 1;
@@ -151,7 +158,7 @@ export default function SummaryScreen({
           {/* Duration */}
           <div className="text-center py-2 sm:py-0">
             <p className="text-lg sm:text-xl font-bold text-pitch-orange">
-              {displayDuration}s
+              {formatDuration(displayDuration)}
             </p>
             <p className="text-[9px] sm:text-[10px] font-bold text-pitch-text uppercase tracking-wider mt-0.5">
               Duration
@@ -169,7 +176,7 @@ export default function SummaryScreen({
               Pain found
             </p>
             <p className="text-[9px] sm:text-[10px] text-pitch-tertiary mt-0.5">
-              {displayPain === 0 ? "Go deeper" : "\u00A0"}
+              {displayPain === 0 ? "Go deeper" : <>&nbsp;</>}
             </p>
           </div>
           {/* Objections */}
@@ -180,7 +187,7 @@ export default function SummaryScreen({
             <p className="text-[9px] sm:text-[10px] font-bold text-pitch-text uppercase tracking-wider mt-0.5">
               Objections handled
             </p>
-            <p className="text-[9px] sm:text-[10px] text-pitch-tertiary mt-0.5">\u00A0</p>
+            <p className="text-[9px] sm:text-[10px] text-pitch-tertiary mt-0.5">&nbsp;</p>
           </div>
           {/* Demo Scheduled */}
           <div className="text-center py-2 sm:py-0">
@@ -190,7 +197,7 @@ export default function SummaryScreen({
             <p className="text-[9px] sm:text-[10px] font-bold text-pitch-text uppercase tracking-wider mt-0.5">
               Demo scheduled
             </p>
-            <p className="text-[9px] sm:text-[10px] text-pitch-tertiary mt-0.5">\u00A0</p>
+            <p className="text-[9px] sm:text-[10px] text-pitch-tertiary mt-0.5">&nbsp;</p>
           </div>
         </motion.div>
       </div>

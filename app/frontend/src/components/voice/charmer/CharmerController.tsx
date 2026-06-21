@@ -92,7 +92,7 @@ const CharmerControllerContent = memo(({
   const [currentPhase, setCurrentPhase] = useState<CharmerPhase>('prospect');
   const [phaseContext, setPhaseContext] = useState(phaseManagerRef.current.getContext());
   // AI service
-  const aiServiceRef = useRef(new CharmerAIService());
+  const aiServiceRef = useRef(new CharmerAIService(undefined, 'gemini-flash'));
   
   // Scenario state - use initialScenario if provided, otherwise restore from localStorage
   const [selectedScenario, setSelectedScenario] = useState<MarcusScenario | null>(() => {
@@ -206,8 +206,9 @@ const CharmerControllerContent = memo(({
     };
   }, []);
   
-  // Conversation state
+  // Conversation state — ref mirrors state so async closures always see current history
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const conversationHistoryRef = useRef<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
   const [momentFeedbackData, setMomentFeedbackData] = useState<StoredFeedbackData | null>(() => {
     // Restore feedback data from localStorage on mount
     const result = LocalStorageService.getItem<StoredFeedbackData>('feedbackData');
@@ -497,8 +498,8 @@ const CharmerControllerContent = memo(({
           phase: currentPhase,
           turnNumber: processingUtteranceCount,
           userInput: userText,
-          lastMarcusMessage: conversationHistory[conversationHistory.length - 1]?.content,
-          conversationHistory,
+          lastMarcusMessage: conversationHistoryRef.current[conversationHistoryRef.current.length - 1]?.content,
+          conversationHistory: conversationHistoryRef.current,
           hasUserName: !!phaseManagerRef.current.getContext().userName,
           buyerState: strategyLayerRef.current ? {
             resistanceLevel: strategyLayerRef.current.getCurrentBuyerState().resistanceLevel,
@@ -540,7 +541,7 @@ const CharmerControllerContent = memo(({
           conversationContext: phaseManagerRef.current.getContext(),
           userInput: userText,
           phasePromptContext: phaseManagerRef.current.getPhasePromptContext(),
-          conversationHistory: conversationHistory,
+          conversationHistory: conversationHistoryRef.current,
           questionCategory: classification.category
         });
         
@@ -572,11 +573,11 @@ const CharmerControllerContent = memo(({
         lastMarcusSpeakTimeRef.current = Date.now();
         
         // Add to conversation history as clarification request
-        setConversationHistory(prev => [
-          ...prev,
-          { role: 'user', content: userText },
-          { role: 'assistant', content: aiResponse.content }
-        ]);
+        setConversationHistory(prev => {
+          const next = [...prev, { role: 'user', content: userText }, { role: 'assistant', content: aiResponse.content }];
+          conversationHistoryRef.current = next;
+          return next;
+        });
         
         // Track garbled audio clarification
         if (conversationTrackerRef.current) {
@@ -604,7 +605,7 @@ const CharmerControllerContent = memo(({
       // Extract information from user's speech
       // Pass current name to allow corrections and utterance count to limit name extraction to introductions
       // Pass conversationHistory for context-aware coaching feedback
-      const extracted = CharmerContextExtractor.extractAll(userText, context.userName, processingUtteranceCount, conversationHistory);
+      const extracted = CharmerContextExtractor.extractAll(userText, context.userName, processingUtteranceCount, conversationHistoryRef.current);
       
       // Update context with extracted info (allow name updates for corrections)
       if (extracted.name) {
@@ -760,7 +761,7 @@ const CharmerControllerContent = memo(({
       }
       
       // TURN-SPECIFIC: Dodged mechanics question (this turn's behavior)
-      const lastMarcusMessage = conversationHistory[conversationHistory.length - 1];
+      const lastMarcusMessage = conversationHistoryRef.current[conversationHistoryRef.current.length - 1];
       const marcusAskedHow = lastMarcusMessage?.role === 'assistant' && /\b(how|what.*do|explain|walk me through)\b/i.test(lastMarcusMessage.content || '');
       const hasClarifyingAttempt = /\b(it works by|basically|the idea is|what it does is|we help by|it uses|it gives|it lets)\b/i.test(userText);
       if (marcusAskedHow && !mechanismPattern.test(userText) && !hasClarifyingAttempt) {
@@ -783,10 +784,10 @@ const CharmerControllerContent = memo(({
       }
       
       // STRATEGY LAYER: Start in parallel - don't block AI generation
-      const repQualitySignals = strategyLayerRef.current.analyzeRepQuality(userText, conversationHistory);
+      const repQualitySignals = strategyLayerRef.current.analyzeRepQuality(userText, conversationHistoryRef.current);
       
       // Build TurnContext from conversation history
-      const totalExchanges = conversationHistory.length;
+      const totalExchanges = conversationHistoryRef.current.length;
       const totalTurns = Math.floor(totalExchanges / 2);
       const elapsedMs = callStartTimeRef.current ? Date.now() - callStartTimeRef.current : 0;
       
@@ -805,7 +806,7 @@ const CharmerControllerContent = memo(({
       
       strategyContext = {
         phase: currentPhaseNum,
-        conversationHistory,
+        conversationHistory: conversationHistoryRef.current,
         userInput: userText,
         turnContext, // Pass turn context for impatience logic
         lastObjection: lastObjectionRef.current, // Pass last objection for escalation detection
@@ -853,7 +854,7 @@ const CharmerControllerContent = memo(({
         userText,
         utteranceSnapshot,
         buyerState,
-        conversationHistory
+        conversationHistoryRef.current
       ).then(analysis => {
         if (analysis) {
           console.log('🔍 Hybrid feedback analysis:');
@@ -887,7 +888,7 @@ const CharmerControllerContent = memo(({
       buyerState = strategyOutput.buyerState;
       
       // 🌳 BUYER-STATE MODELING: Update dynamic buyer state tree
-      const turnNumber = Math.floor(conversationHistory.length / 2) + 1;
+      const turnNumber = Math.floor(conversationHistoryRef.current.length / 2) + 1;
       
       // Step 1: Update product confidence with scoped seller signals
       // Pass signals to prevent customer names like "Gap" from being detected as product during case studies
@@ -1190,7 +1191,7 @@ const CharmerControllerContent = memo(({
             conversationContext: phaseManager.getContext(),
             userInput: userText,
             phasePromptContext: phaseManager.getPhasePromptContext(),
-            conversationHistory: conversationHistory,
+            conversationHistory: conversationHistoryRef.current,
             scenario: selectedScenario,
             questionCategory: classification.category
           }, undefined, callDetailsRef.current?.marcusPromptBlock, buyerDelta?.guidanceText, handleFirstSentence);
@@ -1226,7 +1227,7 @@ const CharmerControllerContent = memo(({
         }
       } else {
         // ALWAYS USE FULL LLM - no pattern detection, no shortcuts
-        const userMessages = conversationHistory.filter(msg => msg.role === 'user');
+        const userMessages = conversationHistoryRef.current.filter(msg => msg.role === 'user');
         const turnNumber = userMessages.length + 1;
         
         console.log(`🔍 Turn ${turnNumber}: Using full LLM intelligence (all patterns disabled)`);
@@ -1235,7 +1236,7 @@ const CharmerControllerContent = memo(({
           conversationContext: phaseManagerRef.current.getContext(),
           userInput: userText,
           phasePromptContext: phaseManagerRef.current.getPhasePromptContext(),
-          conversationHistory: conversationHistory,
+          conversationHistory: conversationHistoryRef.current,
           scenario: selectedScenario,
           buyerState: buyerState,
           questionCategory: classification.category,
@@ -1330,14 +1331,14 @@ const CharmerControllerContent = memo(({
       }
       
       // COGNITIVE COMPLETENESS: Analyze if USER's thought has landed (witness data)
-      const cognitiveAnalysis = CognitiveCompletenessAnalyzer.analyze(userText, conversationHistory);
+      const cognitiveAnalysis = CognitiveCompletenessAnalyzer.analyze(userText, conversationHistoryRef.current);
       console.log(`🧠 Cognitive analysis: ${cognitiveAnalysis.isCognitivelyComplete ? 'Complete' : 'Incomplete'} - ${cognitiveAnalysis.reason}`);
       if (!cognitiveAnalysis.isCognitivelyComplete) {
         console.log(`   Signals: hedging=${cognitiveAnalysis.signals.isHedging}, ambiguous=${cognitiveAnalysis.signals.isAmbiguous}, thinking=${cognitiveAnalysis.signals.isThinking}, followup=${cognitiveAnalysis.signals.invitesFollowup}, strategic=${cognitiveAnalysis.signals.strategicPause}`);
       }
       
       // JUDGMENT GATE: Evaluate if Marcus should speak, wait, suppress, or hold
-      const riskAssessment = judgmentGateRef.current.assessRisk(userText, conversationHistory);
+      const riskAssessment = judgmentGateRef.current.assessRisk(userText, conversationHistoryRef.current);
       const timeSinceLastUserSpeech = Date.now() - lastUserSpeechTimeRef.current;
       const marcusJustSpoke = Date.now() - lastMarcusSpeakTimeRef.current < 2000;
       
@@ -1347,7 +1348,7 @@ const CharmerControllerContent = memo(({
         questionRisk: riskAssessment.risk,
         momentType: riskAssessment.momentType,
         prospectState: 'testing', // TODO: Track this from phase/conversation state
-        conversationHistory: conversationHistory,
+        conversationHistory: conversationHistoryRef.current,
         timeSinceLastUserSpeech,
         marcusJustSpoke,
         // Witness data - inputs, not decisions
@@ -1402,29 +1403,36 @@ const CharmerControllerContent = memo(({
       // WAIT and SPEAK actions proceed immediately - no delays
       const speed = currentPhase === 'coach' || currentPhase === 'exit' ? 0.85 : 0.75;
       
+      // Add to history NOW - before speaking so interruptions don't lose this turn
+      setConversationHistory(prev => {
+        const next = [...prev, { role: 'user', content: userText }, { role: 'assistant', content: aiResponse.content }];
+        conversationHistoryRef.current = next;
+        return next;
+      });
+      
       // Notify conversation turn manager that Marcus is about to speak
       conversationTurnManagerRef.current?.startAssistantSpeaking();
       
       // Speak Marcus's response using Cartesia TTS with dynamic emotion
       // If first sentence was already streamed, only speak the remainder
       if (firstSentenceSpokenRef.current) {
-        // Wait for first sentence TTS to finish playing before speaking remainder
-        if (firstSentencePromiseRef.current) {
-          console.log(`⏳ Waiting for first sentence TTS to finish...`);
-          await firstSentencePromiseRef.current;
-          firstSentencePromiseRef.current = null;
-        }
         console.log(`📡 First sentence was streamed - speaking remainder only`);
         // Remove first sentence from content (already spoken)
         const remainder = aiResponse.content.replace(firstSentenceSpokenRef.current, '').trim();
+        firstSentenceSpokenRef.current = null; // Reset for next turn
         if (remainder.length > 0) {
+          // continueAfterCurrent: starts synthesis immediately but waits for first sentence
+          // to finish playing before emitting audio — eliminates the gap between sentences
           await speakAsMarcus(remainder, {
             voiceId: '5ee9feff-1265-424a-9d7f-8e4d431a12c7',
             emotion: aiResponse.emotion,
-            speed: speed
+            speed: speed,
+            continueAfterCurrent: true
           });
+        } else {
+          if (firstSentencePromiseRef.current) await firstSentencePromiseRef.current;
+          firstSentencePromiseRef.current = null;
         }
-        firstSentenceSpokenRef.current = null; // Reset for next turn
       } else {
         // No streaming - speak full response
         await speakAsMarcus(aiResponse.content, {
@@ -1439,7 +1447,7 @@ const CharmerControllerContent = memo(({
         userMessage: userText,
         marcusLastMessage: aiResponse.content,
         marcusLastEmotion: aiResponse.emotion || 'neutral',
-        conversationHistory
+        conversationHistory: conversationHistoryRef.current
       };
       
       // Check for overtalking
@@ -1506,12 +1514,6 @@ const CharmerControllerContent = memo(({
       // 3. Strategic guidance system to lead user toward hidden issues
       // 4. Puzzle-like experience with hints scattered throughout conversation
       
-      // Add both user message and Marcus's response to history (prevents duplicate context confusion)
-      setConversationHistory(prev => [
-        ...prev, 
-        { role: 'user', content: userText },
-        { role: 'assistant', content: aiResponse.content }
-      ]);
       console.log(`🎤 Marcus [${aiResponse.emotion}]: "${aiResponse.content}"`);
       
       // 🎯 EMIT CANONICAL EVENT (single source of truth for this turn)
@@ -1689,7 +1691,7 @@ const CharmerControllerContent = memo(({
             conversationContext: phaseManager.getContext(),
             userInput: newContent,
             phasePromptContext: phaseManager.getPhasePromptContext(),
-            conversationHistory: conversationHistory,
+            conversationHistory: conversationHistoryRef.current,
             scenario: selectedScenario,
             patternMatch: patternMatch
           }).catch(err => {
@@ -1713,7 +1715,7 @@ const CharmerControllerContent = memo(({
           conversationContext: phaseManager.getContext(),
           userInput: newContent,
           phasePromptContext: phaseManager.getPhasePromptContext(),
-          conversationHistory: conversationHistory,
+          conversationHistory: conversationHistoryRef.current,
           scenario: selectedScenario,
           questionCategory: speculativeClassification.category
         }).catch(err => {
@@ -1950,7 +1952,8 @@ const CharmerControllerContent = memo(({
         
         // Update timestamp after speaking completes
         lastMarcusSpeakTimeRef.current = Date.now();
-        setConversationHistory([{ role: 'assistant', content: greeting }]);
+        conversationHistoryRef.current = [{ role: 'assistant', content: greeting }];
+        setConversationHistory(conversationHistoryRef.current);
         
         // Track greeting in conversation
         if (conversationTrackerRef.current) {
@@ -2035,6 +2038,7 @@ const CharmerControllerContent = memo(({
     });
     setCurrentPhase('prospect');
     setPhaseContext(phaseManagerRef.current.getContext());
+    conversationHistoryRef.current = [];
     setConversationHistory([]);
     
     // Play phone ringing sound IMMEDIATELY - looping naturally with silence gaps
@@ -2083,31 +2087,15 @@ const CharmerControllerContent = memo(({
     const ringSessionId = sessionId;
     console.log('📞 Phone ringing for 10 seconds...', new Date().toISOString());
     
-    // PRE-WARM OPENAI CACHE: Send dummy request during phone ring to cache system prompt
-    // This eliminates the 5-10s delay on Turn 2 by pre-caching the static prompt
-    if (aiServiceRef.current && scenarioWithTraits) {
-      const phaseManager = phaseManagerRef.current;
-      aiServiceRef.current.prewarmCache({
-        phase: phaseManager.getCurrentPhase(),
-        conversationContext: phaseManager.getContext(),
-        userInput: '',
-        phasePromptContext: phaseManager.getPhasePromptContext(),
-        conversationHistory: [],
-        scenario: scenarioWithTraits,
-        marcusTraits: scenarioWithTraits.traits ? {
-          painLevel: scenarioWithTraits.traits.painLevel,
-          urgency: scenarioWithTraits.traits.urgency,
-          budget: scenarioWithTraits.traits.budget,
-          openness: scenarioWithTraits.traits.openness,
-          painPoints: scenarioWithTraits.traits.painPoints,
-          currentSolution: scenarioWithTraits.traits.currentSolution,
-          satisfactionLevel: scenarioWithTraits.traits.satisfactionLevel,
-          decisionTimeframe: scenarioWithTraits.traits.decisionTimeframe,
-          primaryConcern: scenarioWithTraits.traits.primaryConcern
-        } : undefined
-      }).catch(err => {
-        console.log('⚠️ Cache pre-warm failed (non-critical):', err);
-      });
+    // BACKEND KEEPALIVE: Ping backend during ring to ensure connection is alive
+    // This prevents Render cold-start latency on the first LLM call
+    {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      if (apiBase) {
+        fetch(`${apiBase}/api/health`, { method: 'GET', signal: AbortSignal.timeout(5000) })
+          .then(() => console.log('🔥 Backend connection pre-warmed'))
+          .catch(() => console.log('⚠️ Backend ping failed (non-critical)'));
+      }
     }
     
     ringTimeoutRef.current = setTimeout(async () => {
@@ -2169,6 +2157,7 @@ const CharmerControllerContent = memo(({
     });
     setCurrentPhase('prospect');
     setPhaseContext(phaseManagerRef.current.getContext());
+    conversationHistoryRef.current = [];
     setConversationHistory([]);
     
     // Start the call (no persona parameter needed for new voice system)
@@ -2499,13 +2488,84 @@ const CharmerControllerContent = memo(({
       `${metrics.objectionsRaised} raised, ${metrics.objectionsAddressed} addressed` : 
       "0 handled";
     
+    // Map PostCallMomentViewModels → MomentData shape for PostCallReviewPage/TimelineScreen
+    const detailedMoments = viewModels.map((vm, index) => {
+      const isPositive = ['best_moment', 'strong_move', 'turning_point', 'strong_attempt'].includes(vm.classification);
+      const momentType = isPositive
+        ? (vm.classification === 'turning_point' ? 'turning' : 'win')
+        : 'mistake';
+      const resistBefore = vm.resistanceBefore ?? 5;
+      const resistAfter = vm.resistanceAfter ?? 5;
+      const engBefore = Math.round((1 - resistBefore / 10) * 100);
+      const engAfter = Math.round((1 - resistAfter / 10) * 100);
+      const sentLabel = (v: number) => v > 65 ? 'High' : v > 35 ? 'Moderate' : 'Low';
+      const sentColor = (v: number) => v > 65 ? '#22A559' : v > 35 ? '#D97706' : '#D9382E';
+      const t = vm.timestamp ?? 0;
+      return {
+        id: index + 1,
+        time: `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`,
+        label: vm.title || 'Key Moment',
+        type: momentType as 'mistake' | 'turning' | 'win',
+        turnLabel: `Turn ${vm.turnNumber ?? index + 1}`,
+        turnNumber: `${index + 1} / ${viewModels.length}`,
+        youSaid: vm.userMessage || '',
+        prospectSaid: vm.marcusResponse || '',
+        talkRatio: `${Math.round((metrics.userSpeakingTime / (metrics.userSpeakingTime + metrics.marcusSpeakingTime)) * 100)}% you`,
+        prospectTone: vm.marcusState?.trust || 'neutral',
+        sentiment: {
+          trust: { value: engAfter, label: sentLabel(engAfter), color: sentColor(engAfter) },
+          curiosity: { value: Math.round(engAfter * 0.85), label: sentLabel(Math.round(engAfter * 0.85)), color: sentColor(Math.round(engAfter * 0.85)) },
+          urgency: { value: Math.round(engAfter * 0.7), label: sentLabel(Math.round(engAfter * 0.7)), color: sentColor(Math.round(engAfter * 0.7)) },
+        },
+        beforeSentiment: {
+          trust: { value: engBefore, label: sentLabel(engBefore) },
+          curiosity: { value: Math.round(engBefore * 0.85), label: sentLabel(Math.round(engBefore * 0.85)) },
+          urgency: { value: Math.round(engBefore * 0.7), label: sentLabel(Math.round(engBefore * 0.7)) },
+        },
+        whatWorked: isPositive ? (vm.whyItMatters || vm.whatChanged || '') : '',
+        sharpenThis: vm.whyItMatters || '',
+        sharpenBold: vm.humanConsequence || '',
+        quoteTag: vm.reasonTag || 'Discovery',
+        quoteText: (vm.userMessage || '').substring(0, 120),
+        beforeScore: Math.round(resistBefore * 10),
+        beforeContext: vm.surroundingContext?.before?.[0]?.text || vm.userMessage || '',
+        afterScore: Math.round(resistAfter * 10),
+        afterContext: vm.humanConsequence || '',
+        quiz: {
+          question: 'What was the key takeaway from this exchange?',
+          options: [
+            { text: vm.humanConsequence || 'Address the concern directly', correct: true },
+            { text: 'Keep focusing on product features', correct: false },
+            { text: 'Skip to closing immediately', correct: false },
+          ],
+          explanation: vm.whyItMatters || '',
+          howResponse: vm.humanConsequence || '',
+        },
+      };
+    });
+
+    // Readiness score: base 50, +10 per success, -5 per critical
+    const readinessScore = Math.min(95, Math.max(20, 50 + (successfulMoments.length * 10) - (criticalMoments.length * 5)));
+
+    // Build plain transcript from conversation history for post-call analysis
+    const callTranscriptText = conversationHistory
+      .map(h => `${h.role === 'user' ? 'Rep' : 'Marcus'}: ${h.content}`)
+      .join('\n');
+
     const callMetrics = {
-      duration: Math.floor((Date.now() - (callStartTimeRef.current || Date.now())) / 1000),
+      callDuration: duration,
+      duration,
       talkRatio,
       discovery,
       objections: objectionsSummary,
       criticalMoments: criticalMoments.length,
-      successfulMoments: successfulMoments.length
+      successfulMoments: successfulMoments.length,
+      objectionsHandled: objectionsAddressed,
+      objectionsTotal: Math.max(objectionsRaised, 1),
+      painPointsFound: successfulMoments.length,
+      readinessScore,
+      detailedMoments,
+      transcript: callTranscriptText,
     };
     localStorage.setItem('lastCallMetrics', JSON.stringify(callMetrics));
     
@@ -2513,7 +2573,7 @@ const CharmerControllerContent = memo(({
     // Small delay to ensure WebSocket cleanup completes before navigation
     console.log('🎯 Navigating directly to post-call review...');
     setTimeout(() => {
-      navigate('/post-call-review/');
+      navigate('/post-call-review');
     }, 100);
     
   }, [endCall, onCallEnd, onCallComplete, conversationHistory, stopSpeaking, navigate, callStartTimeRef]);

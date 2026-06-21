@@ -60,8 +60,8 @@ export class EmotionResolver {
   static getFallbackResponse(phase: CharmerPhase): AIResponse {
     const fallbacks: Record<CharmerPhase, { content: string; emotion: AIResponse['emotion'] }> = {
       'prospect': {
-        content: "That sounds interesting. Tell me more about how that works.",
-        emotion: 'interested'
+        content: "Wait, who is this again? What's this about?",
+        emotion: 'skeptical'
       },
       'coach': {
         content: "Here's what I noticed: focus on asking more open-ended questions. Try something like 'What's your biggest challenge right now?' instead of yes/no questions.",

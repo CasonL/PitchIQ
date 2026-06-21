@@ -195,7 +195,8 @@ export default function SummaryScreen({
         </motion.div>
       </div>
 
-      {/* Story Block 2: "What happened?" */}
+      {/* Story Block 2: "What happened?" — demo only */}
+      {useDemoData && (
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -259,8 +260,10 @@ export default function SummaryScreen({
           </svg>
         </div>
       </motion.div>
+      )}
 
-      {/* Story Block 3: "What matters?" */}
+      {/* Story Block 3: "What matters?" — demo only */}
+      {useDemoData && (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -277,6 +280,7 @@ export default function SummaryScreen({
           </span>
         ))}
       </motion.div>
+      )}
 
       {/* Story Block 4: "What do I do now?" */}
       <motion.div

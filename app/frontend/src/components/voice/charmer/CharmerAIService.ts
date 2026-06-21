@@ -32,6 +32,8 @@ export class CharmerAIService {
   private baseUrl: string;
   private model: string;
   private streamClient: LLMStreamClient;
+  private _pregeneratedResponse: AIResponse | null = null;
+  private _pregenerating: Promise<void> | null = null;
   
   constructor(apiKey?: string, model?: keyof typeof MARCUS_AI_MODELS) {
     this.apiKey = apiKey || '';
@@ -39,44 +41,80 @@ export class CharmerAIService {
     this.model = MARCUS_AI_MODELS[model || 'gemini-flash'];
     this.streamClient = new LLMStreamClient(this.model);
   }
-  
+
+  /** Returns and clears any pre-generated response (for Turn 1 instant playback) */
+  consumePregeneratedResponse(): AIResponse | null {
+    const r = this._pregeneratedResponse;
+    this._pregeneratedResponse = null;
+    return r;
+  }
+
+  /** True while pre-generation is in flight */
+  isPregenerating(): boolean {
+    return this._pregenerating !== null;
+  }
+
   /**
-   * Pre-warm OpenAI's cache by sending a dummy request with the system prompt
-   * Call this during phone ringing to eliminate Turn 2 delay
+   * Pre-generate Turn 1 response during phone ring for instant playback on connect.
+   * Replaces the broken max_tokens:1 cache warm approach.
    */
+  async pregenerateFirstResponse(
+    context: AIRequestContext,
+    conversationStyle?: string,
+    buyerDeltaGuidance?: string
+  ): Promise<void> {
+    console.log('🔥 Pre-generating Turn 1 response during phone ring...');
+    this._pregeneratedResponse = null;
+
+    this._pregenerating = (async () => {
+      try {
+        const systemPrompt = MarcusPromptBuilder.buildSystemPrompt(context, conversationStyle);
+        const userPrompt = MarcusPromptBuilder.buildUserPrompt(context, buyerDeltaGuidance);
+
+        console.log(`⏱️ [PreGen] System prompt: ${systemPrompt.length} chars`);
+
+        const rawContent = await this.streamClient.stream(
+          systemPrompt,
+          context.conversationHistory,
+          userPrompt,
+          undefined,
+          800
+        );
+
+        const parsed = MarcusResponseParser.parseResponse(rawContent, context);
+        const emotion = parsed.emotion || EmotionResolver.determineEmotion(
+          parsed.content, context.phase, context.conversationContext
+        );
+
+        this._pregeneratedResponse = {
+          content: parsed.content,
+          emotion,
+          shouldTransitionPhase: false,
+          tacticalFollowUp: parsed.tacticalFollowUp,
+          endCall: parsed.endCall,
+          objection: parsed.objection,
+          stateFeedback: parsed.stateFeedback,
+          strategicMoment: parsed.stateFeedback?.strategic_moment
+        };
+
+        console.log(`✅ [PreGen] Response ready: "${parsed.content.substring(0, 60)}..."`);
+      } catch (err) {
+        console.log('⚠️ [PreGen] Pre-generation failed (non-critical):', err);
+        this._pregeneratedResponse = null;
+      } finally {
+        this._pregenerating = null;
+      }
+    })();
+
+    return this._pregenerating;
+  }
+
+  /** @deprecated Use pregenerateFirstResponse instead */
   async prewarmCache(
     context: AIRequestContext,
     conversationStyle?: string
   ): Promise<void> {
-    console.log('🔥 Pre-warming OpenAI cache during phone ring...');
-    
-    try {
-      // Build the SAME system prompt that will be used in the actual call
-      const systemPrompt = MarcusPromptBuilder.buildSystemPrompt(
-        context,
-        conversationStyle
-      );
-      
-      // Send a minimal dummy request to cache the system prompt
-      // OpenAI will cache the system prompt for ~5-10 minutes
-      const dummyHistory = [];
-      const dummyUserPrompt = 'Cache warm-up request';
-      
-      // Fire and forget - we don't care about the response
-      this.streamClient.stream(
-        systemPrompt,
-        dummyHistory,
-        dummyUserPrompt,
-        undefined,
-        1 // max_tokens: 1 to minimize cost and time
-      ).catch(err => {
-        console.log('⚠️ Cache warm-up failed (non-critical):', err);
-      });
-      
-      console.log(`✅ Cache warm-up request sent (system prompt: ${systemPrompt.length} chars)`);
-    } catch (error) {
-      console.log('⚠️ Cache warm-up error (non-critical):', error);
-    }
+    return this.pregenerateFirstResponse(context, conversationStyle);
   }
   
   /**

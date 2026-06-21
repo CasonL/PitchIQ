@@ -24,6 +24,7 @@ export interface SpeakOptions {
   voiceId?: string;
   emotion?: 'neutral' | 'happy' | 'excited' | 'amused' | 'warm' | 'interested' | 'curious' | 'skeptical' | 'disappointed' | 'frustrated' | 'annoyed' | 'worried' | 'surprised' | 'intrigued';
   speed?: number; // 0.5 - 2.0
+  continueAfterCurrent?: boolean; // If true, waits for current playback then speaks without interrupting
 }
 
 // Map our emotion types to Cartesia's emotion system
@@ -165,9 +166,22 @@ export class CartesiaService {
 
       if (!this.isConnected) await this.connectWebSocket();
 
-      // Stop any in-progress speech, then claim this generation's ID
-      await this.stop();
-      const generationId = ++this.activeGenerationId;
+      // continueAfterCurrent: wait for current playback to finish naturally (no interruption)
+      if (options.continueAfterCurrent && this.playbackCompleteResolve) {
+        const waitPromise = new Promise<void>((resolve) => {
+          const existing = this.playbackCompleteResolve;
+          this.playbackCompleteResolve = () => { existing?.(); resolve(); };
+        });
+        await waitPromise;
+      }
+
+      // Stop any in-progress speech (only if something is actually playing)
+      if (this.isPlaying || this.activeSources.size > 0) {
+        await this.stop();
+      } else {
+        this.activeGenerationId++; // Still need to increment to invalidate any stale async work
+      }
+      const generationId = this.activeGenerationId;
 
       this.audioQueue = [];
       this.scheduledEndTime = 0;

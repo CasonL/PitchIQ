@@ -81,21 +81,16 @@ export async function apiWithRetry<T = any>(
 export async function fetchUserStatusWithRetry(): Promise<any> {
   console.log('🔍 Fetching user status with timeout protection...');
   
-  // For initial load, use more aggressive retry strategy
-  const isInitialLoad = !sessionStorage.getItem('pitchiq_loaded');
+  // Mark loaded immediately so hard-refresh doesn't re-trigger slow path
+  sessionStorage.setItem('pitchiq_loaded', 'true');
   
   const response = await apiWithRetry('/api/auth/status', {
     method: 'GET'
-  }, isInitialLoad ? {
-    maxRetries: 3,  // Try 3 times on initial load
-    timeoutMs: 10000,  // 10 seconds for cold start
-    retryDelay: 2000  // 2 seconds between retries
-  } : {});
-  
-  // Mark that we've loaded once
-  if (isInitialLoad) {
-    sessionStorage.setItem('pitchiq_loaded', 'true');
-  }
+  }, {
+    maxRetries: 2,   // Retry once — first attempt may race with Render cold start
+    timeoutMs: 4000, // 4s per attempt — fail fast, backend wake-up runs in parallel
+    retryDelay: 2000 // Wait 2s before retry
+  });
   
   if (!response) {
     console.log('⚠️ User status unavailable - continuing with unauthenticated state');

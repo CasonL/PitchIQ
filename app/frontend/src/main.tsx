@@ -24,8 +24,14 @@ console.log('Initializing global message processor...');
 //   ]
 // );
 
-// Create a client
-const queryClient = new QueryClient();
+// Create a client — disable React Query's own retry (custom retry handled in apiWithTimeout.ts)
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+  },
+});
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

@@ -77,9 +77,10 @@ const PostCallReviewPage = () => {
       if (stored) {
         const parsed = JSON.parse(stored);
         const duration = parsed.callDuration || parsed.duration || 0;
+        const hasRealMoments = Array.isArray(parsed.detailedMoments) && parsed.detailedMoments.length > 0;
         
-        // Check if call was long enough for meaningful feedback (90s threshold)
-        const sufficient = duration >= 90;
+        // Use real mode if call was long enough OR if we have moment data
+        const sufficient = duration >= 30 || hasRealMoments;
         setHasSufficientData(sufficient);
         setInputMode(sufficient ? "real" : "transcript");
         
@@ -93,6 +94,10 @@ const PostCallReviewPage = () => {
           }
         }
         
+        if (parsed.transcript) {
+          setTranscript(parsed.transcript);
+        }
+        
         setCallMetrics({
           callDuration: duration,
           painPointsFound: parsed.painPointsFound || parsed.painPoints || 0,
@@ -100,7 +105,8 @@ const PostCallReviewPage = () => {
           objectionsTotal: parsed.objectionsTotal || 2,
           demoScheduled: parsed.demoScheduled || parsed.meetingBooked || false,
           readinessScore: parsed.readinessScore || parsed.overallScore || null,
-          detailedMoments: parsed.detailedMoments
+          detailedMoments: parsed.detailedMoments || [],
+          transcript: parsed.transcript,
         });
       } else {
         // No call data found - offer transcript input
@@ -328,6 +334,18 @@ Marcus: Well, honestly, our reps freeze on objections. It's costing us deals..."
           </motion.div>
         )}
 
+        {inputMode === "loading" && (
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center">
+              <div className="relative w-12 h-12 mx-auto mb-4">
+                <div className="absolute inset-0 rounded-full border-4 border-pitch-orange/20" />
+                <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-pitch-orange animate-spin" />
+              </div>
+              <p className="text-pitch-secondary text-sm">Loading your results...</p>
+            </div>
+          </div>
+        )}
+
         <AnimatePresence mode="wait">
           <motion.div
             key={screen + inputMode}
@@ -336,7 +354,7 @@ Marcus: Well, honestly, our reps freeze on objections. It's costing us deals..."
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
           >
-            {screen === "summary" && inputMode !== "transcript" ? (
+            {screen === "summary" && inputMode !== "transcript" && inputMode !== "loading" ? (
               <div className="space-y-6">
                 {recording && recording.turns && recording.turns.length > 0 && (
                   <div className="bg-white rounded-2xl p-5 border border-pitch-border shadow-sm">
@@ -374,7 +392,7 @@ Marcus: Well, honestly, our reps freeze on objections. It's costing us deals..."
                   demoScheduled={callMetrics?.demoScheduled}
                   readinessScore={callMetrics?.readinessScore}
                   hasSufficientData={hasSufficientData}
-                  aiGenerated={inputMode === "real" && !!callMetrics?.transcript}
+                  aiGenerated={inputMode === "real"}
                 />
               </div>
             ) : screen === "timeline" ? (

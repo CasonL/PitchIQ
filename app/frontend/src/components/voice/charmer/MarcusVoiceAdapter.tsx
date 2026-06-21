@@ -35,6 +35,7 @@ interface SpeakOptions {
   emotion?: 'neutral' | 'happy' | 'excited' | 'amused' | 'warm' | 'interested' | 'curious' | 'skeptical' | 'disappointed' | 'frustrated' | 'annoyed' | 'worried' | 'surprised' | 'intrigued';
   speed?: number;
   interrupt?: boolean;
+  continueAfterCurrent?: boolean;
 }
 
 interface VoiceMetrics {
@@ -110,12 +111,8 @@ function MarcusVoiceProvider({
       },
       
       onSpeechStart: () => {
-        // INSTANT INTERRUPTION: Stop Marcus immediately when ANY speech is detected
-        // We'll verify if it's an echo when the transcript arrives (50-200ms later)
-        if (voiceManagerRef.current && voiceManagerRef.current.isCurrentlySpeaking()) {
-          console.log('[MarcusVoiceAdapter] ⚡ INSTANT interrupt - speech detected while Marcus speaking');
-          voiceManagerRef.current.stopSpeaking();
-        }
+        // Interruption is handled via the transcript path (partial + echo filtering)
+        // Stopping here fires before echo filtering and cuts off Marcus's own TTS
       },
       
       onInterruption: (interruptedText: string) => {
@@ -253,7 +250,8 @@ function MarcusVoiceProvider({
         interrupt: options?.interrupt,
         voiceId: options?.voiceId || 'confident-male', // Default Marcus voice
         emotion: options?.emotion,
-        speed: options?.speed || 1.0
+        speed: options?.speed || 1.0,
+        continueAfterCurrent: options?.continueAfterCurrent,
       });
     } catch (err) {
       console.error('[MarcusVoiceAdapter] Speech error:', err);
@@ -282,8 +280,8 @@ function MarcusVoiceProvider({
   /**
    * Get what Marcus is CURRENTLY saying (for real-time echo filtering)
    */
-  const getCurrentMarcusSpeech = useCallback((): string | null => {
-    if (!voiceManagerRef.current) return null;
+  const getCurrentMarcusSpeech = useCallback((): string[] => {
+    if (!voiceManagerRef.current) return [];
     return voiceManagerRef.current.getCurrentSpeech();
   }, []);
   

@@ -99,6 +99,7 @@ export class MarcusVoiceManager {
     voiceId?: string;
     emotion?: 'neutral' | 'happy' | 'excited' | 'amused' | 'warm' | 'interested' | 'curious' | 'skeptical' | 'disappointed' | 'frustrated' | 'annoyed' | 'worried' | 'surprised' | 'intrigued';
     speed?: number;
+    continueAfterCurrent?: boolean;
   }): Promise<void> {
     // Generate unique ID for this speech
     const speechId = `speech_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -149,6 +150,7 @@ export class MarcusVoiceManager {
       voiceId: options?.voiceId,
       emotion: options?.emotion,
       speed: options?.speed,
+      continueAfterCurrent: options?.continueAfterCurrent,
     });
     
     // Remove this speech from active array now that it's finished

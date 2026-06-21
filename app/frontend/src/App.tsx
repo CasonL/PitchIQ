@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Routes, Route } from "react-router-dom";
 import { HelmetProvider } from 'react-helmet-async';
 import { useEffect, lazy, Suspense } from 'react';
+import { AppErrorBoundary } from './components/AppWithErrorBoundary';
 import ScrollToTop from "./utils/ScrollToTop";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
@@ -50,7 +51,7 @@ const App = () => {
         console.log('🌅 Waking up backend on app load...');
         await fetch(`${API_BASE_URL}/api/health`, {
           method: 'GET',
-          signal: AbortSignal.timeout(5000)
+          signal: AbortSignal.timeout(8000)
         });
         console.log('✅ Backend is awake');
       } catch (error) {
@@ -67,6 +68,7 @@ const App = () => {
       <ScrollToTop />
       <Toaster />
       <Sonner />
+      <AppErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Main Landing - eagerly loaded for fast initial paint */}
@@ -119,6 +121,7 @@ const App = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      </AppErrorBoundary>
     </TooltipProvider>
   </HelmetProvider>
   );

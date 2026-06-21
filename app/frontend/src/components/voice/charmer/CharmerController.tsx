@@ -2204,6 +2204,11 @@ const CharmerControllerContent = memo(({
     const transcript = conversationTrackerRef.current?.getTranscript();
     const conversationExchanges = transcript?.exchanges || [];
     
+    console.log(`📋 Transcript has ${conversationExchanges.length} exchanges (${conversationExchanges.filter(e => e.speaker === 'user').length} user, ${conversationExchanges.filter(e => e.speaker === 'marcus').length} marcus)`);
+    if (conversationExchanges.length > 0) {
+      console.log(`📋 First exchange: [${conversationExchanges[0].speaker}] "${conversationExchanges[0].text?.substring(0, 80)}..."`);
+    }
+    
     // Detect critical moments and successful moments
     let momentPuzzles: any[] = [];
     let successfulMoments: any[] = [];
@@ -2211,7 +2216,8 @@ const CharmerControllerContent = memo(({
     let callSummary: any = null;
     
     if (transcript && conversationTrackerRef.current) {
-      console.log('🔍 Analyzing conversation with HYBRID pipeline (rules + LLM judgment)...');
+      const pairs = conversationTrackerRef.current.getStructuredExchangePairs();
+      console.log(`🔍 Analyzing conversation: ${pairs.length} exchange pairs | HYBRID pipeline (rules + LLM judgment)...`);
       
       const detector = new CriticalMomentDetector();
       

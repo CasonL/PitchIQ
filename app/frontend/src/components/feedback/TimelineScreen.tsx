@@ -44,7 +44,10 @@ export default function TimelineScreen({ onComplete, moments }: TimelineScreenPr
   const [practiceCompleted, setPracticeCompleted] = useState(false);
 
   // Use AI-generated moments if provided, otherwise fall back to hardcoded demo data
-  const activeMoments = moments || MOMENTS;
+  // moments=undefined → no real call yet, show demo
+  // moments=[] → real call but nothing detected, show empty state (not demo)
+  const isRealCall = moments !== undefined;
+  const activeMoments = (moments && moments.length > 0) ? moments : (isRealCall ? [] : MOMENTS);
   const moment = activeMoments[currentMoment];
   const totalMoments = activeMoments.length;
   
@@ -145,6 +148,22 @@ export default function TimelineScreen({ onComplete, moments }: TimelineScreenPr
     setRecording(false);
     setPracticeFeedback(false);
   };
+
+  // Empty state: real call but no moments detected
+  if (isRealCall && activeMoments.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto px-5 sm:px-6 pb-16 flex flex-col items-center justify-center min-h-[400px] text-center">
+        <p className="text-4xl mb-4">📞</p>
+        <p className="text-lg font-semibold text-pitch-text">No key moments detected</p>
+        <p className="text-sm text-pitch-tertiary mt-2 max-w-sm">Your call was too short or didn't have enough back-and-forth for the AI to find specific moments. Try a longer call with more objection handling.</p>
+        {onComplete && (
+          <button onClick={onComplete} className="mt-6 px-4 py-2 bg-pitch-orange text-white rounded-lg text-sm font-semibold">
+            Done
+          </button>
+        )}
+      </div>
+    );
+  }
 
   // Loading state when moment hasn't loaded yet
   if (isMomentLoading) {

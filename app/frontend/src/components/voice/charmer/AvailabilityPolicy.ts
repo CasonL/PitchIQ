@@ -143,75 +143,99 @@ export class AvailabilityPolicy {
   }
   
   /**
-   * Apply availability constraints to voice examples
+   * Apply availability constraints to voice examples.
+   * Uses a mode map so every pre-tree ladder state has a natural, constrained voice.
    */
   static constrainVoiceExamples(
     originalExamples: string[],
     state: AvailabilityState,
     baseMode: string // e.g., 'CLAIM_UNDERSTOOD_PROOF_UNCLEAR'
   ): string[] {
-    const constraints = this.getConstraints(state);
-    
     if (state === 'available') {
       return originalExamples;
     }
-    
-    // For busy states, create constrained versions
-    const constrainedExamples: string[] = [];
-    
+
+    const modeSpecificExamples: Record<string, Record<string, string[]>> = {
+      CLAIM_UNDERSTOOD_PROOF_UNCLEAR: {
+        hard_exit: ['"Not a priority. Send me something."'],
+        time_boxed: ['"15%? Who got that?"', '"Big claim. Real examples?"'],
+        mildly_busy: ['"15% sounds nice. Who got that result?"']
+      },
+      CATEGORY_UNDERSTOOD_VALUE_UNCLEAR: {
+        hard_exit: ['"Not interested in more tools right now."'],
+        time_boxed: ['"What makes this different?"', '"Why this over everything else?"'],
+        mildly_busy: ['"Okay, quickly. What makes this different?"']
+      },
+      CLARITY_SEEKING: {
+        hard_exit: ['"Not a good time. Email me."'],
+        time_boxed: ['"Software or service?"', '"What is it?"'],
+        mildly_busy: ['"What exactly are you selling?"']
+      },
+      COMPANY_KNOWN_PRODUCT_UNCLEAR: {
+        hard_exit: ['"Not a good time. Email me."'],
+        time_boxed: ['"What do you do?"', '"20 seconds. What is it?"'],
+        mildly_busy: ['"What do you actually do?"']
+      },
+      VALUE_UNDERSTOOD_PROOF_UNCLEAR: {
+        hard_exit: ['"Not a priority. Send me a case study."'],
+        time_boxed: ['"Got proof?"', '"Who got that result?"'],
+        mildly_busy: ['"Examples? Quickly."']
+      },
+      PROOF_UNDERSTOOD_FIT_UNCLEAR: {
+        hard_exit: ['"Not sure it applies to us."'],
+        time_boxed: ['"Similar to us?"', '"Team like ours?"'],
+        mildly_busy: ['"Was that with a team like ours?"']
+      },
+      FIT_UNDERSTOOD_MECHANICS_UNCLEAR: {
+        hard_exit: ['"Too complicated. Email me."'],
+        time_boxed: ['"How does it work?"', '"Too much. Keep it simple."'],
+        mildly_busy: ['"How does it actually work?"']
+      },
+      MECHANICS_UNDERSTOOD_ECONOMICS_UNCLEAR: {
+        hard_exit: ['"Probably too expensive."'],
+        time_boxed: ['"Price?"', '"What does it cost?"'],
+        mildly_busy: ['"What kind of investment?"']
+      },
+      ECONOMICS_UNDERSTOOD_TIMING_UNCLEAR: {
+        hard_exit: ['"Not a priority right now."'],
+        time_boxed: ['"Next steps?"', '"When?"'],
+        mildly_busy: ['"What would next steps look like?"']
+      },
+      TIMING_CLEAR_COMMITMENT_READY: {
+        hard_exit: ['"Not a good time."'],
+        time_boxed: ['"Send me a link."', '"Quick demo?"'],
+        mildly_busy: ['"I could do a quick call."']
+      },
+      NO_PRODUCT_SIGNAL: {
+        hard_exit: ['"Not a good time."'],
+        time_boxed: ['"What\'s this about?"', '"Make it quick."'],
+        mildly_busy: ['"What\'s this about?"']
+      },
+      DISQUALIFIED_BY_REP: {
+        hard_exit: ['"Whatever - not a good time anyway."'],
+        time_boxed: ['"Wait, why not?"', '"Quick - what makes me not a fit?"'],
+        mildly_busy: ['"Huh, why not?"']
+      }
+    };
+
+    const stateKey = state as string;
+    const examples = modeSpecificExamples[baseMode]?.[stateKey];
+
+    if (examples && examples.length > 0) {
+      return examples;
+    }
+
+    // Generic fallbacks for unknown modes.
     if (state === 'hard_exit') {
-      // Hard exit: dismiss or defer regardless of mode
-      if (baseMode === 'CLAIM_UNDERSTOOD_PROOF_UNCLEAR') {
-        constrainedExamples.push('"Not a priority. Send me something."');
-      } else if (baseMode === 'CATEGORY_UNDERSTOOD_VALUE_UNCLEAR') {
-        constrainedExamples.push('"Not interested in more tools right now."');
-      } else if (baseMode === 'CLARITY_SEEKING') {
-        constrainedExamples.push('"Not a good time. Email me."');
-      } else if (baseMode === 'COMPANY_KNOWN_PRODUCT_UNCLEAR') {
-        constrainedExamples.push('"Not a good time. Email me."');
-      } else {
-        constrainedExamples.push('"Not a good time."');
-      }
-      return constrainedExamples;
+      return ['"Not a good time."'];
     }
-    
     if (state === 'time_boxed') {
-      // Time boxed: ultra-short version of original intent
-      if (baseMode === 'CLAIM_UNDERSTOOD_PROOF_UNCLEAR') {
-        constrainedExamples.push('"15%? Who got that?"');
-        constrainedExamples.push('"Big claim. Real examples?"');
-      } else if (baseMode === 'CATEGORY_UNDERSTOOD_VALUE_UNCLEAR') {
-        constrainedExamples.push('"What makes this different?"');
-        constrainedExamples.push('"Why this over everything else?"');
-      } else if (baseMode === 'CLARITY_SEEKING') {
-        constrainedExamples.push('"Software or service?"');
-        constrainedExamples.push('"What is it?"');
-      } else if (baseMode === 'COMPANY_KNOWN_PRODUCT_UNCLEAR') {
-        constrainedExamples.push('"What do you do?"');
-        constrainedExamples.push('"20 seconds. What is it?"');
-      } else {
-        constrainedExamples.push('"What\'s this about?"');
-        constrainedExamples.push('"Make it quick."');
-      }
-      return constrainedExamples;
+      return ['"What\'s this about?"', '"Make it quick."'];
     }
-    
     if (state === 'mildly_busy') {
-      // Mildly busy: slightly shorter, more direct
-      if (baseMode === 'CLAIM_UNDERSTOOD_PROOF_UNCLEAR') {
-        constrainedExamples.push('"15% sounds nice. Who got that result?"');
-      } else if (baseMode === 'CATEGORY_UNDERSTOOD_VALUE_UNCLEAR') {
-        constrainedExamples.push('"Okay, quickly. What makes this different?"');
-      } else if (baseMode === 'CLARITY_SEEKING') {
-        constrainedExamples.push('"What exactly are you selling?"');
-      } else if (baseMode === 'COMPANY_KNOWN_PRODUCT_UNCLEAR') {
-        constrainedExamples.push('"What do you actually do?"');
-      } else {
-        constrainedExamples.push('"What\'s this about?"');
-      }
-      return constrainedExamples;
+      return ['"What\'s this about?"'];
     }
-    
+
     return originalExamples;
   }
   

@@ -3,6 +3,26 @@
   publish = "dist"
 
 [[redirects]]
+  from = "/api/deepgram/token"
+  to = "/.netlify/functions/deepgram-key"
+  status = 200
+
+[[redirects]]
+  from = "/api/cartesia/token"
+  to = "/.netlify/functions/cartesia-key"
+  status = 200
+
+[[redirects]]
+  from = "/api/openai/chat"
+  to = "/.netlify/functions/openai-chat"
+  status = 200
+
+[[redirects]]
+  from = "/api/openai/classify"
+  to = "/.netlify/functions/openai-chat"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

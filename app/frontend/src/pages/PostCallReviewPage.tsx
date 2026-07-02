@@ -9,6 +9,60 @@ import { type MomentData } from "../components/feedback/momentsData";
 type Screen = "summary" | "timeline" | "completion";
 type InputMode = "loading" | "transcript" | "demo" | "real";
 
+interface IrritationPoint { turn: number; irritation: number; stage?: string; }
+interface MarcusMoment { turn: number; tag: string; stage?: string; userText: string; marcusText: string; }
+
+const MOMENT_TAG_LABELS: Record<string, { text: string; type: 'win' | 'miss' }> = {
+  strong_pitch:        { text: 'Strong pitch',       type: 'win'  },
+  good_question:       { text: 'Good question',       type: 'win'  },
+  objection_handled:   { text: 'Handled objection',   type: 'win'  },
+  pain_uncovered:      { text: 'Uncovered pain',       type: 'win'  },
+  social_proof_landed: { text: 'Proof landed',         type: 'win'  },
+  credibility_moment:  { text: 'Built credibility',    type: 'win'  },
+  ignored_question:    { text: 'Ignored question',     type: 'miss' },
+  premature_close:     { text: 'Pushed too early',     type: 'miss' },
+  rude_or_dismissive:  { text: 'Came off rude',        type: 'miss' },
+  overtalking:         { text: 'Over-explained',       type: 'miss' },
+  objection_dodged:    { text: 'Dodged objection',     type: 'miss' },
+  lost_the_thread:     { text: 'Lost the thread',      type: 'miss' },
+};
+
+function buildSentimentFromIrritation(
+  irritationTimeline: IrritationPoint[],
+  marcusMoments: MarcusMoment[]
+): { x: number; y: number; label?: string; type?: 'high' | 'low' }[] {
+  if (!irritationTimeline || irritationTimeline.length < 2) return [];
+  const maxTurn = irritationTimeline[irritationTimeline.length - 1].turn || 1;
+  return irritationTimeline.map(pt => {
+    const x = Math.round((pt.turn / Math.max(maxTurn, 1)) * 500);
+    // irritation 0=calm → y=15 (top/good), irritation 1=angry → y=80 (bottom/bad)
+    const y = Math.round(15 + pt.irritation * 65);
+    const nearMoment = marcusMoments.find(m => Math.abs(m.turn - pt.turn) <= 1);
+    const momentMeta = nearMoment ? MOMENT_TAG_LABELS[nearMoment.tag] : undefined;
+    return {
+      x,
+      y,
+      ...(momentMeta ? { label: momentMeta.text, type: momentMeta.type === 'win' ? 'high' as const : 'low' as const } : {}),
+    };
+  });
+}
+
+function buildHighlightsFromMoments(
+  moments: MarcusMoment[],
+  existing: { text: string; type: 'win' | 'miss' | 'tip' }[]
+): { text: string; type: 'win' | 'miss' | 'tip' }[] {
+  const tagged = new Set(existing.map(h => h.text));
+  const extra: { text: string; type: 'win' | 'miss' | 'tip' }[] = [];
+  for (const m of moments) {
+    const meta = MOMENT_TAG_LABELS[m.tag];
+    if (meta && !tagged.has(meta.text)) {
+      extra.push({ text: meta.text, type: meta.type });
+      tagged.add(meta.text);
+    }
+  }
+  return [...existing, ...extra];
+}
+
 interface CallMetrics {
   callDuration?: number;
   painPointsFound?: number;
@@ -104,6 +158,16 @@ const PostCallReviewPage = () => {
           setTranscript(parsed.transcript);
         }
         
+        // Build sentiment graph: prefer irritationTimeline over resistance-based sentimentPoints
+        const irritationTimeline: IrritationPoint[] = parsed.irritationTimeline || [];
+        const marcusMoments: MarcusMoment[] = parsed.marcusMoments || [];
+        const builtSentiment = buildSentimentFromIrritation(irritationTimeline, marcusMoments);
+        const sentimentPoints = builtSentiment.length > 1 ? builtSentiment : (parsed.sentimentPoints || []);
+
+        // Enrich highlights with Marcus moment tags
+        const baseHighlights = parsed.highlights || [];
+        const enrichedHighlights = buildHighlightsFromMoments(marcusMoments, baseHighlights);
+
         setCallMetrics({
           callDuration: duration,
           painPointsFound: parsed.painPointsFound || parsed.painPoints || 0,
@@ -113,8 +177,8 @@ const PostCallReviewPage = () => {
           readinessScore: parsed.readinessScore || parsed.overallScore || null,
           detailedMoments: parsed.detailedMoments || [],
           transcript: parsed.transcript,
-          sentimentPoints: parsed.sentimentPoints || [],
-          highlights: parsed.highlights || [],
+          sentimentPoints,
+          highlights: enrichedHighlights,
         });
       } else {
         // No call data found - offer transcript input

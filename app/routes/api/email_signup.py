@@ -151,6 +151,8 @@ def admin_login():
             
     except Exception as e:
         logger.error(f"Error in admin login: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @email_signup_bp.route('/admin/email-signups', methods=['GET'])

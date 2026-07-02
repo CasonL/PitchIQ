@@ -68,6 +68,31 @@ export interface StrategicMoment {
   signal: string; // Brief coaching message (max 10 words)
 }
 
+export type BuyerLadderStage =
+  | 'ORIENT'
+  | 'RELEVANCE'
+  | 'VALUE'
+  | 'CREDIBILITY'
+  | 'FIT'
+  | 'MECHANICS'
+  | 'ECONOMICS'
+  | 'TIMING'
+  | 'COMMITMENT';
+
+export type MarcusMomentTag =
+  | 'ignored_question'       // User dodged or ignored Marcus's direct question
+  | 'premature_close'        // User pushed for commitment before earning it
+  | 'strong_pitch'           // User clearly explained value/fit
+  | 'good_question'          // User asked a genuinely relevant discovery question
+  | 'rude_or_dismissive'     // User was condescending or dismissive
+  | 'overtalking'            // User talked too long without checking in
+  | 'objection_handled'      // User addressed Marcus's concern effectively
+  | 'objection_dodged'       // User avoided or deflected a real objection
+  | 'pain_uncovered'         // User successfully drew out a pain point
+  | 'social_proof_landed'    // User's proof/example actually resonated
+  | 'credibility_moment'     // User said something that genuinely built trust
+  | 'lost_the_thread';       // User's response confused or lost Marcus
+
 export interface MarcusStateFeedback {
   user_respect_level?: number;
   marcus_irritation_delta?: number;
@@ -75,6 +100,9 @@ export interface MarcusStateFeedback {
   extracted_name?: string;
   extracted_company?: string;
   strategic_moment?: StrategicMoment;
+  follow_up_agreed?: boolean;
+  buyer_ladder_stage?: BuyerLadderStage;
+  moment?: MarcusMomentTag;
 }
 
 export interface AIResponse {
@@ -98,7 +126,7 @@ export interface AIResponse {
 
 // Available models via OpenRouter (easy to swap)
 export const MARCUS_AI_MODELS = {
-  'gemini-flash': 'google/gemini-2.5-flash',        // Current Gemini Flash via OpenRouter (~1-2s)
+  'gemini-flash': 'google/gemini-2.5-flash',         // Paid Gemini via OpenRouter (OPENROUTER_API_KEY)
   'gpt-4o-mini': 'openai/gpt-4o-mini',           // ~1-2s, reliable, via OpenRouter
   'claude-haiku': 'anthropic/claude-3-haiku',    // Fast Anthropic model
   'claude-sonnet': 'anthropic/claude-3-5-sonnet', // Slower, more thoughtful

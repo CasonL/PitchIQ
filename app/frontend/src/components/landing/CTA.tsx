@@ -2,14 +2,45 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Check } from "lucide-react";
 
+const encode = (data: Record<string, string>) =>
+  Object.keys(data)
+    .map((key) => encodeURIComponent(key) + "=" + encodeURIComponent(data[key]))
+    .join("&");
+
 export default function CTA() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.trim()) {
-      setSubmitted(true);
+    if (!email.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      const response = await fetch("/", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: encode({
+          'form-name': 'early-access-signup',
+          email: email.trim(),
+          early_access_opt_in: 'true',
+          product_updates_opt_in: 'true',
+        }),
+      });
+
+      if (response.ok) {
+        setSubmitted(true);
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -64,11 +95,18 @@ export default function CTA() {
 
           {!submitted ? (
             <form
+              name="early-access-signup"
+              method="POST"
+              data-netlify="true"
+              data-netlify-honeypot="bot-field"
               onSubmit={handleSubmit}
               className="flex flex-col sm:flex-row gap-3 max-w-[480px] mx-auto mb-6"
             >
+              <input type="hidden" name="form-name" value="early-access-signup" />
+              <input type="hidden" name="bot-field" />
               <input
                 type="email"
+                name="email"
                 required
                 placeholder="Enter your work email"
                 value={email}
@@ -77,9 +115,10 @@ export default function CTA() {
               />
               <button
                 type="submit"
-                className="px-8 py-3.5 rounded-full bg-gradient-to-r from-brand-orange to-brand-amber text-white font-semibold shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 transition-all text-sm whitespace-nowrap"
+                disabled={isSubmitting}
+                className="px-8 py-3.5 rounded-full bg-gradient-to-r from-brand-orange to-brand-amber text-white font-semibold shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 transition-all text-sm whitespace-nowrap disabled:opacity-60 disabled:hover:translate-y-0"
               >
-                Join Waitlist
+                {isSubmitting ? 'Joining...' : 'Join Waitlist'}
               </button>
             </form>
           ) : (
@@ -93,6 +132,10 @@ export default function CTA() {
                 You're on the list! We'll be in touch soon.
               </span>
             </motion.div>
+          )}
+
+          {error && !submitted && (
+            <p className="text-red-400 text-xs mb-4 -mt-3">{error}</p>
           )}
 
           <p className="text-[#8A8A8A] text-xs mb-8">No spam. Early access only.</p>

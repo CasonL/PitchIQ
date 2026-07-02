@@ -95,28 +95,26 @@ export const MarcusChallengeLobby: React.FC<MarcusChallengeLobbyProps> = ({
                   }`}
                   style={scenario.id === 'adaptive-anything' ? { borderColor: 'transparent' } : undefined}
                 >
-                {/* Layer 1: Dark overlay - show on hover OR selected */}
+                {/* Difficulty badge - always visible, works on touch and desktop */}
+                <div className={`absolute top-4 right-4 z-30 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide text-white ${indicator.color}`}>
+                  {indicator.text}
+                </div>
+
+                {/* Dark overlay - hover/selected visual feedback only, no longer gates content */}
                 <div className={`pointer-events-none absolute inset-0 rounded-xl bg-black/75 transition-opacity duration-200 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
 
-                {/* Layer 2: Base content - visible by default and when selected, hidden when hovering */}
-                <div className={`relative z-10 transition-all duration-200 ${isSelected ? 'text-white opacity-100' : 'text-gray-900 group-hover:opacity-0'}`}>
+                {/* Content - always visible on all devices (fixes: hover-only info was invisible on touch) */}
+                <div className={`relative z-10 pr-20 transition-colors duration-200 ${isSelected ? 'text-white' : 'text-gray-900 group-hover:text-white'}`}>
                   <h3 className="text-xl font-bold">
                     {scenario.name}
                   </h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className={`text-sm mt-1 transition-colors duration-200 ${isSelected ? 'text-white/80' : 'text-gray-600 group-hover:text-white/80'}`}>
                     {scenario.description}
                   </p>
+                  <p className={`text-xs mt-3 leading-relaxed transition-colors duration-200 ${isSelected ? 'text-white/60' : 'text-gray-500 group-hover:text-white/70'}`}>
+                    {scenario.productDescription}
+                  </p>
                 </div>
-
-
-                {/* Layer 3: Hover description - ONLY shows when NOT selected */}
-                {!isSelected && (
-                  <div className="pointer-events-none absolute inset-0 z-20 rounded-xl p-6 flex items-start justify-start opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <p className="text-white text-base leading-relaxed">
-                      {scenario.productDescription}
-                    </p>
-                  </div>
-                )}
               </div>
               </div>
             );
@@ -125,6 +123,26 @@ export const MarcusChallengeLobby: React.FC<MarcusChallengeLobbyProps> = ({
 
         {/* Action Buttons */}
         <div className="p-8 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+          {/* Warm-up notice — always visible so users aren't surprised */}
+          <div className="mb-5 p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+            <span className="text-amber-500 text-lg leading-none mt-0.5">⏱</span>
+            <div>
+              <p className="text-sm font-semibold text-amber-800">First call warm-up</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Marcus's AI may take a few seconds to warm up on the first message or two. After that, responses are fast. This is normal — hang tight.
+              </p>
+            </div>
+          </div>
+          {selectedScenario && (
+            <div className="mb-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 text-center">
+              <p className="text-xs text-gray-600">
+                🎯 Goal: <span className="font-semibold text-red-600">Book a follow-up or meeting</span>
+              </p>
+              <p className="text-xs text-gray-500">
+                💡 Marcus values directness — get to the point fast.
+              </p>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <button
               onClick={onCancel}

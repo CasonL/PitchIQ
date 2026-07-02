@@ -9,7 +9,9 @@ import type {
   TacticalFollowUp, 
   ObjectionTag, 
   MarcusStateFeedback,
-  AIRequestContext 
+  AIRequestContext,
+  BuyerLadderStage,
+  MarcusMomentTag
 } from '../types/MarcusAI.types';
 
 export interface ParsedResponse {
@@ -160,6 +162,12 @@ export class MarcusResponseParser {
         endCall = true;
         console.log(`🔚 Marcus signaled end_call: true`);
       }
+
+      // Extract follow_up_agreed
+      if (metaJson.follow_up_agreed === true) {
+        stateFeedback.follow_up_agreed = true;
+        console.log(`🤝 Marcus signaled follow_up_agreed: true`);
+      }
       
       // Extract followup
       if (metaJson.followup && metaJson.followup !== null && metaJson.followup.trim().length > 0) {
@@ -224,6 +232,18 @@ export class MarcusResponseParser {
           signal: String(metaJson.strategic_moment.signal || '')
         };
         console.log(`🎯 Strategic moment detected: ${stateFeedback.strategic_moment.type} - "${stateFeedback.strategic_moment.signal}"`);
+      }
+
+      // Extract buyer_ladder_stage
+      if (metaJson.buyer_ladder_stage) {
+        stateFeedback.buyer_ladder_stage = metaJson.buyer_ladder_stage as BuyerLadderStage;
+        console.log(`🪜 Buyer ladder stage: ${stateFeedback.buyer_ladder_stage}`);
+      }
+
+      // Extract moment tag
+      if (metaJson.moment && metaJson.moment !== null) {
+        stateFeedback.moment = metaJson.moment as MarcusMomentTag;
+        console.log(`📌 Marcus moment tag: ${stateFeedback.moment}`);
       }
       
       if (Object.keys(stateFeedback).length > 0) {

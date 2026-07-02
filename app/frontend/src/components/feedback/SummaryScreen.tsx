@@ -205,7 +205,7 @@ export default function SummaryScreen({
           {/* Demo Scheduled */}
           <div className="text-center py-2 sm:py-0">
             <p className={`text-lg sm:text-xl font-bold ${displayDemoScheduled ? "text-pitch-green" : "text-pitch-tertiary"}`}>
-              {displayDemoScheduled ? "Tue 2pm" : "—"}
+              {displayDemoScheduled ? "Yes" : "—"}
             </p>
             <p className="text-[9px] sm:text-[10px] font-bold text-pitch-text uppercase tracking-wider mt-0.5">
               Demo scheduled

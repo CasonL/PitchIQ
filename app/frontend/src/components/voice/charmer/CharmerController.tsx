@@ -123,6 +123,12 @@ const CharmerControllerContent = memo(({
   });
   const [isRinging, setIsRinging] = useState(false);
   const ringTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // First-call latency tip - shown once per browser to set expectations that Marcus warms up after turn 1
+  const [showLatencyTip] = useState(() => {
+    const seen = localStorage.getItem('marcus_latency_tip_seen') === 'true';
+    if (!seen) localStorage.setItem('marcus_latency_tip_seen', 'true');
+    return !seen;
+  });
   
   // Call details - generated during ring period
   const callDetailsRef = useRef<CallDetailsResult | null>(null);
@@ -357,6 +363,9 @@ const CharmerControllerContent = memo(({
   const callStartTimeRef = useRef<number>(0);
   const nameMentionCountRef = useRef<{[key: string]: number}>({});
   const sellerSignalsRef = useRef<Set<SellerSignalId>>(new Set());
+  const followUpAgreedRef = useRef<boolean>(false);
+  const irritationTimelineRef = useRef<Array<{ turn: number; irritation: number; stage?: string }>>([]);
+  const marcusMomentsRef = useRef<Array<{ turn: number; tag: string; stage?: string; userText: string; marcusText: string }>>([]); 
   /**
    * Generate session ID
    */
@@ -389,6 +398,9 @@ const CharmerControllerContent = memo(({
     deltaManagerRef.current.reset?.();
     
     sellerSignalsRef.current.clear();
+    followUpAgreedRef.current = false;
+    irritationTimelineRef.current = [];
+    marcusMomentsRef.current = [];
     lastObjectionRef.current = undefined;
     nameMentionCountRef.current = {};
     
@@ -574,7 +586,7 @@ const CharmerControllerContent = memo(({
         
         // Add to conversation history as clarification request
         setConversationHistory(prev => {
-          const next = [...prev, { role: 'user', content: userText }, { role: 'assistant', content: aiResponse.content }];
+          const next = [...prev, { role: 'user' as const, content: userText }, { role: 'assistant' as const, content: aiResponse.content }];
           conversationHistoryRef.current = next;
           return next;
         });
@@ -734,20 +746,55 @@ const CharmerControllerContent = memo(({
         console.log('🤖 [Seller Signal] AI mentioned (persistent)');
       }
       
-      // TURN-SPECIFIC: Mechanism explained (this turn's behavior)
+      // PERSISTENT: Mechanism explained (call fact)
       const mechanismPattern = /\b(we do that by|how it works is|the way it works|through|by|using|via|with|leveraging|powered by)\b.{0,120}\b(practice|analyze|simulate|roleplay|coach|score|detect|generate|train|personalize|adapt|integrate|record|review|recommend|platform|system|technology|AI|training|simulation|tool|process|method|approach)\b/i;
       if (mechanismPattern.test(userText)) {
-        turnSpecificSignals.add(SELLER_SIGNALS.EXPLAINED_MECHANISM);
-        console.log('🔧 [Seller Signal] Mechanism explained (turn-specific)');
+        sellerSignalsRef.current.add(SELLER_SIGNALS.EXPLAINED_MECHANISM);
+        console.log('🔧 [Seller Signal] Mechanism explained (persistent)');
       }
       
-      // TURN-SPECIFIC: Proof provided (this turn's behavior)
+      // PERSISTENT: Proof/example provided (call fact)
       const proofPattern = /\b(company|customer|client|team|organization)\s+(\w+\s+){0,3}(saw|achieved|got|reached|increased|improved|reduced)\b/i;
       const examplePattern = /\b(for example|such as|case study|real example|specific example)\b/i;
       const likeExamplePattern = /\blike\s+(a company|one customer|teams?|organizations?|businesses?|clients?)\b/i;
       if (proofPattern.test(userText) || examplePattern.test(userText) || likeExamplePattern.test(userText)) {
-        turnSpecificSignals.add(SELLER_SIGNALS.PROVIDED_PROOF);
-        console.log('✅ [Seller Signal] Proof/example provided (turn-specific)');
+        sellerSignalsRef.current.add(SELLER_SIGNALS.PROVIDED_PROOF);
+        console.log('✅ [Seller Signal] Proof/example provided (persistent)');
+      }
+
+      // PERSISTENT: Value proposition explained (call fact)
+      const valuePropPattern = /\b(so (that )?you can|so you|helps? you|allows? you|enables? you|benefit|value|outcome|saves?|improves?|increases?|reduces?|boosts?|advantage|roi|return)\b/i;
+      if (valuePropPattern.test(userText)) {
+        sellerSignalsRef.current.add(SELLER_SIGNALS.EXPLAINED_VALUE);
+        console.log('💡 [Seller Signal] Value proposition explained (persistent)');
+      }
+
+      // PERSISTENT: Fit to buyer explained (call fact)
+      const fitPattern = /\b(for your (team|business|company|situation|role|setup)|in your (context|world|situation)|your (team|reps|company)|similar to you|matches your|would help you|for a (team|company) like yours)\b/i;
+      if (fitPattern.test(userText)) {
+        sellerSignalsRef.current.add(SELLER_SIGNALS.EXPLAINED_FIT);
+        console.log('🎯 [Seller Signal] Fit to buyer explained (persistent)');
+      }
+
+      // PERSISTENT: Pricing/ROI mentioned (call fact)
+      const pricingPattern = /\b(price|cost|pricing|budget|investment|roi|return|pay|dollars?|per (month|year|user|seat|rep)|monthly|annual|license)\b/i;
+      if (pricingPattern.test(userText)) {
+        sellerSignalsRef.current.add(SELLER_SIGNALS.MENTIONED_PRICING);
+        console.log('💰 [Seller Signal] Pricing/ROI mentioned (persistent)');
+      }
+
+      // PERSISTENT: Timing/next steps asked (call fact)
+      const timingPattern = /\b(next steps?|schedule|follow up|call back|this week|next week|calendar|book a|15 minutes|30 minutes|quick (call|demo)|when (can|would|are|do))\b/i;
+      if (timingPattern.test(userText)) {
+        sellerSignalsRef.current.add(SELLER_SIGNALS.ASKED_TIMING);
+        console.log('📅 [Seller Signal] Timing/next steps asked (persistent)');
+      }
+
+      // PERSISTENT: Commitment asked (call fact)
+      const commitmentPattern = /\b(get started|sign up|onboard|move forward|commit|begin|start (a|the)|trial|pilot)\b/i;
+      if (commitmentPattern.test(userText)) {
+        sellerSignalsRef.current.add(SELLER_SIGNALS.ASKED_COMMITMENT);
+        console.log('🤝 [Seller Signal] Commitment asked (persistent)');
       }
       
       // TURN-SPECIFIC: Vague claim (this turn's behavior)
@@ -760,6 +807,13 @@ const CharmerControllerContent = memo(({
         console.log('💭 [Seller Signal] Vague claim detected (turn-specific)');
       }
       
+      // TURN-SPECIFIC: Rep disqualifies buyer / negative-reverse-selling tactic (this turn's tactic)
+      const disqualifyPattern = /\b(not (a |the )?(good |right )?fit|might not be (the )?(right )?(fit|for) you|not sure (this|it)('s| is) (right |a good fit )?for you|doesn't sound like (a fit|you('re| are) a fit|you need)|not (for|right for) (everyone|every (company|team|business)))\b/i;
+      if (disqualifyPattern.test(userText)) {
+        turnSpecificSignals.add(SELLER_SIGNALS.DISQUALIFIED_BUYER);
+        console.log('🚫 [Seller Signal] Rep disqualified buyer / negative reverse (turn-specific)');
+      }
+
       // TURN-SPECIFIC: Dodged mechanics question (this turn's behavior)
       const lastMarcusMessage = conversationHistoryRef.current[conversationHistoryRef.current.length - 1];
       const marcusAskedHow = lastMarcusMessage?.role === 'assistant' && /\b(how|what.*do|explain|walk me through)\b/i.test(lastMarcusMessage.content || '');
@@ -1405,7 +1459,7 @@ const CharmerControllerContent = memo(({
       
       // Add to history NOW - before speaking so interruptions don't lose this turn
       setConversationHistory(prev => {
-        const next = [...prev, { role: 'user', content: userText }, { role: 'assistant', content: aiResponse.content }];
+        const next = [...prev, { role: 'user' as const, content: userText }, { role: 'assistant' as const, content: aiResponse.content }];
         conversationHistoryRef.current = next;
         return next;
       });
@@ -1480,6 +1534,43 @@ const CharmerControllerContent = memo(({
       lastMarcusSpeakTimeRef.current = Date.now();
       lastMarcusMessageRef.current = aiResponse.content;
       console.log('✅ Marcus finished speaking');
+
+      // Capture follow_up_agreed signal (set once, never cleared)
+      if (aiResponse.stateFeedback?.follow_up_agreed) {
+        followUpAgreedRef.current = true;
+        console.log('🤝 [Signal] follow_up_agreed captured');
+      }
+
+      // Accumulate irritation timeline point
+      const turnNumber = Math.floor(conversationHistoryRef.current.length / 2);
+      if (aiResponse.stateFeedback?.marcus_irritation_delta !== undefined) {
+        const lastIrritation = irritationTimelineRef.current.at(-1)?.irritation ?? 0.2;
+        const newIrritation = Math.max(0, Math.min(1, lastIrritation + (aiResponse.stateFeedback.marcus_irritation_delta ?? 0)));
+        irritationTimelineRef.current.push({
+          turn: turnNumber,
+          irritation: newIrritation,
+          stage: aiResponse.stateFeedback.buyer_ladder_stage
+        });
+      }
+
+      // Accumulate moment tag
+      if (aiResponse.stateFeedback?.moment) {
+        marcusMomentsRef.current.push({
+          turn: turnNumber,
+          tag: aiResponse.stateFeedback.moment,
+          stage: aiResponse.stateFeedback.buyer_ladder_stage,
+          userText: conversationHistoryRef.current.at(-2)?.content ?? '',
+          marcusText: aiResponse.content
+        });
+        console.log(`📌 [Moment] ${aiResponse.stateFeedback.moment} @ turn ${turnNumber}`);
+      }
+
+      // Handle Marcus-initiated end_call
+      if (aiResponse.endCall) {
+        console.log('📵 Marcus initiated end_call — hanging up');
+        setTimeout(() => handleEndCall(), 800);
+        return;
+      }
       
       // Notify conversation turn manager that Marcus finished speaking
       conversationTurnManagerRef.current?.finishAssistantSpeaking();
@@ -2098,6 +2189,12 @@ const CharmerControllerContent = memo(({
       }
     }
     
+    // NETLIFY FUNCTION PREWARM: Open connection to /api/openai/chat early
+    // This wakes the Netlify function and opens the TCP connection to OpenRouter
+    fetch('/api/openai/chat', { method: 'OPTIONS', signal: AbortSignal.timeout(5000) })
+      .then(() => console.log('🔥 Netlify LLM function pre-warmed'))
+      .catch(() => console.log('⚠️ Netlify function ping failed (non-critical)'));
+    
     ringTimeoutRef.current = setTimeout(async () => {
       // Guard: check if this ring timeout is still for the active call
       if (activeCallIdRef.current !== ringSessionId) {
@@ -2599,9 +2696,8 @@ const CharmerControllerContent = memo(({
       };
     });
 
-    // Detect demo/meeting scheduled from final Marcus exchanges
-    const lastMarcusText = marcusExchanges.slice(-4).map(ex => ex.text || '').join(' ').toLowerCase();
-    const demoScheduled = /\b(schedule|set.?up|demo|meeting|follow.?up|next (week|tuesday|monday|wednesday|thursday|friday|month)|sounds good|happy to|interested|worth|let's talk|i'd like)\b/.test(lastMarcusText) && finalResistance <= 5;
+    // Detect demo/meeting scheduled via explicit Marcus signal (follow_up_agreed in META)
+    const demoScheduled = followUpAgreedRef.current;
 
     // Build highlight pills from derived metrics
     const highlights: Array<{ text: string; type: 'win' | 'miss' | 'tip' }> = [];
@@ -2641,6 +2737,8 @@ const CharmerControllerContent = memo(({
       highlights,
       detailedMoments,
       transcript: callTranscriptText,
+      irritationTimeline: irritationTimelineRef.current,
+      marcusMoments: marcusMomentsRef.current,
     };
     localStorage.setItem('lastCallMetrics', JSON.stringify(callMetrics));
     
@@ -2826,6 +2924,13 @@ const CharmerControllerContent = memo(({
                   ? "Your turn"
                   : "Connecting..."}
               </p>
+
+              {/* First-call expectation-setting tip */}
+              {showLatencyTip && (isRinging || isConnecting) && (
+                <p className="text-center text-[#8A8A8A]/70 text-[11px] leading-relaxed max-w-[260px] mx-auto -mt-6 mb-8">
+                  💡 Marcus's first reply can take a few seconds to warm up — it gets snappier after that.
+                </p>
+              )}
 
               {/* Call Controls */}
               <div className="flex items-center justify-center gap-6 mb-6">

@@ -193,21 +193,34 @@
       })();
 
       // Remove loading screen when React mounts
-      window.addEventListener('DOMContentLoaded', () => {
-        const root = document.getElementById('root');
-        const observer = new MutationObserver(() => {
-          if (root.children.length > 0) {
-            const loadingScreen = document.getElementById('loading-screen');
-            if (loadingScreen) {
-              loadingScreen.style.opacity = '0';
-              loadingScreen.style.transition = 'opacity 0.3s ease-out';
-              setTimeout(() => loadingScreen.remove(), 300);
-            }
-            observer.disconnect();
+      (() => {
+        let removed = false;
+        const hideLoadingScreen = () => {
+          if (removed) return;
+          removed = true;
+          const loadingScreen = document.getElementById('loading-screen');
+          if (loadingScreen) {
+            loadingScreen.style.opacity = '0';
+            loadingScreen.style.transition = 'opacity 0.3s ease-out';
+            setTimeout(() => loadingScreen.remove(), 300);
           }
-        });
-        observer.observe(root, { childList: true });
-      });
+        };
+
+        const root = document.getElementById('root');
+        // React's module script is deferred and may mount before this script's
+        // DOMContentLoaded listener ever fires, so check immediately first.
+        if (root && root.children.length > 0) {
+          hideLoadingScreen();
+        } else if (root) {
+          const observer = new MutationObserver(() => {
+            if (root.children.length > 0) {
+              hideLoadingScreen();
+              observer.disconnect();
+            }
+          });
+          observer.observe(root, { childList: true });
+        }
+      })();
     </script>
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>

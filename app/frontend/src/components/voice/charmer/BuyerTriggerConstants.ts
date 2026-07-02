@@ -62,7 +62,17 @@ export const SELLER_SIGNALS = {
   EXPLAINED_MECHANISM: 'seller_explained_mechanism',
   PROVIDED_PROOF: 'seller_provided_proof',
   VAGUE_CLAIM: 'seller_vague_claim',
-  DODGED_MECHANICS: 'seller_dodged_mechanics'
+  DODGED_MECHANICS: 'seller_dodged_mechanics',
+
+  // Extended buyer-ladder progression signals
+  EXPLAINED_VALUE: 'seller_explained_value',
+  EXPLAINED_FIT: 'seller_explained_fit',
+  MENTIONED_PRICING: 'seller_mentioned_pricing',
+  ASKED_TIMING: 'seller_asked_timing',
+  ASKED_COMMITMENT: 'seller_asked_commitment',
+
+  // Negative-reverse-selling / disqualification tactic
+  DISQUALIFIED_BUYER: 'seller_disqualified_buyer'
 } as const;
 
 /**

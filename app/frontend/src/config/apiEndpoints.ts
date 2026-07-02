@@ -19,8 +19,8 @@ const buildUrl = (path: string): string => {
 };
 
 export const API_ENDPOINTS = {
-  // OpenAI proxy endpoint (via backend)
-  OPENAI_CHAT: buildUrl('/api/openai/chat'),
+  // OpenAI proxy endpoint — always relative so Netlify function redirect handles it
+  OPENAI_CHAT: '/api/openai/chat',
   
   // Add other endpoints as needed
   // DEEPGRAM_TOKEN: buildUrl('/api/deepgram/token'),

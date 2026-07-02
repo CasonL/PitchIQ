@@ -69,7 +69,7 @@ export class MomentViewModelMapper {
       whatChanged: this.describeResistanceChange(moment.resistanceBefore, moment.resistanceAfter),
       humanConsequence: this.generateHumanConsequence(moment),
       
-      whyItMatters: moment.hiddenOpportunity || moment.whatHappened,
+      whyItMatters: moment.feedbackLine || moment.impactReason || moment.hiddenOpportunity || moment.whatHappened,
       marcusState: this.inferMarcusState(moment),
       
       // Include LLM enrichment if available
@@ -77,6 +77,7 @@ export class MomentViewModelMapper {
       impactDirection: moment.impactDirection,
       impactCategory: moment.impactCategory,
       impactReason: moment.impactReason,
+      feedbackLine: moment.feedbackLine,
       buyerStateChange: moment.buyerStateChange,
       isKeyMoment: moment.isKeyMoment
     };
@@ -114,7 +115,7 @@ export class MomentViewModelMapper {
       whatChanged: this.describeResistanceChange(moment.resistanceBefore, moment.resistanceAfter),
       humanConsequence: this.generateHumanConsequence(moment),
       
-      whyItMatters: moment.repeatThis || moment.whatHappened,
+      whyItMatters: moment.feedbackLine || moment.impactReason || moment.repeatThis || moment.whatHappened,
       marcusState: this.inferMarcusState(moment),
       
       // Include LLM enrichment if available (SuccessfulMoment has limited enrichment)
@@ -122,6 +123,7 @@ export class MomentViewModelMapper {
       impactDirection: 'positive', // SuccessfulMoments are always positive
       impactCategory: moment.impactCategory,
       impactReason: moment.impactReason,
+      feedbackLine: moment.feedbackLine,
       buyerStateChange: undefined, // SuccessfulMoment doesn't track this
       isKeyMoment: moment.isKeyMoment
     };
@@ -159,6 +161,23 @@ export class MomentViewModelMapper {
    * Infer reason tag from moment type and content
    */
   private static inferReasonTag(moment: CriticalMoment | SuccessfulMoment): ReasonTag {
+    // Prefer the LLM's actual judged category - it reasoned over real buyer
+    // state change, not just a keyword match on the rule-based candidate's type
+    if (moment.impactCategory) {
+      const categoryMap: Record<string, ReasonTag> = {
+        trust_break: 'Trust',
+        trust_build: 'Trust',
+        discovery: 'Discovery',
+        objection_handling: 'Fit',
+        pressure: 'Urgency',
+        clarity: 'Clarity',
+        value_articulation: 'Proof',
+        next_step_progress: 'Urgency'
+      };
+      const mapped = categoryMap[moment.impactCategory];
+      if (mapped) return mapped;
+    }
+    
     const type = moment.type.toLowerCase();
     
     if (type.includes('trust') || type.includes('tone')) return 'Trust';

@@ -64,6 +64,7 @@ export interface PostCallMomentViewModel {
   impactDirection?: 'positive' | 'negative' | 'neutral';
   impactCategory?: string;
   impactReason?: string;
+  feedbackLine?: string;
   buyerStateChange?: string;
   isKeyMoment?: boolean;
 }

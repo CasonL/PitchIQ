@@ -15,6 +15,7 @@ export interface ImpactJudgment {
   buyerStateChange: 'opened_up' | 'pulled_back' | 'neutral' | 'repeated_concern';
   isKeyMoment: boolean;
   feedbackLine: string; // Concise one-liner for UI
+  isFallback?: boolean; // True if the LLM call failed/errored - NOT a real "neutral" verdict
 }
 
 export class ImpactJudge {
@@ -222,7 +223,8 @@ Return ONLY valid JSON in this exact format:
       reason: 'Unable to evaluate impact',
       buyerStateChange: 'neutral',
       isKeyMoment: false,
-      feedbackLine: 'Review this moment for potential insights'
+      feedbackLine: 'Review this moment for potential insights',
+      isFallback: true
     };
   }
 

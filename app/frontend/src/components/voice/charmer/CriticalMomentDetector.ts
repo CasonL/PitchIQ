@@ -378,23 +378,32 @@ export class CriticalMomentDetector {
     // Build Map for O(1) lookup by sourcePairId
     const judgmentByPairId = new Map(judgments.map(j => [j.sourcePairId, j]));
     
-    return moments.map(moment => {
-      // Use stable ID to find matching judgment
-      const judgment = judgmentByPairId.get(moment.sourcePairId);
-      
-      if (!judgment) return moment;
-      
-      // Enrich with LLM data
-      return {
-        ...moment,
-        impactScore: judgment.impactScore,
-        impactDirection: judgment.direction,
-        impactCategory: judgment.category,
-        impactReason: judgment.reason,
-        buyerStateChange: judgment.buyerStateChange,
-        isKeyMoment: judgment.isKeyMoment
-      };
-    });
+    return moments
+      .map(moment => {
+        // Use stable ID to find matching judgment
+        const judgment = judgmentByPairId.get(moment.sourcePairId);
+        
+        // No judgment (or LLM call failed) - keep the rule-based candidate as-is
+        if (!judgment || judgment.isFallback) return moment;
+        
+        // LLM actually judged this and disagrees it was a negative moment - the
+        // rule-based heuristic was a false positive, so discard it rather than
+        // enrich it with contradicting data
+        if (judgment.direction !== 'negative') return null;
+        
+        // Enrich with LLM data
+        return {
+          ...moment,
+          impactScore: judgment.impactScore,
+          impactDirection: judgment.direction,
+          impactCategory: judgment.category,
+          impactReason: judgment.reason,
+          feedbackLine: judgment.feedbackLine,
+          buyerStateChange: judgment.buyerStateChange,
+          isKeyMoment: judgment.isKeyMoment
+        };
+      })
+      .filter((m): m is CriticalMoment => m !== null);
   }
   
   /**
@@ -408,20 +417,29 @@ export class CriticalMomentDetector {
     // Build Map for O(1) lookup by sourcePairId
     const judgmentByPairId = new Map(judgments.map(j => [j.sourcePairId, j]));
     
-    return successes.map(success => {
-      // Use stable ID to find matching judgment
-      const judgment = judgmentByPairId.get(success.sourcePairId);
-      
-      if (!judgment || judgment.impactScore <= 0) return success;
-      
-      return {
-        ...success,
-        impactScore: judgment.impactScore,
-        impactCategory: judgment.category,
-        impactReason: judgment.reason,
-        isKeyMoment: judgment.isKeyMoment
-      };
-    });
+    return successes
+      .map(success => {
+        // Use stable ID to find matching judgment
+        const judgment = judgmentByPairId.get(success.sourcePairId);
+        
+        // No judgment (or LLM call failed) - keep the rule-based candidate as-is
+        if (!judgment || judgment.isFallback) return success;
+        
+        // LLM actually judged this and disagrees it was a real win - the
+        // rule-based heuristic was a false positive, so discard it rather than
+        // let it survive unenriched with a misleading label
+        if (judgment.direction !== 'positive' || judgment.impactScore <= 0) return null;
+        
+        return {
+          ...success,
+          impactScore: judgment.impactScore,
+          impactCategory: judgment.category,
+          impactReason: judgment.reason,
+          feedbackLine: judgment.feedbackLine,
+          isKeyMoment: judgment.isKeyMoment
+        };
+      })
+      .filter((s): s is SuccessfulMoment => s !== null);
   }
   
   /**
@@ -1491,6 +1509,13 @@ export class CriticalMomentDetector {
     const openEndedPatterns = [
       /\b(what|how|why|tell me|describe|explain|walk me through)\b/i
     ];
+    // Small talk / pleasantries that coincidentally match the open-ended patterns
+    // above (e.g. "how's it going?") but aren't real discovery questions
+    const greetingPatterns = [
+      /\bhow('s| is| are)\s+(it|things|everything|you)\s*(going|doing)?\b/i,
+      /\bhow\s+are\s+you\b/i,
+      /\bwhat'?s\s+up\b/i
+    ];
     
     for (let i = 0; i < exchanges.length - 1; i++) {
       const userMsg = exchanges[i];
@@ -1498,14 +1523,19 @@ export class CriticalMomentDetector {
       
       if (userMsg.speaker === 'user' && marcusMsg.speaker === 'marcus') {
         const isOpenEnded = openEndedPatterns.some(pattern => pattern.test(userMsg.text));
+        const isGreeting = greetingPatterns.some(pattern => pattern.test(userMsg.text));
         const isQuestion = userMsg.text.includes('?');
         
-        if (isOpenEnded && isQuestion) {
+        if (isOpenEnded && isQuestion && !isGreeting) {
           // Check if Marcus opened up (longer response or pain revealed)
           const marcusWordCount = marcusMsg.text.split(/\s+/).length;
-          const resistanceDrop = (userMsg.resistanceLevel || 7) - (marcusMsg.resistanceLevel || 7);
+          // Only trust resistanceDrop if both sides actually have tracked data -
+          // userMsg.resistanceLevel is never populated by the caller, so defaulting
+          // both sides to the same fallback (7) fabricates a fake positive delta.
+          const hasResistanceData = userMsg.resistanceLevel !== undefined && marcusMsg.resistanceLevel !== undefined;
+          const resistanceDrop = hasResistanceData ? userMsg.resistanceLevel! - marcusMsg.resistanceLevel! : 0;
           
-          if (marcusWordCount > 20 || marcusMsg.painPointRevealed || resistanceDrop > 0.3) {
+          if (marcusWordCount > 20 || marcusMsg.painPointRevealed || (hasResistanceData && resistanceDrop > 0.3)) {
             const matchingPair = this.findMatchingPair(pairs, userMsg, marcusMsg);
             
             wins.push({

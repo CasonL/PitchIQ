@@ -302,6 +302,20 @@ export default function SummaryScreen({
       </motion.div>
       )}
 
+      {/* Story Block 3.5: Manager diagnostics teaser */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.95, duration: 0.4 }}
+        className="flex items-center justify-center gap-2.5 mb-8 sm:mb-10 px-4 py-3 rounded-xl bg-pitch-muted/60 border border-pitch-border max-w-xl mx-auto"
+      >
+        <Sparkles className="w-4 h-4 text-pitch-orange shrink-0" />
+        <p className="text-xs sm:text-[13px] text-pitch-secondary leading-snug">
+          <span className="font-semibold text-pitch-text">Every moment above is logged.</span>{' '}
+          Manager dashboards that surface a rep's recurring skill gaps across calls — before they cost you a deal — are coming soon.
+        </p>
+      </motion.div>
+
       {/* Story Block 4: "What do I do now?" */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}

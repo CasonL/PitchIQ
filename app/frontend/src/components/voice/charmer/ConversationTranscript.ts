@@ -75,6 +75,7 @@ export interface CriticalMoment {
   impactDirection?: 'positive' | 'negative' | 'neutral';
   impactCategory?: ImpactCategory;
   impactReason?: string; // LLM explanation of what changed
+  feedbackLine?: string; // LLM's concise coaching sentence for the rep
   buyerStateChange?: 'opened_up' | 'pulled_back' | 'neutral' | 'repeated_concern';
   isKeyMoment?: boolean; // Top 1 good or top 1 bad
   
@@ -111,6 +112,7 @@ export interface SuccessfulMoment {
   impactScore?: number; // 1 to 5, from LLM
   impactCategory?: ImpactCategory;
   impactReason?: string; // LLM explanation
+  feedbackLine?: string; // LLM's concise coaching sentence for the rep
   isKeyMoment?: boolean; // Top 1 positive moment
 }
 

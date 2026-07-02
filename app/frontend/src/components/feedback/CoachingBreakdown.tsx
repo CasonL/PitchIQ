@@ -207,23 +207,30 @@ export default function CoachingBreakdown({
                   Coaching Breakdown
                 </p>
 
-                {/* What Worked */}
-                <div className="border-l-[3px] border-l-pitch-border pl-4 py-1.5 mb-5">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <Check className="w-3.5 h-3.5 text-pitch-tertiary" />
-                    <span className="text-[10px] font-bold text-pitch-tertiary uppercase tracking-wider">What Worked</span>
-                  </div>
-                  <p className="text-sm text-pitch-secondary leading-relaxed"><MetricText text={moment.whatWorked} /></p>
-                </div>
+                {/* What Worked - only shown when there's actually something to credit */}
+                {moment.whatWorked && (
+                  <>
+                    <div className="border-l-[3px] border-l-pitch-border pl-4 py-1.5 mb-5">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Check className="w-3.5 h-3.5 text-pitch-tertiary" />
+                        <span className="text-[10px] font-bold text-pitch-tertiary uppercase tracking-wider">What Worked</span>
+                      </div>
+                      <p className="text-sm text-pitch-secondary leading-relaxed"><MetricText text={moment.whatWorked} /></p>
+                    </div>
+                    <div className="h-6" />
+                  </>
+                )}
 
                 {/* Sharpen This */}
-                <div className="h-6" />
                 <div className="border-l-[3px] border-l-pitch-border pl-4 py-1.5 mb-5">
                   <div className="flex items-center gap-1.5 mb-2">
                     <ArrowRight className="w-3.5 h-3.5 text-pitch-orange" />
                     <span className="text-[10px] font-bold text-pitch-orange uppercase tracking-wider">Sharpen This</span>
                   </div>
-                  <p className="text-sm text-pitch-secondary leading-relaxed"><MetricText text={moment.sharpenThis} /> <strong className="text-pitch-text font-semibold">{moment.sharpenBold}</strong>.</p>
+                  <p className="text-sm text-pitch-secondary leading-relaxed"><MetricText text={moment.sharpenThis} /></p>
+                  {moment.sharpenBold && (
+                    <p className="text-sm text-pitch-text font-semibold mt-2">{moment.sharpenBold}</p>
+                  )}
                   <div className="mt-3 bg-pitch-orange-light/30 border border-pitch-orange/15 rounded-lg p-3">
                     <p className="text-[10px] font-bold text-pitch-orange uppercase tracking-wider mb-1.5">{moment.quoteTag}</p>
                     <p className="text-sm text-pitch-text font-medium leading-relaxed">"{moment.quoteText}"</p>

@@ -24,6 +24,7 @@ import { StrategicMomentCoach } from './StrategicMomentCoach';
 import { StrategicMomentDetector } from './StrategicMomentDetector';
 import { useOverseer } from './useOverseer';
 import { MomentViewModelMapper } from './MomentViewModelMapper';
+import type { PostCallMomentViewModel } from './PostCallMomentViewModel';
 import { HybridFeedbackGenerator } from './HybridFeedbackGenerator';
 import { MomentFeedbackIntegration } from './MomentFeedbackIntegration';
 import { MomentFeedbackGenerator } from './MomentFeedbackGenerator';
@@ -2593,6 +2594,44 @@ const CharmerControllerContent = memo(({
       `${metrics.objectionsRaised} raised, ${metrics.objectionsAddressed} addressed` : 
       "0 handled";
     
+    // Category-aware wrong-answer pools for the quiz, so distractors are at least
+    // topically plausible instead of the same generic filler for every moment
+    const CATEGORY_DISTRACTORS: Record<string, string[]> = {
+      trust_break: ['Push harder on the pitch to regain control of the conversation', 'Ignore the pushback and move straight to the next talking point'],
+      trust_build: ['Keep the conversation focused on product features', 'Rush ahead to pricing before addressing their concern'],
+      discovery: ['Jump straight to your pitch instead of asking a follow-up question', 'Assume you already know their biggest pain point'],
+      objection_handling: ['Dismiss the objection and change the subject', 'Repeat the same pitch louder'],
+      pressure: ['Apply more urgency to force a decision', 'Threaten to end the call if they don\'t commit'],
+      clarity: ['Add more technical jargon to sound credible', 'Give a longer, more detailed explanation'],
+      value_articulation: ['List every feature instead of the one that matters to them', 'Compare yourself to competitors instead of their needs'],
+      next_step_progress: ['Avoid proposing a concrete next step', 'Let the prospect decide when to follow up'],
+    };
+    const GENERIC_DISTRACTORS = ['Keep focusing on product features', 'Skip to closing immediately', 'Talk more about your company background'];
+
+    const buildQuiz = (vm: PostCallMomentViewModel, isPositiveMoment: boolean) => {
+      const correctAnswer = vm.whyItMatters || vm.humanConsequence || 'Address the concern directly';
+      const pool = (vm.impactCategory && CATEGORY_DISTRACTORS[vm.impactCategory]) || GENERIC_DISTRACTORS;
+      const wrongAnswers = pool.slice(0, 2);
+
+      const options = [
+        { text: correctAnswer, correct: true },
+        { text: wrongAnswers[0], correct: false },
+        { text: wrongAnswers[1] || GENERIC_DISTRACTORS[0], correct: false },
+      ];
+      // Shuffle so the correct answer isn't always option A
+      for (let i = options.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [options[i], options[j]] = [options[j], options[i]];
+      }
+
+      return {
+        question: isPositiveMoment ? 'Why did this response work?' : 'What should you have done differently here?',
+        options,
+        explanation: vm.whyItMatters || '',
+        howResponse: vm.humanConsequence || '',
+      };
+    };
+
     // Map PostCallMomentViewModels → MomentData shape for PostCallReviewPage/TimelineScreen
     const detailedMoments = viewModels.map((vm, index) => {
       const isPositive = ['best_moment', 'strong_move', 'turning_point', 'strong_attempt'].includes(vm.classification);
@@ -2632,20 +2671,15 @@ const CharmerControllerContent = memo(({
         sharpenBold: vm.humanConsequence || '',
         quoteTag: vm.reasonTag || 'Discovery',
         quoteText: (vm.userMessage || '').substring(0, 120),
-        beforeScore: Math.round(resistBefore * 10),
-        beforeContext: vm.surroundingContext?.before?.[0]?.text || vm.userMessage || '',
-        afterScore: Math.round(resistAfter * 10),
+        // Scores use engagement (100 - resistance) so higher is always better,
+        // matching the green/red convention in the UI. beforeContext shows the
+        // actual flagged exchange, not the preceding turn, so it matches what's
+        // being critiqued/practiced elsewhere on the card.
+        beforeScore: engBefore,
+        beforeContext: vm.userMessage || vm.surroundingContext?.before?.[0]?.text || '',
+        afterScore: engAfter,
         afterContext: vm.humanConsequence || '',
-        quiz: {
-          question: 'What was the key takeaway from this exchange?',
-          options: [
-            { text: vm.humanConsequence || 'Address the concern directly', correct: true },
-            { text: 'Keep focusing on product features', correct: false },
-            { text: 'Skip to closing immediately', correct: false },
-          ],
-          explanation: vm.whyItMatters || '',
-          howResponse: vm.humanConsequence || '',
-        },
+        quiz: buildQuiz(vm, isPositive),
       };
     });
 

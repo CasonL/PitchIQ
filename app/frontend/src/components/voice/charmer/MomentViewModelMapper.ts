@@ -219,20 +219,30 @@ export class MomentViewModelMapper {
    * Generate title descriptor from moment
    */
   private static generateTitleDescriptor(moment: CriticalMoment | SuccessfulMoment): string {
-    const type = moment.type.toLowerCase();
+    // Exact matches first - substring matching previously conflated opposite
+    // outcomes (e.g. 'missed_pain'.includes('pain') was returning the same
+    // descriptor as 'pain_discovery', producing self-contradictory titles
+    // like "Mistake: pain point uncovered")
+    const exactMap: Record<string, string> = {
+      missed_pain: 'pain point missed',
+      pain_discovery: 'pain point uncovered',
+      trust_window: 'trust window missed',
+      trust_moment: 'trust built',
+      objection_handled: 'objection handled well',
+      objection_mishandled: 'objection mishandled',
+      repeated_objection: 'repeated objection',
+      repetition: 'repeated point',
+      rambling: 'lost in details',
+      brevity_win: 'concise response',
+      active_listening: 'active listening',
+      resistance_drop: 'resistance dropped',
+      resistance_spike: 'resistance spiked',
+      missed_opening: 'weak opening',
+      tone_issue: 'tone issue',
+      permission_opener: 'permission-based opener'
+    };
     
-    if (type.includes('pain')) return 'pain point uncovered';
-    if (type.includes('trust')) return 'trust moment';
-    if (type.includes('objection_handled')) return 'objection handled well';
-    if (type.includes('objection_mishandled')) return 'objection missed';
-    if (type.includes('rambl')) return 'lost in details';
-    if (type.includes('brevity')) return 'concise response';
-    if (type.includes('listen')) return 'active listening';
-    if (type.includes('resistance_drop')) return 'resistance dropped';
-    if (type.includes('resistance_spike')) return 'resistance spiked';
-    if (type.includes('repeat')) return 'repeated objection';
-    
-    return 'key exchange';
+    return exactMap[moment.type] || 'key exchange';
   }
   
   /**

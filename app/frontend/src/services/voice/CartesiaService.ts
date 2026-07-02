@@ -164,7 +164,28 @@ export class CartesiaService {
         this.apiKey = key;
       }
 
-      if (!this.isConnected) await this.connectWebSocket();
+      if (!this.isConnected) {
+        try {
+          await this.connectWebSocket();
+        } catch (connectError) {
+          // Transient network blips / Cartesia-side hiccups shouldn't leave Marcus
+          // silent for the rest of the call - retry once with a fresh key, since a
+          // stale/rotated key could also cause the same generic WebSocket error.
+          console.warn('[Cartesia] WebSocket connect failed, retrying once:', (connectError as Error)?.message);
+          this.apiKey = '';
+          await new Promise(resolve => setTimeout(resolve, 500));
+          try {
+            const response = await fetch('/api/cartesia/token');
+            if (response.ok) {
+              const data = await response.json();
+              this.apiKey = data.key || data.api_key || data.token || '';
+            }
+          } catch {
+            // Ignore - connectWebSocket below will surface a clear error if the key is still missing
+          }
+          await this.connectWebSocket();
+        }
+      }
 
       // continueAfterCurrent: wait for current playback to finish naturally (no interruption)
       if (options.continueAfterCurrent && this.playbackCompleteResolve) {
